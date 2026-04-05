@@ -1,0 +1,132 @@
+---
+import type { ServiceItem } from "@/types";
+import Badge from "@/components/ui/Badge.astro";
+
+interface Props {
+  service: ServiceItem;
+  index: number;
+}
+
+const { service, index } = Astro.props;
+
+const iconSvgs: Record<string, string> = {
+  wrench:
+    '<svg class="w-7 h-7 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  bot: '<svg class="w-7 h-7 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
+  "graduation-cap":
+    '<svg class="w-7 h-7 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>',
+  code: '<svg class="w-7 h-7 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+};
+---
+
+<section id={service.id} class={`py-16 ${index % 2 === 1 ? "bg-gray-50/50" : ""}`}>
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div class="animate-on-scroll">
+      <!-- ヘッダー -->
+      <div class="flex items-center gap-4 mb-6">
+        <div class="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center shrink-0">
+          <Fragment set:html={iconSvgs[service.icon] || ""} />
+        </div>
+        <div>
+          <h2 class="text-2xl font-bold text-foreground">{service.title}</h2>
+          <p class="text-sm text-muted-foreground mt-1">{service.targetAudience}</p>
+        </div>
+      </div>
+
+      <!-- 説明 -->
+      <p class="text-muted-foreground leading-relaxed mb-8">
+        {service.longDescription}
+      </p>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- 左カラム: こんな悩みを解決 + サービス詳細 -->
+        <div class="lg:col-span-2 space-y-8">
+          <!-- こんな悩みを解決 -->
+          <div>
+            <h3 class="text-lg font-semibold text-foreground mb-4">こんな悩みを解決します</h3>
+            <ul class="space-y-3">
+              {service.painPoints.map((point) => (
+                <li class="flex items-start gap-3">
+                  <svg class="w-5 h-5 text-teal-500 mt-0.5 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  <span class="text-sm text-muted-foreground">{point}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <!-- サービス詳細 -->
+          <div>
+            <h3 class="text-lg font-semibold text-foreground mb-4">サービス内容</h3>
+            <div class="space-y-4">
+              {service.details.map((detail) => (
+                <div class="bg-white/80 ring-1 ring-gray-950/5 shadow-sm rounded-2xl p-5">
+                  <h4 class="font-medium text-foreground mb-2">{detail.heading}</h4>
+                  <p class="text-sm text-muted-foreground leading-relaxed">{detail.body}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <!-- 使用技術 -->
+          {service.technologies && service.technologies.length > 0 && (
+            <div>
+              <h3 class="text-lg font-semibold text-foreground mb-3">使用技術</h3>
+              <div class="flex flex-wrap gap-2">
+                {service.technologies.map((tech) => (
+                  <Badge variant="teal">{tech}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <!-- 対象外 -->
+          {service.excludes && service.excludes.length > 0 && (
+            <div>
+              <h3 class="text-sm font-medium text-muted-foreground mb-2">対象外</h3>
+              <div class="flex flex-wrap gap-2">
+                {service.excludes.map((item) => (
+                  <Badge variant="default">{item}</Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <!-- 右カラム: 料金プラン -->
+        <div>
+          <div class="bg-white/80 ring-1 ring-gray-950/5 shadow-sm rounded-2xl p-6 sticky top-24">
+            <h3 class="text-lg font-semibold text-foreground mb-1">料金プラン</h3>
+            <p class="text-xs text-teal-600 font-medium mb-5">モニター価格適用中</p>
+            <div class="space-y-4">
+              {service.pricing.map((plan) => (
+                <div class="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
+                  <p class="text-sm font-medium text-foreground mb-2">{plan.name}</p>
+                  <div class="flex items-baseline gap-2">
+                    {plan.monitorPrice ? (
+                      <>
+                        <span class="text-lg font-bold text-teal-600">{plan.monitorPrice}</span>
+                        <span class="text-xs text-muted-foreground line-through">{plan.price}</span>
+                      </>
+                    ) : (
+                      <span class="text-lg font-bold text-foreground">{plan.price}</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div class="mt-6">
+              <a
+                href="/contact"
+                class="block w-full text-center px-4 py-2.5 bg-teal-500 text-white text-sm font-medium rounded-xl hover:bg-teal-600 transition-colors"
+              >
+                お問い合わせ
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
