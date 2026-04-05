@@ -55,10 +55,29 @@ export interface StatItem {
   description?: string;
 }
 
+export interface ServiceDetail {
+  heading: string;
+  body: string;
+}
+
+export interface PricingPlan {
+  name: string;
+  price: string;
+  monitorPrice?: string;
+}
+
 export interface ServiceItem {
+  id: string;
   title: string;
   description: string;
   icon: string;
+  longDescription: string;
+  targetAudience: string;
+  painPoints: string[];
+  details: ServiceDetail[];
+  pricing: PricingPlan[];
+  technologies?: string[];
+  excludes?: string[];
 }
 
 export interface NavItem {
