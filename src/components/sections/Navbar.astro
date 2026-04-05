@@ -1,0 +1,70 @@
+---
+import { navItems } from "@/data";
+import MobileMenu from "@/components/islands/MobileMenu";
+import Button from "@/components/ui/Button.astro";
+
+const currentPath = Astro.url.pathname;
+---
+
+<header id="main-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
+  <nav class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <div class="flex h-16 items-center justify-between">
+      <a
+        href="/"
+        class="text-lg font-bold tracking-tight text-foreground hover:opacity-80 transition-opacity"
+      >
+        shogoworks
+      </a>
+
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex items-center gap-1">
+        {
+          navItems.map((item) => (
+            <a
+              href={item.href}
+              class:list={[
+                "px-3 py-2 text-sm transition-colors rounded-md hover:bg-gray-100",
+                currentPath === item.href
+                  ? "text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              ]}
+            >
+              {item.label}
+            </a>
+          ))
+        }
+        <Button href="/contact" size="sm" class="ml-3">お問い合わせ</Button>
+      </div>
+
+      <!-- Mobile Menu (React Island) -->
+      <MobileMenu
+        client:load
+        navItems={navItems}
+        currentPath={currentPath}
+      />
+    </div>
+  </nav>
+</header>
+
+<script>
+  function setupScrollHeader() {
+    const header = document.getElementById("main-header");
+    if (!header) return;
+
+    const onScroll = () => {
+      if (window.scrollY > 20) {
+        header.classList.add("bg-white/95", "shadow-sm", "border-b", "border-gray-100", "backdrop-blur-md");
+        header.classList.remove("bg-transparent");
+      } else {
+        header.classList.remove("bg-white/95", "shadow-sm", "border-b", "border-gray-100", "backdrop-blur-md");
+        header.classList.add("bg-transparent");
+      }
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+    onScroll();
+  }
+
+  setupScrollHeader();
+  document.addEventListener("astro:page-load", setupScrollHeader);
+</script>

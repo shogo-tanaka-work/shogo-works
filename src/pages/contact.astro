@@ -1,0 +1,11 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import ContactSection from "@/components/sections/Contact.astro";
+import ContactForm from "@/components/islands/ContactForm";
+---
+
+<BaseLayout title="Contact | shogoworks" description="お問い合わせ">
+  <ContactSection>
+    <ContactForm client:visible />
+  </ContactSection>
+</BaseLayout>

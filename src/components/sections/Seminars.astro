@@ -1,0 +1,70 @@
+---
+import { upcomingSeminars } from "@/data";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Button from "@/components/ui/Button.astro";
+---
+
+<section class="py-20">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <SectionHeader
+      title="Seminars"
+      subtitle="開催予定のセミナー"
+    />
+
+    {upcomingSeminars.length === 0 ? (
+      <div class="text-center py-12 animate-on-scroll">
+        <p class="text-muted-foreground">現在、開催予定のセミナーはありません。</p>
+        <p class="text-sm text-muted-foreground mt-2">
+          新しいセミナーが決まり次第、こちらでお知らせします。
+        </p>
+      </div>
+    ) : (
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {upcomingSeminars.map((seminar, index) => (
+          <div
+            class={`relative glass rounded-2xl p-6 hover:border-teal-500/20 transition-colors overflow-hidden animate-on-scroll stagger-${index + 1}`}
+          >
+            <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-teal-500/10 to-transparent rounded-bl-full"></div>
+
+            <div class="flex items-start justify-between mb-4 relative z-10">
+              <h3 class="font-semibold text-foreground pr-4">{seminar.title}</h3>
+              <span
+                class={`flex-shrink-0 px-3 py-1 text-xs rounded-full font-medium ${
+                  seminar.status === "残り5席"
+                    ? "bg-red-500/10 text-red-400 border border-red-500/20"
+                    : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                }`}
+              >
+                {seminar.status}
+              </span>
+            </div>
+
+            <div class="space-y-2 mb-5 relative z-10">
+              <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                <svg class="w-4 h-4 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                <span>{seminar.date}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                <svg class="w-4 h-4 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                <span>{seminar.time}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                <svg class="w-4 h-4 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                <span>{seminar.venue}</span>
+              </div>
+              <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                <svg class="w-4 h-4 text-teal-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                <span>{seminar.capacity}</span>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between relative z-10">
+              <span class="text-lg font-bold gradient-text">{seminar.price}</span>
+              <Button size="sm">詳細・申込み</Button>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
+  </div>
+</section>

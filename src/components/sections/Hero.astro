@@ -1,0 +1,62 @@
+---
+import Button from "@/components/ui/Button.astro";
+---
+
+<section class="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
+  <!-- Background decorations -->
+  <div class="absolute top-1/4 -left-32 w-96 h-96 bg-gradient-to-br from-yellow-200/30 via-pink-200/20 to-purple-200/30 rounded-full blur-3xl"></div>
+  <div class="absolute bottom-1/4 -right-32 w-96 h-96 bg-gradient-to-br from-purple-200/20 via-teal-200/20 to-blue-200/30 rounded-full blur-3xl"></div>
+
+  <div class="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-20">
+    <div class="flex flex-col md:flex-row items-center gap-12 md:gap-16">
+      <!-- Profile Image -->
+      <div class="flex-shrink-0 animate-scale-in">
+        <div class="relative w-40 h-40 md:w-52 md:h-52 rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-950/5">
+          <div class="absolute inset-0 rounded-2xl gradient-border z-10"></div>
+          <img
+            src="/assets/images/profile.jpg"
+            alt="田中 省伍"
+            class="w-full h-full object-cover"
+            style="object-position: center 25%;"
+            loading="eager"
+          />
+        </div>
+      </div>
+
+      <!-- Text Content -->
+      <div class="flex-1 text-center md:text-left">
+        <p class="text-sm font-medium text-teal-600 mb-3 tracking-wide uppercase font-mono animate-fade-in-up" style="animation-delay: 0.1s;">
+          System Engineer & AI Instructor
+        </p>
+
+        <h1 class="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight mb-4 animate-fade-in-up" style="animation-delay: 0.2s;">
+          <span class="text-foreground">田中 省伍</span>
+        </h1>
+
+        <p class="text-xl sm:text-2xl font-medium mb-6 animate-fade-in-up" style="animation-delay: 0.3s;">
+          <span class="gradient-text">Web開発 × AI</span>
+          <span class="text-muted-foreground"> で、</span>
+          <br class="sm:hidden" />
+          <span class="text-foreground">ビジネスの課題を解決する</span>
+        </p>
+
+        <p class="text-muted-foreground leading-relaxed mb-8 max-w-lg mx-auto md:mx-0 animate-fade-in-up" style="animation-delay: 0.4s;">
+          Webアプリケーション開発とAI技術指導・AI導入支援を専門としています。
+          企業・個人向けにAI活用セミナーやレッスンも開催中。
+        </p>
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-center md:justify-start animate-fade-in-up" style="animation-delay: 0.5s;">
+          <Button href="/contact" size="lg">
+            お問い合わせ
+            <svg class="ml-2 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+            </svg>
+          </Button>
+          <Button href="/portfolio" variant="outline" size="lg">
+            実績を見る
+          </Button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
