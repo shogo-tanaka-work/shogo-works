@@ -1,0 +1,52 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import ServiceDetail from "@/components/sections/ServiceDetail.astro";
+import { services } from "@/data";
+---
+
+<BaseLayout title="Services | shogoworks" description="提供サービス一覧 - 自動化ツール開発、AI伴走支援、企業向け研修、Web開発">
+  <section class="pt-20 pb-8">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <SectionHeader
+        title="Services"
+        subtitle="ビジネスの課題をテクノロジーで解決します。すべてのプランでモニター価格を適用中です。"
+      />
+
+      <!-- サービス一覧ナビ -->
+      <div class="flex flex-wrap justify-center gap-3 animate-on-scroll">
+        {services.map((service) => (
+          <a
+            href={`#${service.id}`}
+            class="px-4 py-2 text-sm font-medium text-muted-foreground bg-white/80 ring-1 ring-gray-950/5 rounded-full hover:text-teal-600 hover:ring-teal-500/20 transition-all"
+          >
+            {service.title}
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  {services.map((service, index) => (
+    <ServiceDetail service={service} index={index} />
+  ))}
+
+  <!-- CTA -->
+  <section class="py-16">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8 text-center animate-on-scroll">
+      <h2 class="text-2xl font-bold text-foreground mb-4">まずはお気軽にご相談ください</h2>
+      <p class="text-muted-foreground mb-8">
+        サービスの詳細やお見積もりなど、お気軽にお問い合わせください。初回相談は無料です。
+      </p>
+      <a
+        href="/contact"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-teal-500 text-white font-medium rounded-xl hover:bg-teal-600 transition-colors"
+      >
+        お問い合わせ
+        <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M5 12h14M12 5l7 7-7 7" />
+        </svg>
+      </a>
+    </div>
+  </section>
+</BaseLayout>
