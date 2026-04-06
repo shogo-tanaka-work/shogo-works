@@ -1,0 +1,44 @@
+---
+import Card from "@/components/ui/Card.astro";
+import Badge from "@/components/ui/Badge.astro";
+import type { CategoryMeta } from "@/types";
+
+interface Props {
+  category: CategoryMeta;
+  articleCount: number;
+}
+
+const { category, articleCount } = Astro.props;
+
+const iconMap: Record<string, string> = {
+  brain: "🧠",
+  code: "💻",
+  server: "⚙️",
+  rocket: "🚀",
+};
+---
+
+<a href={`/knowledge/${category.slug}`} class="block group">
+  <Card hover class="h-full">
+    <div class="flex items-start gap-4">
+      <div
+        class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-2xl shrink-0"
+      >
+        {iconMap[category.icon] ?? "📄"}
+      </div>
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <h3
+            class="text-lg font-semibold text-foreground group-hover:text-teal-600 transition-colors"
+          >
+            {category.label}
+          </h3>
+          <Badge variant="default">{articleCount}記事</Badge>
+        </div>
+        <p class="text-sm text-muted-foreground line-clamp-2">
+          {category.description}
+        </p>
+      </div>
+    </div>
+  </Card>
+</a>
