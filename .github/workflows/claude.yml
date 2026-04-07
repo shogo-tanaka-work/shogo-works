@@ -39,7 +39,7 @@ jobs:
       - name: Setup Node.js（スタックに応じて書き換える）
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - run: npm ci
