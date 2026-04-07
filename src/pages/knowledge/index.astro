@@ -4,16 +4,13 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 import CategoryCard from "@/components/knowledge/CategoryCard.astro";
 import ArticleCard from "@/components/knowledge/ArticleCard.astro";
-import { categories } from "@/data/knowledge";
-import {
-  getPublishedArticles,
-  getCategoryArticleCount,
-} from "@/utils/knowledge";
+import { categories, externalArticles } from "@/data/knowledge";
+import { mergeArticles, getUnifiedCategoryCount } from "@/utils/knowledge";
 
 const allEntries = await getCollection("knowledge");
-const published = getPublishedArticles(allEntries);
-const counts = getCategoryArticleCount(allEntries);
-const latestArticles = published.slice(0, 6);
+const unified = mergeArticles(externalArticles, allEntries);
+const counts = getUnifiedCategoryCount(externalArticles, allEntries);
+const latestArticles = unified.slice(0, 6);
 
 function getCategoryLabel(slug: string): string {
   return categories.find((c) => c.slug === slug)?.label ?? slug;
@@ -54,13 +51,14 @@ function getCategoryLabel(slug: string): string {
               {latestArticles.map((article, i) => (
                 <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
                   <ArticleCard
-                    title={article.data.title}
-                    description={article.data.description}
-                    category={article.data.category}
-                    categoryLabel={getCategoryLabel(article.data.category)}
-                    tags={article.data.tags}
-                    publishedAt={article.data.publishedAt}
-                    href={`/knowledge/${article.data.category}/${article.id.split("/").pop()}`}
+                    title={article.title}
+                    description={article.description}
+                    categoryLabel={getCategoryLabel(article.category)}
+                    tags={article.tags}
+                    publishedAt={article.publishedAt}
+                    href={article.href}
+                    isExternal={article.isExternal}
+                    platform={article.platform}
                   />
                 </div>
               ))}

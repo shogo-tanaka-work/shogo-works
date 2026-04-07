@@ -4,7 +4,13 @@ import {
   getArticlesByCategory,
   getCategoryArticleCount,
   getRelatedArticles,
+  mergeArticles,
+  mergeArticlesByCategory,
+  getUnifiedCategoryCount,
+  toUnifiedFromExternal,
+  toUnifiedFromInternal,
 } from "@/utils/knowledge";
+import type { ExternalArticle } from "@/types";
 
 interface MockEntry {
   id: string;
@@ -69,6 +75,31 @@ const mockEntries: MockEntry[] = [
     },
   },
 ];
+
+const mockExternalArticles: ExternalArticle[] = [
+  {
+    id: "zenn-claude-code",
+    title: "Claude Codeの実践ガイド",
+    description: "Zennに公開したClaude Code解説",
+    category: "ai-tools",
+    tags: ["claude", "zenn"],
+    publishedAt: new Date("2026-04-05"),
+    platform: "zenn",
+    url: "https://zenn.dev/user/articles/claude-code",
+  },
+  {
+    id: "qiita-astro-tips",
+    title: "Astro開発のTips",
+    description: "Qiitaに公開したAstro記事",
+    category: "web-development",
+    tags: ["astro", "qiita"],
+    publishedAt: new Date("2026-04-04"),
+    platform: "qiita",
+    url: "https://qiita.com/user/items/astro-tips",
+  },
+];
+
+// --- MDX記事専用ユーティリティのテスト ---
 
 describe("getPublishedArticles", () => {
   it("draft記事を除外すること", () => {
@@ -164,5 +195,79 @@ describe("getRelatedArticles", () => {
       ["draft"],
     );
     expect(result.every((e) => !e.data.draft)).toBe(true);
+  });
+});
+
+// --- 統合記事（ハイブリッド）のテスト ---
+
+describe("toUnifiedFromExternal", () => {
+  it("外部記事をUnifiedArticleに変換すること", () => {
+    const result = toUnifiedFromExternal(mockExternalArticles[0]);
+    expect(result.source).toBe("external");
+    expect(result.isExternal).toBe(true);
+    expect(result.platform).toBe("zenn");
+    expect(result.href).toBe("https://zenn.dev/user/articles/claude-code");
+  });
+});
+
+describe("toUnifiedFromInternal", () => {
+  it("MDX記事をUnifiedArticleに変換すること", () => {
+    const result = toUnifiedFromInternal(mockEntries[0]);
+    expect(result.source).toBe("internal");
+    expect(result.isExternal).toBe(false);
+    expect(result.platform).toBeUndefined();
+    expect(result.href).toBe("/knowledge/ai-tools/claude-code");
+  });
+});
+
+describe("mergeArticles", () => {
+  it("外部記事とMDX記事を統合して日付降順でソートすること", () => {
+    const result = mergeArticles(mockExternalArticles, mockEntries);
+    // 外部2 + 内部公開3 = 5件
+    expect(result).toHaveLength(5);
+    // 降順ソート確認
+    for (let i = 1; i < result.length; i++) {
+      expect(result[i - 1].publishedAt.getTime()).toBeGreaterThanOrEqual(
+        result[i].publishedAt.getTime(),
+      );
+    }
+  });
+
+  it("MDXのdraft記事を除外すること", () => {
+    const result = mergeArticles(mockExternalArticles, mockEntries);
+    expect(result.find((a) => a.title === "下書き記事")).toBeUndefined();
+  });
+
+  it("外部記事のみの場合も動作すること", () => {
+    const result = mergeArticles(mockExternalArticles, []);
+    expect(result).toHaveLength(2);
+  });
+
+  it("MDX記事のみの場合も動作すること", () => {
+    const result = mergeArticles([], mockEntries);
+    expect(result).toHaveLength(3);
+  });
+});
+
+describe("mergeArticlesByCategory", () => {
+  it("指定カテゴリの統合記事のみ返すこと", () => {
+    const result = mergeArticlesByCategory(
+      mockExternalArticles,
+      mockEntries,
+      "ai-tools",
+    );
+    // 外部1(zenn) + 内部2(claude-code, cursor-tips) = 3件
+    expect(result).toHaveLength(3);
+    expect(result.every((a) => a.category === "ai-tools")).toBe(true);
+  });
+});
+
+describe("getUnifiedCategoryCount", () => {
+  it("外部+内部を含むカテゴリ別件数を返すこと", () => {
+    const counts = getUnifiedCategoryCount(mockExternalArticles, mockEntries);
+    expect(counts["ai-tools"]).toBe(3); // 外部1 + 内部2
+    expect(counts["web-development"]).toBe(2); // 外部1 + 内部1
+    expect(counts["devops"]).toBe(0);
+    expect(counts["career"]).toBe(0);
   });
 });

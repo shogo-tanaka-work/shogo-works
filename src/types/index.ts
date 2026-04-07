@@ -97,3 +97,16 @@ export interface CategoryMeta {
   description: string;
   icon: string;
 }
+
+export type ArticlePlatform = "zenn" | "qiita" | "note";
+
+export interface ExternalArticle {
+  id: string;
+  title: string;
+  description: string;
+  category: KnowledgeCategory;
+  tags: string[];
+  publishedAt: Date;
+  platform: ArticlePlatform;
+  url: string;
+}

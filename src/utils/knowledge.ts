@@ -1,4 +1,4 @@
-import type { KnowledgeCategory } from "@/types";
+import type { KnowledgeCategory, ExternalArticle, ArticlePlatform } from "@/types";
 import { categories } from "@/data/knowledge";
 
 interface KnowledgeEntry {
@@ -15,6 +15,98 @@ interface KnowledgeEntry {
     ogImage?: string;
   };
 }
+
+/** 外部記事・内部MDX記事を統一的に扱うための型 */
+export interface UnifiedArticle {
+  id: string;
+  title: string;
+  description: string;
+  category: KnowledgeCategory;
+  tags: string[];
+  publishedAt: Date;
+  source: "external" | "internal";
+  platform?: ArticlePlatform;
+  href: string;
+  isExternal: boolean;
+}
+
+/** 外部記事をUnifiedArticleに変換 */
+export function toUnifiedFromExternal(
+  article: ExternalArticle,
+): UnifiedArticle {
+  return {
+    id: article.id,
+    title: article.title,
+    description: article.description,
+    category: article.category,
+    tags: article.tags,
+    publishedAt: article.publishedAt,
+    source: "external",
+    platform: article.platform,
+    href: article.url,
+    isExternal: true,
+  };
+}
+
+/** MDX記事をUnifiedArticleに変換 */
+export function toUnifiedFromInternal(entry: KnowledgeEntry): UnifiedArticle {
+  const slug = entry.id.split("/").pop() as string;
+  return {
+    id: entry.id,
+    title: entry.data.title,
+    description: entry.data.description,
+    category: entry.data.category as KnowledgeCategory,
+    tags: entry.data.tags,
+    publishedAt: entry.data.publishedAt,
+    source: "internal",
+    href: `/knowledge/${entry.data.category}/${slug}`,
+    isExternal: false,
+  };
+}
+
+/** 外部記事 + MDX公開記事を統合してソート */
+export function mergeArticles(
+  externalArticles: ExternalArticle[],
+  mdxEntries: KnowledgeEntry[],
+): UnifiedArticle[] {
+  const external = externalArticles.map(toUnifiedFromExternal);
+  const internal = getPublishedArticles(mdxEntries).map(toUnifiedFromInternal);
+  return [...external, ...internal].sort(
+    (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime(),
+  );
+}
+
+/** カテゴリでフィルタした統合記事 */
+export function mergeArticlesByCategory(
+  externalArticles: ExternalArticle[],
+  mdxEntries: KnowledgeEntry[],
+  category: KnowledgeCategory,
+): UnifiedArticle[] {
+  return mergeArticles(externalArticles, mdxEntries).filter(
+    (a) => a.category === category,
+  );
+}
+
+/** カテゴリ別の統合記事数 */
+export function getUnifiedCategoryCount(
+  externalArticles: ExternalArticle[],
+  mdxEntries: KnowledgeEntry[],
+): Record<KnowledgeCategory, number> {
+  const all = mergeArticles(externalArticles, mdxEntries);
+  const counts = Object.fromEntries(
+    categories.map((c) => [c.slug, 0]),
+  ) as Record<KnowledgeCategory, number>;
+
+  for (const article of all) {
+    if (article.category in counts) {
+      counts[article.category]++;
+    }
+  }
+
+  return counts;
+}
+
+// --- 以下はMDX記事専用のユーティリティ（内部記事ルーティング用） ---
 
 export function getPublishedArticles<T extends KnowledgeEntry>(
   entries: T[],

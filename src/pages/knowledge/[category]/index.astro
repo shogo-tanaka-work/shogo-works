@@ -5,8 +5,8 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import ArticleCard from "@/components/knowledge/ArticleCard.astro";
-import { categories } from "@/data/knowledge";
-import { getArticlesByCategory } from "@/utils/knowledge";
+import { categories, externalArticles } from "@/data/knowledge";
+import { mergeArticlesByCategory } from "@/utils/knowledge";
 import type { CategoryMeta } from "@/types";
 
 export const getStaticPaths: GetStaticPaths = async () => {
@@ -22,7 +22,11 @@ interface Props {
 
 const { category } = Astro.props;
 const allEntries = await getCollection("knowledge");
-const articles = getArticlesByCategory(allEntries, category.slug);
+const articles = mergeArticlesByCategory(
+  externalArticles,
+  allEntries,
+  category.slug,
+);
 ---
 
 <BaseLayout
@@ -46,13 +50,14 @@ const articles = getArticlesByCategory(allEntries, category.slug);
             {articles.map((article, i) => (
               <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
                 <ArticleCard
-                  title={article.data.title}
-                  description={article.data.description}
-                  category={article.data.category}
+                  title={article.title}
+                  description={article.description}
                   categoryLabel={category.label}
-                  tags={article.data.tags}
-                  publishedAt={article.data.publishedAt}
-                  href={`/knowledge/${category.slug}/${article.id.split("/").pop()}`}
+                  tags={article.tags}
+                  publishedAt={article.publishedAt}
+                  href={article.href}
+                  isExternal={article.isExternal}
+                  platform={article.platform}
                 />
               </div>
             ))}
