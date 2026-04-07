@@ -1,0 +1,80 @@
+---
+import Card from "@/components/ui/Card.astro";
+import Badge from "@/components/ui/Badge.astro";
+import type { ArticlePlatform } from "@/types";
+
+interface Props {
+  title: string;
+  description: string;
+  categoryLabel: string;
+  tags: string[];
+  publishedAt: Date;
+  href: string;
+  isExternal?: boolean;
+  platform?: ArticlePlatform;
+}
+
+const {
+  title,
+  categoryLabel,
+  tags,
+  publishedAt,
+  href,
+  description,
+  isExternal = false,
+  platform,
+} = Astro.props;
+
+const formattedDate = publishedAt.toLocaleDateString("ja-JP", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const displayTags = tags.slice(0, 3);
+
+const platformLabels: Record<ArticlePlatform, string> = {
+  zenn: "Zenn",
+  qiita: "Qiita",
+  note: "note",
+};
+---
+
+<a
+  href={href}
+  class="block group"
+  {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+>
+  <Card hover class="h-full">
+    <div class="flex flex-col gap-3">
+      <div class="flex items-center gap-2 flex-wrap">
+        <Badge variant="teal">{categoryLabel}</Badge>
+        {
+          platform && (
+            <Badge variant="blue">
+              {platformLabels[platform]}
+              <span class="ml-0.5">↗</span>
+            </Badge>
+          )
+        }
+        <span class="text-xs text-muted-foreground">{formattedDate}</span>
+      </div>
+      <h3
+        class="text-lg font-semibold text-foreground group-hover:text-teal-600 transition-colors line-clamp-2"
+      >
+        {title}
+        {isExternal && <span class="text-muted-foreground text-sm ml-1">↗</span>}
+      </h3>
+      <p class="text-sm text-muted-foreground line-clamp-2">{description}</p>
+      {
+        displayTags.length > 0 && (
+          <div class="flex gap-1.5 flex-wrap">
+            {displayTags.map((tag) => (
+              <Badge variant="default">{tag}</Badge>
+            ))}
+          </div>
+        )
+      }
+    </div>
+  </Card>
+</a>

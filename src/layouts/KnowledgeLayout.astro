@@ -1,0 +1,107 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
+import Badge from "@/components/ui/Badge.astro";
+import { categories } from "@/data/knowledge";
+import type { KnowledgeCategory } from "@/types";
+
+interface Props {
+  title: string;
+  description: string;
+  category: KnowledgeCategory;
+  tags: string[];
+  publishedAt: Date;
+  updatedAt?: Date;
+  author: string;
+}
+
+const { title, description, category, tags, publishedAt, updatedAt, author } =
+  Astro.props;
+
+const categoryMeta = categories.find((c) => c.slug === category);
+const categoryLabel = categoryMeta?.label ?? category;
+
+const formattedPublishedAt = publishedAt.toLocaleDateString("ja-JP", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const formattedUpdatedAt = updatedAt?.toLocaleDateString("ja-JP", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "Article",
+  headline: title,
+  description,
+  datePublished: publishedAt.toISOString(),
+  ...(updatedAt && { dateModified: updatedAt.toISOString() }),
+  author: {
+    "@type": "Person",
+    name: author,
+  },
+});
+---
+
+<BaseLayout title={`${title} | Knowledge Base | shogoworks`} description={description} ogType="article">
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonLd} />
+  </Fragment>
+  <article class="py-20 px-4">
+    <div class="max-w-3xl mx-auto">
+      <Breadcrumb
+        items={[
+          { label: "Knowledge Base", href: "/knowledge" },
+          { label: categoryLabel, href: `/knowledge/${category}` },
+          { label: title },
+        ]}
+      />
+
+      <header class="mb-10 animate-on-scroll">
+        <div class="flex items-center gap-2 flex-wrap mb-4">
+          <Badge variant="teal">{categoryLabel}</Badge>
+          <span class="text-sm text-muted-foreground">
+            {formattedPublishedAt}
+          </span>
+          {
+            formattedUpdatedAt && formattedUpdatedAt !== formattedPublishedAt && (
+              <span class="text-sm text-muted-foreground">
+                (更新: {formattedUpdatedAt})
+              </span>
+            )
+          }
+        </div>
+        <h1 class="text-3xl md:text-4xl font-bold text-foreground mb-4">
+          {title}
+        </h1>
+        <p class="text-muted-foreground text-lg">{description}</p>
+        {
+          tags.length > 0 && (
+            <div class="flex gap-1.5 flex-wrap mt-4">
+              {tags.map((tag) => (
+                <Badge variant="default">{tag}</Badge>
+              ))}
+            </div>
+          )
+        }
+      </header>
+
+      <div class="knowledge-prose animate-on-scroll">
+        <slot />
+      </div>
+
+      <footer class="mt-16 pt-8 border-t border-border">
+        <a
+          href={`/knowledge/${category}`}
+          class="text-teal-600 hover:text-teal-700 transition-colors inline-flex items-center gap-1"
+        >
+          ← {categoryLabel} の記事一覧に戻る
+        </a>
+      </footer>
+    </div>
+  </article>
+</BaseLayout>

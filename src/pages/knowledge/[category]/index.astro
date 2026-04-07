@@ -1,0 +1,81 @@
+---
+import type { GetStaticPaths } from "astro";
+import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
+import ArticleCard from "@/components/knowledge/ArticleCard.astro";
+import { categories, externalArticles } from "@/data/knowledge";
+import { mergeArticlesByCategory } from "@/utils/knowledge";
+import type { CategoryMeta } from "@/types";
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  return categories.map((cat) => ({
+    params: { category: cat.slug },
+    props: { category: cat },
+  }));
+};
+
+interface Props {
+  category: CategoryMeta;
+}
+
+const { category } = Astro.props;
+const allEntries = await getCollection("knowledge");
+const articles = mergeArticlesByCategory(
+  externalArticles,
+  allEntries,
+  category.slug,
+);
+---
+
+<BaseLayout
+  title={`${category.label} | Knowledge Base | shogoworks`}
+  description={category.description}
+>
+  <section class="py-20 px-4">
+    <div class="max-w-5xl mx-auto">
+      <Breadcrumb
+        items={[
+          { label: "Knowledge Base", href: "/knowledge" },
+          { label: category.label },
+        ]}
+      />
+
+      <SectionHeader title={category.label} subtitle={category.description} />
+
+      {
+        articles.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {articles.map((article, i) => (
+              <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                <ArticleCard
+                  title={article.title}
+                  description={article.description}
+                  categoryLabel={category.label}
+                  tags={article.tags}
+                  publishedAt={article.publishedAt}
+                  href={article.href}
+                  isExternal={article.isExternal}
+                  platform={article.platform}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-16 animate-on-scroll">
+            <p class="text-muted-foreground text-lg">
+              このカテゴリにはまだ記事がありません。
+            </p>
+            <a
+              href="/knowledge"
+              class="inline-block mt-4 text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              ← Knowledge Base に戻る
+            </a>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

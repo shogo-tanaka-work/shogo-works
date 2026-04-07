@@ -10,3 +10,4 @@ export {
   pastSeminars,
 } from "./teaching";
 export { stats } from "./stats";
+export { categories, externalArticles } from "./knowledge";

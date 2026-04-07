@@ -84,3 +84,29 @@ export interface NavItem {
   label: string;
   href: string;
 }
+
+export type KnowledgeCategory =
+  | "ai-tools"
+  | "web-development"
+  | "devops"
+  | "career";
+
+export interface CategoryMeta {
+  slug: KnowledgeCategory;
+  label: string;
+  description: string;
+  icon: string;
+}
+
+export type ArticlePlatform = "zenn" | "qiita" | "note";
+
+export interface ExternalArticle {
+  id: string;
+  title: string;
+  description: string;
+  category: KnowledgeCategory;
+  tags: string[];
+  publishedAt: Date;
+  platform: ArticlePlatform;
+  url: string;
+}

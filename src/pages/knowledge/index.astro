@@ -1,0 +1,71 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import CategoryCard from "@/components/knowledge/CategoryCard.astro";
+import ArticleCard from "@/components/knowledge/ArticleCard.astro";
+import { categories, externalArticles } from "@/data/knowledge";
+import { mergeArticles, getUnifiedCategoryCount } from "@/utils/knowledge";
+
+const allEntries = await getCollection("knowledge");
+const unified = mergeArticles(externalArticles, allEntries);
+const counts = getUnifiedCategoryCount(externalArticles, allEntries);
+const latestArticles = unified.slice(0, 6);
+
+function getCategoryLabel(slug: string): string {
+  return categories.find((c) => c.slug === slug)?.label ?? slug;
+}
+---
+
+<BaseLayout
+  title="Knowledge Base | shogoworks"
+  description="AI活用・Web開発・DevOpsなど、技術解説記事を公開しています"
+>
+  <section class="py-20 px-4">
+    <div class="max-w-5xl mx-auto">
+      <SectionHeader
+        title="Knowledge Base"
+        subtitle="AI活用・Web開発・DevOpsなど、実践的な技術ナレッジを発信しています"
+      />
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-16">
+        {
+          categories.map((category, i) => (
+            <div class={`animate-on-scroll stagger-${i + 1}`}>
+              <CategoryCard
+                category={category}
+                articleCount={counts[category.slug]}
+              />
+            </div>
+          ))
+        }
+      </div>
+
+      {
+        latestArticles.length > 0 && (
+          <div>
+            <h2 class="text-2xl font-bold text-foreground mb-6 animate-on-scroll">
+              最新記事
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {latestArticles.map((article, i) => (
+                <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                  <ArticleCard
+                    title={article.title}
+                    description={article.description}
+                    categoryLabel={getCategoryLabel(article.category)}
+                    tags={article.tags}
+                    publishedAt={article.publishedAt}
+                    href={article.href}
+                    isExternal={article.isExternal}
+                    platform={article.platform}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

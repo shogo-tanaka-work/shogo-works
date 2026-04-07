@@ -16,7 +16,15 @@ describe("navigation データ", () => {
     }
   });
 
-  it("5つのナビ項目が定義されていること", () => {
-    expect(navItems).toHaveLength(5);
+  it("6つのナビ項目が定義されていること", () => {
+    expect(navItems).toHaveLength(6);
+  });
+
+  it("Knowledgeリンクが含まれていること", () => {
+    const knowledge = navItems.find((item) => item.label === "Knowledge");
+    expect(knowledge).toEqual({
+      label: "Knowledge",
+      href: "/knowledge",
+    });
   });
 });
