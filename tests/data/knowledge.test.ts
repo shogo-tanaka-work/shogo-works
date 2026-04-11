@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { categories } from "@/data/knowledge";
 
 describe("knowledge カテゴリデータ", () => {
-  it("4つのカテゴリが定義されていること", () => {
-    expect(categories).toHaveLength(4);
+  it("7つのカテゴリが定義されていること", () => {
+    expect(categories).toHaveLength(7);
   });
 
   it("すべてのカテゴリにslug, label, description, iconが存在すること", () => {
