@@ -6,7 +6,15 @@ const knowledge = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    category: z.enum(["ai-tools", "web-development", "devops", "career"]),
+    category: z.enum([
+      "ai-tools",
+      "web-development",
+      "devops",
+      "career",
+      "prompt-engineering",
+      "context-engineering",
+      "harness-engineering",
+    ]),
     tags: z.array(z.string()).default([]),
     publishedAt: z.coerce.date(),
     updatedAt: z.coerce.date().optional(),
