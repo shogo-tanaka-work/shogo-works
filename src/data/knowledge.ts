@@ -28,6 +28,26 @@ export const categories: CategoryMeta[] = [
       "AI時代のエンジニアリングキャリア、フリーランス、スキル戦略",
     icon: "rocket",
   },
+  {
+    slug: "prompt-engineering",
+    label: "Prompt Engineering",
+    description:
+      "LLMから最適な出力を引き出すためのプロンプト設計・構造化テクニック",
+    icon: "message-square",
+  },
+  {
+    slug: "context-engineering",
+    label: "Context Engineering",
+    description: "LLMに渡すコンテキストの設計・最適化・管理の手法",
+    icon: "layers",
+  },
+  {
+    slug: "harness-engineering",
+    label: "Harness Engineering",
+    description:
+      "AIエージェントの実行環境・ツール連携・ワークフロー制御の設計手法",
+    icon: "settings",
+  },
 ];
 
 // 外部プラットフォームに公開した記事
