@@ -1,0 +1,176 @@
+---
+title: "画像コンテキストの扱い方 — マルチモーダルLLMへの最適な入力"
+description: "マルチモーダルLLMに画像を渡す際の解像度設定、トークン消費、テキスト化との使い分け、最新のビジョントークン圧縮技術を解説します。"
+category: "context-engineering"
+tags: ["context-engineering", "multimodal", "vision", "image-optimization", "token-efficiency"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## マルチモーダルLLMと画像コンテキスト
+
+2026年の主要LLM（GPT-4.1、Claude Opus/Sonnet、Gemini 2.5）はすべて画像入力に対応しています。スクリーンショット、図表、写真、UIモックアップなどをテキストと一緒にコンテキストに含められます。
+
+しかし、画像はテキストに比べて大量のトークンを消費します。**画像の扱い方を最適化することは、コンテキストエンジニアリングの重要な一部**です。
+
+## 画像のトークン消費量
+
+### 各モデルのトークン計算方式
+
+画像はモデル内部で「ビジョントークン」に変換されます。消費トークン数は画像の解像度とアスペクト比に依存します。
+
+| モデル | 低解像度 | 高解像度（1024x1024） | 最大トークン |
+|---|---|---|---|
+| GPT-4.1 | 約85トークン | 約765トークン | 数千トークン |
+| Claude Opus/Sonnet | 解像度比例 | 約1,600トークン | 約6,400トークン |
+| Gemini 2.5 | 約258トークン | 解像度比例 | 数千トークン |
+
+### 解像度設定の影響
+
+多くのAPIでは画像の解像度モードを選択できます。
+
+```python
+# OpenAI APIの例
+response = client.chat.completions.create(
+    model="gpt-4.1",
+    messages=[{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "この図を説明して"},
+            {
+                "type": "image_url",
+                "image_url": {
+                    "url": image_url,
+                    "detail": "low"  # "low" | "high" | "auto"
+                }
+            }
+        ]
+    }]
+)
+```
+
+- **low**: 固定の低トークン数。画像の大まかな理解で十分な場合
+- **high**: 高解像度タイルに分割して処理。細かい文字やディテールが必要な場合
+- **auto**: モデルが自動判断
+
+## 画像 vs テキスト：どちらで渡すべきか
+
+### 画像で渡すべきケース
+
+1. **UIスクリーンショット**: レイアウト、色、配置の視覚情報が重要
+2. **図表・グラフ**: テキスト化すると情報が失われる視覚的な構造
+3. **手書きメモ・ホワイトボード**: テキスト化が困難な手書き情報
+4. **写真**: 実世界のオブジェクトの視覚的特徴
+
+### テキストで渡すべきケース
+
+1. **コードのスクリーンショット**: テキストとして渡すほうがトークン効率が高く、LLMの理解も正確
+2. **表形式データ**: Markdown表やCSVのほうが効率的
+3. **テキストが主体のドキュメント**: OCRしてテキスト化するほうが効率的
+
+### テキスト化の驚くべき効率性
+
+2025年の研究「Text or Pixels?」では、長いテキストを画像として（レンダリングして）LLMに渡すと、テキストとして直接渡す場合の**約半分のデコーダートークン**で済むことが示されました。これは一見矛盾するようですが、ビジョンエンコーダーがテキストを高密度に圧縮できるためです。
+
+ただし、この手法は精度とのトレードオフがあり、一般的な用途では素直にテキストとして渡すことを推奨します。
+
+## ビジョントークン圧縮の最前線
+
+2026年は、画像入力のトークン効率を大幅に向上させる研究が加速しています。
+
+### DeepSeek-OCR: コンテキスト光学圧縮
+
+DeepSeek-OCRは「Contexts Optical Compression」という概念で、画像を高密度なビジョントークンに圧縮します。
+
+- 圧縮率10倍以下で**OCR精度97%を維持**
+- 最大**20倍の圧縮**が可能
+
+### VisionTrim（ICLR 2026）
+
+学習不要のビジョントークン削減手法です。推論時に動的に不要なビジョントークンを判別し、削除します。
+
+### ACT-IN-LLM: 適応的ビジョントークン圧縮
+
+LLMの各レイヤー内でビジョントークンを適応的に圧縮する手法です。高解像度入力の二次的な計算量増加問題に対応します。
+
+## 実装パターン
+
+### パターン1: 解像度の事前調整
+
+画像をAPIに渡す前に、目的に応じた解像度にリサイズすることでトークンを節約します。
+
+```python
+from PIL import Image
+
+def optimize_image_for_llm(
+    image_path: str,
+    task: str = "general"
+) -> Image.Image:
+    """タスクに応じて画像を最適なサイズにリサイズ"""
+    img = Image.open(image_path)
+
+    MAX_DIMENSIONS = {
+        "general": (1024, 1024),    # 一般的な理解
+        "detail": (2048, 2048),      # 細かいテキスト読み取り
+        "thumbnail": (512, 512),     # 大まかな分類
+    }
+
+    max_w, max_h = MAX_DIMENSIONS.get(task, (1024, 1024))
+    img.thumbnail((max_w, max_h), Image.LANCZOS)
+    return img
+```
+
+### パターン2: 画像の説明文キャッシュ
+
+同じ画像を繰り返しコンテキストに含める場合、一度LLMに説明文を生成させてキャッシュし、以降はテキストで代替します。
+
+```python
+def get_image_description(
+    image_path: str,
+    cache: dict[str, str]
+) -> str:
+    """画像の説明文をキャッシュ付きで取得"""
+    image_hash = compute_hash(image_path)
+
+    if image_hash in cache:
+        return cache[image_hash]
+
+    # 初回のみ画像をLLMに渡して説明文を生成
+    description = llm.describe_image(image_path)
+    cache[image_hash] = description
+    return description
+```
+
+### パターン3: 画像の選択的包含
+
+複数の画像がある場合、すべてをコンテキストに含めるのではなく、タスクに関連する画像のみを選択します。
+
+```python
+def select_relevant_images(
+    images: list[ImageWithMetadata],
+    query: str,
+    max_images: int = 3
+) -> list[ImageWithMetadata]:
+    """クエリに関連する画像のみを選択"""
+    scored = [
+        (img, compute_relevance(img.caption, query))
+        for img in images
+    ]
+    scored.sort(key=lambda x: x[1], reverse=True)
+    return [img for img, _ in scored[:max_images]]
+```
+
+## 実践ポイント
+
+1. **解像度モードを意識する**: 細かい文字を読む必要がなければ`low`モードで十分
+2. **コードのスクリーンショットは撮らない**: テキストとして渡すほうが圧倒的に効率的で正確
+3. **画像の説明文をキャッシュする**: 同じ画像を何度も処理させない
+4. **不要な画像は除外する**: 画像1枚は数百〜数千トークン。3枚で1,000語分のテキストに相当することもある
+5. **画像の前にテキストで文脈を与える**: 「以下はERD図です」のように、画像が何であるかを先に伝えるとLLMの解釈精度が向上する
+
+## 参考リンク
+
+- [Text or Pixels? On the Token Efficiency of Visual Text Inputs in Multimodal LLMs](https://arxiv.org/html/2510.18279v1)
+- [ACT-IN-LLM: Adaptively Compression Vision Tokens in LLM](https://openreview.net/forum?id=3Ofy2jNsNL)
+- [Rethinking Token Reduction for Large Vision-Language Models](https://arxiv.org/html/2603.21701)
+- [When Tokens Talk Too Much: A Survey of Multimodal Long-Context Token Compression](https://arxiv.org/html/2507.20198v3)

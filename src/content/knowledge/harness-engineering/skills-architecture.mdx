@@ -1,0 +1,190 @@
+---
+title: "Skillsファイル設計 — 段階的知識開示の実践"
+description: "Claude Code Skillsのファイル構造と段階的知識開示（Progressive Disclosure）アーキテクチャを解説し、トークン効率を最大化する設計手法を示す"
+category: "harness-engineering"
+tags: ["harness-engineering", "claude-code", "skills", "context-engineering"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## Skillsとは何か
+
+Claude Code の Skills は、エージェントに**再利用可能な専門知識**を与える仕組みだ。CLAUDE.md がプロジェクト全体の文脈を提供するのに対し、Skills は特定のタスクに必要な知識を**必要なときだけ**ロードする。
+
+この「必要なときだけ」が核心である。段階的知識開示（Progressive Disclosure）により、コンテキストウィンドウを圧迫せず、エージェントの推論能力を最大限に活かせる。
+
+## 3段階ローディングアーキテクチャ
+
+Skills のローディングは3段階で行われる。
+
+### Stage 1: メタデータスキャン（約100トークン）
+
+エージェントは利用可能な Skills の一覧をスキャンし、現在のタスクに関連するものを特定する。この段階ではファイル名と frontmatter のみが消費される。
+
+### Stage 2: 本体ロード（5,000トークン以下推奨）
+
+関連する Skill が特定されると、SKILL.md の本体が読み込まれる。公式推奨は **500行以下**。これを超えると、Skill が発動するたびに推論スペースを圧迫する。
+
+### Stage 3: バンドルリソースの遅延ロード
+
+SKILL.md が参照する外部ファイル（テンプレート、マニュアル、スクリプト等）は、実際に必要になった時点で初めてロードされる。**アクセスされるまでトークンを消費しない。**
+
+```
+Stage 1: ~100 tokens     → Skill一覧スキャン
+Stage 2: <5,000 tokens   → SKILL.md本体ロード
+Stage 3: on-demand        → 参照ファイルの遅延ロード
+```
+
+## ファイル構造
+
+```
+.claude/skills/
+  my-skill/
+    SKILL.md              # 必須: エントリポイント（YAML frontmatter + 指示）
+    scripts/              # 任意: 処理用スクリプト（Python/JS）
+      generate.ts
+      validate.ts
+    references/           # 任意: 必要時にロードする参照資料
+      style-guide.md
+      api-spec.yaml
+    assets/               # 任意: テンプレート、フォント等
+      template.html
+```
+
+重要なのは、`scripts/` 内のスクリプトは Bash 経由で**実行**されるだけで、スクリプトのソースコード自体はコンテキストに入らないという点だ。出力のみがコンテキストに追加される。
+
+## SKILL.md の書き方
+
+### Frontmatter
+
+```yaml
+---
+name: "tdd-workflow"
+description: "TDDのRed-Green-Refactorサイクルをサブエージェントで強制する"
+tools: ["Read", "Write", "Edit", "Bash", "Glob", "Grep"]
+---
+```
+
+- **name**: gerund形（動詞 + ing）が推奨。活動や能力を明確に示す
+- **description**: エージェントが Skill の適用判断に使う。具体的に書く
+- **tools**: Skill が使用するツールを制限できる
+
+### 本体の構造
+
+```markdown
+## トリガー条件
+以下のいずれかに該当する場合、この Skill を適用する:
+- ユーザーが「テスト駆動」「TDD」と言及した
+- 新機能の実装を依頼された
+
+## ワークフロー
+1. テストを先に書く（Red）
+2. 最小限の実装でテストを通す（Green）
+3. リファクタリング（Refactor）
+
+## 制約
+- 実装コードをテストより先に書かない
+- テストが通らない状態でリファクタリングしない
+
+## 参照ファイル
+- テストヘルパーの使い方: references/test-helper-guide.md
+- コンポーネントテンプレート: assets/component-template.tsx
+```
+
+## 実践パターン
+
+### パターン1: スクリプト実行による文脈注入
+
+大量のデータを処理する場合、スクリプトで要約してからコンテキストに注入する。
+
+```markdown
+## データベーススキーマの確認
+スキーマを確認するには以下を実行:
+\`\`\`bash
+npx tsx .claude/skills/db-skill/scripts/show-schema.ts
+\`\`\`
+出力結果をもとに、適切なマイグレーションを作成する。
+```
+
+スクリプトがデータベーススキーマ全体を読み取り、要約を出力する。生のSQLダンプではなく、構造化された要約のみがコンテキストに入る。
+
+### パターン2: 条件分岐による参照制御
+
+```markdown
+## フロントエンドの場合
+Reactコンポーネントのガイドライン: references/react-guide.md を参照
+
+## バックエンドの場合
+API設計のガイドライン: references/api-guide.md を参照
+```
+
+タスクの種類に応じて読むファイルが変わるため、不要な参照がコンテキストを汚染しない。
+
+### パターン3: Hook連携による自動発動
+
+Skills の課題として、適切に発動しない問題がある。設定だけでは発動率が約20%という報告もある。Hook と組み合わせることで発動率を改善できる。
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx tsx .claude/hooks/skill-evaluator.ts"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Hook スクリプトがユーザーのプロンプトを分析し、関連する Skill の評価を強制する。これにより発動率が約84%まで向上したという事例がある。
+
+## Skill開発のベストプラクティス
+
+### 1. Claude自身で開発する
+
+最も効果的な Skill 開発プロセスは、Claude の1インスタンスで Skill を設計し、別のインスタンスでテストする方法だ。設計者が使用者のコンテキストを持たないことで、指示の曖昧さが早期に発見される。
+
+### 2. トークン予算を意識する
+
+| コンポーネント | 目安 |
+|---|---|
+| SKILL.md 本体 | 500行以下、5,000トークン以下 |
+| 参照ファイル1件 | 必要最小限 |
+| スクリプト出力 | 要約して返す |
+
+### 3. 冪等性を担保する
+
+Skill は何度発動しても同じ結果になるよう設計する。状態を持たない。前回の実行結果に依存しない。
+
+### 4. 失敗時の fallback を用意する
+
+```markdown
+## エラー時の対応
+スクリプトが失敗した場合は、手動で以下を確認:
+1. データベース接続が有効か
+2. 環境変数 DATABASE_URL が設定されているか
+```
+
+## CLAUDE.md との使い分け
+
+| 観点 | CLAUDE.md | Skills |
+|---|---|---|
+| ロードタイミング | 毎セッション開始時 | タスクに関連する場合のみ |
+| 内容 | プロジェクト全体の文脈 | 特定タスクの専門知識 |
+| トークンコスト | 常に消費 | 必要時のみ消費 |
+| 更新頻度 | 低（月1回程度） | 中（ワークフロー改善時） |
+
+CLAUDE.md は「常識」、Skills は「専門書」と考えるとわかりやすい。
+
+## 参考リンク
+
+- [Agent Skills Overview - Claude API Docs](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
+- [Skill authoring best practices - Claude API Docs](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
+- [Claude Skills Architecture: Progressive Disclosure](https://claudecn.com/en/blog/claude-skills-architecture/)
+- [Forcing Claude Code to TDD: An Agentic Red-Green-Refactor Loop](https://alexop.dev/posts/custom-tdd-workflow-claude-code-vue/)

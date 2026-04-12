@@ -1,0 +1,287 @@
+---
+title: "コンテキストウィンドウ管理 — トークン予算と配分戦略"
+description: "LLMのコンテキストウィンドウをトークン予算として管理する手法を解説。入力・出力の配分戦略、Context Rot対策、コスト最適化の実践パターンを紹介します。"
+category: "context-engineering"
+tags: ["context-engineering", "context-window", "token-budget", "llm", "cost-optimization"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## コンテキストウィンドウ＝共有予算
+
+LLMのコンテキストウィンドウは、**入力トークンと出力トークンの共有予算**です。128Kトークンのモデルに100Kトークンの入力を送れば、出力に使える領域は28Kトークンしか残りません。
+
+この「共有予算」の感覚を持たないまま開発を進めると、以下の問題が発生します。
+
+- 出力が途中で切れる（トークン上限に到達）
+- コストが予想の数倍に膨れる（長コンテキストの料金加算）
+- 品質が低下する（Context Rot）
+
+## 2026年のコンテキストウィンドウ一覧
+
+主要モデルのコンテキストウィンドウサイズは以下の通りです。
+
+| モデル | コンテキストウィンドウ | 特記事項 |
+|---|---|---|
+| Claude Opus 4.6 | 1Mトークン | 長コンテキスト追加料金なし |
+| GPT-4o | 128Kトークン | 入出力で料金差あり |
+| Gemini 2.5 Pro | 1Mトークン | 200K超で料金加算 |
+| Llama 4 Scout | 10Mトークン | ローカル実行可 |
+| DeepSeek-V3 | 128Kトークン | コスト効率が高い |
+
+注意すべきは、ウィンドウが大きいほど良いとは限らない点です。**すべてのモデルでコンテキストが長くなるほど出力品質は低下する**ことが確認されています（Context Rot）。
+
+## トークン予算の配分戦略
+
+### 基本配分モデル
+
+コンテキストウィンドウを4つのゾーンに分割して管理します。
+
+```
+┌──────────────────────────────────────────┐
+│  System Prompt (10%)                      │
+│  モデルの役割・制約・出力フォーマット          │
+├──────────────────────────────────────────┤
+│  Tool Definitions (15%)                   │
+│  ツール名・説明・スキーマ                    │
+├──────────────────────────────────────────┤
+│  Context (50%)                            │
+│  RAG結果 + 会話履歴 + ユーザー入力           │
+├──────────────────────────────────────────┤
+│  Response Budget (25%)                    │
+│  モデルの出力用に確保                        │
+└──────────────────────────────────────────┘
+```
+
+### 予算管理の実装例
+
+```typescript
+interface TokenBudget {
+  total: number;
+  systemPrompt: number;
+  tools: number;
+  context: number;
+  response: number;
+}
+
+function allocateTokenBudget(
+  totalTokens: number,
+  systemPromptTokens: number,
+  toolTokens: number,
+  maxResponseTokens: number,
+): TokenBudget {
+  // 固定費（システムプロンプト + ツール定義）を先に確保
+  const fixedCost = systemPromptTokens + toolTokens;
+
+  // 出力予算を確保
+  const responseBudget = Math.min(
+    maxResponseTokens,
+    Math.floor(totalTokens * 0.25),
+  );
+
+  // 残りがコンテキスト予算
+  const contextBudget = totalTokens - fixedCost - responseBudget;
+
+  if (contextBudget < 0) {
+    throw new Error(
+      `トークン予算不足: 固定費(${fixedCost}) + 出力(${responseBudget}) > 合計(${totalTokens})`
+    );
+  }
+
+  return {
+    total: totalTokens,
+    systemPrompt: systemPromptTokens,
+    tools: toolTokens,
+    context: contextBudget,
+    response: responseBudget,
+  };
+}
+
+// 使用例: 128Kウィンドウのモデル
+const budget = allocateTokenBudget(
+  128_000,  // 合計
+  3_000,    // システムプロンプト
+  5_000,    // ツール定義（10ツール程度）
+  4_096,    // 最大出力
+);
+// => context: 115,904トークン使用可能
+```
+
+### コンテキストゾーン内の優先順位
+
+コンテキスト予算（50%）の中でも、情報の優先順位を設定します。
+
+```python
+# コンテキスト内の優先順位付け
+CONTEXT_PRIORITIES = [
+    # 優先度1: 絶対に必要な情報
+    {"type": "user_latest_message", "priority": 1, "compressible": False},
+    {"type": "active_task_state", "priority": 1, "compressible": False},
+
+    # 優先度2: 重要だが圧縮可能
+    {"type": "rag_results", "priority": 2, "compressible": True},
+    {"type": "recent_conversation", "priority": 2, "compressible": True},
+
+    # 優先度3: あれば有用
+    {"type": "older_conversation", "priority": 3, "compressible": True},
+    {"type": "background_knowledge", "priority": 3, "compressible": True},
+]
+
+def build_context(
+    items: list[ContextItem],
+    budget_tokens: int,
+) -> list[ContextItem]:
+    """優先順位に基づいてコンテキストを構築する"""
+    result: list[ContextItem] = []
+    remaining = budget_tokens
+
+    # 優先度順にソート
+    sorted_items = sorted(items, key=lambda x: x.priority)
+
+    for item in sorted_items:
+        token_count = count_tokens(item.content)
+
+        if token_count <= remaining:
+            result.append(item)
+            remaining -= token_count
+        elif item.compressible and remaining > 100:
+            # 予算に収まるように圧縮
+            compressed = compress_to_budget(item.content, remaining)
+            result.append(ContextItem(content=compressed, **item.metadata))
+            remaining -= count_tokens(compressed)
+        # 予算が尽きたら残りは切り捨て
+
+    return result
+```
+
+## Context Rot への対策
+
+### スライディングウィンドウ
+
+最も基本的な対策は、古い会話を順次削除するスライディングウィンドウです。
+
+```python
+def sliding_window(
+    messages: list[dict],
+    max_tokens: int,
+) -> list[dict]:
+    """最新のメッセージを優先して保持する"""
+    # システムメッセージは常に保持
+    system_messages = [m for m in messages if m["role"] == "system"]
+    other_messages = [m for m in messages if m["role"] != "system"]
+
+    system_tokens = sum(count_tokens(m["content"]) for m in system_messages)
+    remaining = max_tokens - system_tokens
+
+    # 最新のメッセージから逆順に追加
+    selected: list[dict] = []
+    for msg in reversed(other_messages):
+        msg_tokens = count_tokens(msg["content"])
+        if msg_tokens <= remaining:
+            selected.insert(0, msg)
+            remaining -= msg_tokens
+        else:
+            break
+
+    return system_messages + selected
+```
+
+### サマリー＋最新ウィンドウ
+
+スライディングウィンドウの改良版として、古い会話をサマリーに圧縮し、最新の会話はそのまま保持するパターンがあります。
+
+```
+┌─────────────────────────────────────┐
+│  System Prompt                       │
+├─────────────────────────────────────┤
+│  [Summary] これまでの会話の要約:      │
+│  ユーザーはECサイトの検索改善を        │
+│  依頼。pgvectorの採用が決定済み...     │
+├─────────────────────────────────────┤
+│  [Recent] 直近5ターンの会話（原文）    │
+├─────────────────────────────────────┤
+│  Response Budget                     │
+└─────────────────────────────────────┘
+```
+
+## コスト最適化
+
+### プロンプトキャッシュの活用
+
+同じシステムプロンプトやツール定義を繰り返し送信する場合、プロンプトキャッシュで**最大90%のコスト削減**が可能です。
+
+```python
+# Anthropic APIのプロンプトキャッシュ
+response = client.messages.create(
+    model="claude-opus-4-6-20260410",
+    max_tokens=4096,
+    system=[
+        {
+            "type": "text",
+            "text": long_system_prompt,  # 変更頻度の低い部分
+            "cache_control": {"type": "ephemeral"},  # キャッシュ対象
+        }
+    ],
+    messages=conversation_history,
+)
+```
+
+キャッシュのTTLは通常5分です。5分以内に次のリクエストを送れば、キャッシュされた部分のトークンは大幅に割引されます。
+
+### 200Kトークンの壁
+
+AnthropicとGoogleは200Kトークンを超えるリクエストに**追加料金**を課しています。この閾値を超えると、超過分だけでなく**リクエスト全体**に加算される場合があるため、200K以内に収める工夫が重要です。
+
+## 実践ポイント
+
+### トークン予算の監視
+
+本番環境では、各リクエストのトークン使用量を継続的に監視します。
+
+```typescript
+// トークン使用量の監視
+interface TokenUsageMetrics {
+  inputTokens: number;
+  outputTokens: number;
+  cacheHitTokens: number;
+  utilizationRate: number; // context使用率
+}
+
+function logTokenUsage(response: APIResponse): void {
+  const metrics: TokenUsageMetrics = {
+    inputTokens: response.usage.input_tokens,
+    outputTokens: response.usage.output_tokens,
+    cacheHitTokens: response.usage.cache_read_input_tokens ?? 0,
+    utilizationRate:
+      response.usage.input_tokens / CONTEXT_WINDOW_SIZE,
+  };
+
+  // 使用率が80%を超えたら警告
+  if (metrics.utilizationRate > 0.8) {
+    logger.warn("コンテキスト使用率が80%を超過", metrics);
+  }
+
+  metricsCollector.record(metrics);
+}
+```
+
+### 配分比率の調整指針
+
+| シナリオ | System | Tools | Context | Response |
+|---|---|---|---|---|
+| チャットボット | 5% | 5% | 60% | 30% |
+| コード生成 | 10% | 10% | 40% | 40% |
+| RAG Q&A | 5% | 5% | 70% | 20% |
+| エージェント | 15% | 20% | 45% | 20% |
+
+## まとめ
+
+コンテキストウィンドウ管理は、LLMアプリケーションの**品質・コスト・安定性**を左右する基盤技術です。トークン予算を明示的に配分し、優先順位に基づいてコンテキストを構築し、キャッシュやスライディングウィンドウでコストを最適化する。この一連のプロセスを自動化することが、プロダクション品質のLLMアプリケーション開発の鍵です。
+
+## 参考リンク
+
+- [Token Window Management — Context Studios](https://www.contextstudios.ai/glossary/token-window-management)
+- [LLM Context Windows: Managing Tokens in Production — DEV Community](https://dev.to/whoffagents/llm-context-windows-managing-tokens-in-production-ai-apps-11l)
+- [Managing Token Budgets for Complex Prompts — APXML](https://apxml.com/courses/getting-started-with-llm-toolkit/chapter-3-context-and-token-management/managing-token-budgets)
+- [LLM Context Window Management and Long-Context Strategies — Zylos Research](https://zylos.ai/research/2026-01-19-llm-context-management)
+- [LLM Context Window Comparison 2026 — Morph](https://www.morphllm.com/llm-context-window-comparison)

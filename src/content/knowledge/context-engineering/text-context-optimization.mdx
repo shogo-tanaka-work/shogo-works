@@ -1,0 +1,203 @@
+---
+title: "テキストコンテキストの最適化 — 情報密度を最大化する"
+description: "LLMに渡すテキストの情報密度を高め、トークン効率を最大化するための圧縮・整形・構造化テクニックを実践的に解説します。"
+category: "context-engineering"
+tags: ["context-engineering", "token-optimization", "context-compression", "prompt-engineering"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜテキストコンテキストの最適化が必要か
+
+LLMのコンテキストウィンドウは有限です。100Kトークンの高情報密度コンテキストは、200Kトークンの冗長なコンテキストを上回る性能を発揮します。さらに、トークン量はコスト・レイテンシに直結するため、情報密度の最大化はビジネス要件でもあります。
+
+2026年の本番LLMアプリケーションでは、適切なコンテキスト最適化により**トークン使用量を50〜80%削減**しながら回答品質を維持できることが報告されています。
+
+## トークン浪費の典型パターン
+
+まず、どこでトークンが無駄になっているかを把握しましょう。
+
+### 1. 冗長なシステムプロンプト
+
+```
+❌ 悪い例（冗長）:
+あなたは非常に優秀で経験豊富なソフトウェアエンジニアです。
+ユーザーの質問に対して、丁寧で分かりやすく、
+かつ正確な回答を心がけてください。
+コードを書く際は、ベストプラクティスに従い、
+読みやすく保守性の高いコードを書いてください。
+
+✅ 良い例（簡潔）:
+シニアSWE。コードはベストプラクティス準拠で簡潔に回答。
+```
+
+研究によると、簡潔な指示は冗長な指示と同等の結果を、はるかに少ないトークンで達成します。
+
+### 2. データフォーマットの非効率
+
+JSONはトークン効率が悪いフォーマットです。同じ情報をYAMLに変換するだけで**20〜30%のトークン削減**が可能です。
+
+```json
+❌ JSON（トークン数: 多い）
+{
+  "users": [
+    {
+      "name": "田中",
+      "role": "engineer",
+      "department": "platform"
+    },
+    {
+      "name": "佐藤",
+      "role": "designer",
+      "department": "product"
+    }
+  ]
+}
+```
+
+```yaml
+✅ YAML（トークン数: 少ない）
+users:
+  - name: 田中
+    role: engineer
+    department: platform
+  - name: 佐藤
+    role: designer
+    department: product
+```
+
+### 3. ツール出力の無加工注入
+
+ツール呼び出しの結果をそのままコンテキストに入れるのは最大の浪費源です。API応答のヘッダー、メタデータ、不要フィールドを除去し、必要な情報のみ抽出します。
+
+## コンテキスト圧縮の4手法
+
+### 手法1: 関連性フィルタリング
+
+タスクに無関係な情報をコンテキストから除外します。
+
+```python
+def filter_by_relevance(
+    chunks: list[str],
+    query: str,
+    threshold: float = 0.7
+) -> list[str]:
+    """関連度が閾値以上のチャンクのみ残す"""
+    scored = [
+        (chunk, compute_similarity(chunk, query))
+        for chunk in chunks
+    ]
+    return [chunk for chunk, score in scored if score >= threshold]
+```
+
+### 手法2: セマンティック重複排除
+
+意味的に重複するコンテンツを統合します。RAG検索で複数のソースから類似チャンクが返される場合に特に有効です。
+
+```python
+def deduplicate_semantic(
+    chunks: list[str],
+    similarity_threshold: float = 0.9
+) -> list[str]:
+    """意味的に重複するチャンクを除去"""
+    unique: list[str] = []
+    for chunk in chunks:
+        is_duplicate = any(
+            compute_similarity(chunk, existing) > similarity_threshold
+            for existing in unique
+        )
+        if not is_duplicate:
+            unique.append(chunk)
+    return unique
+```
+
+### 手法3: 抽出的要約
+
+長いドキュメントから重要な文のみを抽出します。
+
+```
+入力（500トークン）:
+"当社のクラウド移行プロジェクトは2025年4月に開始されました。
+ プロジェクトチームは15名で構成され、3つのフェーズに分かれています。
+ 第1フェーズではオンプレミスのDBをAurora PostgreSQLに移行しました。
+ 移行中に3回の障害が発生し、合計12時間のダウンタイムが生じました。
+ 第2フェーズでは..."
+
+抽出後（200トークン）:
+"クラウド移行: 2025年4月開始、3フェーズ構成。
+ Phase1: DB→Aurora PostgreSQL移行。障害3回、ダウンタイム計12時間。"
+```
+
+### 手法4: LLMLingua（プロンプト圧縮）
+
+LLMLinguaは、LLMの性能を維持しながらプロンプトを圧縮するツールです。RAGシステムの長い検索コンテキストに対して特に効果的です。
+
+```python
+from llmlingua import PromptCompressor
+
+compressor = PromptCompressor(
+    model_name="microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank"
+)
+
+compressed = compressor.compress_prompt(
+    context=retrieved_chunks,
+    instruction=system_prompt,
+    question=user_query,
+    rate=0.5,  # 50%に圧縮
+)
+```
+
+## 構造化による情報密度向上
+
+### Markdownの活用
+
+自然文よりも構造化されたMarkdownのほうが、LLMにとって解析しやすく、トークン効率も高くなります。
+
+```
+❌ 自然文:
+ユーザー認証にはJWTを使用しています。アクセストークンの有効期限は
+15分で、リフレッシュトークンの有効期限は7日です。トークンの署名には
+RS256アルゴリズムを使用しており、公開鍵はJWKSエンドポイントで
+配布しています。
+
+✅ 構造化:
+## 認証方式: JWT
+- アクセストークン: 有効期限15分
+- リフレッシュトークン: 有効期限7日
+- 署名: RS256、JWKSで公開鍵配布
+```
+
+### XMLタグによるセクション区切り
+
+複数の情報ソースをコンテキストに含める場合、XMLタグで明確に区切ることでLLMの理解精度が向上します。
+
+```xml
+<context>
+  <database_schema>
+    users: id, name, email, created_at
+    orders: id, user_id, total, status
+  </database_schema>
+  <business_rules>
+    - 注文キャンセルは発送前のみ可能
+    - 返品期限は到着後14日以内
+  </business_rules>
+  <user_query>
+    先月キャンセルされた注文の一覧を取得したい
+  </user_query>
+</context>
+```
+
+## 実践ポイント
+
+1. **計測から始める**: 現在のトークン使用量を可視化し、浪費箇所を特定する
+2. **フォーマット変換を最初に試す**: JSON→YAMLなどの低コストな最適化から着手
+3. **ツール出力は必ずフィルタする**: 生のAPI応答をそのまま渡さない
+4. **圧縮率と精度のトレードオフを測定する**: 圧縮しすぎると必要な情報が失われる
+5. **Context Rotを意識する**: コンテキストは長ければ良いわけではない。情報密度の低い部分を削ることで全体の精度が向上する
+
+## 参考リンク
+
+- [LLM Token Optimization: Cut Costs & Latency in 2026 - Redis](https://redis.io/blog/llm-token-optimization-speed-up-apps/)
+- [Context Optimization: Reducing LLM Token Usage - Medium](https://luharuka.medium.com/context-optimization-a-comprehensive-framework-for-reducing-large-language-model-token-usage-fed8d9229e30)
+- [How to Build Context Compression](https://oneuptime.com/blog/post/2026-01-30-context-compression/view)
+- [Token Efficiency and Compression Techniques in LLMs](https://medium.com/@anicomanesh/token-efficiency-and-compression-techniques-in-large-language-models-navigating-context-length-05a61283412b)

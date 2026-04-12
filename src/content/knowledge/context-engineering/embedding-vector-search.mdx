@@ -1,0 +1,254 @@
+---
+title: "埋め込みとベクトル検索 — セマンティック検索の実践"
+description: "テキスト埋め込み（Embedding）とベクトル検索の仕組みから、RAGにおけるハイブリッド検索・リランキングまで、セマンティック検索の実践的な実装パターンを解説します。"
+category: "context-engineering"
+tags: ["context-engineering", "embedding", "vector-search", "rag", "semantic-search", "pgvector"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## 埋め込み（Embedding）とは
+
+テキスト埋め込みとは、文章を**高次元の数値ベクトル（浮動小数点数の配列）**に変換する技術です。現代の埋め込みモデルは384〜3072次元のベクトルを出力し、意味的に近い文章は**ベクトル空間上で近い位置**に配置されます。
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+# テキストをベクトルに変換
+response = client.embeddings.create(
+    model="text-embedding-3-large",
+    input="コンテキストエンジニアリングとはLLMへの入力を最適化する技術です"
+)
+
+embedding = response.data[0].embedding
+print(f"次元数: {len(embedding)}")  # => 3072
+print(f"先頭5要素: {embedding[:5]}")  # => [0.0123, -0.0456, ...]
+```
+
+この変換により、「キーワードの一致」ではなく「意味の類似性」で検索できるようになります。「犬の散歩」と「ペットとの外出」はキーワード一致しませんが、ベクトル空間上では近い位置に配置されます。
+
+## ベクトル検索の仕組み
+
+### 類似度計算
+
+2つのベクトル間の類似度は、主にコサイン類似度で計算します。
+
+```python
+import numpy as np
+
+def cosine_similarity(a: list[float], b: list[float]) -> float:
+    """コサイン類似度を計算する（-1〜1、1に近いほど類似）"""
+    a_arr, b_arr = np.array(a), np.array(b)
+    return float(np.dot(a_arr, b_arr) / (np.linalg.norm(a_arr) * np.linalg.norm(b_arr)))
+```
+
+### 近似最近傍探索（ANN）
+
+本番環境では数百万〜数十億のベクトルから高速に検索する必要があります。全ベクトルとの総当たり比較は非現実的なため、**近似最近傍探索（ANN）**アルゴリズムを使います。
+
+| アルゴリズム | 特徴 | 代表的な実装 |
+|---|---|---|
+| HNSW | グラフベース。精度と速度のバランスが良い | pgvector, Qdrant, Weaviate |
+| IVF | 転置インデックスベース。大規模データ向き | Faiss, Milvus |
+| ScaNN | Googleの量子化ベース。超高速 | Vertex AI Vector Search |
+
+## RAGにおけるベクトル検索の実装
+
+### 基本的なRAGパイプライン
+
+```python
+# pgvectorを使ったRAG検索の例
+import asyncpg
+
+async def rag_search(
+    query: str,
+    pool: asyncpg.Pool,
+    top_k: int = 10,
+) -> list[dict]:
+    """クエリに意味的に近いドキュメントを検索する"""
+
+    # 1. クエリをベクトルに変換
+    query_embedding = await get_embedding(query)
+
+    # 2. ベクトル検索（コサイン距離）
+    rows = await pool.fetch(
+        """
+        SELECT
+            id,
+            content,
+            metadata,
+            1 - (embedding <=> $1::vector) AS similarity
+        FROM documents
+        WHERE 1 - (embedding <=> $1::vector) > 0.7  -- 類似度閾値
+        ORDER BY embedding <=> $1::vector
+        LIMIT $2
+        """,
+        query_embedding,
+        top_k,
+    )
+
+    return [dict(row) for row in rows]
+```
+
+### チャンキング戦略
+
+ドキュメントをベクトル化する前に、適切なサイズに分割（チャンキング）する必要があります。
+
+```python
+# セマンティックチャンキングの例
+def semantic_chunking(
+    text: str,
+    max_chunk_size: int = 512,
+    overlap: int = 50,
+) -> list[str]:
+    """段落・見出し境界を尊重してチャンキングする"""
+    # 段落で分割
+    paragraphs = text.split("\n\n")
+    chunks: list[str] = []
+    current_chunk = ""
+
+    for para in paragraphs:
+        if len(current_chunk) + len(para) > max_chunk_size:
+            if current_chunk:
+                chunks.append(current_chunk.strip())
+            # オーバーラップ: 前のチャンクの末尾を引き継ぐ
+            current_chunk = current_chunk[-overlap:] + "\n\n" + para
+        else:
+            current_chunk += "\n\n" + para
+
+    if current_chunk.strip():
+        chunks.append(current_chunk.strip())
+
+    return chunks
+```
+
+| チャンクサイズ | 適するケース | トレードオフ |
+|---|---|---|
+| 128〜256トークン | Q&A、FAQ | 精度高・検索数多 |
+| 256〜512トークン | 技術文書、マニュアル | バランス型 |
+| 512〜1024トークン | 論文、長文記事 | 文脈保持・精度低下リスク |
+
+## ハイブリッド検索
+
+2026年時点で、ベクトル検索単体ではなく**ハイブリッド検索がデフォルト推奨**です。ベクトル検索（セマンティック）とキーワード検索（BM25）を組み合わせることで、それぞれの弱点を補完します。
+
+```python
+# ハイブリッド検索の例（pgvector + pg_trgm）
+async def hybrid_search(
+    query: str,
+    pool: asyncpg.Pool,
+    semantic_weight: float = 0.7,
+    keyword_weight: float = 0.3,
+    top_k: int = 10,
+) -> list[dict]:
+    """セマンティック検索とキーワード検索を統合する"""
+    query_embedding = await get_embedding(query)
+
+    rows = await pool.fetch(
+        """
+        WITH semantic AS (
+            SELECT id, content, metadata,
+                   1 - (embedding <=> $1::vector) AS score
+            FROM documents
+            ORDER BY embedding <=> $1::vector
+            LIMIT 50
+        ),
+        keyword AS (
+            SELECT id, content, metadata,
+                   ts_rank(to_tsvector('japanese', content),
+                           plainto_tsquery('japanese', $2)) AS score
+            FROM documents
+            WHERE to_tsvector('japanese', content) @@
+                  plainto_tsquery('japanese', $2)
+            LIMIT 50
+        )
+        SELECT
+            COALESCE(s.id, k.id) AS id,
+            COALESCE(s.content, k.content) AS content,
+            (COALESCE(s.score, 0) * $3 +
+             COALESCE(k.score, 0) * $4) AS combined_score
+        FROM semantic s
+        FULL OUTER JOIN keyword k ON s.id = k.id
+        ORDER BY combined_score DESC
+        LIMIT $5
+        """,
+        query_embedding,
+        query,
+        semantic_weight,
+        keyword_weight,
+        top_k,
+    )
+
+    return [dict(row) for row in rows]
+```
+
+### ベクトル検索 vs キーワード検索 vs ハイブリッド
+
+| クエリ例 | ベクトル検索 | キーワード検索 | ハイブリッド |
+|---|---|---|---|
+| 「エラーハンドリングのベストプラクティス」 | 強い | 弱い | 強い |
+| 「TypeError: Cannot read property」 | 弱い | 強い | 強い |
+| 「React 19のuse()フック」 | 中 | 中 | 強い |
+
+## リランキング
+
+検索結果の精度をさらに向上させるため、**Cross-Encoder**によるリランキングが高ROI施策として推奨されています。
+
+```python
+# リランキングの例（Cohere Rerank）
+import cohere
+
+co = cohere.Client(api_key="...")
+
+async def search_with_rerank(
+    query: str,
+    pool: asyncpg.Pool,
+    top_k: int = 5,
+) -> list[dict]:
+    # 1. まず広く取得（50件）
+    candidates = await hybrid_search(query, pool, top_k=50)
+
+    # 2. Cross-Encoderでリランキング（上位5件に絞る）
+    reranked = co.rerank(
+        query=query,
+        documents=[c["content"] for c in candidates],
+        top_n=top_k,
+        model="rerank-v3.5",
+    )
+
+    return [candidates[r.index] for r in reranked.results]
+```
+
+リランキングだけで**回答品質が2倍に向上**した事例も報告されています。
+
+## 埋め込みモデルの選定（2026年）
+
+| モデル | 次元数 | 日本語対応 | 特徴 |
+|---|---|---|---|
+| text-embedding-3-large | 3072 | 良好 | 高精度・APIベース |
+| Cohere embed-v4 | 1024 | 良好 | 多言語に強い |
+| multilingual-e5-large | 1024 | 優秀 | OSS・セルフホスト可 |
+| BGE-m3 | 1024 | 優秀 | OSS・ハイブリッド対応 |
+
+選定のポイントは**MTEBベンチマークのスコア**、**日本語性能**、**セルフホストの可否**、**コスト**の4軸で評価することです。
+
+## 実践ポイント
+
+- **チャンクサイズは実験で決める**: 理論値ではなく、実際のクエリでRecall@10を計測する
+- **メタデータフィルタを活用する**: ベクトル検索の前にカテゴリ・日付でフィルタし、検索空間を絞る
+- **定期的に埋め込みを再生成する**: モデルをアップグレードした場合、古い埋め込みとの互換性はない
+- **GraphRAGを検討する**: 関係性ベースのクエリでは、ベクトル検索だけでは精度が35%劣るという報告がある
+
+## まとめ
+
+ベクトル検索はRAGの基盤技術ですが、2026年の実践ではハイブリッド検索＋リランキングが標準構成です。埋め込みモデルの選定、チャンキング戦略、検索パイプラインの設計を総合的に最適化することで、コンテキストエンジニアリングの質を大きく向上させることができます。
+
+## 参考リンク
+
+- [Hybrid Search RAG Complete Guide 2026 — Calmops](https://calmops.com/ai/hybrid-search-rag-complete-guide-2026/)
+- [Best Embedding Models for RAG 2026 — PremAI](https://blog.premai.io/best-embedding-models-for-rag-2026-ranked-by-mteb-score-cost-and-self-hosting/)
+- [RAG in 2026: Why Vector Embeddings Are No Longer Enough — Prism Labs](https://www.prismlabs.uk/blog/rag-beyond-vector-embeddings-2026)
+- [From RAG to Context: A 2025 Year-end Review — RAGFlow](https://ragflow.io/blog/rag-review-2025-from-rag-to-context)
+- [Vector Databases Guide: RAG Applications 2025 — DEV Community](https://dev.to/klement_gunndu_e16216829c/vector-databases-guide-rag-applications-2025-55oj)

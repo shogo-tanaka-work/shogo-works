@@ -1,0 +1,188 @@
+---
+title: "コンテキスト圧縮テクニック — サマリー・トリミング・蒸留"
+description: "LLMのコンテキストウィンドウを効率的に活用するための圧縮テクニック（サマリー・トリミング・蒸留）を体系的に解説し、実装パターンとツールを紹介します。"
+category: "context-engineering"
+tags: ["context-engineering", "llm", "compression", "llmlingua", "summarization", "distillation"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜコンテキスト圧縮が必要なのか
+
+LLMのコンテキストウィンドウは有限のリソースです。Claude Opus 4.6の1Mトークンのような大規模ウィンドウでも、エージェントが長時間稼働すればコンテキストは膨張し、**Context Rot（コンテキスト腐敗）**が発生します。不要な情報がコンテキストを埋め尽くすと、モデルの出力品質は劣化し、コストも増大します。
+
+コンテキスト圧縮は、**情報の本質を保ちつつトークン数を削減する技術**です。適切な圧縮により、コスト50〜90%削減と品質維持の両立が可能になります。
+
+## 3つの圧縮アプローチ
+
+コンテキスト圧縮は、大きく3つのアプローチに分類できます。
+
+### サマリー（Summarization）
+
+会話履歴やドキュメントを**要点だけに凝縮**する手法です。最も直感的で実装しやすい反面、重要な詳細が失われるリスクがあります。
+
+```python
+# サマリーベースの圧縮例
+def summarize_conversation(messages: list[dict], max_tokens: int = 500) -> str:
+    """会話履歴をサマリーに圧縮する"""
+    summary_prompt = f"""
+以下の会話履歴を{max_tokens}トークン以内で要約してください。
+重要な決定事項、未解決の質問、ユーザーの意図を優先的に保持してください。
+
+会話履歴:
+{format_messages(messages)}
+"""
+    return llm.generate(summary_prompt)
+```
+
+**適用シーン**: 長時間チャットの履歴圧縮、マルチターン会話の中間サマリー
+
+### トリミング（Trimming / Pruning）
+
+不要なトークンを**選択的に除去**する手法です。元のテキストの構造を維持しながら、冗長な部分を削り落とします。
+
+```python
+# SelectiveContextベースのトリミング例
+from llmlingua import PromptCompressor
+
+compressor = PromptCompressor(
+    model_name="microsoft/llmlingua-2-bert-base-multilingual-cased-meetingbank",
+    use_llmlingua2=True,
+)
+
+# 元のプロンプト（長文のRAGコンテキスト）
+original_prompt = """
+システム設計に関する詳細なドキュメント...（2000トークン）
+"""
+
+# 圧縮実行（50%に圧縮）
+compressed = compressor.compress_prompt(
+    original_prompt,
+    rate=0.5,  # 圧縮率
+    force_tokens=["\n", "?", ".", "!"],  # 保持する区切りトークン
+)
+
+print(f"圧縮率: {compressed['rate']}")  # => 0.5
+print(f"圧縮後: {compressed['compressed_prompt']}")
+```
+
+**適用シーン**: RAGの検索結果の圧縮、ツール出力の短縮
+
+### 蒸留（Distillation）
+
+元の情報から**本質的なパターンや原則を抽出**する、最も変換度の高い手法です。単なる要約ではなく、情報の構造的な理解を保持します。
+
+```python
+# コンテキスト蒸留の例
+DISTILLATION_PROMPT = """
+以下の会話履歴から、次の3つの要素を抽出してください:
+
+1. **ユーザーの目的**: 最終的に何を達成しようとしているか
+2. **確定した制約**: 決定済みの技術選定・要件
+3. **未解決の論点**: まだ決まっていない事項
+
+会話履歴:
+{conversation}
+
+JSON形式で出力してください。
+"""
+
+# 蒸留結果の例
+{
+    "user_goal": "ECサイトの検索機能をベクトル検索に移行する",
+    "constraints": [
+        "PostgreSQL + pgvectorを使用",
+        "既存APIとの後方互換性を維持",
+        "レイテンシ100ms以内"
+    ],
+    "open_questions": [
+        "埋め込みモデルの選定（multilingual-e5 vs cohere）",
+        "ハイブリッド検索のBM25重み配分"
+    ]
+}
+```
+
+**適用シーン**: エージェントの長期メモリ構築、プロジェクトコンテキストの圧縮
+
+## 3手法の比較
+
+| 観点 | サマリー | トリミング | 蒸留 |
+|---|---|---|---|
+| 圧縮率 | 5〜10x | 2〜20x | 10〜50x |
+| 情報損失 | 中（詳細が消える） | 低（構造維持） | 中〜高（抽象化される） |
+| 処理コスト | LLM呼び出し必要 | 小型モデルで高速 | LLM呼び出し必要 |
+| 最適用途 | 会話履歴の圧縮 | RAG文書の圧縮 | 長期メモリの構築 |
+
+## 主要ツールとフレームワーク
+
+### LLMLingua / LLMLingua-2
+
+Microsoftが開発したプロンプト圧縮ライブラリです。小型言語モデル（BERT, GPT-2）を使って、LLMへの入力から不要トークンを除去します。
+
+- **LLMLingua**: GPT-2/LLaMAベース。最大20x圧縮で性能損失1.5%以下
+- **LLMLingua-2**: BERTベースのトークン分類。LLMLingua比で3〜6倍高速
+- LangChain・LlamaIndexに統合済み
+
+### Anthropic Compaction API
+
+Anthropicが提供するプロダクション向けの自動コンパクション機能です。
+
+```typescript
+// Claude APIでのコンパクション利用例
+const response = await anthropic.messages.create({
+  model: "claude-opus-4-6-20260410",
+  max_tokens: 4096,
+  system: "あなたはアシスタントです。",
+  messages: longConversationHistory,
+  // コンテキストが閾値を超えると自動的に圧縮
+  metadata: {
+    enable_compaction: true,
+  },
+});
+```
+
+### ACON（Agent Context Optimization）
+
+圧縮を**最適化問題**として定式化するフレームワークです。ペアード軌跡分析・失敗分析・ガイドライン更新を繰り返し、ピークトークン使用量を26〜54%削減します。
+
+## 実践ポイント
+
+### 段階的圧縮戦略
+
+単一の圧縮手法ではなく、コンテキストの「鮮度」に応じて段階的に圧縮します。
+
+```
+直近のやり取り（5ターン）    → 圧縮なし（そのまま保持）
+中期の履歴（6〜20ターン）    → サマリーに圧縮
+長期の履歴（20ターン以上）   → 蒸留してメモリに保存
+RAGの検索結果               → トリミングで冗長部分を除去
+```
+
+### 圧縮品質の検証
+
+圧縮後の品質を検証するには、以下の指標を使います。
+
+- **情報保持率**: 圧縮前後で同じ質問に正しく回答できるか
+- **タスク成功率**: 圧縮コンテキストでエージェントがタスクを完了できるか
+- **トークン削減率**: 実際にどれだけコストが削減されたか
+
+### 圧縮してはいけない情報
+
+すべてを圧縮すればよいわけではありません。以下は圧縮を避けるべきです。
+
+- **システムプロンプト**: モデルの振る舞いを定義する根幹部分
+- **直近のユーザー入力**: 即座に参照される情報
+- **構造化データ**: JSON、テーブルなど（トリミングで壊れやすい）
+- **コード**: 1トークンの欠落で意味が変わる
+
+## まとめ
+
+コンテキスト圧縮は「情報を捨てる」のではなく、**「情報の密度を高める」**技術です。サマリー・トリミング・蒸留の3手法を状況に応じて使い分け、段階的な圧縮戦略を組むことで、コスト削減と品質維持を両立できます。
+
+## 参考リンク
+
+- [LLMLingua — Microsoftのプロンプト圧縮ライブラリ](https://llmlingua.com/)
+- [AI Agent Context Compression Strategies — Zylos Research](https://zylos.ai/research/2026-02-28-ai-agent-context-compression-strategies)
+- [Consolidation vs. Summarization vs. Distillation — Robert Lavigne](https://medium.com/@RLavigne42/consolidation-vs-summarization-vs-distillation-in-llm-context-compression-c96fa5956057)
+- [Prompt Compression Survey（NAACL 2025）](https://github.com/ZongqianLi/Prompt-Compression-Survey)
+- [CCF: Context Compression Framework（arXiv）](https://arxiv.org/html/2509.09199v1)

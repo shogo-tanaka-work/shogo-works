@@ -1,0 +1,243 @@
+---
+title: "ハーネスエンジニアリング事例集 — OpenAI・Anthropic・個人開発"
+description: "OpenAIの100万行ゼロ手書き実験、Anthropicの三層エージェント設計、個人開発での実践例など、ハーネスエンジニアリングの実事例を体系的にまとめます。"
+category: "harness-engineering"
+tags: ["harness-engineering", "case-study", "openai", "anthropic", "claude-code", "codex"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## ハーネスエンジニアリングの実証
+
+2026年は「エージェントが難しいのではなく、ハーネスが難しい」と業界が気づいた年です。以下に、規模の異なる3つのレイヤーでの事例を紹介します。
+
+## 事例1: OpenAI — 100万行ゼロ手書き実験
+
+### 概要
+
+OpenAIのチームは、内部プロダクトのベータ版を**人間の手書きコード0行**で構築・出荷しました。5ヶ月間で約100万行のコードが生成され、アプリケーションロジック、インフラ、ツーリング、ドキュメント、内部ユーティリティを含みます。
+
+### 数値
+
+| 指標 | 値 |
+|---|---|
+| コード行数 | 約100万行 |
+| 手書きコード | 0行 |
+| 開発期間 | 5ヶ月 |
+| 初期チーム規模 | 3名 |
+| 最終チーム規模 | 7名 |
+| PR数/エンジニア/日 | 平均3.5 |
+| 合計PR数 | 約1,500 |
+
+### ハーネス設計のポイント
+
+#### AGENTS.mdは「目次」として使う
+
+OpenAIのAGENTS.mdは約100行。プロジェクトの百科事典ではなく、構造化された `docs/` ディレクトリへの**ポインタ集**として機能しました。
+
+```markdown
+# AGENTS.md (約100行)
+
+## Project Overview
+[2-3文のプロジェクト概要]
+
+## Quick Start
+See: docs/setup.md
+
+## Architecture
+See: docs/architecture/
+
+## API Specifications
+See: docs/api/
+
+## Testing Strategy
+See: docs/testing.md
+
+## Deployment
+See: docs/deploy.md
+```
+
+`docs/` ディレクトリがシステムの記録原本（system of record）として機能し、AGENTS.mdはその索引です。
+
+#### 再現可能な開発環境
+
+ワンコマンドで環境を立ち上げられることが前提条件です。エージェントが「環境構築の方法を調べる」ことに時間を使うのは無駄です。
+
+```bash
+# 理想的な開発環境のセットアップ
+make dev  # すべての依存関係のインストール + サーバー起動
+```
+
+#### CIによるアーキテクチャ境界の強制
+
+フォーマット、アーキテクチャ境界、データバリデーションをCIで機械的に検証します。エージェントに「ルールを守ってね」と頼むのではなく、**守らなければマージできない**仕組みにします。
+
+```yaml
+# CI設定の概要
+checks:
+  - formatting: prettier --check
+  - linting: eslint
+  - type-check: tsc --noEmit
+  - architecture: dependency-cruiser
+  - tests: vitest run
+  - data-validation: zod schemas at every edge
+```
+
+### 最大の教訓
+
+エンジニアの役割が「コードを書く」から「エージェントがコードを書く環境を設計する」にシフトしました。ハーネスの品質がそのまま出力品質になります。
+
+## 事例2: Anthropic — 長時間実行エージェントの三層設計
+
+### 概要
+
+Anthropicの研究チームは、長時間のアプリケーション開発において**Planner-Generator-Evaluator**の三層エージェント構成を研究・公開しました。
+
+### 設計と発見
+
+#### GANに着想を得た対立構造
+
+GeneratorとEvaluatorを分離することで、「自分の成果物を自分で褒める」問題を解決しました。
+
+```
+Planner: ユーザーの要求を仕様書に変換
+Generator: 仕様に基づいて実装 + 自己評価
+Evaluator: 独立した品質評価（Generator の自己評価を信じない）
+```
+
+研究チームの発見: エージェントは「自信を持って成果物を褒める」傾向がある。人間から見て明らかに品質が低くても。
+
+#### スプリント契約
+
+実装前にGeneratorとEvaluatorが「完了条件」を交渉する仕組みです。曖昧な「いい感じに」ではなく、テスト可能な基準を定義します。
+
+#### モデル進化によるハーネスの陳腐化
+
+最も実践的な知見は、**ハーネスの前提がモデルの進化で無効になる**ということです。
+
+| 時期 | モデル | 必要だったハーネス | 不要になった理由 |
+|---|---|---|---|
+| 初期 | Sonnet 4.5 | スプリント区切りでのコンテキストリセット | コンテキスト不安が強く、残り容量を気にして保守的に |
+| 後期 | Opus 4.6 | コンテキストリセット不要 | 長時間の連続ビルドが安定 |
+
+**教訓**: 定期的に「この制約はまだ必要か？」と問い直す。不要な制約はオーバーヘッドでしかない。
+
+## 事例3: 個人開発 — ナレッジベースサイト
+
+### 概要
+
+本サイト（田中省伍のHP）自体が、ハーネスエンジニアリングを適用した個人開発の事例です。
+
+### ハーネス構成
+
+```
+CLAUDE.md              # プロジェクト概要、コマンド、参照先
+docs/
+  SPEC.md              # 仕様・技術スタック
+  ARCH.md              # アーキテクチャ決定
+.claude/
+  settings.json        # Hook設定
+  rules/
+    coding-standards.md  # コーディング規約
+    architecture.md      # アーキテクチャルール
+```
+
+### 個人開発特有のポイント
+
+#### 1. TDD強制
+
+```markdown
+# CLAUDE.mdより
+## 開発ルール（必須）
+2. テストを先に書く（TDD）。テストなしの実装は禁止
+```
+
+個人開発では「テストは後で」の誘惑が強い。CLAUDE.mdに明記することで、エージェントにもTDDを強制します。
+
+#### 2. 仕様外実装の禁止
+
+```markdown
+## 禁止事項
+- SPEC.md にない機能の先取り実装禁止
+```
+
+エージェントは「ついでにこれも」を提案しがちです。スコープクリープを防ぐための明示的な制約です。
+
+#### 3. ドキュメント自動生成の禁止
+
+```markdown
+## 禁止事項
+- README・ドキュメントを勝手に生成・変更しない
+```
+
+エージェントは親切心からREADMEを更新しがちですが、意図しない変更は混乱の元です。
+
+### 効果
+
+| 指標 | ハーネス導入前 | 導入後 |
+|---|---|---|
+| テストカバレッジ | 不定 | 安定して確保 |
+| 手戻り頻度 | 週2-3回 | 週0-1回 |
+| スコープクリープ | 頻発 | ほぼゼロ |
+| コード品質の一貫性 | バラつきあり | 安定 |
+
+## 事例横断の共通パターン
+
+3つの事例から抽出した共通パターンです。
+
+### 1. 制約が信頼性を高める
+
+すべての成功事例で、エージェントに**より多くの自由ではなく、より厳密な制約**を与えています。
+
+```
+OpenAI: CIで機械的にアーキテクチャ境界を強制
+Anthropic: Evaluatorという独立した検証者を配置
+個人開発: CLAUDE.mdで禁止事項を明示
+```
+
+### 2. 環境を再現可能にする
+
+エージェントが「環境構築方法の調査」に時間を使う状態は非効率です。
+
+```bash
+# 全事例で共通する原則
+# ワンコマンドで開発環境が立ち上がること
+make dev    # または npm run dev, bun dev
+```
+
+### 3. 検証を外部化する
+
+自己評価は信頼できない。検証はエージェントの外部で行います。
+
+| 検証の外部化手法 | 適用場面 |
+|---|---|
+| CI/CDパイプライン | フォーマット、リント、テスト |
+| 別エージェント（Evaluator） | 品質評価、完了判定 |
+| Hook（PreToolUse/Stop） | コマンド検証、完了検証 |
+| 人間レビュー | アーキテクチャ判断、ビジネスロジック |
+
+### 4. ドキュメントをコードとして管理する
+
+SlackやGoogle Docsに散在する知識ではなく、リポジトリ内の構造化されたファイルとして管理します。
+
+```
+docs/           # 仕様、アーキテクチャ（人間とエージェント両方が読む）
+CLAUDE.md       # エージェント向けのプロジェクト概要
+.claude/rules/  # エージェント向けのルール
+```
+
+## 実践ポイント
+
+1. **小さく始める**: CLAUDE.mdとCIからスタートし、必要に応じてHookやマルチエージェント構成を追加する
+2. **制約を恐れない**: 自由度を下げることが品質を上げる。OpenAIの100万行がそれを証明している
+3. **定期的に見直す**: モデルの進化で不要になる制約がある。オーバーヘッドを最小化し続ける
+4. **知見を共有する**: ハーネス設定をGitで管理し、チームやコミュニティで共有する
+
+## 参考リンク
+
+- [Harness engineering: leveraging Codex in an agent-first world (OpenAI)](https://openai.com/index/harness-engineering/)
+- [Harness design for long-running application development (Anthropic)](https://www.anthropic.com/engineering/harness-design-long-running-apps)
+- [OpenAI's Harness Engineering Experiment (Towards AI)](https://medium.com/@richardhightower/openais-harness-engineering-experiment-zero-manually-written-code-100a24ad04cf)
+- [Extreme Harness Engineering (Latent Space)](https://www.latent.space/p/harness-eng)
+- [What Is Harness Engineering? (Agent Engineering)](https://www.agent-engineering.dev/article/harness-engineering-in-2026-the-discipline-that-makes-ai-agents-production-ready)
+- [Harness engineering for coding agent users (Martin Fowler)](https://martinfowler.com/articles/harness-engineering.html)

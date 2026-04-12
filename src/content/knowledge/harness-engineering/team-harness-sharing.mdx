@@ -1,0 +1,253 @@
+---
+title: "チームでのハーネス共有と標準化"
+description: "CLAUDE.mdやsettings.jsonをチーム全体で共有・標準化する方法。Gitベースのバージョン管理、組織レベルのポリシー設定、段階的な導入戦略を解説します。"
+category: "harness-engineering"
+tags: ["harness-engineering", "team", "standardization", "claude-md", "organization"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜチームでハーネスを共有するのか
+
+個人でのAIエージェント活用は直感的です。しかしチーム開発では、メンバーごとにバラバラなハーネス設定が**出力品質のばらつき**を生みます。
+
+Aさんのエージェントはテストを書いてからコミットする。Bさんのエージェントはテストなしでコミットする。これではコードベースの品質は最弱のリンクに引きずられます。
+
+ハーネスの共有とは、**エージェントの行動規範をコードベースの一部として管理する**ことです。すべてのアーキテクチャ決定、命名規約、デプロイプロセスがリポジトリに存在し、SlackやGoogle Docsに散在しない状態を目指します。
+
+## 共有可能なハーネスの構成要素
+
+### 3つのスコープ
+
+| スコープ | 配置場所 | Git管理 | 対象 |
+|---|---|---|---|
+| プロジェクト共有 | `.claude/settings.json` | 可 | チーム全員 |
+| プロジェクトローカル | `.claude/settings.local.json` | 不可 | 個人 |
+| ユーザーグローバル | `~/.claude/settings.json` | 不可 | 個人の全プロジェクト |
+| 組織ポリシー | マネージドポリシー設定 | 管理者制御 | 組織全体 |
+
+**原則**: チーム全員に適用したいルールは `.claude/settings.json` に、個人の好みは `.claude/settings.local.json` に分離します。
+
+### リポジトリに含めるべきファイル
+
+```
+.claude/
+  settings.json          # 共有Hook設定
+  rules/
+    coding-standards.md  # コーディング規約
+    architecture.md      # アーキテクチャルール
+    testing.md           # テスト戦略
+  hooks/
+    protect-files.sh     # ファイル保護スクリプト
+    validate-commit.sh   # コミット検証スクリプト
+  agents/                # カスタムエージェント定義
+    reviewer.md          # レビュー用エージェント
+    planner.md           # 計画用エージェント
+CLAUDE.md                # プロジェクト概要
+```
+
+## CLAUDE.mdの標準化
+
+### チーム向けテンプレート
+
+CLAUDE.mdはプロジェクトの「目次」として機能させます。OpenAIの研究チームの知見に基づき、CLAUDE.md自体は100行程度に抑え、詳細は `docs/` ディレクトリに配置します。
+
+```markdown
+# Project Name
+
+## Overview
+[1-2文でプロジェクトの目的を説明]
+
+## Tech Stack
+- [ランタイム/フレームワーク/主要ライブラリを列挙]
+
+## Commands
+- `npm run dev` - 開発サーバー
+- `npm test` - テスト実行
+- `npm run build` - ビルド
+- `npm run lint` - リント
+
+## Architecture
+See: docs/ARCH.md
+
+## Coding Standards
+See: .claude/rules/coding-standards.md
+
+## Domain Knowledge
+See: docs/DOMAIN.md
+
+## Deployment
+See: docs/DEPLOY.md
+```
+
+### 階層的なCLAUDE.md
+
+Claude Codeは複数のCLAUDE.mdを階層的に読み込みます。
+
+```
+project-root/
+  CLAUDE.md              # プロジェクト全体のルール
+  packages/
+    api/
+      CLAUDE.md          # API固有のルール
+    web/
+      CLAUDE.md          # フロントエンド固有のルール
+```
+
+モノレポでは、ルートのCLAUDE.mdに共通ルールを、各パッケージのCLAUDE.mdに固有ルールを配置するのが効果的です。
+
+## Hook設定の標準化
+
+### チーム必須のHook
+
+以下は多くのチームで有効な「基本セット」です。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-files.sh"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"Claude Code needs your attention\" with title \"Claude Code\"'"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### 個人設定との分離
+
+通知方法はOS依存のため、個人設定に分離するのが適切です。
+
+```json
+// .claude/settings.json（共有）- フォーマットとファイル保護
+{
+  "hooks": {
+    "PostToolUse": [{ "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "..." }] }],
+    "PreToolUse": [{ "matcher": "Edit|Write", "hooks": [{ "type": "command", "command": "..." }] }]
+  }
+}
+```
+
+```json
+// .claude/settings.local.json（個人）- 通知設定
+{
+  "hooks": {
+    "Notification": [{ "matcher": "", "hooks": [{ "type": "command", "command": "..." }] }]
+  }
+}
+```
+
+## 組織レベルのポリシー
+
+エンタープライズ環境では、マネージドポリシー設定を使って組織全体のルールを強制できます。
+
+### ポリシーの優先順位
+
+```
+組織ポリシー（最優先・上書き不可）
+  ↓
+プロジェクト共有設定（.claude/settings.json）
+  ↓
+プロジェクトローカル設定（.claude/settings.local.json）
+  ↓
+ユーザーグローバル設定（~/.claude/settings.json）
+```
+
+組織ポリシーの `deny` ルールは、Hookの `allow` 返却よりも優先されます。これにより、セキュリティポリシーをユーザーが迂回できない仕組みを構築できます。
+
+## 段階的な導入戦略
+
+### フェーズ1: 最小限の共有（1-2週間）
+
+```
+CLAUDE.md                  # プロジェクト概要とコマンド
+.claude/rules/
+  coding-standards.md      # 既存のコーディング規約を移植
+```
+
+まずはCLAUDE.mdとコーディング規約だけを共有します。チームメンバーが日常的にエージェントを使い始めることが目標です。
+
+### フェーズ2: 品質ゲートの追加（2-4週間）
+
+```
+.claude/settings.json      # フォーマッター・ファイル保護Hook
+.claude/hooks/
+  protect-files.sh         # 保護ファイルスクリプト
+```
+
+PostToolUseのフォーマッターとPreToolUseのファイル保護を追加します。
+
+### フェーズ3: 高度な自動化（1-2ヶ月）
+
+```
+.claude/settings.json      # Stop Hook、Agent Hook追加
+.claude/agents/            # カスタムエージェント定義
+```
+
+Stop Hookによるタスク完了検証、Agent Hookによるテスト自動実行を導入します。
+
+## チームでの運用ルール
+
+### ハーネス変更のレビュー
+
+ハーネス設定の変更もコードレビューの対象にします。
+
+```markdown
+## PR Checklist for Harness Changes
+
+- [ ] CLAUDE.mdの変更がプロジェクトの現状を正確に反映している
+- [ ] Hook設定が既存のHookと競合していない
+- [ ] ルールファイルが具体的で、エージェントが解釈可能である
+- [ ] .claude/settings.local.jsonに移すべき個人設定が混入していない
+- [ ] チームメンバーに変更の影響を周知済み
+```
+
+### 定期的な見直し
+
+モデルの進化に合わせて、ハーネスも定期的に見直します。
+
+- **月次**: CLAUDE.mdの情報が最新かチェック
+- **四半期**: Hook設定の有効性を評価。不要になった制約を削除
+- **モデル更新時**: 新モデルで既存の制約が不要になっていないか検証
+
+## 実践ポイント
+
+1. **Gitで管理する**: すべてのハーネス設定をバージョン管理に含める。設定の変更履歴が追跡できる
+2. **段階的に導入する**: 一度に全部入れず、チームの受容度に合わせて段階的に展開する
+3. **個人設定を尊重する**: 通知方法やエディタ連携など、個人の好みは `.local.json` に分離する
+4. **ドキュメントとコードを一致させる**: CLAUDE.mdの内容とコードベースの実態がずれないよう、CIでチェックする仕組みを検討する
+
+## 参考リンク
+
+- [Harness engineering for coding agent users (Martin Fowler)](https://martinfowler.com/articles/harness-engineering.html)
+- [The importance of Agent Harness in 2026 (Phil Schmid)](https://www.philschmid.de/agent-harness-2026)
+- [Harness engineering: leveraging Codex in an agent-first world (OpenAI)](https://openai.com/index/harness-engineering/)
+- [Skill Issue: Harness Engineering for Coding Agents (HumanLayer)](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents)

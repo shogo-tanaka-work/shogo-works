@@ -1,0 +1,223 @@
+---
+title: "Hooks & フィードバックループ — 自動検証の仕組み"
+description: "Claude Code Hooksを活用した決定論的な品質ゲートとフィードバックループの構築方法を、具体的な設定例とともに解説します。"
+category: "harness-engineering"
+tags: ["harness-engineering", "claude-code", "hooks", "feedback-loop", "automation"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## Hooksとは何か
+
+Claude Code Hooksは、エージェントのライフサイクルの特定ポイントで**自動的にシェルコマンドを実行**する仕組みです。LLMに「やってね」と頼むのではなく、**決定論的に必ず実行される**品質ゲートを設置できます。
+
+```
+エージェントの動作 → Hook発火 → 検証スクリプト実行 → 結果に応じて続行/ブロック
+```
+
+Hooksの核心は「信頼」ではなく「検証」です。エージェントがどれだけ賢くても、テストを実行し忘れる可能性はゼロにはなりません。Hooksはそのリスクを環境レベルで排除します。
+
+## Hookライフサイクルイベント
+
+Claude Codeは20以上のライフサイクルイベントを提供しています。実務で特に重要なものを抜粋します。
+
+| イベント | 発火タイミング | 主な用途 |
+|---|---|---|
+| `PreToolUse` | ツール実行前 | コマンドのブロック、入力の書き換え |
+| `PostToolUse` | ツール実行後 | フォーマッター実行、ログ記録 |
+| `Stop` | Claude応答完了時 | タスク完了条件の検証 |
+| `SessionStart` | セッション開始/再開時 | コンテキスト注入 |
+| `Notification` | 入力待ち時 | デスクトップ通知 |
+| `PreCompact` / `PostCompact` | コンテキスト圧縮前後 | 重要情報の再注入 |
+
+## 設定ファイルの構造
+
+Hooksは `settings.json` に記述します。スコープによって配置場所が異なります。
+
+| 配置場所 | スコープ | Git管理 |
+|---|---|---|
+| `~/.claude/settings.json` | 全プロジェクト共通 | 不可 |
+| `.claude/settings.json` | プロジェクト固有 | 可能 |
+| `.claude/settings.local.json` | プロジェクト固有（ローカル） | 不可（gitignore対象） |
+
+## 実践パターン集
+
+### パターン1: ファイル編集後の自動フォーマット
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`PostToolUse` で `Edit|Write` にマッチさせ、編集されたファイルに対してPrettierを実行します。エージェントのフォーマット能力に依存する必要がなくなります。
+
+### パターン2: 危険なコマンドのブロック
+
+```bash
+#!/bin/bash
+# .claude/hooks/protect-files.sh
+INPUT=$(cat)
+FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty')
+
+PROTECTED_PATTERNS=(".env" "package-lock.json" ".git/")
+
+for pattern in "${PROTECTED_PATTERNS[@]}"; do
+  if [[ "$FILE_PATH" == *"$pattern"* ]]; then
+    echo "Blocked: $FILE_PATH matches protected pattern '$pattern'" >&2
+    exit 2  # exit 2 = アクションをブロック
+  fi
+done
+
+exit 0  # exit 0 = 続行を許可
+```
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/protect-files.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`exit 2` で返すと、stderrのメッセージがClaudeにフィードバックされ、別のアプローチを試みます。
+
+### パターン3: Stopフックによるタスク完了検証
+
+エージェントが「完了しました」と宣言しても、実際にはテストが通っていない場合があります。`Stop` フックで自動検証を行います。
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "agent",
+            "prompt": "Verify that all unit tests pass. Run the test suite and check the results. $ARGUMENTS",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`type: "agent"` を使うと、サブエージェントがファイルを読んだりコマンドを実行したりして検証を行います。`"ok": false` が返ると、Claudeは作業を継続します。
+
+**無限ループ防止の注意点**: `stop_hook_active` フィールドをチェックして、再帰的な発火を防ぐ必要があります。
+
+```bash
+#!/bin/bash
+INPUT=$(cat)
+if [ "$(echo "$INPUT" | jq -r '.stop_hook_active')" = "true" ]; then
+  exit 0  # 再帰を防止
+fi
+# ... 検証ロジック
+```
+
+### パターン4: コンテキスト圧縮後の情報再注入
+
+長時間セッションではコンテキスト圧縮（compaction）が発生し、重要な情報が失われることがあります。
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Reminder: use Bun, not npm. Run bun test before committing. Current sprint: auth refactor.'"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## フィードバックループの設計原則
+
+Hooksを組み合わせることで、自己修正型のフィードバックループを構築できます。
+
+```
+Claude がコードを編集
+  → PostToolUse: Prettier でフォーマット
+  → PostToolUse: ESLint でチェック
+    → エラーがあればClaudeにフィードバック
+      → Claude が修正を試みる
+        → 再びHookが発火 ...
+```
+
+### 3つのHookタイプの使い分け
+
+| タイプ | 判断方法 | 適用場面 |
+|---|---|---|
+| `command` | シェルスクリプト（決定論的） | フォーマット、リント、ファイル保護 |
+| `prompt` | LLMによる単発判断 | 完了条件の曖昧な検証 |
+| `agent` | サブエージェント（ツール使用可能） | テスト実行、コードベース検査 |
+
+### `if` フィールドによる精密フィルタリング
+
+`matcher` はツール名レベルのフィルタですが、`if` フィールドで引数レベルの絞り込みが可能です（v2.1.85以降）。
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/check-git-policy.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+すべてのBashコマンドではなく、`git` コマンドのみにHookを適用できます。
+
+## ベストプラクティス
+
+1. **段階的に導入する**: まず `Notification` と `PostToolUse`（フォーマッター）から始める
+2. **ブロックには理由を添える**: `exit 2` で返すとき、stderrに明確な理由を書く。Claudeが代替手段を判断できる
+3. **デバッグログを活用する**: `claude --debug-file /tmp/claude.log` で全Hook実行を記録できる
+4. **冪等性を意識する**: 同じHookが複数回発火しても問題ない設計にする
+5. **タイムアウトを設定する**: デフォルトは10分。短いスクリプトには短いtimeoutを指定する
+
+## 参考リンク
+
+- [Claude Code Hooks Guide](https://code.claude.com/docs/en/hooks-guide)
+- [Claude Code Hooks Reference](https://code.claude.com/docs/en/hooks)
+- [Hooks, Rules, and Skills: Feedback Loops in Claude Code](https://jessezam.medium.com/hooks-rules-and-skills-feedback-loops-in-claude-code-d47e5f58364d)
+- [claude-code-hooks-mastery (GitHub)](https://github.com/disler/claude-code-hooks-mastery)

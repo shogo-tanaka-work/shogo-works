@@ -1,0 +1,249 @@
+---
+title: "CI/CDガードレール構築 — AIエージェントの品質を自動で守る"
+description: "AIエージェントが生成するコードの品質をCI/CDパイプラインで自動的に検証・制御するガードレールの設計と実装パターンを解説する"
+category: "harness-engineering"
+tags: ["harness-engineering", "ci-cd", "guardrails", "quality-assurance"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜCI/CDガードレールが必要か
+
+2026年、AIエージェントはコードを読み、書き、テストし、PRを作成するところまで自律的に行う。しかし「生成速度が上がった分だけ品質が下がる」という問題が顕在化している。
+
+ある調査では、AI支援による開発速度は40%向上した一方で、コード品質の低下が報告されている。エージェントの自律性が上がるほど、**環境側での品質制御**が不可欠になる。
+
+ガードレールとは、エージェントの自由を奪うのではなく、**安全に高速走行できるレーンを作る**ことだ。
+
+## 多層ガードレールアーキテクチャ
+
+ガードレールは1つの仕組みに頼らず、複数のレイヤーで構築する。
+
+```
+Layer 1: エージェント内制御  → CLAUDE.md / Skills / Hooks
+Layer 2: ローカルゲート      → pre-commit hooks / リンター
+Layer 3: CI パイプライン     → GitHub Actions / テスト / セキュリティスキャン
+Layer 4: PRレビューゲート    → 必須レビュー / CODEOWNERS
+```
+
+### Layer 1: エージェント内制御（Hooks）
+
+Claude Code の Hooks は、エージェントのアクション前後に自動処理を挿入する仕組みだ。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx biome check --write \"$CLAUDE_FILE_PATH\""
+          }
+        ]
+      }
+    ],
+    "PreCommit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npm run test -- --run"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+- **PostToolUse**: ファイル編集のたびにリンターを自動実行。スタイル違反を即時修正する
+- **PreCommit**: コミット前にテストを必ず実行。テスト失敗時はコミットをブロックする
+
+### Layer 2: ローカルゲート（pre-commit）
+
+Git の pre-commit hook でローカルでの最低品質を保証する。
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: local
+    hooks:
+      - id: type-check
+        name: TypeScript type check
+        entry: npx astro check
+        language: system
+        pass_filenames: false
+      - id: lint
+        name: Biome lint
+        entry: npx biome check --write
+        language: system
+        types: [ts, tsx]
+      - id: test
+        name: Unit tests
+        entry: npx vitest run --reporter=verbose
+        language: system
+        pass_filenames: false
+```
+
+### Layer 3: CI パイプライン
+
+GitHub Actions でプッシュごとに品質チェックを実行する。
+
+```yaml
+# .github/workflows/quality-gate.yml
+name: Quality Gate
+on:
+  push:
+    branches: [feat/*, fix/*]
+  pull_request:
+    branches: [main]
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Type Check
+        run: npx astro check
+
+      - name: Lint
+        run: npx biome check .
+
+      - name: Unit Tests
+        run: npx vitest run --coverage
+
+      - name: Coverage Threshold
+        run: |
+          COVERAGE=$(npx vitest run --coverage --reporter=json | jq '.total.lines.pct')
+          if (( $(echo "$COVERAGE < 80" | bc -l) )); then
+            echo "Coverage $COVERAGE% is below 80% threshold"
+            exit 1
+          fi
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependency Audit
+        run: npm audit --audit-level=high
+
+      - name: Secret Scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+```
+
+### Layer 4: PRレビューゲート
+
+```yaml
+# .github/CODEOWNERS
+# アーキテクチャに影響する変更は人間のレビュー必須
+/src/types/          @team-lead
+/docs/ARCH.md        @team-lead
+/.github/workflows/  @team-lead
+```
+
+ブランチ保護ルールと組み合わせ、CI が通らないPRはマージ不可にする。
+
+## エージェント特有のガードレール
+
+人間の開発者とは異なる、AIエージェント特有の問題に対応するガードレールも必要だ。
+
+### 差分サイズの制限
+
+エージェントは一度に大量のファイルを変更しがちだ。PRの差分サイズを制限する。
+
+```yaml
+# .github/workflows/pr-size-check.yml
+- name: Check PR Size
+  run: |
+    ADDITIONS=$(gh pr view ${{ github.event.number }} --json additions -q '.additions')
+    if [ "$ADDITIONS" -gt 500 ]; then
+      echo "::warning::PR has $ADDITIONS additions. Consider splitting."
+      gh pr comment ${{ github.event.number }} \
+        --body "この PR は ${ADDITIONS} 行の追加があります。分割を検討してください。"
+    fi
+```
+
+### 生成ファイルの検証
+
+エージェントが不要なファイル（README、ドキュメント等）を勝手に生成していないかチェックする。
+
+```yaml
+- name: Check Unwanted Files
+  run: |
+    UNWANTED=$(git diff --name-only origin/main | grep -E '(README|CHANGELOG|\.md$)' | head -5)
+    if [ -n "$UNWANTED" ]; then
+      echo "::warning::Unexpected documentation changes detected:"
+      echo "$UNWANTED"
+    fi
+```
+
+### コミットメッセージの検証
+
+Conventional Commits 形式を強制する。
+
+```yaml
+- name: Validate Commit Messages
+  run: |
+    COMMITS=$(git log origin/main..HEAD --pretty=format:"%s")
+    PATTERN="^(feat|fix|refactor|test|docs|chore)(\(.+\))?: .+"
+    echo "$COMMITS" | while IFS= read -r msg; do
+      if ! echo "$msg" | grep -qE "$PATTERN"; then
+        echo "::error::Invalid commit message: $msg"
+        exit 1
+      fi
+    done
+```
+
+## リスクベースの検証強度
+
+すべての変更に同じ強度のチェックをかけるのは非効率だ。変更のリスクに応じてガードレールの強度を動的に調整する。
+
+| リスクレベル | 対象 | チェック |
+|---|---|---|
+| **低** | ドキュメント、コメント | lint のみ |
+| **中** | UIコンポーネント、ユーティリティ | lint + unit test |
+| **高** | API、認証、データモデル | lint + unit test + integration test + security scan |
+| **最高** | CI設定、デプロイ設定、環境変数 | 全チェック + 人間レビュー必須 |
+
+```yaml
+- name: Determine Risk Level
+  id: risk
+  run: |
+    FILES=$(git diff --name-only origin/main)
+    if echo "$FILES" | grep -qE '(\.github|wrangler|\.env)'; then
+      echo "level=critical" >> $GITHUB_OUTPUT
+    elif echo "$FILES" | grep -qE '(api|auth|middleware)'; then
+      echo "level=high" >> $GITHUB_OUTPUT
+    else
+      echo "level=standard" >> $GITHUB_OUTPUT
+    fi
+```
+
+## 実践ポイント
+
+1. **段階的に導入する**: 最初は lint + test だけで始め、チームの成熟度に合わせて追加する
+2. **高速なフィードバック**: CI は5分以内に結果を返すことを目標にする。遅いガードレールは回避される
+3. **失敗メッセージを具体的に**: エージェントが自力で修正できるよう、何が問題でどう直すべきかを出力する
+4. **ガードレールもテストする**: ガードレール自体が正しく動作するかを定期的に検証する
+5. **人間のレビューは最終防衛線**: 自動化で捕捉できない「そもそもこの変更は必要か」は人間が判断する
+
+## 参考リンク
+
+- [AI Agent Guardrails: Production Guide for 2026](https://authoritypartners.com/insights/ai-agent-guardrails-production-guide-for-2026/)
+- [Agent-Operated CI/CD: The Architecture Making AI Coding Agents Actually Work](https://alexlavaee.me/blog/agent-operated-cicd-pipelines/)
+- [Compliance in the Age of AI: Why Strong CI/CD Foundations Matter](https://devops.com/compliance-in-the-age-of-ai-why-strong-ci-cd-foundations-matter/)
+- [Guardrails for Generative AI: Securing Developer Workflows](https://techcommunity.microsoft.com/blog/azureinfrastructureblog/guardrails-for-generative-ai-securing-developer-workflows/4505801)

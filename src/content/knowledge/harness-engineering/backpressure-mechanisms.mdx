@@ -1,0 +1,267 @@
+---
+title: "バックプレッシャーメカニズム — 出力を沈黙させる技術"
+description: "AIエージェントの暴走を防ぐバックプレッシャーの概念と実装パターン。エラーサーフェシング、出力制御、決定論的フィードバックループの設計手法を解説します。"
+category: "harness-engineering"
+tags: ["harness-engineering", "backpressure", "error-handling", "agent-control", "observability"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## バックプレッシャーとは
+
+バックプレッシャー（backpressure）は元々、ストリーム処理において**消費者が生産者の速度に追いつけないとき、生産者に減速を要求する**メカニズムです。
+
+AIエージェントの文脈では、エージェントの出力や行動が**環境の受容能力を超えたときに制御する仕組み**を指します。BoundaryMLのポッドキャストでは「Agentic Backpressure」として、決定論的なフィードバックループでコーディングエージェントの自律性を制御する手法が議論されています。
+
+```
+バックプレッシャーなし:
+  エージェント → 大量の出力 → コンテキスト溢れ → 品質低下
+
+バックプレッシャーあり:
+  エージェント → 出力 → 検証ゲート → 問題あり → 停止/修正指示
+                                    → 問題なし → 続行
+```
+
+## エージェントが暴走する3つのパターン
+
+### 1. スコープクリープ（範囲の肥大化）
+
+「ログイン機能を作って」と頼んだのに、ユーザー管理、権限制御、2要素認証まで実装し始める。
+
+```markdown
+## 典型的な暴走パターン
+1. ログインフォームの実装を依頼
+2. 「ついでにパスワードリセットも必要ですね」
+3. 「メール送信機能も追加しましょう」
+4. 「テンプレートエンジンも導入します」
+5. 結果: 半実装のまま5つの機能が散在
+```
+
+### 2. 自信過剰な完了宣言
+
+テストが失敗しているのに「実装完了しました」と報告する。エージェントは自分の出力を「自信を持って褒める」傾向があります。
+
+### 3. エラーの握りつぶし
+
+エラーが発生してもリトライや回避策を試み続け、根本原因を報告しない。
+
+## バックプレッシャーの実装パターン
+
+### パターン1: PreToolUseによるコマンドフィルタリング
+
+エージェントが実行しようとするコマンドを事前に検証し、危険な操作をブロックします。
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/command-filter.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+```bash
+#!/bin/bash
+# .claude/hooks/command-filter.sh
+INPUT=$(cat)
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command')
+
+# 本番環境への直接操作を阻止
+if echo "$COMMAND" | grep -qE "(drop table|rm -rf /|git push.*--force.*main)"; then
+  echo "Blocked: destructive command detected. Please use a safer alternative." >&2
+  exit 2
+fi
+
+# npm install の代わりにbun installを使わせる
+if echo "$COMMAND" | grep -q "npm install"; then
+  echo "Blocked: Use 'bun install' instead of 'npm install' in this project." >&2
+  exit 2
+fi
+
+exit 0
+```
+
+ブロック時にstderrに**理由と代替手段**を出力するのが重要です。単に「ブロックされました」では、エージェントが同じコマンドを繰り返し試みる可能性があります。
+
+### パターン2: Stopフックによる完了条件の強制
+
+エージェントが応答を完了するたびに、タスクの完了条件を検証します。
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Evaluate whether the agent truly completed the requested task. Check: 1) Were tests written and do they pass? 2) Was only the requested scope implemented (no scope creep)? 3) Are there any TODO comments left unresolved? If any check fails, respond with {\"ok\": false, \"reason\": \"specific failure description\"}."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### パターン3: PostToolUseによるエラーサーフェシング
+
+エージェントがエラーを握りつぶさないよう、ツール実行後にエラーを明示的に検出します。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/surface-errors.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+```bash
+#!/bin/bash
+# .claude/hooks/surface-errors.sh
+INPUT=$(cat)
+EXIT_CODE=$(echo "$INPUT" | jq -r '.tool_result.exit_code // 0')
+STDERR=$(echo "$INPUT" | jq -r '.tool_result.stderr // empty')
+
+if [ "$EXIT_CODE" != "0" ] && [ -n "$STDERR" ]; then
+  # エラー情報をログに記録
+  echo "[$(date -Iseconds)] Exit=$EXIT_CODE Command=$(echo "$INPUT" | jq -r '.tool_input.command')" \
+    >> "$CLAUDE_PROJECT_DIR/.claude/error-log.txt"
+  echo "Error detected (exit code $EXIT_CODE). Review stderr before proceeding." >&2
+fi
+
+exit 0
+```
+
+### パターン4: CLAUDE.mdによるスコープ制約
+
+CLAUDE.mdに明示的なスコープ制約を記述して、エージェントの行動範囲を限定します。
+
+```markdown
+# Scope Constraints
+
+## 現在のタスクスコープ
+このセッションでは以下のみを実装する:
+- ログインフォームのUI
+- メールアドレス/パスワードの認証API呼び出し
+- エラーメッセージの表示
+
+## 明示的にスコープ外
+以下は実装しない。必要性を感じても提案のみにとどめること:
+- パスワードリセット
+- OAuth連携
+- ユーザー登録フォーム
+- メール送信機能
+```
+
+## ストリーミングにおけるバックプレッシャー
+
+Webアプリケーションでエージェントの出力をストリーミング表示する場合、技術的なバックプレッシャーも必要です。
+
+### Vercel AI SDKの例
+
+```typescript
+import { useChat } from "ai/react";
+
+const { messages } = useChat({
+  // クライアントが処理しきれない速度での
+  // メッセージ更新を防ぐ
+  experimental_throttle: 50, // 50msごとにバッチ更新
+});
+```
+
+AI SDKはバックプレッシャーを自動的に処理します。クライアントがチャンクを処理しきれない場合、ストリームを一時停止してメモリの蓄積を防ぎます。
+
+## オブザーバビリティ（可観測性）
+
+バックプレッシャーを適切に機能させるには、エージェントの行動を観測できる必要があります。
+
+### ログ戦略
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c '{timestamp: now | todate, tool: .tool_name, command: .tool_input.command, exit_code: .tool_result.exit_code}' >> \"$CLAUDE_PROJECT_DIR\"/.claude/agent-activity.log"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+ログに記録すべき情報:
+
+| 項目 | 目的 |
+|---|---|
+| ツール名・引数 | 何をしたか |
+| 実行結果・終了コード | 成功したか |
+| タイムスタンプ | いつ実行したか |
+| ブロック回数 | どの制約が頻繁に発火するか |
+
+### デバッグモード
+
+```bash
+# 全Hook実行の詳細ログを記録
+claude --debug-file /tmp/claude-debug.log
+
+# 別ターミナルでリアルタイム監視
+tail -f /tmp/claude-debug.log
+```
+
+## エラーサーフェシングの原則
+
+バックプレッシャーの目的は「出力を抑制する」ことではなく、**問題を可視化して早期に対処する**ことです。
+
+### やるべきこと
+
+- エラーを明示的に検出してエージェントにフィードバックする
+- ブロック時に理由と代替手段を提示する
+- 行動ログを記録して事後分析に使う
+- スコープ逸脱を早期に検出して方向修正する
+
+### やってはいけないこと
+
+- エラーを黙って無視する（`|| true` でエラーを握りつぶす）
+- ブロック理由を伝えない（エージェントが同じ行動を繰り返す）
+- すべてをブロックする（過剰な制約はエージェントの有用性を殺す）
+- ログを見ない（記録しても活用しなければ意味がない）
+
+## 実践ポイント
+
+1. **最小限のブロックから始める**: 最初はファイル保護と危険コマンドのブロックだけ。過剰な制約は後から外すのが難しい
+2. **フィードバックを具体的にする**: 「ブロックされました」ではなく「npm の代わりに bun を使ってください」と伝える
+3. **ログを定期的に確認する**: どのHookが頻繁に発火するかを見て、CLAUDE.mdのルールを改善する
+4. **モデルの能力を信頼する部分と検証する部分を分ける**: フォーマットはHookで強制、アーキテクチャ判断はレビューで確認
+
+## 参考リンク
+
+- [Agentic Backpressure Deep Dive (BoundaryML)](https://boundaryml.com/podcast/2026-02-10-agentic-backpressure-deep-dive)
+- [Advanced: Backpressure (AI SDK)](https://ai-sdk.dev/docs/advanced/backpressure)
+- [Harness engineering (NxCode)](https://www.nxcode.io/resources/news/what-is-harness-engineering-complete-guide-2026)
+- [AI Agent Prompt Engineering Patterns (Paxrel)](https://paxrel.com/blog-ai-agent-prompts)

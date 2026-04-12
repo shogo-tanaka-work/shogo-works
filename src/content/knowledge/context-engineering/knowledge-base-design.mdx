@@ -1,0 +1,160 @@
+---
+title: "ナレッジベース設計 — 何をどう入れるべきか"
+description: "LLM向けナレッジベースの設計戦略、チャンキング手法、メタデータ設計、RAG方式とダイレクト方式の使い分けを実践的に解説します。"
+category: "context-engineering"
+tags: ["context-engineering", "knowledge-base", "rag", "chunking", "metadata"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## ナレッジベースの役割
+
+LLMは学習データに含まれない情報について回答できません。ナレッジベースは、その知識ギャップを埋めるための外部データストアです。しかし「とりあえず全部入れる」では機能しません。**何を入れ、何を入れないか**を設計することが、LLMアプリケーションの精度を決定します。
+
+## 2つのアーキテクチャアプローチ
+
+### RAGパイプライン方式
+
+エンタープライズ向けの標準アプローチです。ドキュメントをチャンクに分割し、エンベディングしてベクトルDBに格納。クエリ時に類似検索で関連チャンクを取得し、LLMのコンテキストに注入します。
+
+```
+取込 → 正規化 → チャンキング → メタデータ付与 → エンベディング → インデックス → 検索 → 監視
+```
+
+**向いているケース**: 大量のドキュメント（数千〜数百万件）、頻繁に更新されるデータ、複数ユーザーからのアクセス
+
+### ダイレクトコンテキスト方式（Karpathyアプローチ）
+
+Andrej Karpathyが提唱した方式です。知識をMarkdownファイルとして構造化し、LLMのコンテキストウィンドウに直接読み込ませます。RAGのチャンキングによる文脈喪失を回避できます。
+
+```markdown
+# プロジェクトナレッジ
+
+## アーキテクチャ決定
+- フロントエンド: Astro（理由: 静的サイト生成の高速性）
+- デプロイ: Cloudflare Pages（理由: エッジ配信の低レイテンシ）
+
+## コーディング規約
+- 命名規則: camelCase（変数）、PascalCase（コンポーネント）
+- エラー処理: 空catchブロック禁止
+```
+
+**向いているケース**: 個人の知識管理、プロジェクト固有のルール、100Kトークン以下で収まる規模
+
+### 選択基準
+
+| 要素 | RAGパイプライン | ダイレクト方式 |
+|---|---|---|
+| データ量 | 数千件以上 | 100Kトークン以下 |
+| 更新頻度 | 高頻度 | 低〜中頻度 |
+| 検索精度 | チャンキング品質に依存 | 全文が見えるため高い |
+| 構築コスト | 高い（インフラ必要） | 低い（ファイル管理のみ） |
+| 文脈保持 | チャンク境界で失われがち | 完全に保持 |
+
+## チャンキング戦略
+
+RAG方式を採用する場合、チャンキングの品質がシステム全体の性能を決定します。チャンキング戦略の影響は、LLMの選択やエンベディングモデルの選択よりも大きいとされています。
+
+### 固定サイズチャンキング
+
+最もシンプルな方法です。一定のトークン数（例: 512トークン）で機械的に分割します。
+
+```python
+def fixed_size_chunk(text: str, chunk_size: int = 512, overlap: int = 50) -> list[str]:
+    tokens = tokenize(text)
+    chunks = []
+    for i in range(0, len(tokens), chunk_size - overlap):
+        chunks.append(detokenize(tokens[i:i + chunk_size]))
+    return chunks
+```
+
+**メリット**: 実装が簡単、予測可能なチャンクサイズ
+
+**デメリット**: 文の途中で分割され、意味が壊れることがある
+
+### セマンティックチャンキング
+
+段落やセクションなどの論理的な境界で分割します。
+
+```python
+def semantic_chunk(text: str) -> list[str]:
+    # 見出し・段落境界で分割
+    sections = split_by_headings(text)
+    chunks = []
+    for section in sections:
+        if token_count(section) > MAX_CHUNK_SIZE:
+            # 大きすぎるセクションは段落単位で再分割
+            chunks.extend(split_by_paragraphs(section))
+        else:
+            chunks.append(section)
+    return chunks
+```
+
+**メリット**: 意味の一貫性を保持できる
+
+**デメリット**: 実装が複雑、チャンクサイズが不均一
+
+### 文レベルインデックス＋コンテキスト拡張
+
+2026年のベストプラクティスとして注目されている手法です。個々の文をインデックスの単位にしつつ、検索ヒット時にはその前後のコンテキストを拡張して取得します。
+
+```
+インデックス単位: "Cloudflare Workersはエッジで実行されるサーバーレス環境です。"
+取得時の拡張: 前後2段落を含めた文脈ごと取得
+```
+
+**メリット**: ピンポイントの検索精度と十分な文脈を両立
+
+## 何を入れるべきか
+
+### 必ず入れるもの
+
+1. **FAQ・よくある質問**: ユーザーが繰り返し尋ねる情報
+2. **公式ドキュメント**: APIリファレンス、仕様書、手順書
+3. **意思決定の記録**: なぜその技術を選んだか、なぜその設計にしたか
+4. **用語集**: ドメイン固有の専門用語と定義
+
+### 入れるべきでないもの
+
+1. **古くて未検証のドキュメント**: 誤情報の元凶になる
+2. **重複コンテンツ**: 検索ノイズを増やし、矛盾回答の原因になる
+3. **生ログ・未加工データ**: 情報密度が低く、トークンの無駄遣い
+4. **機密情報**: アクセス制御なしにLLMに渡すべきではない
+
+## メタデータ設計
+
+2026年のIEEE研究によると、メタデータ付与によりRAG精度が73.3%から82.5%へ向上しました（+9ポイント）。
+
+### 必須メタデータフィールド
+
+```typescript
+interface ChunkMetadata {
+  source: string;          // ドキュメントのソース
+  lastVerified: string;    // 最終検証日
+  owner: string;           // ドキュメント責任者
+  accessLevel: string;     // アクセスレベル
+  category: string;        // カテゴリ分類
+  documentStatus: "draft" | "reviewed" | "approved" | "deprecated";
+}
+```
+
+### メタデータの活用方法
+
+- **鮮度フィルタ**: `lastVerified`が1年以上前のドキュメントを検索結果から除外
+- **権限フィルタ**: ユーザーのロールに基づいて`accessLevel`でフィルタリング
+- **品質フィルタ**: `documentStatus === "approved"`のドキュメントを優先
+
+## 実践ポイント
+
+1. **小さく始める**: 最も頻繁に質問される上位20件のFAQから始める
+2. **品質を量より優先する**: 100件の検証済みドキュメント > 10,000件の未検証ドキュメント
+3. **定期的な棚卸し**: 3ヶ月に1度、古いドキュメントの検証と更新を行う
+4. **検索失敗を記録する**: ユーザーの質問に回答できなかったケースを分析し、不足する知識を特定する
+5. **ダイレクト方式とRAG方式のハイブリッド**: プロジェクトルールはダイレクト方式で、大量のリファレンスはRAG方式で管理する
+
+## 参考リンク
+
+- [Karpathy's LLM Knowledge Base: Build an AI Second Brain](https://ghost.codersera.com/blog/karpathy-llm-knowledge-base-second-brain/)
+- [LLM Knowledge Base: Types, Architecture and Why Most Fail - Atlan](https://atlan.com/know/what-is-an-llm-knowledge-base/)
+- [Designing a Scalable Knowledge Base for Large Language Models - DEV Community](https://dev.to/yaruyng/designing-a-scalable-knowledge-base-for-large-language-models-45jd)
+- [Grounding Your LLM: A Practical Guide to RAG for Enterprise Knowledge Bases](https://towardsdatascience.com/grounding-your-llm-a-practical-guide-to-rag-for-enterprise-knowledge-bases/)

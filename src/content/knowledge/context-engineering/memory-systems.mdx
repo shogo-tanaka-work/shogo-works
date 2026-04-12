@@ -1,0 +1,199 @@
+---
+title: "メモリシステム設計 — 短期・長期・エピソード記憶の使い分け"
+description: "LLMエージェントのメモリシステムを、短期記憶・長期記憶・エピソード記憶・手続き記憶の4層で設計する方法を実践的に解説します。"
+category: "context-engineering"
+tags: ["context-engineering", "memory", "agent", "episodic-memory", "semantic-memory"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜメモリシステムが必要か
+
+LLMのコンテキストウィンドウは「ワーキングメモリ」に相当します。会話が長くなるとコンテキストが溢れ、古い情報が失われます。メモリシステムは、この制約を克服し、エージェントが過去の経験から学び、一貫した行動を取るための仕組みです。
+
+2026年のICLR Workshopでも「Memory for LLM-Based Agentic Systems（MemAgents）」が採択されるなど、LLMのメモリ設計は活発な研究分野です。
+
+## メモリの4層モデル
+
+人間の記憶モデルに倣い、LLMエージェントのメモリは4つのタイプに分類されます。
+
+```
+┌────────────────────────────────────────┐
+│         ワーキングメモリ（短期）          │ ← コンテキストウィンドウ
+├────────────────────────────────────────┤
+│                                        │
+│   ┌──────────┐  ┌──────────┐          │
+│   │エピソード │  │セマンティ│          │ ← 長期記憶ストレージ
+│   │  記憶    │  │ック記憶  │          │
+│   └──────────┘  └──────────┘          │
+│          ┌──────────┐                  │
+│          │手続き記憶 │                  │
+│          └──────────┘                  │
+└────────────────────────────────────────┘
+```
+
+### 1. ワーキングメモリ（短期記憶）
+
+現在の会話コンテキストそのものです。直近のやり取り、現在のタスク状態、アクティブな推論内容を保持します。
+
+```typescript
+interface WorkingMemory {
+  conversationHistory: Message[];  // 直近の会話履歴
+  currentTaskState: TaskState;     // 実行中タスクの状態
+  scratchpad: string;              // 推論の中間結果
+  activeTools: ToolContext[];      // 使用中のツール情報
+}
+```
+
+**特徴**: 高速アクセス、容量制限あり（コンテキストウィンドウサイズ）、セッション終了で消失
+
+### 2. エピソード記憶
+
+「何が起きたか」を記録する時系列の記憶です。過去の会話、タスクの実行結果、エラーの発生履歴などを保持します。
+
+```typescript
+interface EpisodicMemory {
+  timestamp: string;
+  event: string;           // 何が起きたか
+  context: string;         // どういう状況で
+  outcome: string;         // 結果はどうだったか
+  emotionalValence: number; // 重要度（-1〜1）
+}
+
+// 例
+const episode: EpisodicMemory = {
+  timestamp: "2026-04-10T14:30:00Z",
+  event: "ユーザーがCSVエクスポート機能をリクエスト",
+  context: "月次レポート作成中に手動コピーの手間を訴えた",
+  outcome: "CSVエクスポートAPIを実装し、処理時間80%削減",
+  emotionalValence: 0.9,
+};
+```
+
+**用途**: 「前回このユーザーは何を求めていたか」「似たタスクで過去にどんな問題が起きたか」の参照
+
+2025年の研究「Position: Episodic Memory is the Missing Piece for Long-Term LLM Agents」では、エピソード記憶が長期エージェントの成功に不可欠であると主張されています。
+
+### 3. セマンティック記憶
+
+「何がどういうものか」という知識・事実を格納する記憶です。エピソード記憶から抽出・一般化されたパターンや、外部から取り込んだ知識が該当します。
+
+```typescript
+interface SemanticMemory {
+  fact: string;
+  confidence: number;      // 確信度（0〜1）
+  source: string;          // 情報源
+  lastVerified: string;    // 最終検証日
+}
+
+// 例
+const facts: SemanticMemory[] = [
+  {
+    fact: "ユーザーはTypeScriptを好み、JavaScriptを避ける",
+    confidence: 0.95,
+    source: "過去5回の会話パターンから抽出",
+    lastVerified: "2026-04-08",
+  },
+  {
+    fact: "本番環境はCloudflare Workers上で動作",
+    confidence: 1.0,
+    source: "プロジェクト設定ファイル",
+    lastVerified: "2026-04-01",
+  },
+];
+```
+
+**用途**: ユーザーの好み、プロジェクトのルール、ドメイン知識の保持
+
+### 4. 手続き記憶
+
+「どうやるか」というスキルやワークフローの記憶です。成功したタスク実行パターンを保持し、類似タスクで再利用します。
+
+```typescript
+interface ProceduralMemory {
+  taskType: string;
+  steps: string[];
+  preconditions: string[];
+  successRate: number;
+}
+
+// 例
+const procedure: ProceduralMemory = {
+  taskType: "データベースマイグレーション",
+  steps: [
+    "1. 現在のスキーマをバックアップ",
+    "2. マイグレーションファイルを作成",
+    "3. ステージング環境でテスト実行",
+    "4. 本番適用前にロールバック手順を確認",
+    "5. メンテナンスウィンドウ内で本番適用",
+  ],
+  preconditions: ["DBへの書き込み権限", "バックアップストレージの空き容量"],
+  successRate: 0.95,
+};
+```
+
+**用途**: ソフトウェアエンジニアリングエージェントのビルド・デプロイ手順、定型的なワークフロー
+
+## ドメイン別のメモリ重要度
+
+2026年の調査研究によると、ドメインによって重要なメモリタイプが異なります。
+
+| ドメイン | 最重要メモリ | 理由 |
+|---|---|---|
+| パーソナルアシスタント | セマンティック記憶 | ユーザーの好み・習慣の理解が核心 |
+| ソフトウェアエンジニアリング | 手続き記憶 | ビルド・テスト・デプロイの手順の再現性 |
+| ゲームエージェント | エピソード＋手続き | 過去の戦略と実行スキルの統合 |
+| カスタマーサポート | エピソード＋セマンティック | 過去の問い合わせ履歴と製品知識 |
+
+## メモリの統合と記憶固定
+
+### エピソードからセマンティックへの変換
+
+個別のエピソード（出来事）からパターンを抽出し、汎用的な知識に変換するプロセスです。
+
+```python
+def consolidate_episodes(
+    episodes: list[EpisodicMemory],
+    min_occurrences: int = 3
+) -> list[SemanticMemory]:
+    """繰り返されるパターンをセマンティック記憶に変換"""
+    patterns = extract_patterns(episodes)
+    semantic_memories = []
+
+    for pattern, occurrences in patterns.items():
+        if len(occurrences) >= min_occurrences:
+            semantic_memories.append(SemanticMemory(
+                fact=pattern,
+                confidence=len(occurrences) / len(episodes),
+                source=f"{len(occurrences)}回のエピソードから抽出",
+                lastVerified=max(e.timestamp for e in occurrences),
+            ))
+
+    return semantic_memories
+```
+
+### メモリブラインドネスの回避
+
+現在の最大の課題は「メモリブラインドネス」です。エージェントが、必要な情報がコールドストレージに存在することを知らないために活用できない問題です。
+
+対策として:
+
+1. **メモリインデックスの要約**: 長期メモリの内容を要約したインデックスをワーキングメモリに常駐
+2. **クエリの自動拡張**: ユーザーの質問から関連メモリを能動的に検索
+3. **メモリのタグ付け**: カテゴリ別のタグで検索性を向上
+
+## 実践ポイント
+
+1. **まずワーキングメモリの管理から始める**: 会話履歴の要約と古いターンの圧縮
+2. **セマンティック記憶は明示的に管理する**: `CLAUDE.md`やプロジェクトルールファイルがその好例
+3. **エピソード記憶は選択的に記録する**: すべてを記録せず、重要度の高いイベントのみ
+4. **メモリの鮮度を管理する**: 古い記憶は定期的に検証し、陳腐化したものを更新・削除する
+5. **2層で十分な場合が多い**: MVP段階ではワーキングメモリ＋セマンティック記憶の2層で開始し、必要に応じてエピソード記憶を追加する
+
+## 参考リンク
+
+- [Memory for Autonomous LLM Agents: Mechanisms, Evaluation, and Emerging Frontiers](https://arxiv.org/html/2603.07670v1)
+- [Architecture and Orchestration of Memory Systems in AI Agents - Analytics Vidhya](https://www.analyticsvidhya.com/blog/2026/04/memory-systems-in-ai-agents/)
+- [Position: Episodic Memory is the Missing Piece for Long-Term LLM Agents](https://arxiv.org/pdf/2502.06975)
+- [A Survey on the Memory Mechanism of Large Language Model-based Agents - ACM](https://dl.acm.org/doi/10.1145/3748302)
+- [ICLR 2026 Workshop: MemAgents](https://openreview.net/pdf?id=U51WxL382H)

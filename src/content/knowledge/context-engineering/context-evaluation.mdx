@@ -1,0 +1,289 @@
+---
+title: "コンテキスト品質の評価と計測"
+description: "RAGシステムやLLMアプリケーションにおけるコンテキスト品質の評価手法を体系的に解説。Faithfulness、Context Precision、Relevancyなどの主要指標とRAGAS・DeepEvalの実践的な使い方を紹介します。"
+category: "context-engineering"
+tags: ["context-engineering", "evaluation", "rag", "ragas", "deepeval", "faithfulness", "llm"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜコンテキスト品質を評価するのか
+
+RAGシステムやLLMアプリケーションの出力品質は、**入力されるコンテキストの品質に直結**します。優れたモデルを使っても、検索結果が的外れなら回答も的外れになります。
+
+2026年時点で、**60%以上の新規RAGプロジェクトが初日から体系的な評価を組み込んでいる**のに対し、2025年初頭では30%未満でした。評価なしのRAG開発は、テストなしのソフトウェア開発と同じリスクを抱えています。
+
+## 評価の2つの軸
+
+RAGシステムの評価は、**検索（Retriever）**と**生成（Generator）**の2つのコンポーネントに分けて行います。
+
+```
+┌────────────────────────────────────────────────────┐
+│                 RAGパイプライン                       │
+│                                                     │
+│  ユーザー  →  [Retriever]  →  [Generator]  →  回答   │
+│  クエリ       検索結果         LLM出力               │
+│                                                     │
+│  評価指標:    評価指標:                               │
+│  ・Context    ・Faithfulness                         │
+│    Precision  ・Answer Relevancy                     │
+│  ・Context    ・Hallucination                        │
+│    Recall                                           │
+│  ・Context                                          │
+│    Relevancy                                        │
+└────────────────────────────────────────────────────┘
+```
+
+## 検索品質の指標
+
+### Context Precision（コンテキスト精度）
+
+検索結果の中で、**実際に関連するドキュメントの割合**を測定します。不要なドキュメントが多く含まれていないかを評価します。
+
+```
+Context Precision = 関連ドキュメント数 / 検索結果の総ドキュメント数
+
+例: 10件の検索結果のうち7件が関連 → Precision = 0.7
+```
+
+RAGASでは特に、**関連するドキュメントが上位にランクされているか**も考慮する重み付き精度を計算します。
+
+### Context Recall（コンテキスト再現率）
+
+正解の回答に必要な情報が、**検索結果にどれだけ含まれているか**を測定します。
+
+```
+Context Recall = 検索結果に含まれる必要情報 / 正解に必要な全情報
+
+例: 回答に必要な情報が5つあり、検索結果に4つ含まれている → Recall = 0.8
+```
+
+### Context Relevancy（コンテキスト関連性）
+
+検索結果全体がユーザーのクエリに**どれだけ関連しているか**を総合的に評価します。PrecisionとRecallを統合した指標です。
+
+## 生成品質の指標
+
+### Faithfulness（忠実性）
+
+生成された回答が**検索結果（コンテキスト）に忠実かどうか**を測定します。コンテキストに含まれない情報を回答に含めていないか（＝ハルシネーション）を検出します。
+
+```python
+# Faithfulnessの計算ロジック（概念）
+def calculate_faithfulness(answer: str, context: str) -> float:
+    """
+    1. 回答からクレーム（主張）を抽出
+    2. 各クレームがコンテキストで裏付けられるか判定
+    3. 裏付けられたクレームの割合を算出
+    """
+    claims = extract_claims(answer)
+    supported = [c for c in claims if is_supported_by_context(c, context)]
+    return len(supported) / len(claims) if claims else 0.0
+
+# 例
+answer = "PostgreSQLは2024年にリリースされたデータベースで、ベクトル検索をサポートしています"
+context = "PostgreSQLのpgvector拡張はベクトル検索機能を提供します"
+
+# クレーム1: "PostgreSQLは2024年にリリースされた" → コンテキストに根拠なし ✗
+# クレーム2: "ベクトル検索をサポートしている" → コンテキストで裏付け ✓
+# Faithfulness = 1/2 = 0.5
+```
+
+### Answer Relevancy（回答関連性）
+
+生成された回答がユーザーの**質問にどれだけ適切に答えているか**を測定します。
+
+```
+質問: 「pgvectorのインストール方法は？」
+
+回答A（高関連性）: 「CREATE EXTENSION vector; でインストールできます」
+回答B（低関連性）: 「pgvectorはPostgreSQLのベクトル検索拡張です」
+  → 質問に答えていない
+```
+
+## RAGAS による評価の実装
+
+RAGASは最も広く使われているRAG評価フレームワークです。
+
+```python
+from ragas import evaluate
+from ragas.metrics import (
+    context_precision,
+    context_recall,
+    faithfulness,
+    answer_relevancy,
+)
+from datasets import Dataset
+
+# 評価データセットの準備
+eval_dataset = Dataset.from_dict({
+    "question": [
+        "pgvectorでベクトル検索するにはどうすればいい？",
+        "チャンクサイズの推奨値は？",
+    ],
+    "answer": [
+        "pgvectorではコサイン距離演算子 <=> を使ってベクトル検索できます。",
+        "一般的に256〜512トークンが推奨されます。",
+    ],
+    "contexts": [
+        ["pgvectorは <=> 演算子でコサイン距離を計算します。ORDER BYで最近傍検索が可能です。"],
+        ["チャンクサイズは用途によって異なります。Q&Aでは128〜256、技術文書では512が目安です。"],
+    ],
+    "ground_truth": [
+        "<=> 演算子を使用してコサイン距離で検索する",
+        "用途により128〜512トークンが推奨される",
+    ],
+})
+
+# 評価実行
+results = evaluate(
+    dataset=eval_dataset,
+    metrics=[
+        context_precision,
+        context_recall,
+        faithfulness,
+        answer_relevancy,
+    ],
+)
+
+print(results)
+# => {'context_precision': 0.92, 'context_recall': 0.85,
+#     'faithfulness': 0.95, 'answer_relevancy': 0.88}
+```
+
+## DeepEval による CI/CD 統合
+
+DeepEvalはpytest互換の評価フレームワークで、CI/CDパイプラインに組み込めます。
+
+```python
+# test_rag_quality.py
+import pytest
+from deepeval import assert_test
+from deepeval.test_case import LLMTestCase
+from deepeval.metrics import (
+    FaithfulnessMetric,
+    ContextualRelevancyMetric,
+    AnswerRelevancyMetric,
+)
+
+def test_faithfulness():
+    """回答がコンテキストに忠実であること"""
+    test_case = LLMTestCase(
+        input="pgvectorのインストール方法は？",
+        actual_output="CREATE EXTENSION vector; を実行してインストールします。",
+        retrieval_context=[
+            "pgvectorはCREATE EXTENSION vector;でインストールできます。"
+        ],
+    )
+
+    metric = FaithfulnessMetric(threshold=0.8)
+    assert_test(test_case, [metric])
+
+
+def test_contextual_relevancy():
+    """検索結果がクエリに関連していること"""
+    test_case = LLMTestCase(
+        input="ハイブリッド検索の利点は？",
+        actual_output="ベクトル検索とキーワード検索を組み合わせることで精度が向上します。",
+        retrieval_context=[
+            "ハイブリッド検索はセマンティック検索とBM25を統合する手法です。",
+            "ベクトル検索単体より幅広いクエリに対応できます。",
+        ],
+    )
+
+    metric = ContextualRelevancyMetric(threshold=0.7)
+    assert_test(test_case, [metric])
+```
+
+```bash
+# CIで実行
+pytest test_rag_quality.py -v
+```
+
+## Ground Truth なしの評価
+
+正解データがない場合でも、以下の指標で品質を評価できます。
+
+| 指標 | 正解データ | 評価内容 |
+|---|---|---|
+| Faithfulness | 不要 | 回答がコンテキストに忠実か |
+| Answer Relevancy | 不要 | 回答が質問に対応しているか |
+| Context Precision | 必要 | 検索結果の精度 |
+| Context Recall | 必要 | 検索結果の網羅性 |
+
+Ground Truthなしでも**FaithfulnessとAnswer Relevancy**は計測可能なので、まずこの2指標から始めるのが実践的です。
+
+## 評価フレームワークの選択
+
+| フレームワーク | 強み | 推奨シーン |
+|---|---|---|
+| RAGAS | 合成データセット生成、5コア指標 | 初期実験・プロトタイプ |
+| DeepEval | pytest統合、15+指標、CI/CD対応 | 本番品質ゲート |
+| LangSmith | トレーシングとの統合 | LangChainエコシステム |
+| Maxim | ダッシュボード、チーム向け | エンタープライズ運用 |
+
+推奨アプローチ: **RAGASでゴールデンデータセットを生成し、DeepEvalでCI/CDに組み込む**。
+
+## 実践ポイント
+
+### 評価データセットの構築
+
+- **最低50〜100件**の評価ケースを用意する
+- 実際のユーザークエリから代表的なパターンを抽出する
+- エッジケース（あいまいな質問、複合的な質問、該当なしの質問）を含める
+- RAGASの`TestsetGenerator`で合成データを追加する
+
+### 継続的な品質監視
+
+```python
+# 本番環境での品質サンプリング
+import random
+
+async def monitor_rag_quality(
+    query: str,
+    context: list[str],
+    answer: str,
+    sample_rate: float = 0.05,  # 5%のリクエストを評価
+) -> None:
+    if random.random() > sample_rate:
+        return
+
+    # 非同期で品質評価を実行
+    faithfulness_score = await evaluate_faithfulness(answer, context)
+    relevancy_score = await evaluate_relevancy(query, answer)
+
+    metrics_collector.record({
+        "faithfulness": faithfulness_score,
+        "relevancy": relevancy_score,
+        "timestamp": datetime.now().isoformat(),
+    })
+
+    # 閾値を下回ったらアラート
+    if faithfulness_score < 0.7:
+        alert(f"Faithfulness低下: {faithfulness_score:.2f}")
+```
+
+### 品質改善のフィードバックループ
+
+```
+計測 → 分析 → 改善 → 再計測
+
+1. 低スコアのケースを特定する
+2. 検索の問題か生成の問題かを切り分ける
+3. 検索の問題 → チャンキング・埋め込みモデル・検索手法を改善
+4. 生成の問題 → プロンプト・モデル・コンテキスト構成を改善
+5. 改善後に再評価して効果を確認する
+```
+
+## まとめ
+
+コンテキスト品質の評価は「やって終わり」ではなく、**継続的な計測と改善のループ**です。Faithfulness・Context Precision・Answer Relevancyの3指標を軸に、RAGASで実験、DeepEvalでCI/CDゲートを設けることで、プロダクション品質のRAGシステムを維持できます。
+
+## 参考リンク
+
+- [RAG Evaluation Metrics — Confident AI](https://www.confident-ai.com/blog/rag-evaluation-metrics-answer-relevancy-faithfulness-and-more)
+- [RAG Evaluation: Metrics, Frameworks & Testing 2026 — PremAI](https://blog.premai.io/rag-evaluation-metrics-frameworks-testing-2026/)
+- [RAGAS Available Metrics](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/)
+- [DeepEval Faithfulness Metric](https://deepeval.com/docs/metrics-faithfulness)
+- [A Complete Guide to RAG Evaluation — Evidently AI](https://www.evidentlyai.com/llm-guide/rag-evaluation)
+- [Top 5 RAG Evaluation Platforms in 2026 — Maxim](https://www.getmaxim.ai/articles/top-5-rag-evaluation-platforms-in-2026-2/)

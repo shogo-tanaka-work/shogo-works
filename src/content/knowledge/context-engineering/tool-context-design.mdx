@@ -1,0 +1,256 @@
+---
+title: "ツールコンテキスト設計 — Function CallingとMCPの最適化"
+description: "LLMのFunction CallingとModel Context Protocol（MCP）におけるツール定義の最適化手法を解説。スキーマ設計、説明文の書き方、トークン効率化の実践パターンを紹介します。"
+category: "context-engineering"
+tags: ["context-engineering", "mcp", "function-calling", "tool-use", "llm", "agent"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## ツールコンテキストとは
+
+LLMがツール（外部API、データベース、ファイルシステムなど）を呼び出す際、**ツールの定義自体がコンテキストウィンドウを消費**します。20個のツールを定義すれば、それだけで数千トークンがコンテキストから消えます。
+
+ツールコンテキスト設計とは、LLMが**正確にツールを選択・実行できる最小限の定義を設計する**技術です。過剰な定義はトークンの浪費と選択精度の低下を招き、不足した定義は誤ったツール呼び出しを引き起こします。
+
+## Function Callingの基本構造
+
+### ツール定義の3要素
+
+MCPの仕様では、すべてのツール定義に3つの要素が必要です。
+
+```json
+{
+  "name": "search_products",
+  "description": "商品カタログから条件に合う商品を検索する。価格・カテゴリ・キーワードでフィルタ可能。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "検索キーワード（商品名、ブランド名、特徴など）"
+      },
+      "category": {
+        "type": "string",
+        "enum": ["electronics", "clothing", "food", "books"],
+        "description": "商品カテゴリで絞り込み"
+      },
+      "max_price": {
+        "type": "number",
+        "description": "上限価格（円）。省略時は制限なし"
+      }
+    },
+    "required": ["query"]
+  }
+}
+```
+
+### よくある設計ミス
+
+```json
+// BAD: 曖昧な説明、型情報不足
+{
+  "name": "search",
+  "description": "検索する",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "q": { "type": "string" },
+      "cat": { "type": "string" },
+      "p": { "type": "number" }
+    }
+  }
+}
+
+// GOOD: 目的が明確、パラメータに説明あり
+{
+  "name": "search_products",
+  "description": "商品カタログから条件に合う商品を検索する。価格・カテゴリ・キーワードでフィルタ可能。結果は関連度順で最大20件返す。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "検索キーワード（商品名、ブランド名、特徴など）"
+      },
+      "category": {
+        "type": "string",
+        "enum": ["electronics", "clothing", "food", "books"],
+        "description": "商品カテゴリで絞り込み。省略時は全カテゴリ"
+      },
+      "max_price": {
+        "type": "number",
+        "description": "上限価格（円）。省略時は制限なし"
+      }
+    },
+    "required": ["query"]
+  }
+}
+```
+
+## ツール説明文の設計原則
+
+ツール説明文はLLMがツールを選択する際の**最重要シグナル**です。以下の原則に従います。
+
+### 1. 契約書のように書く
+
+```
+目的（1行）→ 能力の範囲 → 制約事項
+```
+
+```text
+# GOOD
+"指定されたGitリポジトリのコミット履歴を取得する。
+ブランチ名・日付範囲・著者でフィルタ可能。
+最大100件まで。マージコミットを含む。"
+
+# BAD
+"Gitの履歴を見る"
+```
+
+### 2. 「いつ使うか」を明示する
+
+LLMが複数のツールから選択する際、**使い分けの判断基準**が必要です。
+
+```json
+{
+  "name": "search_by_keyword",
+  "description": "キーワードの完全一致・部分一致で検索する。ユーザーが具体的な単語を指定している場合に使う。"
+},
+{
+  "name": "search_by_semantic",
+  "description": "意味的に類似したコンテンツを検索する。ユーザーが曖昧な表現や概念的な質問をしている場合に使う。"
+}
+```
+
+### 3. 出力形式を説明に含める
+
+```json
+{
+  "name": "get_weather",
+  "description": "指定地域の天気予報を取得する。温度（摂氏）、天気状態、降水確率をJSON形式で返す。"
+}
+```
+
+## MCPにおけるトークン最適化
+
+### Dynamic Tool Loading（動的ツール読み込み）
+
+すべてのツールを常時コンテキストに含めるのではなく、**必要なタイミングで動的にロード**します。
+
+```typescript
+// MCPサーバーでのツールフィルタリング例
+server.setRequestHandler(ListToolsRequestSchema, async (request) => {
+  const context = request.params?.context;
+
+  // ユーザーの意図に基づいてツールをフィルタ
+  if (context?.intent === "data_analysis") {
+    return {
+      tools: [queryTool, chartTool, exportTool],
+    };
+  }
+
+  if (context?.intent === "file_management") {
+    return {
+      tools: [readFileTool, writeFileTool, listFilesTool],
+    };
+  }
+
+  // デフォルト: 最小限のツールセット
+  return {
+    tools: [searchTool, helpTool],
+  };
+});
+```
+
+### allowed_tools による制限
+
+クライアント側で使用可能なツールを制限し、トークンオーバーヘッドとモデルの判断コストを削減します。
+
+```python
+# OpenAI互換APIでのツール制限
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=messages,
+    tools=all_tools,
+    tool_choice="auto",
+    # 今のターンで必要なツールだけに制限
+    allowed_tools=["search_products", "get_product_detail"],
+)
+```
+
+### スキーマキャッシング
+
+ツール定義のスキーマ探索はセッション初期化時にコストがかかります。キャッシュすることで起動時間を短縮できます。
+
+```typescript
+// ツール定義のキャッシュ
+const TOOL_SCHEMA_CACHE = new Map<string, ToolDefinition>();
+const CACHE_TTL = 5 * 60 * 1000; // 5分
+
+async function getToolSchema(toolName: string): Promise<ToolDefinition> {
+  const cached = TOOL_SCHEMA_CACHE.get(toolName);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached;
+  }
+
+  const schema = await mcpClient.getToolSchema(toolName);
+  TOOL_SCHEMA_CACHE.set(toolName, { ...schema, timestamp: Date.now() });
+  return schema;
+}
+```
+
+## Code Execution パターン
+
+Anthropicのエンジニアリングブログで提唱された、MCP経由でコードを実行することでコンテキスト効率を高めるパターンです。
+
+```
+従来: LLMが10個のAPIを個別にツール呼び出し → 10往復
+改善: LLMがコードを書いてMCP経由で実行 → 1往復
+```
+
+LLMは**MCPを直接呼び出すよりも、MCPを呼び出すコードを書く方が得意**という知見があります。複雑なデータ変換やフィルタリングをコード実行に委ねることで、コンテキストの往復を劇的に削減できます。
+
+## 実践ポイント
+
+### ツール定義のレビューチェックリスト
+
+ツール定義をレビューする際の確認項目です。
+
+- **名前**: 動詞＋名詞の形式か（`search_products`, `create_user`）
+- **説明**: 1〜2文で目的・範囲・制約が明確か
+- **パラメータ**: 全パラメータに`description`があるか
+- **required**: 本当に必須のパラメータだけが`required`に入っているか
+- **enum**: 選択肢が限定される場合に`enum`を使っているか
+- **使い分け**: 類似ツールとの判断基準が説明に含まれているか
+
+### ツール数の目安
+
+| ツール数 | 影響 | 推奨 |
+|---|---|---|
+| 1〜5 | 選択精度が高い | 特定タスク向けエージェント |
+| 6〜15 | バランスが良い | 汎用エージェント |
+| 16〜30 | 選択ミスが増加 | Dynamic Loadingを検討 |
+| 30以上 | 顕著な品質低下 | ツール階層化が必須 |
+
+### ツール呼び出しのトレーサビリティ
+
+ツール呼び出しの前後に構造化されたログを挟むことで、デバッグと品質改善が容易になります。
+
+```
+呼び出し前: 「なぜこのツールを選んだか」を1行で記述
+呼び出し後: 「結果の要約」を1行で記述
+```
+
+## まとめ
+
+ツールコンテキスト設計は、LLMエージェントの**精度・速度・コストすべてに直結する**重要な技術です。ツール説明文を「契約書」として設計し、Dynamic LoadingやCode Executionパターンでトークン効率を最適化することが、プロダクション品質のエージェント構築の鍵となります。
+
+## 参考リンク
+
+- [MCP Tool Description Best Practices — merge.dev](https://www.merge.dev/blog/mcp-tool-description)
+- [Tool calling optimization — Statsig](https://www.statsig.com/perspectives/tool-calling-optimization)
+- [Code execution with MCP — Anthropic Engineering](https://www.anthropic.com/engineering/code-execution-with-mcp)
+- [MCP Tools Specification](https://modelcontextprotocol.io/specification/2025-06-18/server/tools)
+- [Function calling using LLMs — Martin Fowler](https://martinfowler.com/articles/function-call-LLM.html)
+- [Context as the New Currency — Itential](https://www.itential.com/blog/company/ai-networking/context-as-the-new-currency-designing-effective-mcp-servers-for-ai/)

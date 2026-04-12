@@ -1,0 +1,144 @@
+---
+title: "RAGアーキテクチャ入門 — 検索拡張生成の設計と最適化"
+description: "RAG（検索拡張生成）のアーキテクチャ設計パターン、ハイブリッド検索、リランキングの実装戦略を具体例とともに解説します。"
+category: "context-engineering"
+tags: ["context-engineering", "rag", "vector-search", "bm25", "hybrid-search"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## RAGとは何か
+
+RAG（Retrieval-Augmented Generation）は、LLMが回答を生成する前に外部の知識ベースから関連情報を検索し、コンテキストに注入するアーキテクチャパターンです。LLMの学習データにない最新情報やドメイン固有知識を補完することで、ハルシネーションを抑制し、回答精度を向上させます。
+
+2026年Q1時点で、72%のエンタープライズがRAGを本番運用しており、もはやPoCではなく産業標準のアーキテクチャです。
+
+## 基本アーキテクチャ
+
+RAGパイプラインは大きく2つのフェーズに分かれます。
+
+### インデックスフェーズ（オフライン）
+
+```
+ドキュメント → 前処理 → チャンキング → メタデータ付与 → エンベディング → ベクトルDB格納
+```
+
+1. **前処理**: PDF、HTML、Markdownなどの生データをプレーンテキストに正規化
+2. **チャンキング**: 200〜500トークン単位の論理的なセグメントに分割
+3. **メタデータ付与**: ソース、更新日、カテゴリなどの構造化情報を付加
+4. **エンベディング**: テキストをベクトル表現に変換し、ベクトルDBに格納
+
+### クエリフェーズ（オンライン）
+
+```
+ユーザークエリ → クエリ変換 → 検索 → リランキング → コンテキスト構築 → LLM生成
+```
+
+## 検索戦略：Sparse vs Dense vs Hybrid
+
+RAGの性能を左右する最も重要な設計判断が検索戦略の選択です。
+
+### Sparse検索（BM25）
+
+BM25は単語の出現頻度と逆文書頻度に基づく古典的な検索アルゴリズムです。
+
+```python
+# BM25の概念的なスコアリング
+score(q, d) = Σ IDF(qi) × (tf(qi, d) × (k1 + 1)) / (tf(qi, d) + k1 × (1 - b + b × |d|/avgdl))
+```
+
+**強み**: 固有名詞、ID、コード片、専門用語の完全一致に強い
+
+**弱み**: 同義語や意味的な類似性を捉えられない
+
+### Dense検索（ベクトル検索）
+
+テキストをエンベディングモデルで高次元ベクトルに変換し、コサイン類似度で検索します。
+
+**強み**: 意味的な類似性を捉える。「車」と「自動車」を同じ概念として扱える
+
+**弱み**: 固有名詞の正確な一致が不安定。「ABC-1234」のようなIDの検索に弱い
+
+### ハイブリッド検索（推奨）
+
+2026年のベストプラクティスは、BM25とベクトル検索を並列実行し、結果をマージするハイブリッドアプローチです。85%のエンタープライズがハイブリッド検索導入後に検索精度の向上を報告しています。
+
+```python
+# ハイブリッド検索の概念実装
+def hybrid_search(query: str, alpha: float = 0.5) -> list[Document]:
+    # 並列実行
+    sparse_results = bm25_search(query, top_k=20)
+    dense_results = vector_search(embed(query), top_k=20)
+
+    # RRF（Reciprocal Rank Fusion）でマージ
+    fused = reciprocal_rank_fusion(sparse_results, dense_results)
+
+    return fused[:10]
+
+def reciprocal_rank_fusion(
+    *result_lists: list[Document],
+    k: int = 60
+) -> list[Document]:
+    scores: dict[str, float] = {}
+    for results in result_lists:
+        for rank, doc in enumerate(results):
+            scores[doc.id] = scores.get(doc.id, 0) + 1 / (k + rank + 1)
+    return sorted(scores.items(), key=lambda x: x[1], reverse=True)
+```
+
+### 重み付けの指針
+
+| ドキュメント特性 | Sparse重み | Dense重み |
+|---|---|---|
+| ID・コード片が多い | 高（0.6〜0.8） | 低（0.2〜0.4） |
+| 口語的・曖昧なクエリが多い | 低（0.2〜0.4） | 高（0.6〜0.8） |
+| バランス型 | 中（0.5） | 中（0.5） |
+
+## リランキングによる精度向上
+
+検索結果の初期リストに対して、Cross-Encoderモデルで再スコアリングする2段階パイプラインが効果的です。
+
+```
+クエリ + 候補20件 → Cross-Encoder Reranker → 上位5件 → LLMコンテキストへ
+```
+
+### なぜリランキングが有効か
+
+1. **初段階の検索**（Bi-Encoder）: 高速だが、クエリと文書を独立にエンコードするため精度に限界がある
+2. **リランキング**（Cross-Encoder）: クエリと文書をペアとして同時にエンコードするため、精度が大幅に向上する
+
+Hybrid Search + RRF + Cross-Encoder Rerankの組み合わせにより、LLMに渡すトークン量を増やさずにハルシネーションを大幅に軽減できます。
+
+## メタデータの重要性
+
+2026年のIEEE研究によると、メタデータを付与したRAGは**精度82.5%**を達成し、コンテンツのみの場合（73.3%）に対して9ポイントの改善が見られました。
+
+付与すべきメタデータの例:
+
+```json
+{
+  "source": "internal-wiki",
+  "author": "engineering-team",
+  "last_verified": "2026-03-15",
+  "access_level": "internal",
+  "category": "architecture-decision",
+  "confidence": "verified"
+}
+```
+
+メタデータによるフィルタリングは検索精度を上げるだけでなく、古いドキュメントや未検証の下書きよりも最新の承認済みドキュメントを優先する品質管理にも役立ちます。
+
+## 実践ポイント
+
+1. **まずハイブリッド検索から始める**: BM25単体やベクトル検索単体よりも常に優位
+2. **リランキングを必ず入れる**: 検索精度への投資対効果が最も高い
+3. **メタデータを設計初日から付与する**: 後から追加するのは困難
+4. **チャンクサイズは実験で決める**: 200〜500トークンを起点に、ドメインに合わせて調整
+5. **検索結果の件数を絞る**: Context Rot問題があるため、関連度の高い上位5〜10件に限定する
+
+## 参考リンク
+
+- [Hybrid RAG in the Real World: Graphs, BM25, and the End of Black-Box Retrieval](https://community.netapp.com/t5/Tech-ONTAP-Blogs/Hybrid-RAG-in-the-Real-World-Graphs-BM25-and-the-End-of-Black-Box-Retrieval/ba-p/464834)
+- [Building Production RAG Systems in 2026: Complete Architecture Guide](https://brlikhon.engineer/blog/building-production-rag-systems-in-2026-complete-architecture-guide)
+- [Optimizing RAG with Hybrid Search & Reranking - VectorHub](https://superlinked.com/vectorhub/articles/optimizing-rag-with-hybrid-search-reranking)
+- [Full-text search for RAG apps: BM25 & hybrid search - Redis](https://redis.io/blog/full-text-search-for-rag-the-precision-layer/)
