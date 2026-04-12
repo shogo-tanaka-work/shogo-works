@@ -10,18 +10,18 @@ interface Props {
   description: string;
   category: KnowledgeCategory;
   tags: string[];
-  publishedAt: Date;
+  createdAt: Date;
   updatedAt?: Date;
   author: string;
 }
 
-const { title, description, category, tags, publishedAt, updatedAt, author } =
+const { title, description, category, tags, createdAt, updatedAt, author } =
   Astro.props;
 
 const categoryMeta = categories.find((c) => c.slug === category);
 const categoryLabel = categoryMeta?.label ?? category;
 
-const formattedPublishedAt = publishedAt.toLocaleDateString("ja-JP", {
+const formattedCreatedAt = createdAt.toLocaleDateString("ja-JP", {
   year: "numeric",
   month: "long",
   day: "numeric",
@@ -38,7 +38,7 @@ const jsonLd = JSON.stringify({
   "@type": "Article",
   headline: title,
   description,
-  datePublished: publishedAt.toISOString(),
+  datePublished: createdAt.toISOString(),
   ...(updatedAt && { dateModified: updatedAt.toISOString() }),
   author: {
     "@type": "Person",
@@ -65,10 +65,10 @@ const jsonLd = JSON.stringify({
         <div class="flex items-center gap-2 flex-wrap mb-4">
           <Badge variant="teal">{categoryLabel}</Badge>
           <span class="text-sm text-muted-foreground">
-            {formattedPublishedAt}
+            {formattedCreatedAt}
           </span>
           {
-            formattedUpdatedAt && formattedUpdatedAt !== formattedPublishedAt && (
+            formattedUpdatedAt && formattedUpdatedAt !== formattedCreatedAt && (
               <span class="text-sm text-muted-foreground">
                 (更新: {formattedUpdatedAt})
               </span>

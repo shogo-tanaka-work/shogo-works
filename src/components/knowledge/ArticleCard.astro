@@ -8,7 +8,7 @@ interface Props {
   description: string;
   categoryLabel: string;
   tags: string[];
-  publishedAt: Date;
+  createdAt: Date;
   href: string;
   isExternal?: boolean;
   platform?: ArticlePlatform;
@@ -18,14 +18,14 @@ const {
   title,
   categoryLabel,
   tags,
-  publishedAt,
+  createdAt,
   href,
   description,
   isExternal = false,
   platform,
 } = Astro.props;
 
-const formattedDate = publishedAt.toLocaleDateString("ja-JP", {
+const formattedDate = createdAt.toLocaleDateString("ja-JP", {
   year: "numeric",
   month: "long",
   day: "numeric",
