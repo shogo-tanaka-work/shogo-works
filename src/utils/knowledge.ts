@@ -8,7 +8,8 @@ interface KnowledgeEntry {
     description: string;
     category: string;
     tags: string[];
-    publishedAt: Date;
+    sortOrder: number;
+    createdAt: Date;
     updatedAt?: Date;
     draft: boolean;
     author: string;
@@ -23,7 +24,8 @@ export interface UnifiedArticle {
   description: string;
   category: KnowledgeCategory;
   tags: string[];
-  publishedAt: Date;
+  sortOrder: number;
+  createdAt: Date;
   source: "external" | "internal";
   platform?: ArticlePlatform;
   href: string;
@@ -40,7 +42,8 @@ export function toUnifiedFromExternal(
     description: article.description,
     category: article.category,
     tags: article.tags,
-    publishedAt: article.publishedAt,
+    sortOrder: article.sortOrder,
+    createdAt: article.createdAt,
     source: "external",
     platform: article.platform,
     href: article.url,
@@ -57,7 +60,8 @@ export function toUnifiedFromInternal(entry: KnowledgeEntry): UnifiedArticle {
     description: entry.data.description,
     category: entry.data.category as KnowledgeCategory,
     tags: entry.data.tags,
-    publishedAt: entry.data.publishedAt,
+    sortOrder: entry.data.sortOrder,
+    createdAt: entry.data.createdAt,
     source: "internal",
     href: `/knowledge/${entry.data.category}/${slug}`,
     isExternal: false,
@@ -72,7 +76,9 @@ export function mergeArticles(
   const external = externalArticles.map(toUnifiedFromExternal);
   const internal = getPublishedArticles(mdxEntries).map(toUnifiedFromInternal);
   return [...external, ...internal].sort(
-    (a, b) => b.publishedAt.getTime() - a.publishedAt.getTime(),
+    (a, b) =>
+      a.sortOrder - b.sortOrder ||
+      b.createdAt.getTime() - a.createdAt.getTime(),
   );
 }
 
@@ -115,7 +121,8 @@ export function getPublishedArticles<T extends KnowledgeEntry>(
     .filter((entry) => !entry.data.draft)
     .sort(
       (a, b) =>
-        b.data.publishedAt.getTime() - a.data.publishedAt.getTime(),
+        a.data.sortOrder - b.data.sortOrder ||
+        b.data.createdAt.getTime() - a.data.createdAt.getTime(),
     );
 }
 

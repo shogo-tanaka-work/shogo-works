@@ -109,7 +109,8 @@ export interface ExternalArticle {
   description: string;
   category: KnowledgeCategory;
   tags: string[];
-  publishedAt: Date;
+  sortOrder: number;
+  createdAt: Date;
   platform: ArticlePlatform;
   url: string;
 }
