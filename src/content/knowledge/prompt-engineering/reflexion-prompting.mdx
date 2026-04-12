@@ -1,0 +1,199 @@
+---
+title: "Reflexionプロンプティング"
+description: "LLMエージェントが自己の出力を振り返り、言語的フィードバックで改善を繰り返すReflexionフレームワークの仕組みと実装法を解説。"
+category: "prompt-engineering"
+tags: ["prompt-engineering", "reflexion", "self-reflection", "agent", "reinforcement-learning"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## Reflexionとは
+
+Reflexionは、Shinn et al.（NeurIPS 2023）が提案した**言語的強化学習（Verbal Reinforcement Learning）**のフレームワークです。従来の強化学習がスカラー値の報酬で学習するのに対し、Reflexionではエージェントが自身の出力を**自然言語で振り返り**、その反省をエピソード記憶として保持し、次の試行で改善に活かします。
+
+HumanEvalコーディングベンチマークで**91% pass@1**を達成し、当時のGPT-4の80%を大きく上回る結果を示しました。重みの更新なしに、プロンプトとメモリだけでこの改善を実現した点が画期的です。
+
+## アーキテクチャの3要素
+
+Reflexionは以下の3つのモデルで構成されます。
+
+### 1. Actor（行動者）
+
+テキストと行動を生成する主要なLLMエージェントです。タスクに基づいてコードを書いたり、意思決定を行ったりします。
+
+### 2. Evaluator（評価者）
+
+Actorの出力を評価するモデルです。タスクの種類によって評価方法が異なります。
+
+- **推論タスク**: 完全一致（Exact Match）による自動評価
+- **意思決定タスク**: 事前定義されたヒューリスティック関数
+- **コーディングタスク**: テスト実行結果のpass/fail
+
+### 3. Self-Reflection（自己反省）
+
+評価結果を受けて、**なぜ失敗したのか、次にどう改善すべきか**を自然言語で生成するモデルです。この反省テキストがエピソード記憶に蓄積されます。
+
+## 動作フロー
+
+```
+Trial 1:
+  Actor → コード生成 → テスト実行 → 3/5テスト失敗
+  Self-Reflection → 「エッジケース（空配列）を考慮していなかった。
+                      また、負の数の処理が不正確。次回は入力バリデーションを
+                      先に実装し、境界値テストを意識する。」
+  → 反省をメモリに保存
+
+Trial 2:
+  Actor（メモリ参照）→ 改善コード生成 → テスト実行 → 1/5テスト失敗
+  Self-Reflection → 「入力バリデーションは改善できた。残る失敗は
+                      整数オーバーフローの処理。次回はlong型を使用する。」
+  → 反省をメモリに追加
+
+Trial 3:
+  Actor（メモリ参照）→ 最終コード生成 → テスト実行 → 全テスト通過
+```
+
+## 実装パターン
+
+### 基本的なReflexionループ
+
+```python
+from typing import TypedDict
+
+class ReflexionMemory(TypedDict):
+    trial: int
+    action: str
+    evaluation: str
+    reflection: str
+
+def reflexion_loop(
+    task: str,
+    max_trials: int = 5,
+) -> str:
+    memory: list[ReflexionMemory] = []
+
+    for trial in range(1, max_trials + 1):
+        # 1. Actor: 過去の反省を参照してアクション生成
+        action_prompt = build_actor_prompt(task, memory)
+        action = call_llm(action_prompt)
+
+        # 2. Evaluator: アクションを評価
+        evaluation = evaluate(action, task)
+
+        if evaluation["passed"]:
+            return action
+
+        # 3. Self-Reflection: 失敗原因を分析
+        reflection_prompt = build_reflection_prompt(
+            task, action, evaluation["feedback"]
+        )
+        reflection = call_llm(reflection_prompt)
+
+        # 4. メモリに蓄積
+        memory.append({
+            "trial": trial,
+            "action": action,
+            "evaluation": evaluation["feedback"],
+            "reflection": reflection,
+        })
+
+    return action  # 最大試行回数に達した場合、最後の結果を返す
+```
+
+### Self-Reflectionプロンプトの設計
+
+反省の質がReflexion全体の性能を左右します。
+
+```
+あなたはコードレビューの専門家です。
+以下のプログラミングタスクに対する解答が不合格になりました。
+
+## タスク
+{task_description}
+
+## 提出したコード
+{submitted_code}
+
+## テスト結果
+{test_results}
+
+## 過去の反省（もしあれば）
+{previous_reflections}
+
+以下の形式で振り返りを行ってください:
+
+1. **失敗の根本原因**: なぜテストが失敗したのか（表面的な原因ではなく根本原因）
+2. **見落としたパターン**: 考慮すべきだったエッジケースや条件
+3. **具体的な改善策**: 次の試行で実装すべき変更点（コードレベルで具体的に）
+4. **学んだ教訓**: 今後の類似タスクにも適用できる一般的な知見
+```
+
+### Actorプロンプトでのメモリ活用
+
+```
+以下のプログラミングタスクを解いてください。
+
+## タスク
+{task_description}
+
+## 過去の試行からの学び
+以下は過去の試行での反省です。同じ失敗を繰り返さないよう、
+これらの知見を活用してください。
+
+{formatted_reflections}
+
+## 指示
+- 過去の反省で指摘されたエッジケースを必ず考慮すること
+- 入力バリデーションを先に実装すること
+- コードのみを出力し、説明は不要
+```
+
+## ベンチマーク結果
+
+| タスク | 手法 | 精度 |
+|---|---|---|
+| HumanEval（コーディング） | GPT-4（1回） | 80.0% |
+| HumanEval（コーディング） | Reflexion | **91.0%** |
+| AlfWorld（意思決定） | ReAct | 75.0% |
+| AlfWorld（意思決定） | Reflexion | **97.0%** |
+| HotpotQA（推論） | Chain-of-Thought | 34.0% |
+| HotpotQA（推論） | Reflexion | **51.0%** |
+
+特にコーディングタスクと意思決定タスクでの改善幅が大きく、推論タスクでも+17ポイントの向上が見られます。
+
+## Reflexionの派生・発展
+
+### Self-Refine（Madaan et al., 2023）
+
+Reflexionの簡易版とも言える手法で、同一のLLMが「生成→フィードバック→改善」を1つのプロンプトチェーン内で行います。外部評価者やメモリが不要なため、実装が容易です。
+
+### CRITIC（Gou et al., 2024）
+
+外部ツール（検索エンジン、計算機等）を使って自己の出力を検証し、修正する手法です。Reflexionの評価フェーズに外部ツールを組み込んだ拡張と言えます。
+
+### 2026年のエージェントフレームワークへの統合
+
+LangGraph、CrewAI、AutoGenなどの主要エージェントフレームワークでは、Reflexionの考え方が「リトライ＋自己反省」パターンとして組み込まれており、明示的にReflexionを実装しなくても恩恵を受けられるケースが増えています。
+
+## いつ使うべきか
+
+- **自動テストが存在するコーディングタスク**: テスト結果が明確な評価基準になるため、最も効果が高い
+- **試行錯誤が許容される非リアルタイムタスク**: 複数回のLLM呼び出しが必要なため、レイテンシ制約の緩いバッチ処理向き
+- **正解が検証可能なタスク**: 評価者が明確なフィードバックを返せることが前提
+- **エージェントの自律的な改善**: 人間のフィードバックなしにパフォーマンスを向上させたい場合
+
+## 注意点・限界
+
+- **コスト増加**: 1タスクあたり2〜5回のLLM呼び出しが必要。トークンコストが線形に増加する
+- **レイテンシ**: リアルタイム応答が求められるユースケースには不向き
+- **評価関数の設計が鍵**: 評価が曖昧だと反省の質も低下し、改善が収束しない
+- **メモリの膨張**: 試行回数が増えるとメモリ（反省テキスト）が増大し、コンテキストウィンドウを圧迫する。古い反省の要約・剪定が必要
+- **Self-Reflectionの研究（Huang et al., 2024）**: 外部フィードバックなしの純粋な自己反省は、推論タスクでは改善効果が限定的という報告もある。外部評価者の存在が重要
+
+## 参考リンク集
+
+- [Reflexion: Language Agents with Verbal Reinforcement Learning (NeurIPS 2023)](https://arxiv.org/abs/2303.11366)
+- [GitHub - noahshinn/reflexion: Official Implementation](https://github.com/noahshinn/reflexion)
+- [Reflexion - Prompting Guide](https://www.promptingguide.ai/techniques/reflexion)
+- [Reflecting on Reflexion - Noah Shinn & Ashwin Gopinath](https://nanothoughts.substack.com/p/reflecting-on-reflexion)
+- [Self-Reflection in LLM Agents: Effects on Problem-Solving Performance](https://arxiv.org/pdf/2405.06682)

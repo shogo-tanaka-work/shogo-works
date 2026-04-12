@@ -1,0 +1,186 @@
+---
+title: "MCPサーバー選定と最適化 — CLI代替との使い分け"
+description: "MCP（Model Context Protocol）サーバーとCLIツールのトークンコスト・信頼性を比較し、ハイブリッド戦略による最適な使い分けを解説する"
+category: "harness-engineering"
+tags: ["harness-engineering", "mcp", "cli", "token-optimization", "context-engineering"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## MCPとCLI — 2つのツール統合パターン
+
+AIエージェントが外部ツールと連携する方法は大きく2つある。
+
+- **MCP（Model Context Protocol）**: エージェントが外部サービスのAPIを直接呼び出すプロトコル
+- **CLI**: エージェントが Bash 経由でコマンドラインツールを実行する
+
+2026年、MCPエコシステムは爆発的に成長し、10,000以上のサーバーが公開され、MCP SDKの累計ダウンロード数は9,700万に達した。しかし「MCPを使えばいい」という単純な話ではない。
+
+## トークンコストの現実
+
+MCPの最大の課題は**スキーマ注入によるコンテキスト汚染**だ。
+
+MCPサーバーは接続時に全ツールのスキーマをコンテキストウィンドウに注入する。GitHub MCP サーバーを例に取ると、93個のツール定義で約55,000トークンを消費する——質問を1つもする前に。
+
+### 実測ベンチマーク: GitHub操作タスク
+
+Claude Sonnet 4 での比較（GitHub関連のタスク実行時）:
+
+| 指標 | CLI (`gh`) | MCP (GitHub) |
+|---|---|---|
+| 信頼性 | 100% | 72% |
+| トークン/タスク | 1,365〜8,750 | 32,000〜82,000 |
+| コスト比 | 1x | **10〜32x** |
+
+CLIが圧倒的に効率的な理由は明確だ。`gh` コマンドはモデルの学習データに含まれており、使い方を「知っている」。追加のスキーマ注入が不要だ。
+
+## MCPが有利なケース
+
+CLIが万能ではないケースもある。MCPが真価を発揮する3つのシナリオ。
+
+### 1. ステートフルな接続が必要な場合
+
+データベース接続、WebSocket、ブラウザセッションなど、状態を維持する必要がある連携。
+
+```json
+{
+  "mcpServers": {
+    "postgres": {
+      "command": "mcp-server-postgres",
+      "args": ["postgresql://localhost:5432/mydb"]
+    }
+  }
+}
+```
+
+CLIでは毎回接続を確立する必要があり、トランザクション管理も困難。
+
+### 2. OAuth認証が必要な場合
+
+Slack、Google Calendar、Linear など、OAuth フローを介したAPI連携。
+
+```json
+{
+  "mcpServers": {
+    "slack": {
+      "command": "mcp-server-slack",
+      "env": {
+        "SLACK_TOKEN": "${SLACK_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+CLIツールが存在しない、またはOAuthトークン管理が複雑なサービスではMCPが適している。
+
+### 3. CLIが存在しないツール
+
+Figma、Notion、社内APIなど、公式CLIが提供されていないサービス。
+
+## 判定フローチャート
+
+```
+そのツールにCLIはあるか？
+  ├── はい → モデルはCLIの使い方を知っているか？
+  │     ├── はい → CLI を使う（gh, git, npm, curl 等）
+  │     └── いいえ → MCP を検討
+  └── いいえ → ステートフル接続が必要か？
+        ├── はい → MCP を使う
+        └── いいえ → REST API を curl で叩く
+```
+
+**80/20ルール**: タスクの80%はモデルが既に知っているCLIツールで対応でき、残り20%でMCPが必要になる。
+
+## MCP最適化テクニック
+
+MCPを使う場合でも、トークンコストを最小化する手法がある。
+
+### Dynamic Toolsets
+
+必要なツールだけを動的にロードする。全93ツールではなく、タスクに関連する5〜10ツールだけを公開する。
+
+```json
+{
+  "mcpServers": {
+    "github-minimal": {
+      "command": "mcp-server-github",
+      "args": ["--tools", "create_pull_request,list_issues,get_file_contents"]
+    }
+  }
+}
+```
+
+### ラッパースクリプトによるCLI代替
+
+MCPサーバーの代わりに、必要な操作をCLIスクリプトでラップする。
+
+```bash
+#!/bin/bash
+# .claude/tools/gh-pr-create.sh
+# MCPの代わりにghコマンドでPR作成
+gh pr create \
+  --title "$1" \
+  --body "$2" \
+  --base main
+```
+
+CLAUDE.md にスクリプトの存在を記載しておけば、エージェントはMCPなしで同等の操作を実行できる。
+
+```markdown
+## 利用可能なツールスクリプト
+- PR作成: .claude/tools/gh-pr-create.sh "タイトル" "本文"
+- Issue一覧: .claude/tools/gh-issues.sh [ラベル]
+```
+
+### MCPサーバーのセキュリティ
+
+MCPエコシステムの調査では、スキャンされたサーバーの**66%にセキュリティ上の問題**が報告されている。導入前に以下を確認する。
+
+1. **ソースコードの確認**: オープンソースでない MCP サーバーは使わない
+2. **権限の最小化**: 必要最小限のスコープのみ許可する
+3. **ネットワークアクセス**: MCP サーバーがどこに通信するか確認する
+4. **依存関係の監査**: `npm audit` 相当のチェックを行う
+
+## 実践的な構成例
+
+筆者のプロジェクトでの使い分け。
+
+| ツール | 方式 | 理由 |
+|---|---|---|
+| Git操作 | CLI (`git`) | モデルが熟知。MCPは過剰 |
+| GitHub PR/Issue | CLI (`gh`) | 100%信頼性。トークン効率10x |
+| Cloudflare管理 | CLI (`wrangler`) | 公式CLIが充実 |
+| npm操作 | CLI (`npm`) | 追加説明不要 |
+| Figma | MCP | CLIなし。デザイントークン取得に必要 |
+| Slack通知 | MCP | OAuth認証。ステートフル |
+| DB操作 | MCP | 接続状態の維持が必要 |
+
+## ゾンビプロセス対策
+
+MCP サーバーは子プロセスとして起動するため、クラッシュ時にプロセスが残る問題がある。
+
+```bash
+# MCP関連のゾンビプロセスを確認
+ps aux | grep mcp-server
+
+# 定期的なクリーンアップ（Claude Code終了時に実行）
+pkill -f "mcp-server"
+```
+
+Claude Code の設定で、セッション終了時にMCPサーバーを確実にシャットダウンする仕組みを入れておくと安全だ。
+
+## 実践ポイント
+
+1. **デフォルトはCLI**: まずCLIで実現できないか検討する。MCPは最後の手段
+2. **トークンコストを計測する**: MCPサーバー追加前後でトークン消費量を比較する
+3. **ツール数を最小化する**: MCPサーバーの公開ツール数は10以下を目安にする
+4. **ハイブリッド運用**: CLIとMCPを適材適所で組み合わせるのが最適解
+5. **セキュリティファースト**: 信頼できるMCPサーバーのみ使用し、権限を最小化する
+
+## 参考リンク
+
+- [Why CLI Tools Are Beating MCP for AI Agents](https://jannikreinhard.com/2026/02/22/why-cli-tools-are-beating-mcp-for-ai-agents/)
+- [MCP vs CLI for AI Agents: Which One Should You Use in 2026?](https://www.firecrawl.dev/blog/mcp-vs-cli)
+- [Is MCP Dead? MCP vs CLI vs Agent Skills Compared](https://milvus.io/blog/is-mcp-dead-cli-and-skills-for-ai-agents.md)
+- [Is MCP Dead? 3 Scenarios Where Skill and CLI Can't Replace It](https://www.shareuhack.com/en/posts/mcp-vs-skill-vs-cli-guide)

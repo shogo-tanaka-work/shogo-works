@@ -1,0 +1,334 @@
+---
+title: "ハーネステンプレート集 — プロジェクト類型別の設定例"
+description: "CRUD API、フロントエンドSPA、フルスタックアプリなどプロジェクト類型ごとのハーネス設定テンプレートを提供します。CLAUDE.md、hooks、ルールの実践的な構成例を網羅。"
+category: "harness-engineering"
+tags: ["harness-engineering", "templates", "claude-code", "claude-md", "project-setup"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜテンプレートが必要か
+
+ハーネスエンジニアリングの設定は、プロジェクトの類型によって大きく異なります。APIサーバーとフロントエンドSPAでは、テストの方法も、守るべきアーキテクチャルールも、デプロイパイプラインも違います。
+
+毎回ゼロから設定を書くのは非効率です。プロジェクト類型ごとのテンプレートを用意し、そこからカスタマイズするのが現実的なアプローチです。
+
+## テンプレートの共通構造
+
+どのプロジェクト類型でも、以下の3層でハーネスを構成します。
+
+```
+.claude/
+  settings.json        # Hooks（決定論的な品質ゲート）
+  rules/
+    coding-standards.md  # コーディング規約
+    architecture.md      # アーキテクチャルール
+CLAUDE.md                # プロジェクト概要・コマンド・制約
+```
+
+## テンプレート1: REST API（CRUD）
+
+バックエンドAPIサーバーの典型的な構成です。
+
+### CLAUDE.md
+
+```markdown
+# Project: User Management API
+
+## Tech Stack
+- Runtime: Bun
+- Framework: Hono
+- Database: Drizzle ORM + PostgreSQL
+- Test: vitest
+- Deploy: Cloudflare Workers
+
+## Commands
+- `bun run dev` - 開発サーバー起動
+- `bun test` - テスト実行
+- `bun run db:migrate` - マイグレーション実行
+- `bun run db:generate` - マイグレーションファイル生成
+
+## Architecture
+- src/routes/ - ルートハンドラ（1ファイル1リソース）
+- src/services/ - ビジネスロジック
+- src/repositories/ - データアクセス層
+- src/schemas/ - Zodバリデーションスキーマ
+- src/types/ - 型定義
+
+## Rules
+- ルートハンドラにビジネスロジックを書かない
+- 必ずZodでリクエストをバリデーションする
+- エラーは適切なHTTPステータスコードで返す
+- 新しいエンドポイントにはテストを書いてから実装する
+```
+
+### .claude/settings.json
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/protect-files.sh"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check: Did the agent run tests for any modified code? If code was changed but no test was executed, respond with {\"ok\": false, \"reason\": \"Tests must be run before completing the task\"}."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### アーキテクチャルール（.claude/rules/architecture.md）
+
+```markdown
+# API Architecture Rules
+
+## レイヤー構成
+Route Handler → Service → Repository の一方向依存を守る。
+Repository以外からデータベースに直接アクセスしない。
+
+## エラーハンドリング
+- Service層でビジネスエラーをthrow
+- Route Handlerでcatchして適切なHTTPレスポンスに変換
+- 500エラーはグローバルエラーハンドラで処理
+
+## バリデーション
+リクエストボディは必ずZodスキーマで検証する。
+スキーマはsrc/schemas/に集約し、ルートとサービスで共有する。
+```
+
+## テンプレート2: フロントエンドSPA
+
+React/Next.jsベースのSPAプロジェクト向けです。
+
+### CLAUDE.md
+
+```markdown
+# Project: Dashboard SPA
+
+## Tech Stack
+- Framework: Next.js 15 (App Router)
+- UI: React 19 + Tailwind CSS v4
+- State: TanStack Query
+- Test: vitest + Testing Library
+- Deploy: Vercel
+
+## Commands
+- `npm run dev` - 開発サーバー
+- `npm test` - テスト実行
+- `npm run build` - ビルド
+- `npm run lint` - ESLint実行
+
+## Directory Structure
+- app/ - App Routerのページ・レイアウト
+- components/ - 再利用可能コンポーネント
+- features/ - 機能単位のモジュール
+- hooks/ - カスタムフック
+- lib/ - ユーティリティ・API クライアント
+- types/ - 型定義
+
+## Design System
+- カラーはCSS変数で管理（globals.css）
+- コンポーネントはPascalCase、ファイル名もPascalCase
+- レスポンシブはモバイルファースト
+```
+
+### .claude/settings.json
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write"
+          },
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path'); if [[ \"$FILE\" == *.tsx || \"$FILE\" == *.ts ]]; then npx eslint --fix \"$FILE\" 2>&1 || true; fi"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Review the changes: Are there any hardcoded strings that should be extracted? Any accessibility issues (missing alt text, aria labels)? If issues found, respond with {\"ok\": false, \"reason\": \"description of issues\"}."
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### アクセシビリティルール（.claude/rules/accessibility.md）
+
+```markdown
+# Accessibility Rules
+
+- img要素には必ずalt属性を設定する
+- インタラクティブ要素にはaria-labelを付与する
+- フォーム要素にはlabelを紐付ける
+- キーボードナビゲーションを確保する
+- カラーコントラスト比はWCAG AA基準を満たす
+```
+
+## テンプレート3: フルスタック（Astro + API）
+
+本サイトのようなAstroベースのフルスタック構成です。
+
+### CLAUDE.md
+
+```markdown
+# Project: Knowledge Base Site
+
+## Tech Stack
+- Framework: Astro 5
+- Content: MDX (Content Collections)
+- Styling: Tailwind CSS v4
+- Deploy: Cloudflare Pages
+- Test: vitest
+
+## Commands
+- `npm run dev` - 開発サーバー
+- `npm run build` - ビルド（astro check + astro build）
+- `npm run check` - 型チェック
+- `npm test` - テスト実行
+
+## Content Structure
+- src/content/knowledge/ - ナレッジベース記事（MDX）
+- src/pages/ - ルーティング
+- src/components/ - UIコンポーネント
+- src/layouts/ - レイアウト
+
+## Content Rules
+- 記事のfrontmatterはcontent.config.tsのスキーマに準拠
+- カテゴリは定義済みのenumから選択
+- 画像はpublic/images/に配置
+```
+
+### .claude/settings.json
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.file_path' | xargs npx prettier --write"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(rm *)",
+            "command": "echo 'Blocked: direct rm commands are not allowed. Use git to manage files.' >&2 && exit 2"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+## テンプレート4: CLIツール
+
+Node.js/Bunで作るCLIツール向けの構成です。
+
+### CLAUDE.md
+
+```markdown
+# Project: deploy-cli
+
+## Tech Stack
+- Runtime: Bun
+- CLI Framework: Commander.js
+- Test: vitest
+
+## Commands
+- `bun run build` - ビルド
+- `bun test` - テスト実行
+- `bun run dev -- <args>` - 開発実行
+
+## Architecture
+- src/commands/ - CLIコマンド定義
+- src/lib/ - コアロジック
+- src/utils/ - ユーティリティ
+- src/types/ - 型定義
+
+## Rules
+- CLIの出力はstdout（正常）とstderr（エラー）を分ける
+- 終了コードを適切に設定する（0: 成功、1: エラー）
+- ユーザー入力は必ずバリデーションする
+- 長時間処理にはプログレスバーを表示する
+```
+
+## テンプレートのカスタマイズ指針
+
+テンプレートはあくまで出発点です。以下の観点でカスタマイズしてください。
+
+### 追加すべき情報
+
+| 観点 | 追加内容の例 |
+|---|---|
+| 外部サービス | 使用するAPI、認証方式、レート制限 |
+| デプロイ | 環境変数の一覧、デプロイ手順 |
+| ドメイン知識 | ビジネス用語の定義、ドメインモデルの説明 |
+| チーム規約 | PR規約、コミットメッセージの追加ルール |
+
+### AGENTS.mdのアンチパターン
+
+OpenAIの研究チームが指摘するように、AGENTS.md（CLAUDE.md）を「百科事典」にしてはいけません。
+
+```
+悪い例: CLAUDE.mdが500行 → エージェントが情報過多で混乱
+良い例: CLAUDE.mdは100行の「目次」→ docs/に詳細を配置
+```
+
+CLAUDE.mdは「何をどこで見つけるか」のマップとして機能させ、詳細は構造化されたドキュメントディレクトリに配置するのが効果的です。
+
+## 参考リンク
+
+- [12 Agentic Harness Patterns from Claude Code](https://medium.com/@simranjeetsingh1497/agent-harness-12-agentic-harness-patterns-from-claude-code-5505b7c239c4)
+- [claude-code-harness (GitHub)](https://github.com/Chachamaru127/claude-code-harness)
+- [Harness engineering for coding agent users (Martin Fowler)](https://martinfowler.com/articles/harness-engineering.html)
+- [Harness design for long-running apps (Anthropic)](https://www.anthropic.com/engineering/harness-design-long-running-apps)

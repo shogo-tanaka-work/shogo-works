@@ -1,0 +1,160 @@
+---
+title: "CLAUDE.md / AGENTS.md 設計パターン集"
+description: "AIエージェントの記憶ファイル（CLAUDE.md / AGENTS.md）を効果的に設計するためのパターンとアンチパターンを解説する"
+category: "harness-engineering"
+tags: ["harness-engineering", "claude-code", "agents-md", "context-engineering"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## CLAUDE.md / AGENTS.md とは何か
+
+LLMはステートレスな関数である。推論時には重みが固定されており、セッション間で学習しない。この制約を補うために生まれたのが CLAUDE.md（Claude Code用）や AGENTS.md（Cursor、Zed、OpenCode等）といった**エージェント記憶ファイル**だ。
+
+エージェントはセッション開始時にこのファイルを自動で読み込む。つまり、あなたの好み・プロジェクト構造・開発ルールを**毎回のセッションに持ち込める唯一のエントリポイント**となる。
+
+## WHY / WHAT / HOW フレームワーク
+
+記憶ファイルの設計は3つの軸で考える。
+
+| 軸 | 記述すべき内容 | 例 |
+|---|---|---|
+| **WHY** | プロジェクトの目的・機能的な意図 | 「個人ポートフォリオサイト。技術発信とナレッジ蓄積が目的」 |
+| **WHAT** | 技術スタック・ディレクトリ構成 | 「Astro + React + Cloudflare Pages」 |
+| **HOW** | 開発ワークフロー・テスト・ビルド手順 | `npm run dev` / `npm run test` |
+
+この3軸が揃うことで、エージェントはコードを読む前にプロジェクト全体像を把握できる。
+
+## 設計パターン
+
+### パターン1: 段階的開示（Progressive Disclosure）
+
+CLAUDE.md 本体は**60〜300行以内**に抑え、詳細は外部ファイルに分離する。
+
+```
+.claude/
+  rules/
+    coding-standards.md    # コーディング規約
+    architecture.md        # アーキテクチャルール
+    testing-strategy.md    # テスト戦略
+CLAUDE.md                  # エントリポイント（簡潔に）
+```
+
+CLAUDE.md には各ファイルの**存在と目的**だけ書く。
+
+```markdown
+## 最初に必ず読むファイル
+- 仕様・技術スタック: docs/SPEC.md
+- アーキテクチャ決定: docs/ARCH.md
+
+## 開発ルール
+1. 実装前に必ずプランモードで設計を確認すること
+2. テストを先に書く（TDD）
+3. 1ファイル1責務を守ること
+```
+
+エージェントは必要に応じて外部ファイルを `Read` で読み込む。すべてのコンテキストを常にロードする必要がなくなり、トークン効率が大幅に向上する。
+
+### パターン2: ファイルポインタ参照
+
+コードスニペットを直接記載するのではなく、`file:line` 形式でポインタを書く。
+
+```markdown
+## 型定義の場所
+- 共通型: src/types/index.ts
+- API レスポンス型: src/types/api.ts:15-45
+```
+
+直接コードを貼ると、リファクタリングのたびに CLAUDE.md が古くなる。ポインタなら常に最新のコードを参照できる。
+
+### パターン3: 否定形ルール（Don't ルール）
+
+エージェントが繰り返す失敗は、**明示的な禁止事項**として記録する。
+
+```markdown
+## 禁止事項
+- README・ドキュメントを勝手に生成・変更しない
+- テストコードを確認なしに削除・コメントアウトしない
+- main への直接プッシュ禁止
+- .env の内容をコードにハードコード禁止
+```
+
+Mitchell Hashimoto のハーネスエンジニアリングの原則——「エージェントが失敗するたびに、同じ失敗を二度としないよう設定を工夫する」——の実践形である。
+
+### パターン4: コマンドチートシート
+
+エージェントが最も時間を無駄にするのは「起動方法の解析」だ。頻出コマンドを明示する。
+
+```markdown
+## 基本コマンド
+npm run dev       # 開発サーバー起動
+npm run build     # ビルド（astro check + astro build）
+npm run test      # テスト実行
+npm run check     # 型チェック
+```
+
+## アンチパターン
+
+### アンチパターン1: 命令の過積載
+
+フロンティアモデルが安定して従える命令数は**約150〜200個**。Claude Code のシステムプロンプト自体が約50の命令を含むため、ユーザーが使える予算は限られる。小規模モデルでは命令数が増えるほど従順性が指数的に低下する。
+
+```markdown
+<!-- BAD: すべてを詰め込みすぎ -->
+## コーディング規約
+- 変数名はcamelCase
+- 関数名もcamelCase
+- 定数はUPPER_SNAKE_CASE
+- インデントは2スペース
+- セミコロンなし
+- シングルクォート使用
+- ...（50行続く）
+```
+
+こうしたスタイルルールは ESLint / Biome / Prettier に任せるべきだ。**LLMにリンターの仕事をさせてはいけない。**
+
+### アンチパターン2: 自動生成への依存
+
+`/init` コマンドで自動生成された CLAUDE.md をそのまま使うのは避ける。CLAUDE.md はハーネスの**最もレバレッジの高いポイント**であり、手動で練り上げる価値がある。
+
+### アンチパターン3: タスク固有の指示
+
+データベーススキーマの詳細や特定機能の実装方針など、**すべてのセッションで必要ではない情報**を含めると、無関係なタスクでノイズになる。
+
+```markdown
+<!-- BAD: 特定タスクの指示 -->
+## ユーザー認証の実装方針
+OAuth2 + PKCE フローを使用し、トークンは httpOnly cookie に...
+```
+
+これは `.claude/rules/` やタスク固有のドキュメントに分離する。
+
+## 階層的な配置戦略
+
+Claude Code は CLAUDE.md を複数階層から読み込む。
+
+```
+~/.claude/CLAUDE.md              # グローバル（全プロジェクト共通）
+project-root/CLAUDE.md           # プロジェクトルート
+project-root/.claude/rules/*.md  # ルールファイル群
+```
+
+| レイヤー | 記述内容 | 例 |
+|---|---|---|
+| グローバル | 個人の普遍的ルール | 日本語応答、Conventional Commits |
+| プロジェクト | プロジェクト固有の文脈 | 技術スタック、ビルドコマンド |
+| ルールファイル | ドメイン別の詳細ルール | コーディング規約、テスト戦略 |
+
+## 実践ポイント
+
+1. **定期的な棚卸し**: 月1回、CLAUDE.md を見直す。守られていないルールは表現を変えるか、Hookで強制する
+2. **失敗駆動の追記**: エージェントが同じミスを繰り返したら、その都度禁止事項を追加する
+3. **行数の監視**: ルートの CLAUDE.md が300行を超えたら、分離を検討する
+4. **チーム共有**: CLAUDE.md はリポジトリにコミットし、チーム全員が同じハーネスで作業する
+
+## 参考リンク
+
+- [Writing a good CLAUDE.md - HumanLayer Blog](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
+- [How to Write a Good CLAUDE.md File - Builder.io](https://www.builder.io/blog/claude-md-guide)
+- [Best Practices for Claude Code](https://code.claude.com/docs/en/best-practices)
+- [Agent Experience: Best Practices for Coding Agent Productivity](https://marmelab.com/blog/2026/01/21/agent-experience.html)

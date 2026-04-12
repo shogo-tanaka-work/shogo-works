@@ -1,0 +1,174 @@
+---
+title: "構造化出力プロンプティング"
+description: "LLMからJSON・XML・スキーマ準拠の構造化データを確実に取得するためのテクニックとAPI活用法を解説。"
+category: "prompt-engineering"
+tags: ["prompt-engineering", "structured-output", "json", "xml", "api"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## 構造化出力プロンプティングとは
+
+LLMの出力を自由形式のテキストではなく、JSON・XML・テーブルなど**機械的に解析可能な形式**で得る技術です。アプリケーション開発において、LLMの応答をそのままプログラムで処理するには不可欠な手法であり、2026年現在ではプロンプト指示だけでなくAPI機能を活用した「制約付きデコーディング（Constrained Decoding）」が主流になっています。
+
+## 3つの成熟度レベル
+
+構造化出力を得る方法は、大きく3つのレベルに分かれます。
+
+### Level 1: プロンプト指示のみ
+
+最もシンプルなアプローチ。プロンプトで出力形式を指定します。
+
+```
+以下の製品レビューから情報を抽出し、JSON形式で返してください。
+
+レビュー: 「バッテリーは丸一日持つし、カメラの画質も素晴らしい。ただ重さが気になる。」
+
+出力形式:
+{
+  "positive_points": ["string"],
+  "negative_points": ["string"],
+  "overall_sentiment": "positive" | "negative" | "mixed"
+}
+```
+
+手軽ですが、モデルが余計なテキスト（「はい、以下がJSON出力です：」など）を付加したり、スキーマから逸脱するリスクがあります。信頼性は70〜90%程度です。
+
+### Level 2: JSON Mode
+
+OpenAIの`response_format: { type: "json_object" }`やAnthropicのツール定義を使い、**出力が必ずJSONになる**ことを保証します。ただし、スキーマ（どのキーが存在するか、型は何か）までは保証されません。
+
+### Level 3: Structured Outputs（推奨）
+
+2025年中盤以降、OpenAI・Anthropic・Googleが相次いで導入した**制約付きデコーディング**により、JSONスキーマに100%準拠した出力が保証されるようになりました。2026年の本番環境では、このLevel 3が標準です。
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+response = client.responses.create(
+    model="gpt-4o",
+    input="製品レビューを分析してください: バッテリーは良いがカメラが微妙",
+    text={
+        "format": {
+            "type": "json_schema",
+            "name": "review_analysis",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "positive_points": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    },
+                    "negative_points": {
+                        "type": "array",
+                        "items": {"type": "string"}
+                    },
+                    "sentiment": {
+                        "type": "string",
+                        "enum": ["positive", "negative", "mixed"]
+                    }
+                },
+                "required": ["positive_points", "negative_points", "sentiment"],
+                "additionalProperties": False
+            }
+        }
+    }
+)
+```
+
+## XMLタグによる構造化（Claude推奨）
+
+Claudeでは、入力の構造化にXMLタグが特に効果的です。出力形式のJSON指定と組み合わせることで高い精度が得られます。
+
+```
+<task>以下のコードレビューコメントを分析してください。</task>
+
+<input>
+型定義が曖昧で、any型が3箇所で使用されています。
+また、エラーハンドリングが不足しているAPIエンドポイントが2つあります。
+パフォーマンスは問題ありません。
+</input>
+
+<output_format>
+以下のJSON形式で出力してください:
+{
+  "issues": [
+    {
+      "category": "type-safety" | "error-handling" | "performance" | "other",
+      "severity": "high" | "medium" | "low",
+      "description": "具体的な指摘内容",
+      "count": 数値
+    }
+  ],
+  "summary": "全体的な評価を1文で"
+}
+</output_format>
+```
+
+Anthropicの公式ドキュメントでも、XMLタグによるセクション分割がプロンプトの解釈精度を向上させると明記されています。
+
+## プロバイダー別の実装比較
+
+| 項目 | OpenAI | Anthropic (Claude) | Google (Gemini) |
+|---|---|---|---|
+| API機能名 | Structured Outputs | Tool-based Schema | Response Schema |
+| スキーマ定義 | JSON Schema | Tool Parameters | JSON Schema |
+| 制約付きデコーディング | あり | あり | あり |
+| 追加トークンコスト | 最小限 | 313〜346トークン/リクエスト | 最小限 |
+
+Anthropicでは、スキーマをツール定義として渡す方式を採用しています。SDKが`minimum`や`pattern`などの制約をdescriptionフィールドのテキストに変換し、生成後にバリデーションを行う仕組みです。
+
+## バリデーション＆リトライパターン
+
+構造化出力でも、意味的な正確さ（値の妥当性）はスキーマだけでは担保できません。実務では以下のパターンが推奨されます。
+
+```python
+import json
+from pydantic import BaseModel, ValidationError
+
+class ReviewAnalysis(BaseModel):
+    positive_points: list[str]
+    negative_points: list[str]
+    sentiment: str
+
+MAX_RETRIES = 3
+
+for attempt in range(MAX_RETRIES):
+    raw = call_llm(prompt)
+    try:
+        result = ReviewAnalysis.model_validate_json(raw)
+        break
+    except ValidationError as e:
+        # バリデーションエラーをモデルにフィードバックして再生成
+        prompt = f"前回の出力にエラーがありました:\n{e}\n修正して再出力してください。"
+```
+
+リトライはトークンコストがかかるため、リトライ率を監視指標として追跡することが重要です。
+
+## いつ使うべきか
+
+- **APIレスポンスの生成**: フロントエンドが消費するJSONデータの生成
+- **データ抽出・変換**: 非構造化テキストからの情報抽出
+- **ワークフロー連携**: LLM出力を次のプログラム処理に渡すパイプライン
+- **分類・ラベリング**: 決められたカテゴリへの分類タスク
+
+逆に、エッセイや会話応答など自由形式のテキスト生成には不向きです。
+
+## 注意点・限界
+
+- **temperatureは0.0〜0.1に設定する**: 高いtemperatureはフォーマットのドリフトを引き起こす
+- **スキーマ変更は破壊的変更**: `schema_version`を記録し、ロールバック可能にする
+- **長文コンテキストでのJSON性能低下**: GPT-4.1の公式ガイドでは、長文ドキュメント入力時にJSON形式の性能が低下するため、XMLやMarkdownの使用を推奨
+- **Anthropicのトークンオーバーヘッド**: ツール定義による構造化は1リクエストあたり300トークン以上の追加コストが発生する
+- **意味的バリデーションの限界**: スキーマは構造を保証するが、値の正確性は保証しない
+
+## 参考リンク集
+
+- [Structured Outputs - OpenAI API Docs](https://developers.openai.com/api/docs/guides/structured-outputs)
+- [Structured Outputs - Claude API Docs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
+- [JSON Mode vs Function Calling vs Structured Output: 2026 Guide](https://www.buildmvpfast.com/blog/structured-output-llm-json-mode-function-calling-production-guide-2026)
+- [LLM Structured Outputs: Schema Validation for Real Pipelines (2026)](https://collinwilkins.com/articles/structured-output)
+- [The Guide to Structured Outputs and Function Calling with LLMs](https://agenta.ai/blog/the-guide-to-structured-outputs-and-function-calling-with-llms)
+- [Hands-On with Anthropic's New Structured Output Capabilities](https://towardsdatascience.com/hands-on-with-anthropics-new-structured-output-capabilities/)

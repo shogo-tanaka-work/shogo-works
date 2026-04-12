@@ -1,0 +1,181 @@
+---
+title: "Self-Consistency：多数決で推論の信頼性を高める"
+description: "複数の推論パスを生成し多数決で最終回答を決定するSelf-Consistencyの原理、実装方法、効果データと実践的な活用パターンを解説します。"
+category: "prompt-engineering"
+tags: ["prompt-engineering", "self-consistency", "chain-of-thought", "推論", "Wang-2022"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## Self-Consistency とは
+
+Self-Consistency は、Wang et al.（2022）の論文「Self-Consistency Improves Chain of Thought Reasoning in Language Models」で提案されたデコーディング戦略です。Chain-of-Thought（CoT）プロンプティングの**貪欲デコーディング（Greedy Decoding）を多数決ベースのサンプリングに置き換える**ことで、推論精度を大幅に向上させます。
+
+核となるアイデアはシンプルです。「複雑な推論問題には、正解に至る複数の異なる思考経路が存在する」という直感に基づき、モデルに同じ問題を複数回解かせ、最も多く出現した回答を最終回答として採用します。
+
+### Greedy Decodingの問題
+
+通常のCoTでは、モデルは1つの推論パスだけを生成します（Greedy Decoding）。しかし、この1回の推論が間違っていれば、最終回答も間違います。Self-Consistencyは、この「一発勝負」のリスクを軽減する手法です。
+
+## 仕組み
+
+Self-Consistencyは3つのステップで動作します。
+
+1. **CoTプロンプトの作成**：通常のFew-shot CoTプロンプトを用意する
+2. **複数の推論パスをサンプリング**：同じプロンプトでモデルを複数回実行し、異なる推論パスと回答を取得する（temperature > 0で多様性を確保）
+3. **多数決で最終回答を決定**：全推論パスの最終回答を集計し、最も頻度の高い回答を採用する
+
+## 具体的なプロンプト例
+
+### 例1：年齢計算の問題
+
+以下の問題を同じCoTプロンプトで3回サンプリングした場合を考えます。
+
+**プロンプト：**
+```
+Q: 私が6歳のとき、姉は私の年齢の2倍でした。
+   今、私は70歳です。姉は何歳ですか？
+
+ステップバイステップで考えてください。
+```
+
+**サンプル1の出力：**
+```
+1. 私が6歳のとき、姉は 6 × 2 = 12歳
+2. 姉は私より 12 - 6 = 6歳年上
+3. 今、私は70歳なので、姉は 70 + 6 = 76歳
+答え: 76歳
+```
+
+**サンプル2の出力：**
+```
+1. 6歳のとき、姉は2倍で12歳
+2. 年齢差は 12 - 6 = 6歳で一定
+3. 70 + 6 = 76歳
+答え: 76歳
+```
+
+**サンプル3の出力：**
+```
+1. 私が6歳のとき姉は12歳
+2. 現在私は70歳。70 - 6 = 64年経過
+3. 姉は 12 + 64 = 76歳
+答え: 76歳
+```
+
+3つの推論パスは異なるアプローチですが、全て76歳に到達しています。多数決の結果、**76歳が最終回答**です。
+
+実際には、一部のサンプルが誤った推論で異なる回答を出すことがあります。その場合でも、多数の正しい推論が誤りを打ち消す効果があります。
+
+### 例2：実務的な判断問題
+
+```
+Q: あるSaaSの月額料金体系を見直します。
+   現在の月額: 5,000円（100ユーザーまで）
+   追加ユーザー: 1人あたり50円
+   現在のユーザー数: 350人
+   競合の料金: 同等機能で月額20,000円（無制限）
+
+   顧客が競合に乗り換えるかどうか、
+   コスト面から判断してください。
+
+ステップバイステップで考えてください。
+```
+
+このような計算を含む判断問題で、Self-Consistencyを適用すると、単一回答よりも信頼性の高い結論が得られます。
+
+### 例3：API呼び出しによる実装イメージ
+
+```python
+import openai
+
+def self_consistency(prompt: str, n_samples: int = 5) -> str:
+    """Self-Consistencyを実装する簡易関数"""
+    answers = []
+
+    for _ in range(n_samples):
+        response = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,  # 多様性のためtemperatureを上げる
+        )
+        # 最終回答を抽出するロジック（タスクに依存）
+        answer = extract_final_answer(response.choices[0].message.content)
+        answers.append(answer)
+
+    # 多数決で最終回答を決定
+    from collections import Counter
+    most_common = Counter(answers).most_common(1)[0][0]
+    return most_common
+```
+
+実装のポイントは、`temperature`を0より大きく設定して推論パスの多様性を確保することです。`temperature=0`では毎回同じ出力になるため、Self-Consistencyの意味がありません。
+
+## 効果データ
+
+Wang et al.（2022）の研究では、CoT単体と比較して以下の改善が報告されています。
+
+| ベンチマーク | タスク種別 | CoTからの改善幅 |
+|---|---|---|
+| GSM8K | 算術推論 | **+17.9%** |
+| SVAMP | 算術推論 | **+11.0%** |
+| AQuA | 代数推論 | **+12.2%** |
+| StrategyQA | 常識推論 | **+6.4%** |
+| ARC-challenge | 科学推論 | **+3.9%** |
+
+GSM8Kでの+17.9%は特に顕著です。CoT単体では解けなかった問題の多くが、複数回のサンプリングと多数決で正解に到達しています。
+
+### サンプル数と精度の関係
+
+一般的に、サンプル数を増やすほど精度は向上しますが、収穫逓減の法則が適用されます。
+
+- **5サンプル**：コストと精度のバランスが良い実用的な出発点
+- **10〜20サンプル**：精度をさらに追求する場合
+- **40サンプル以上**：研究用途。実用的にはコストが見合わないことが多い
+
+## いつ使うべきか
+
+- **高い信頼性が求められる推論タスク**：計算ミスや論理エラーが許容されない場面
+- **正解が一意に定まる問題**：数値計算、分類、Yes/Noの判定など、多数決が意味を持つタスク
+- **CoT単体で不安定な精度のとき**：同じプロンプトで回答がブレる場合、Self-Consistencyでブレを抑制できる
+- **バッチ処理で精度が重要なとき**：リアルタイム性は不要だが、精度を最大化したいデータ処理タスク
+
+### 判断フロー
+
+```
+CoTで推論精度は十分か？
+├── Yes → CoT単体を採用（コスト効率が良い）
+└── No → 正解は一意に定まるか？
+         ├── Yes → Self-Consistencyを適用
+         └── No → 別のアプローチを検討
+                  （自由記述タスクには多数決が適用しにくい）
+```
+
+## 注意点・限界
+
+### コストがN倍になる
+
+Self-Consistencyの最大の欠点は**APIコストとレイテンシがサンプル数に比例して増加する**ことです。5回サンプリングすれば、コストは単純に5倍です。リアルタイムアプリケーションでは、並列リクエストでレイテンシを軽減できますが、コストは変わりません。
+
+### 自由記述タスクには不向き
+
+多数決は「同じ回答が複数出現する」ことを前提としています。要約、翻訳、文章生成などの自由記述タスクでは、回答のバリエーションが大きすぎて多数決が機能しません。これらのタスクには別の評価手法（例：LLM-as-Judge）が必要です。
+
+### temperatureの設定が重要
+
+`temperature`が低すぎると全サンプルが同じ推論パスになり、Self-Consistencyの意味がありません。高すぎると推論の質が低下します。一般的には`temperature=0.5〜0.7`が推奨されますが、タスクによって最適値は異なります。
+
+### 推論モデルでは効果が限定的
+
+o1やDeepSeek-R1などの推論特化モデルは、内部的に複数の推論パスを探索する機構を持っています。これらのモデルに対してSelf-Consistencyを適用しても、追加の効果は限定的で、コストに見合わない可能性があります。
+
+### 発展手法
+
+2025年以降の研究では、単純な多数決の代わりに**Ranked Voting（順位投票）** を使う手法（Wang et al., 2025）が提案されており、特に選択肢が3つ以上ある問題で多数決よりも高い精度を達成しています。
+
+## 参考文献
+
+- [Wang et al. (2022) "Self-Consistency Improves Chain of Thought Reasoning in Language Models"](https://arxiv.org/abs/2203.11171)
+- [Self-Consistency | Prompt Engineering Guide](https://www.promptingguide.ai/techniques/consistency)
+- [Self-Consistency Prompting | Learn Prompting](https://learnprompting.org/docs/intermediate/self_consistency)
+- [Ranked Voting based Self-Consistency of LLMs (2025)](https://arxiv.org/abs/2505.10772)

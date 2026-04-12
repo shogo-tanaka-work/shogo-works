@@ -1,0 +1,216 @@
+---
+title: "マルチエージェントのコンテキスト分離パターン"
+description: "複数のLLMエージェントが協調動作する際のコンテキスト分離・共有パターンを解説。Handoffパターン、階層型オーケストレーション、メモリ共有の設計指針を実例とともに紹介します。"
+category: "context-engineering"
+tags: ["context-engineering", "multi-agent", "orchestration", "agent", "llm", "langgraph"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜコンテキスト分離が必要なのか
+
+単一のLLMエージェントにすべてのタスクを任せると、2つの問題が発生します。
+
+1. **コンテキスト爆発**: ツール定義・会話履歴・ドキュメントが蓄積し、ウィンドウを圧迫する
+2. **Lost in the Middle**: コンテキストが長くなると中央部の情報への注意が低下する
+
+マルチエージェントシステムは、これらの問題を**分散コンテキスト管理**で解決します。市場分析エージェントが四半期レポートを処理している間、技術分析エージェントは特許情報だけを見る。各エージェントが自分の専門領域のコンテキストだけを持つことで、精度とコスト効率の両方が向上します。
+
+実際に、マルチエージェントオーケストレーションは単一エージェントに比べて**アクション具体性で80倍、解決正確性で140倍**の改善を達成した事例が報告されています。
+
+## コンテキスト分離の3パターン
+
+### パターン1: Handoff（引き継ぎ）
+
+エージェント間で**制御を明示的に移譲**するパターンです。OpenAI Agents SDKやAnthropic Agent SDKで採用されている基本アーキテクチャです。
+
+```python
+# Handoffパターンの概念実装
+from dataclasses import dataclass
+
+@dataclass
+class Agent:
+    name: str
+    instructions: str
+    model: str
+    tools: list[str]
+    handoffs: list[str]  # 引き継ぎ可能なエージェント
+
+# エージェント定義
+triage_agent = Agent(
+    name="triage",
+    instructions="ユーザーの意図を判断し、適切な専門エージェントに引き継ぐ",
+    model="claude-opus-4-6-20260410",
+    tools=["classify_intent"],
+    handoffs=["code_agent", "research_agent", "writing_agent"],
+)
+
+code_agent = Agent(
+    name="code_agent",
+    instructions="コードの生成・レビュー・デバッグを行う",
+    model="claude-opus-4-6-20260410",
+    tools=["read_file", "write_file", "run_tests"],
+    handoffs=["triage"],  # triageに戻すことも可能
+)
+```
+
+**コンテキストの扱い**: Handoff時に会話コンテキストを引き継ぐが、各エージェントのシステムプロンプトとツール定義は**完全に独立**しています。引き継ぎ先のエージェントは、自分のツール定義だけをコンテキストに持ちます。
+
+### パターン2: 階層型オーケストレーション
+
+**オーケストレーター**が全体を管理し、**ワーカーエージェント**がサブタスクを独立して実行するパターンです。
+
+```
+┌─────────────────────────────────────┐
+│         Orchestrator Agent           │
+│  ・全体計画の策定                      │
+│  ・タスクの分解と割り当て               │
+│  ・結果の統合と最終出力                 │
+└──────┬──────────┬──────────┬─────────┘
+       │          │          │
+  ┌────▼───┐ ┌───▼────┐ ┌──▼─────┐
+  │Research │ │Analysis│ │Writing │
+  │ Agent   │ │ Agent  │ │ Agent  │
+  │独自の   │ │独自の   │ │独自の  │
+  │コンテキスト│ │コンテキスト│ │コンテキスト│
+  └────────┘ └────────┘ └────────┘
+```
+
+```python
+# 階層型オーケストレーションの例
+async def orchestrate(task: str) -> str:
+    # Step 1: タスク分解
+    subtasks = await orchestrator.decompose(task)
+
+    # Step 2: 各ワーカーが独立したコンテキストで実行
+    results = await asyncio.gather(*[
+        execute_worker(
+            agent=get_agent(subtask.agent_type),
+            context=build_isolated_context(subtask),  # 分離されたコンテキスト
+        )
+        for subtask in subtasks
+    ])
+
+    # Step 3: オーケストレーターが結果を統合
+    return await orchestrator.synthesize(results)
+
+
+def build_isolated_context(subtask: Subtask) -> list[dict]:
+    """各ワーカーに必要最小限のコンテキストを構築する"""
+    return [
+        {"role": "system", "content": subtask.agent_instructions},
+        {"role": "user", "content": subtask.description},
+        # 関連ドキュメントだけを添付（全体の会話履歴は含めない）
+        *[{"role": "user", "content": doc} for doc in subtask.relevant_docs],
+    ]
+```
+
+**コンテキストの扱い**: 各ワーカーは**ステートレス**で、オーケストレーターから渡された情報だけで動作します。ワーカー間でコンテキストは共有されません。
+
+### パターン3: 共有メモリ型
+
+エージェント間で**共有メモリ**（Blackboard）を介して情報を交換するパターンです。
+
+```python
+# 共有メモリ（Blackboard）パターン
+class SharedMemory:
+    """エージェント間の共有メモリ"""
+
+    def __init__(self):
+        self._store: dict[str, dict] = {}
+        self._lock = asyncio.Lock()
+
+    async def write(self, agent_id: str, key: str, value: str) -> None:
+        async with self._lock:
+            self._store[key] = {
+                "value": value,
+                "author": agent_id,
+                "timestamp": datetime.now().isoformat(),
+            }
+
+    async def read(self, key: str) -> str | None:
+        return self._store.get(key, {}).get("value")
+
+    async def read_by_tag(self, tag: str) -> list[str]:
+        """特定のタグに関連する情報だけを取得"""
+        return [
+            entry["value"]
+            for entry in self._store.values()
+            if tag in entry.get("tags", [])
+        ]
+
+
+# 使用例
+memory = SharedMemory()
+
+# ResearchAgentが調査結果を書き込み
+await memory.write("research", "market_data", "2026年Q1の市場規模は...")
+
+# AnalysisAgentが必要な情報だけを読み取り
+market_data = await memory.read("market_data")
+```
+
+**コンテキストの扱い**: 各エージェントは自分のコンテキストを持ちつつ、共有メモリから**必要な情報だけを選択的に読み取り**ます。全情報を共有するのではなく、キーやタグでフィルタリングする点が重要です。
+
+## パターンの選択基準
+
+| パターン | 適するケース | コンテキスト効率 | 実装複雑度 |
+|---|---|---|---|
+| Handoff | 逐次的なタスク処理、カスタマーサポート | 高 | 低 |
+| 階層型 | 並列処理可能なタスク、分析業務 | 最高 | 中 |
+| 共有メモリ型 | 相互依存の高いタスク、共同作業 | 中 | 高 |
+
+## 主要フレームワーク（2026年時点）
+
+| フレームワーク | 提供元 | 特徴 |
+|---|---|---|
+| Agents SDK | OpenAI | Handoffパターンが中心。シンプルなAPI |
+| Agent SDK | Anthropic | Claude最適化。tool_useとの統合が強力 |
+| LangGraph | LangChain | グラフベースのワークフロー。柔軟性が高い |
+| ADK | 状態マシンベース。Geminiとの統合 |
+| CrewAI | CrewAI | ロール定義が直感的。共有メモリ内蔵 |
+
+## 実践ポイント
+
+### コンテキスト分離のチェックリスト
+
+1. **各エージェントのコンテキストサイズを監視する**: 1エージェントあたり全ウィンドウの50%以下を目安とする
+2. **Handoff時の情報量を最小化する**: 全会話履歴ではなく、要約を渡す
+3. **ワーカーはステートレスに設計する**: リクエスト単位で完結させ、セッション状態を持たない
+4. **共有メモリにはスキーマを定義する**: 型なしのKey-Valueではなく、構造化されたデータを交換する
+
+### コンテキスト漏洩の防止
+
+マルチエージェントシステムでは、あるエージェントのコンテキストが意図せず別のエージェントに流れる「コンテキスト漏洩」に注意が必要です。
+
+```python
+# BAD: 全コンテキストをそのまま渡す
+worker_context = orchestrator.full_context  # 他エージェントの情報も含まれる
+
+# GOOD: 必要な情報だけを抽出して渡す
+worker_context = extract_relevant_context(
+    full_context=orchestrator.full_context,
+    task_type=subtask.type,
+    required_keys=subtask.context_keys,
+)
+```
+
+### コスト最適化
+
+マルチエージェントは複数のLLM呼び出しを伴うため、コストが増大しやすいです。以下の戦略で抑制します。
+
+- **ワーカーには小型モデルを使う**: オーケストレーターだけ高性能モデル、ワーカーはHaikuクラス
+- **キャッシュを活用する**: 同じコンテキストパターンのリクエストをキャッシュ
+- **並列実行で時間コストを削減**: 独立したワーカーは`asyncio.gather`で並列実行
+
+## まとめ
+
+マルチエージェントのコンテキスト分離は、単にコンテキストウィンドウの制約を回避するだけでなく、**各エージェントの専門性を高め、システム全体の精度を向上させる**設計手法です。Handoff・階層型・共有メモリの3パターンを理解し、タスクの特性に応じて適切に選択することが重要です。
+
+## 参考リンク
+
+- [Multi-Agent Systems: Architecture, Patterns, and Production Design — Comet](https://www.comet.com/site/blog/multi-agent-systems/)
+- [The Orchestration of Multi-Agent Systems — arXiv](https://arxiv.org/html/2601.13671v1)
+- [How to Build Multi-Agent Systems: Complete 2026 Guide — DEV Community](https://dev.to/eira-wexford/how-to-build-multi-agent-systems-complete-2026-guide-1io6)
+- [Multi-agent — LangChain Docs](https://docs.langchain.com/oss/python/langchain/multi-agent)
+- [Multi-Agent LLM Orchestration for Incident Response — arXiv](https://arxiv.org/abs/2511.15755)

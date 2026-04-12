@@ -1,0 +1,165 @@
+---
+title: "ReAct Prompting：推論と行動を融合するAIエージェントの基盤技術"
+description: "LLMに「考える（Reason）」と「行動する（Act）」を交互に行わせるReActフレームワークの仕組み、実装パターン、AIエージェント開発への応用を解説します。"
+category: "prompt-engineering"
+tags: ["prompt-engineering", "react", "agent", "reasoning", "tool-use"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## ReAct Promptingとは
+
+ReAct（Reasoning + Acting）は、Yao et al.（2022）が提案し、ICLR 2023で発表されたプロンプティングフレームワークです。LLMに**推論トレース（Thought）とタスク固有のアクション（Action）を交互に生成させる**ことで、外部ツールとの連携を可能にしつつ、推論の透明性を確保します。
+
+2026年現在、LangChain、LlamaIndex、Claude Code、GPTsなど、ほぼ全てのAIエージェントフレームワークの設計思想の根幹にReActがあります。プロンプトエンジニアリングの技術であると同時に、**AIエージェントアーキテクチャの基盤パターン**として定着しました。
+
+## Thought-Action-Observationループ
+
+ReActの核心は、以下の3ステップを繰り返すループ構造です。
+
+1. **Thought（思考）**：現在の状況を分析し、次に何をすべきか推論する
+2. **Action（行動）**：外部ツール（検索、計算、API呼び出し等）を実行する
+3. **Observation（観察）**：アクションの結果を受け取り、次のThoughtに反映する
+
+このループにより、LLMは「考えてから行動し、結果を見てまた考える」という人間の問題解決プロセスを模倣します。
+
+### なぜ推論と行動を分離するのか
+
+Chain-of-Thought（CoT）は推論のみで、外部情報を参照できないため幻覚が発生しやすくなります。一方、行動のみ（Act-only）のアプローチでは、なぜその行動を取ったかの説明がなく、エラーの原因特定が困難です。ReActは両者を組み合わせることで、**幻覚の抑制と判断根拠の可視化を同時に実現**します。
+
+## ベンチマーク結果
+
+### 知識推論タスク
+
+| タスク | CoTのみ | Actのみ | ReAct | ReAct + CoT-SC |
+|--------|---------|---------|-------|----------------|
+| HotpotQA（QA） | 良好 | 低い | CoTに匹敵 | 最高性能 |
+| Fever（事実検証） | 良好 | 低い | CoTに匹敵 | 最高性能 |
+
+### インタラクティブ意思決定タスク
+
+| タスク | 従来手法 | ReAct | 改善幅 |
+|--------|----------|-------|--------|
+| ALFWorld | 模倣学習 | ReAct | +34%（絶対値） |
+| WebShop | 強化学習 | ReAct | +10%（絶対値） |
+
+特筆すべきは、ReActが**わずか1〜2個のFew-shot例で**模倣学習や強化学習ベースの手法を大幅に上回った点です。
+
+## 実践：プロンプト例
+
+### 例1：基本的なReActプロンプト（質問応答）
+
+```
+以下の形式で質問に回答してください。必要に応じて検索ツールを使います。
+
+利用可能なツール：
+- Search[query]: Wikipediaを検索して関連情報を取得
+- Lookup[keyword]: 現在のページ内でキーワードを検索
+- Finish[answer]: 最終回答を提出
+
+質問：東京スカイツリーと東京タワーでは、どちらが何メートル高いですか？
+
+Thought 1: 東京スカイツリーと東京タワーの高さを調べる必要がある。
+まず東京スカイツリーの高さを検索しよう。
+Action 1: Search[東京スカイツリー 高さ]
+Observation 1: 東京スカイツリーは高さ634メートルの電波塔である。
+Thought 2: 東京スカイツリーは634m。次に東京タワーの高さを調べよう。
+Action 2: Search[東京タワー 高さ]
+Observation 2: 東京タワーは高さ333メートルの総合電波塔である。
+Thought 3: 東京スカイツリー634m、東京タワー333m。差は634-333=301m。
+Action 3: Finish[東京スカイツリーの方が301メートル高い]
+```
+
+### 例2：コードデバッグにおけるReActパターン
+
+```
+あなたはシニアエンジニアです。以下のバグを、ReAct形式で調査・修正してください。
+
+利用可能なアクション：
+- ReadFile[path]: ファイルの内容を読む
+- RunTest[command]: テストを実行する
+- SearchCode[query]: コードベースを検索する
+- Fix[description]: 修正を適用する
+
+バグ報告：ユーザーがログインすると、たまにセッションが即座に切れる
+
+Thought 1: セッション管理のコードを確認する必要がある。
+まずセッション関連のファイルを探そう。
+Action 1: SearchCode[session middleware]
+Observation 1: src/middleware/session.ts が見つかった。
+Thought 2: セッションミドルウェアの実装を確認しよう。
+Action 2: ReadFile[src/middleware/session.ts]
+Observation 2: （ファイル内容が表示される）
+Thought 3: セッションの有効期限がmaxAgeで設定されているが、
+単位がミリ秒ではなく秒で指定されている。これが原因の可能性が高い。
+Action 3: Fix[session.tsのmaxAgeの単位をミリ秒に修正]
+Thought 4: 修正後、テストを実行して確認しよう。
+Action 4: RunTest[npm test -- --grep "session"]
+Observation 4: 全テスト通過。
+Action 5: Finish[maxAgeの単位が秒指定になっていたため、
+ミリ秒に修正。テスト通過を確認済み。]
+```
+
+### 例3：市場調査タスクにおけるReAct
+
+```
+以下の質問について、ReAct形式で調査してください。
+各ステップで思考と行動を明示してください。
+
+利用可能なアクション：
+- WebSearch[query]: Web検索を実行
+- Analyze[data]: データを分析・要約
+- Calculate[expression]: 数値計算
+- Report[content]: 最終レポートを出力
+
+質問：日本のSaaS市場の2025年の市場規模と、
+前年比成長率はどの程度ですか？
+
+Thought 1:
+（ここからモデルが推論と行動を交互に生成）
+```
+
+## いつ使うべきか
+
+ReActパターンが特に有効な場面は以下の通りです。
+
+- **外部情報の参照が必要なタスク**：Web検索、データベース照会、API呼び出しを伴う質問応答
+- **マルチステップの調査・分析**：複数の情報源を組み合わせて結論を出すタスク
+- **デバッグ・トラブルシューティング**：仮説を立て、検証し、次のアクションを決めるプロセス
+- **AIエージェント開発**：ツール使用を含む自律的なタスク実行
+
+逆に、以下の場合はReActは過剰です。
+
+- 外部ツールが不要な単純な推論・生成タスク
+- リアルタイム性が求められるチャット応答
+- 知識が完結している（外部参照不要な）タスク
+
+## 注意点・限界
+
+### ループの暴走リスク
+
+ReActは理論上、無限にThought-Action-Observationループを繰り返す可能性があります。実装時は**最大ステップ数の制限**（通常5〜10ステップ）を必ず設定してください。
+
+### ツール設計の重要性
+
+ReActの性能は利用可能なツールの品質に大きく依存します。ツールの説明が曖昧だったり、返すデータの形式が不統一だったりすると、モデルは適切なアクションを選択できません。
+
+### 幻覚アクションの問題
+
+存在しないツールを呼び出したり、不正な引数を渡したりすることがあります。**ツール呼び出しのバリデーション**は必須です。
+
+### コストの増大
+
+各ステップでLLMの呼び出しが発生するため、単純なプロンプトと比較してコストは3〜10倍になることが一般的です。タスクの複雑さに応じて、ReActの必要性を判断してください。
+
+### 推論モデルとの重複
+
+o1やDeepSeek-R1などの推論モデルは内部的に多段階の推論を行います。これらのモデルにReActを適用する場合、ツール使用の部分に限定するのが効率的です。
+
+## 参考リンク
+
+- [ReAct: Synergizing Reasoning and Acting in Language Models（原論文）](https://arxiv.org/abs/2210.03629)
+- [ReAct公式プロジェクトページ](https://react-lm.github.io/)
+- [ReAct Prompting - Prompt Engineering Guide](https://www.promptingguide.ai/techniques/react)
+- [ReAct - Google Research Blog](https://research.google/blog/react-synergizing-reasoning-and-acting-in-language-models/)
+- [ysymyth/ReAct（公式実装）](https://github.com/ysymyth/ReAct)

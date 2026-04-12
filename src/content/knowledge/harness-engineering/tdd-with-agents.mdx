@@ -1,0 +1,245 @@
+---
+title: "AIエージェントとTDD — テスト駆動でエージェントを導く"
+description: "AIコーディングエージェントにTDD（テスト駆動開発）を強制することで、コード品質と予測可能性を大幅に向上させる手法を解説する"
+category: "harness-engineering"
+tags: ["harness-engineering", "tdd", "testing", "claude-code", "sub-agent"]
+publishedAt: 2026-04-12
+author: "田中省伍"
+---
+
+## なぜAIエージェントにTDDが必要か
+
+AIエージェントはデフォルトで**実装ファースト**の開発を行う。テストは後回しにされ、エッジケースは無視され、「動いているように見える」コードが生成される。
+
+TDDはこの問題を根本的に解決する。テストが**仕様書**として機能し、エージェントの実装を正しい方向に導く。
+
+```
+TDDなし: エージェント → 実装 → (テストを忘れる) → 完了宣言
+TDDあり: テスト(Red) → 最小実装(Green) → リファクタ(Refactor) → 確実な完了
+```
+
+TDDがAIエージェントと相性が良い理由は3つある。
+
+1. **自然な分割**: 複雑な問題を小さく検証可能な単位に分解する。エージェントのステップバイステップ処理と合致する
+2. **真実の源泉**: テストスイートが「正しい動作」の定義になり、エージェントが脱線しにくくなる
+3. **即時フィードバック**: テストの成功/失敗がエージェントに明確なシグナルを与える
+
+## コンテキスト汚染の問題
+
+単一のエージェントでTDDを行うと、**コンテキスト汚染**が発生する。テストを書くエージェントが実装の計画を既に持っているため、テストが「実装を追認する」だけのものになりがちだ。
+
+```
+<!-- 単一エージェントの問題 -->
+エージェント: 「この機能はこう実装しよう」（実装計画を立てる）
+         ↓
+エージェント: 「テストを書こう」（実装計画に沿ったテストを書く）
+         ↓
+結果: テストが実装のミラーになり、本来検出すべきバグを見逃す
+```
+
+解決策は**サブエージェントによるフェーズ分離**だ。
+
+## サブエージェントによるRed-Green-Refactorの実装
+
+### アーキテクチャ
+
+3つの専門エージェントがそれぞれ独立したコンテキストで動作する。
+
+```
+Orchestrator（親エージェント）
+  ├── tdd-test-writer    → Red フェーズ
+  ├── tdd-implementer    → Green フェーズ
+  └── tdd-refactorer     → Refactor フェーズ
+```
+
+### Red フェーズ: テストライター
+
+テストライターは**実装計画を見ない**。ユーザーの要件だけを入力として受け取る。
+
+```markdown
+<!-- .claude/agents/tdd-test-writer.md -->
+---
+name: tdd-test-writer
+description: "要件からテストを書く。実装は見ない。"
+tools: ["Read", "Glob", "Grep", "Write", "Edit", "Bash"]
+---
+
+## 役割
+ユーザーの要件に基づき、失敗するテストを書く。
+
+## 制約
+- 実装コードを参照しない
+- モック実装やスタブを作成しない
+- テストが確実に失敗することを確認する（npm run test で検証）
+
+## 出力
+- テストファイルのパス
+- テスト実行結果（失敗を確認）
+```
+
+### Green フェーズ: 実装者
+
+実装者は**失敗するテストだけ**を入力として受け取る。
+
+```markdown
+<!-- .claude/agents/tdd-implementer.md -->
+---
+name: tdd-implementer
+description: "失敗テストを通す最小限の実装を書く。"
+tools: ["Read", "Glob", "Grep", "Write", "Edit", "Bash"]
+---
+
+## 役割
+失敗しているテストを通す最小限のコードを書く。
+
+## 制約
+- テストが要求する以上の機能を実装しない
+- 既存のテストを壊さない
+- テストが全件パスすることを確認する（npm run test で検証）
+
+## 出力
+- 変更したファイルのパス
+- テスト実行結果（成功を確認）
+```
+
+### Refactor フェーズ: リファクタラー
+
+リファクタラーは**実装済みのコードとテスト結果**を入力として受け取る。
+
+```markdown
+<!-- .claude/agents/tdd-refactorer.md -->
+---
+name: tdd-refactorer
+description: "テストが通る状態を維持しながらリファクタリングする。"
+tools: ["Read", "Glob", "Grep", "Write", "Edit", "Bash"]
+---
+
+## 役割
+以下のチェックリストに基づきリファクタリングを行う:
+- 共通ロジックの抽出
+- 条件式の簡素化
+- 命名の改善
+- 重複の除去
+
+## 制約
+- テストを変更しない
+- リファクタリング後もテストが全件パスすること
+- 改善が不要な場合は「リファクタリング不要」と判断理由を返す
+
+## 出力
+- 変更内容の要約
+- テスト実行結果（成功を確認）
+```
+
+## 実践例: ワークアウト詳細機能
+
+ユーザーの要件: 「過去のワークアウトをクリックしたら、エクササイズとセットの詳細を表示する」
+
+### Red（テストライター）
+
+```typescript
+// workout-detail.test.ts
+describe('WorkoutDetailView', () => {
+  it('should navigate to detail page on workout click', async () => {
+    const app = await createTestApp();
+    const workoutCard = app.getByTestId('workout-card-1');
+    await app.user.click(workoutCard);
+    expect(app.router.currentRoute.value.path)
+      .toBe('/workouts/d747077d-...');
+  });
+
+  it('should display exercises for the workout', async () => {
+    const app = await createTestApp({ route: '/workouts/d747077d' });
+    expect(app.getByText('ベンチプレス')).toBeInTheDocument();
+    expect(app.getByText('3 sets')).toBeInTheDocument();
+  });
+});
+```
+
+テスト実行結果: `FAIL` — ルートもコンポーネントも存在しない。
+
+### Green（実装者）
+
+最小限の実装:
+- `WorkoutDetailView.vue` を作成
+- `/workouts/:id` ルートを追加
+- クリックハンドラーを実装
+
+テスト実行結果: `PASS`
+
+### Refactor（リファクタラー）
+
+改善:
+- `useWorkoutDetail` コンポーザブルを抽出（データ取得ロジックの再利用）
+- `formatDuration` / `formatDate` を `lib/formatters.ts` に集約
+- キーボードナビゲーションを追加
+
+テスト実行結果: `PASS`（既存テストが引き続き通ることを確認）
+
+## Hook による TDD 強制
+
+エージェントにTDDを「お願い」するだけでは不十分だ。Hook で強制する。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "npx vitest run --reporter=verbose 2>&1 | tail -20"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+ファイル編集のたびにテストが自動実行される。テストが落ちている状態が即座にフィードバックされ、エージェントは修正を余儀なくされる。
+
+## テストヘルパーの重要性
+
+エージェントがテストのたびにセットアップを再発明するのを防ぐ。共通のテストヘルパーを用意する。
+
+```typescript
+// test/helpers/create-test-app.ts
+export async function createTestApp(options?: {
+  route?: string;
+  initialState?: Record<string, unknown>;
+}) {
+  const router = createRouter({ /* ... */ });
+  const pinia = createTestingPinia({ /* ... */ });
+
+  if (options?.route) {
+    await router.push(options.route);
+  }
+
+  const user = userEvent.setup();
+  const utils = render(App, {
+    global: { plugins: [router, pinia] },
+  });
+
+  return { ...utils, router, user };
+}
+```
+
+このヘルパーが存在することで、各フェーズのエージェントが一貫したテスト環境を使える。
+
+## 実践ポイント
+
+1. **明示的にTDDを宣言する**: 「TDDで実装して」と明確に伝える。暗黙の期待は守られない
+2. **テストファイルを先に作る**: 空のテストファイルを先に作成し、エージェントに「このファイルにテストを書いて」と指示する
+3. **サブエージェント分離のコスト**: セットアップに約2時間かかるが、以降のすべての開発で品質が安定する
+4. **段階的な導入**: 最初は単一エージェントで「テストを先に書く」ルールから始め、慣れたらサブエージェント分離に進む
+5. **テストカバレッジをゲートにする**: CIでカバレッジ閾値を設け、未達の場合はPRをブロックする
+
+## 参考リンク
+
+- [Forcing Claude Code to TDD: An Agentic Red-Green-Refactor Loop](https://alexop.dev/posts/custom-tdd-workflow-claude-code-vue/)
+- [Claude Code and the Art of Test-Driven Development](https://thenewstack.io/claude-code-and-the-art-of-test-driven-development/)
+- [Why Does Test-Driven Development Work So Well In AI-assisted Programming?](https://codemanship.wordpress.com/2026/01/09/why-does-test-driven-development-work-so-well-in-ai-assisted-programming/)
+- [My Skill Makes Claude Code GREAT At TDD](https://www.aihero.dev/skill-test-driven-development-claude-code)
+- [Taming GenAI Agents: How TDD Transforms Claude Code](https://www.nathanfox.net/p/taming-genai-agents-like-claude-code)
