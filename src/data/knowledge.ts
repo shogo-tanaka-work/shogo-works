@@ -60,10 +60,34 @@ export const subcategories: Partial<
 > = {
   "ai-tools": [
     {
-      slug: "agents",
-      label: "AIエージェント",
+      slug: "claude-code",
+      label: "Claude Code",
       description:
-        "Claude Code、Codex、ChatGPT、Gemini、ClaudeなどのLLMアシスタント・AIエージェントツール",
+        "Anthropic公式のエージェント型コーディングCLI。Skills / MCP / Hooks / Sub-agentsの活用",
+    },
+    {
+      slug: "codex",
+      label: "OpenAI Codex",
+      description:
+        "OpenAIのクラウド型コーディングエージェント。CLI / IDE拡張 / クラウドエージェント",
+    },
+    {
+      slug: "chatgpt",
+      label: "ChatGPT",
+      description:
+        "OpenAIの汎用AIアシスタント。GPT-5系モデル、Custom GPTs、ChatGPT Agent",
+    },
+    {
+      slug: "gemini",
+      label: "Gemini",
+      description:
+        "Google DeepMindの汎用AIアシスタント。Gemini 3系、Code Assist、Gemini CLI",
+    },
+    {
+      slug: "claude",
+      label: "Claude",
+      description:
+        "Anthropicの汎用AIアシスタント（claude.ai）。Claude 4.6系、Artifacts、Skills、Projects",
     },
   ],
 };
