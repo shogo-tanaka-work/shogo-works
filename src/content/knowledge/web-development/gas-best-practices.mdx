@@ -1,0 +1,341 @@
+---
+title: "Google Apps Script 実践ガイド — デプロイ・バージョン管理・ハマりどころ"
+description: "GASの基本操作からデプロイ方式の違い、HEAD vs バージョン付きデプロイのハマりどころ、クオータ制限の回避テクニック、権限スコープのベストプラクティスまで、実務でつまずく要点を体系的に解説します。"
+category: "web-development"
+tags: ["google-apps-script", "gas", "deployment", "best-practices", "google-workspace", "javascript"]
+sortOrder: 0
+createdAt: 2026-04-13
+author: "田中省伍"
+---
+
+## GASとは何か
+
+Google Apps Script（以下 GAS）は、Googleが提供する**サーバーレスのスクリプト実行環境**です。Google Workspace（Sheets・Docs・Gmail・Calendar・Driveなど）の自動化や、軽量なWebアプリ・APIの構築に使われます。最大の特徴は以下の4点です。
+
+- **無料で始められる**: Googleアカウントさえあれば、サーバーのプロビジョニングも課金設定も不要です
+- **Google Workspaceとの密結合**: SpreadsheetやGmailに対して、SDKの初期化なしで直接APIを叩けます
+- **V8ランタイム**: 2020年から標準化された V8 ベースのランタイムでモダンJavaScript（ES2015+、アロー関数、`let`/`const`、分割代入、`class`、テンプレートリテラルなど）が利用可能です。旧 Rhino ランタイムは 2025年2月に非推奨化され、2026年1月31日以降は実行されなくなりました
+- **トリガーによる自動実行**: 時刻ベース・イベントベースのトリガーで定期実行やユーザー操作への応答を実装できます
+
+サーバーを持たずにちょっとした業務自動化を組むには今でも最有力の選択肢ですが、実務で使うとデプロイ周りやクオータ制限で独特のハマりどころがあります。本記事ではそこを中心に整理します。
+
+## 基本操作
+
+### script.google.com とスタンドアロン/コンテナバインド
+
+GAS プロジェクトには2種類あります。
+
+- **スタンドアロン**: `script.google.com` から直接作成するプロジェクト。単体のWebアプリや定期バッチに向く
+- **コンテナバインド**: Spreadsheet や Doc の「拡張機能 → Apps Script」から作るプロジェクト。親ドキュメントに紐付き、`SpreadsheetApp.getActiveSpreadsheet()` のようなアクティブコンテキストが取れる
+
+### appsscript.json（マニフェスト）
+
+プロジェクトの設定を宣言するJSONファイルです。エディタ上では歯車アイコンから「`appsscript.json` マニフェストファイルをエディタで表示する」を有効にすると編集できます。
+
+```json
+{
+  "timeZone": "Asia/Tokyo",
+  "dependencies": {
+    "enabledAdvancedServices": []
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtime": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets.currentonly",
+    "https://www.googleapis.com/auth/script.external_request"
+  ],
+  "webapp": {
+    "access": "MYSELF",
+    "executeAs": "USER_DEPLOYING"
+  }
+}
+```
+
+`runtime` は明示的に `"V8"` にしておくと事故が起きません。`oauthScopes` は後述するセキュリティの要です。
+
+### トリガーの種類
+
+| 種類 | 用途 | 例 |
+|---|---|---|
+| シンプルトリガー | 関数名で自動認識される。権限が限られる | `onOpen()`, `onEdit()`, `doGet()`, `doPost()` |
+| インストーラブルトリガー | コードまたはUIから明示的に登録。フル権限で動く | Gmail送信や外部APIを伴う `onEdit` 処理 |
+| 時刻ベーストリガー | cron相当。分・時間・日・週単位で設定 | 毎朝9時に集計バッチ |
+| イベントベーストリガー | Form送信、Calendar更新など | フォーム送信時にSlackへ通知 |
+
+**注意**: シンプルトリガーは権限が制限されており、Gmail送信やUrlFetchなど認可が必要な処理は実行できません。認可が要る処理はインストーラブルトリガーを使ってください。
+
+## デプロイ方式の使い分け
+
+GASのデプロイタイプは大きく4種類あり、用途によって使い分けます。
+
+| デプロイタイプ | 用途 | アクセス方法 | 典型シナリオ |
+|---|---|---|---|
+| **Web アプリ** | HTTPエンドポイントとして公開 | URL（`/exec`）| フォーム受付、Slack Webhook受信、社内ダッシュボード |
+| **API 実行可能** | Apps Script API 経由で関数を呼ぶ | OAuth認証したクライアント | 外部システムからのRPC呼び出し |
+| **アドオン** | Workspace各アプリの拡張 | Workspace Marketplace | Sheetsのカスタムサイドバー |
+| **ライブラリ** | 他のGASプロジェクトから `import` | スクリプトID経由で参照 | 共通ユーティリティの配布 |
+
+一般的な業務自動化では「時刻ベーストリガー + スタンドアロン」か「Web アプリ + `doPost`」のどちらかで9割がた事足ります。アドオンはMarketplace公開やOAuth審査など手間が多いので、本当に必要な時だけ選びましょう。
+
+## バージョン管理の罠（最重要）
+
+ここがGAS最大のハマりどころです。「コードを直したのに、本番のWebアプリに反映されない」という現象は、ほぼ全員が一度は踏みます。
+
+### 前提: バージョンとデプロイは別概念
+
+まず用語を整理します。
+
+- **バージョン（version）**: スクリプトの**静的なスナップショット**。一度作ると変更不可（immutable）。Gitで言えばタグに近い
+- **デプロイ（deployment）**: 特定のバージョン（または HEAD）を指すエンドポイント。ユーザーがアクセスするURLは「デプロイ」に紐付く
+
+つまり「コードを保存する」「バージョンを発行する」「デプロイを更新する」は**それぞれ別の操作**です。
+
+### HEAD デプロイとバージョン付きデプロイ
+
+| 種類 | 反映タイミング | 用途 |
+|---|---|---|
+| **HEAD デプロイ（`/dev` URL）** | 保存した瞬間に最新コードへ同期 | 開発者自身のテスト専用 |
+| **バージョン付きデプロイ（`/exec` URL）** | デプロイを更新するまで固定 | 本番公開用 |
+
+公式ドキュメントでも「HEAD デプロイは公開用途に使うな（Don't use head deployments for public use）」と明言されています。
+
+### よくあるシナリオ: 「修正したのに反映されない」
+
+典型的な詰まり方はこうです。
+
+1. Web アプリを「新しいデプロイ」で発行し、`/exec` で終わるURLを関係者に配布
+2. このとき裏で「バージョン 1」が作られ、デプロイはバージョン 1 を指している
+3. 翌日コードを修正して保存
+4. `/exec` のURLを叩いても、昨日のコードのまま動く ← **ここでハマる**
+
+**理由**: `/exec` のデプロイは「バージョン 1」のスナップショットを指しており、エディタで保存しただけでは更新されません。HEAD デプロイ（`/dev`）なら最新コードを見ていますが、こちらはスクリプト所有者しか実行できません。
+
+### 正しい更新手順
+
+公開用の `/exec` URLを更新する場合の流れです。
+
+1. エディタ右上の「デプロイ」→「**デプロイを管理**」を開く
+2. 対象デプロイの鉛筆アイコンをクリック
+3. 「バージョン」ドロップダウンで「**新バージョン**」を選択
+4. 説明を書いて「デプロイ」を押す
+
+ここで「新しいデプロイ」を選ぶと**URL が別物になる**ので注意してください。既存URLを使い続けたい場合は必ず「デプロイを管理」から既存デプロイを編集します。
+
+### 「新バージョン発行」と「新規デプロイ」の違い
+
+| 操作 | URL | バージョン | 使いどころ |
+|---|---|---|---|
+| 既存デプロイを編集 → 新バージョン | 同じ | 新規作成 | 通常の本番更新 |
+| 新しいデプロイを作成 | 別物 | 新規作成 | ステージング環境を別URLで持ちたい時 |
+
+チームで運用するなら「`Production` と `Staging` の2つのデプロイを維持し、検証済みバージョンを Production に昇格する」という運用がおすすめです。デプロイ管理画面で各デプロイがどのバージョンを指しているか一覧できるので、そこを運用ドキュメントに絡めておくと事故が減ります。
+
+### clasp を使う場合
+
+CLIツールの `clasp` を使えばCI/CDにも組み込めますが、同じ罠があります。
+
+```bash
+# 既存デプロイを更新（URLを維持）
+clasp deploy --deploymentId <既存のデプロイID> --description "v2: バグ修正"
+
+# 新しいデプロイを作成（新URLが発行される）
+clasp deploy --description "staging"
+```
+
+`--deploymentId` を指定しないと毎回新規デプロイが発行される点に注意してください。
+
+## 実行時間とクオータ制限
+
+GASには厳格なクオータがあり、**知らずに書くと本番で突然死にます**。公式の "Quotas for Google Services" をベースに、特に重要なものを押さえます。
+
+### 主要な制限（2026年時点）
+
+| 項目 | Consumer | Workspace |
+|---|---|---|
+| スクリプト実行時間（1回あたり） | 6分 | 6分 |
+| カスタム関数実行時間 | 30秒 | 30秒 |
+| トリガー総実行時間（1日あたり） | 90分 | 6時間 |
+| UrlFetch 呼び出し数（1日あたり） | 20,000 | 100,000 |
+| 同時実行数（ユーザーあたり） | 30 | 30 |
+| プロパティ読み書き（1日あたり） | 50,000 | 500,000 |
+
+特に引っかかりやすいのは**6分のスクリプト実行時間制限**です。スプレッドシートの大量行を処理したり、Drive の全ファイルを走査したりするとすぐ到達します。
+
+### 6分制限の回避: 分割実行 + トリガーチェーン
+
+代表的な対策は、**進捗を `PropertiesService` に保存しながら、時刻ベーストリガーで再開する**パターンです。
+
+```javascript
+const MAX_RUNTIME_MS = 5 * 60 * 1000; // 5分で安全に切り上げ
+
+function processLargeDataset() {
+  const props = PropertiesService.getScriptProperties();
+  const startRow = Number(props.getProperty('lastProcessedRow') || 1);
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  const lastRow = sheet.getLastRow();
+  const startTime = Date.now();
+
+  for (let row = startRow; row <= lastRow; row++) {
+    if (Date.now() - startTime > MAX_RUNTIME_MS) {
+      // 残り時間がなくなったら進捗を保存して次回の自分をスケジュール
+      props.setProperty('lastProcessedRow', String(row));
+      scheduleContinuation();
+      return;
+    }
+    try {
+      processRow(sheet, row);
+    } catch (err) {
+      // 握りつぶさず、失敗行を記録して次へ
+      console.error(`row ${row} failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  // 完走したらチェックポイントを消す
+  props.deleteProperty('lastProcessedRow');
+}
+
+function scheduleContinuation() {
+  // 既存の継続トリガーを掃除してから新規登録する
+  ScriptApp.getProjectTriggers()
+    .filter((t) => t.getHandlerFunction() === 'processLargeDataset')
+    .forEach((t) => ScriptApp.deleteTrigger(t));
+
+  ScriptApp.newTrigger('processLargeDataset')
+    .timeBased()
+    .after(60 * 1000)
+    .create();
+}
+```
+
+ポイントは以下です。
+
+- `MAX_RUNTIME_MS` は6分ちょうどではなく**5分程度に余裕を持たせる**。行処理が途中で打ち切られるとデータ不整合になります
+- 再開用のトリガーを登録する前に**古いトリガーを掃除する**。トリガーには上限（スクリプトあたり20個）があり、リークすると詰まります
+- エラーは try/catch で補足し、失敗行を記録して処理を続行する。1行失敗で全体停止させない
+
+### UrlFetch の節約
+
+外部APIを叩く場合、1日あたりの呼び出し数だけでなく**毎リクエストのレイテンシ**がトータルの実行時間を圧迫します。`UrlFetchApp.fetchAll()` でまとめて並列実行するのが基本テクニックです。
+
+## 権限スコープとセキュリティ
+
+GASは便利な反面、**デフォルトで必要以上に広いスコープを要求しがち**です。ここを放置すると、ユーザーに「このスクリプトはGmailを送信・閲覧できます」のような怖い同意画面が出ます。
+
+### 最小スコープの原則
+
+対策は2段構えです。
+
+1. **`appsscript.json` の `oauthScopes` に明示列挙する**: 自動検出に任せず、必要なものだけ手で書く
+2. **現在のドキュメント限定のスコープを使う**: Sheetsバインド型なら `spreadsheets.currentonly`、Docsバインド型なら `documents.currentonly` を選ぶ
+
+Sheetsコンテナバインドで `@OnlyCurrentDoc` を関数コメントに付けると、自動検出時に `spreadsheets` ではなく `spreadsheets.currentonly` へ絞り込まれます。
+
+```javascript
+/**
+ * @OnlyCurrentDoc
+ */
+function onEdit(e) {
+  // このシートだけをいじるならフルスコープは不要
+}
+```
+
+### Web アプリの実行ユーザー設定
+
+`webapp.executeAs` の選択がセキュリティを左右します。
+
+| 値 | 挙動 | リスク |
+|---|---|---|
+| `USER_DEPLOYING` | デプロイした人の権限で動く | アクセスしたユーザーに所有者のデータが見える |
+| `USER_ACCESSING` | アクセスしたユーザーの権限で動く | ユーザーごとに認可フローが走る |
+
+社内ツールで「自分のSpreadsheetを誰でも更新できるようにしたい」のようなケースでは `USER_DEPLOYING` を選びますが、この場合**Webアプリ側で誰がアクセスしているかをきちんと検証**しないと、ただの公開書き込みエンドポイントになります。認証は `Session.getActiveUser().getEmail()` で取れますが、これはドメイン内でしか機能しない点に注意してください。
+
+### シークレットの保管
+
+APIキーや外部サービスのトークンは**絶対にコードにハードコードしない**でください。`PropertiesService.getScriptProperties()` に格納するのが定番です。
+
+```javascript
+function getSlackWebhookUrl() {
+  const url = PropertiesService.getScriptProperties().getProperty('SLACK_WEBHOOK_URL');
+  if (!url) {
+    throw new Error('SLACK_WEBHOOK_URL が未設定です。プロジェクトの設定から登録してください。');
+  }
+  return url;
+}
+```
+
+起動時に未設定を検出してエラーを投げることで、沈黙の失敗を防げます。
+
+### PropertiesService と CacheService の使い分け
+
+どちらも key-value ストアですが、性質が異なります。
+
+| 項目 | PropertiesService | CacheService |
+|---|---|---|
+| 永続性 | 削除するまで保持 | 最大6時間（デフォルト25分） |
+| 用途 | 設定値・認証情報・進捗チェックポイント | APIレスポンスの一時キャッシュ |
+| 読み取り速度 | 標準 | PropertiesService の約10倍高速 |
+| スコープ | Script / User / Document | Script / User / Document |
+
+**使い分けの原則**: 永続的な真実の源は PropertiesService（または外部DB）、それを高速化する一時コピーが CacheService、です。CacheService は勝手に消えるので、消えたら困るデータを置いてはいけません。
+
+## ロギング・デバッグ
+
+GASのログは3種類あり、用途が少しずつ違います。
+
+| API | 保存先 | 保持期間 | 用途 |
+|---|---|---|---|
+| `Logger.log()` | スクリプトエディタのログ | セッション内 | 対話的デバッグ |
+| `console.log()` | Cloud Logging（Stackdriver） | 一定期間保持 | 本番の継続監視 |
+| `console.error()` | Cloud Logging + エラーレポート | 同上 | アラート対象 |
+
+本番運用なら `console.log` / `console.error` を使ってください。エディタの「実行数」画面から Cloud Logging に飛べます。
+
+### エラー通知の自動化
+
+バッチの失敗に気づかないのが一番怖いので、以下のパターンを入れておくと安心です。
+
+```javascript
+function runDailyBatch() {
+  try {
+    doWork();
+  } catch (err) {
+    const message = err instanceof Error ? err.stack ?? err.message : String(err);
+    console.error(message);
+    notifySlack(`[GAS] 日次バッチが失敗しました: ${message}`);
+    throw err; // 実行履歴上も失敗として残すため再スロー
+  }
+}
+```
+
+Apps Script の「トリガー」画面から「失敗時にメール通知」を有効にする方法もありますが、通知頻度を制御しにくいので、Slackなどに直接投げる方が実務的です。
+
+## ベストプラクティスまとめ
+
+実務で効く要点をチェックリストにまとめます。
+
+- [ ] `appsscript.json` の `runtime` を `"V8"` に明示している
+- [ ] `oauthScopes` を手で列挙し、最小権限になっている（`@OnlyCurrentDoc` の活用も検討）
+- [ ] 本番用の `/exec` URLと開発用の `/dev` URLを混同していない
+- [ ] コード修正後、「デプロイを管理 → 既存デプロイ編集 → 新バージョン」で反映している
+- [ ] ステージング用と本番用のデプロイを分けている
+- [ ] 6分を超えうる処理は分割実行 + トリガーチェーンで設計している
+- [ ] 再開用トリガーの掃除を忘れていない（トリガー数上限20）
+- [ ] UrlFetch は `fetchAll()` でバッチ化している
+- [ ] シークレットは `PropertiesService` に入れ、未設定時にエラーを投げる
+- [ ] `console.error` を使い、Cloud Logging で本番エラーを監視している
+- [ ] バッチ失敗を Slack などの通知チャネルに転送している
+- [ ] try/catch でエラーを握りつぶしていない（最低限 `console.error` する）
+
+## 参考リンク
+
+- [Create and manage deployments | Apps Script](https://developers.google.com/apps-script/concepts/deployments)
+- [Versions | Apps Script](https://developers.google.com/apps-script/guides/versions)
+- [Quotas for Google Services | Apps Script](https://developers.google.com/apps-script/guides/services/quotas)
+- [Authorization Scopes | Apps Script](https://developers.google.com/apps-script/concepts/scopes)
+- [Best Practices | Apps Script](https://developers.google.com/apps-script/guides/support/best-practices)
+- [Troubleshooting | Apps Script](https://developers.google.com/apps-script/guides/support/troubleshooting)
+- [Class CacheService | Apps Script](https://developers.google.com/apps-script/reference/cache/cache-service)
+- [Migrate your Apps Script projects to V8 runtime before Jan 31, 2026](https://discuss.google.dev/t/migrate-your-apps-script-projects-to-v8-runtime-before-jan-31-2026/260396)
+- [Google Apps Script Quotas & Workarounds (2026) — FolderPal](https://folderpal.io/articles/google-apps-script-quotas-and-workarounds-2026-breaking-limits-on-drive-automation)
+- [Enhancing Security in Apps Script — DEV Community](https://dev.to/googleworkspace/enhancing-security-in-apps-script-5ii)
