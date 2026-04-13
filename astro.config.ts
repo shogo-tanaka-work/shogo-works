@@ -7,6 +7,12 @@ import rehypeExternalLinks from "rehype-external-links";
 
 export default defineConfig({
   adapter: cloudflare(),
+  markdown: {
+    shikiConfig: {
+      theme: "one-dark-pro",
+      wrap: false,
+    },
+  },
   integrations: [
     react(),
     mdx({
