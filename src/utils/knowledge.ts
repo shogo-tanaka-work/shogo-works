@@ -1,5 +1,10 @@
-import type { KnowledgeCategory, ExternalArticle, ArticlePlatform } from "@/types";
-import { categories } from "@/data/knowledge";
+import type {
+  KnowledgeCategory,
+  ExternalArticle,
+  ArticlePlatform,
+  SubcategoryMeta,
+} from "@/types";
+import { categories, subcategories } from "@/data/knowledge";
 
 interface KnowledgeEntry {
   id: string;
@@ -7,6 +12,7 @@ interface KnowledgeEntry {
     title: string;
     description: string;
     category: string;
+    subcategory?: string;
     tags: string[];
     sortOrder: number;
     createdAt: Date;
@@ -23,6 +29,7 @@ export interface UnifiedArticle {
   title: string;
   description: string;
   category: KnowledgeCategory;
+  subcategory?: string;
   tags: string[];
   sortOrder: number;
   createdAt: Date;
@@ -54,16 +61,21 @@ export function toUnifiedFromExternal(
 /** MDX記事をUnifiedArticleに変換 */
 export function toUnifiedFromInternal(entry: KnowledgeEntry): UnifiedArticle {
   const slug = entry.id.split("/").pop() as string;
+  const { category, subcategory } = entry.data;
+  const href = subcategory
+    ? `/knowledge/${category}/${subcategory}/${slug}`
+    : `/knowledge/${category}/${slug}`;
   return {
     id: entry.id,
     title: entry.data.title,
     description: entry.data.description,
-    category: entry.data.category as KnowledgeCategory,
+    category: category as KnowledgeCategory,
+    subcategory,
     tags: entry.data.tags,
     sortOrder: entry.data.sortOrder,
     createdAt: entry.data.createdAt,
     source: "internal",
-    href: `/knowledge/${entry.data.category}/${slug}`,
+    href,
     isExternal: false,
   };
 }
@@ -135,6 +147,29 @@ export function getArticlesByCategory<T extends KnowledgeEntry>(
   );
 }
 
+/**
+ * カテゴリ＋サブカテゴリで記事をフィルタする。
+ * subcategory 省略時はカテゴリ直下（subcategory 未指定）の記事のみを返す。
+ */
+export function getArticlesByCategoryAndSubcategory<T extends KnowledgeEntry>(
+  entries: T[],
+  category: KnowledgeCategory,
+  subcategory?: string,
+): T[] {
+  return getArticlesByCategory(entries, category).filter((entry) =>
+    subcategory === undefined
+      ? entry.data.subcategory === undefined
+      : entry.data.subcategory === subcategory,
+  );
+}
+
+/** 指定カテゴリに登録されたサブカテゴリメタ情報を返す */
+export function getSubcategories(
+  category: KnowledgeCategory,
+): SubcategoryMeta[] {
+  return subcategories[category] ?? [];
+}
+
 /** 全タグと出現回数を取得する（公開記事のみ、件数降順→タグ名昇順） */
 export function getAllTags<T extends KnowledgeEntry>(
   entries: T[],
@@ -160,13 +195,21 @@ export function getArticlesByTag<T extends KnowledgeEntry>(
   );
 }
 
-/** 同カテゴリ内で前後の記事を返す（sortOrder順） */
+/**
+ * 同カテゴリ（または同サブカテゴリ）内で前後の記事を返す（sortOrder順）。
+ * subcategory 省略時はカテゴリ直下の記事のみを対象にする。
+ */
 export function getAdjacentArticles<T extends KnowledgeEntry>(
   entries: T[],
   currentId: string,
   category: KnowledgeCategory,
+  subcategory?: string,
 ): { previous: T | null; next: T | null } {
-  const list = getArticlesByCategory(entries, category);
+  const list = getArticlesByCategoryAndSubcategory(
+    entries,
+    category,
+    subcategory,
+  );
   const idx = list.findIndex((e) => e.id === currentId);
   if (idx === -1) return { previous: null, next: null };
   return {

@@ -6,7 +6,10 @@ import SectionHeader from "@/components/ui/SectionHeader.astro";
 import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import ArticleCard from "@/components/knowledge/ArticleCard.astro";
 import { categories, externalArticles } from "@/data/knowledge";
-import { mergeArticlesByCategory } from "@/utils/knowledge";
+import {
+  mergeArticlesByCategory,
+  getSubcategories,
+} from "@/utils/knowledge";
 import type { CategoryMeta } from "@/types";
 
 export const getStaticPaths: GetStaticPaths = async () => {
@@ -22,11 +25,16 @@ interface Props {
 
 const { category } = Astro.props;
 const allEntries = await getCollection("knowledge");
-const articles = mergeArticlesByCategory(
+const allCategoryArticles = mergeArticlesByCategory(
   externalArticles,
   allEntries,
   category.slug,
 );
+// カテゴリ直下の記事のみを表示（サブカテゴリ内の記事はサブカテゴリページで扱う）
+const articles = allCategoryArticles.filter(
+  (a) => a.subcategory === undefined,
+);
+const subcategoryList = getSubcategories(category.slug);
 ---
 
 <BaseLayout
@@ -43,6 +51,31 @@ const articles = mergeArticlesByCategory(
       />
 
       <SectionHeader title={category.label} subtitle={category.description} />
+
+      {
+        subcategoryList.length > 0 && (
+          <div class="mb-12">
+            <h2 class="text-lg font-semibold text-foreground mb-4">
+              サブカテゴリ
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {subcategoryList.map((sub) => (
+                <a
+                  href={`/knowledge/${category.slug}/${sub.slug}`}
+                  class="block p-5 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
+                >
+                  <h3 class="font-semibold text-foreground mb-1">
+                    {sub.label}
+                  </h3>
+                  <p class="text-sm text-muted-foreground line-clamp-2">
+                    {sub.description}
+                  </p>
+                </a>
+              ))}
+            </div>
+          </div>
+        )
+      }
 
       {
         articles.length > 0 ? (
@@ -62,7 +95,7 @@ const articles = mergeArticlesByCategory(
               </div>
             ))}
           </div>
-        ) : (
+        ) : subcategoryList.length === 0 ? (
           <div class="text-center py-16 animate-on-scroll">
             <p class="text-muted-foreground text-lg">
               このカテゴリにはまだ記事がありません。
@@ -74,7 +107,7 @@ const articles = mergeArticlesByCategory(
               ← Knowledge Base に戻る
             </a>
           </div>
-        )
+        ) : null
       }
     </div>
   </section>

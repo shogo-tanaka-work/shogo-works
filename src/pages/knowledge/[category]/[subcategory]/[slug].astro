@@ -2,7 +2,7 @@
 import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
 import { getCollection, render } from "astro:content";
 import KnowledgeLayout from "@/layouts/KnowledgeLayout.astro";
-import { categories } from "@/data/knowledge";
+import { categories, subcategories } from "@/data/knowledge";
 import {
   getPublishedArticles,
   getArticlesByCategoryAndSubcategory,
@@ -20,16 +20,18 @@ export const getStaticPaths = (async () => {
     .filter(
       (entry) =>
         validCategories.has(entry.data.category as KnowledgeCategory) &&
-        entry.data.subcategory === undefined,
+        entry.data.subcategory !== undefined,
     )
     .map((entry) => {
       const slug = entry.id.split("/").pop() as string;
       const category = entry.data.category as KnowledgeCategory;
-      const sameCategoryArticles = getArticlesByCategoryAndSubcategory(
+      const subcategory = entry.data.subcategory as string;
+      const sameSubArticles = getArticlesByCategoryAndSubcategory(
         allEntries,
         category,
+        subcategory,
       );
-      const sidebarArticles = sameCategoryArticles.map((e) => ({
+      const sidebarArticles = sameSubArticles.map((e) => ({
         slug: e.id.split("/").pop() as string,
         title: e.data.title,
       }));
@@ -37,15 +39,22 @@ export const getStaticPaths = (async () => {
         allEntries,
         entry.id,
         category,
+        subcategory,
+      );
+      const subcategoryMeta = (subcategories[category] ?? []).find(
+        (s) => s.slug === subcategory,
       );
       return {
         params: {
           category,
+          subcategory,
           slug,
         },
         props: {
           entry,
           currentSlug: slug,
+          subcategorySlug: subcategory,
+          subcategoryLabel: subcategoryMeta?.label ?? subcategory,
           sidebarArticles,
           previous: previous
             ? {
@@ -66,8 +75,15 @@ export const getStaticPaths = (async () => {
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
-const { entry, currentSlug, sidebarArticles, previous, next } =
-  Astro.props as Props;
+const {
+  entry,
+  currentSlug,
+  subcategorySlug,
+  subcategoryLabel,
+  sidebarArticles,
+  previous,
+  next,
+} = Astro.props as Props;
 const { Content } = await render(entry);
 ---
 
@@ -75,6 +91,8 @@ const { Content } = await render(entry);
   title={entry.data.title}
   description={entry.data.description}
   category={entry.data.category as KnowledgeCategory}
+  subcategorySlug={subcategorySlug}
+  subcategoryLabel={subcategoryLabel}
   tags={entry.data.tags}
   createdAt={entry.data.createdAt}
   updatedAt={entry.data.updatedAt}

@@ -1,4 +1,9 @@
-import type { CategoryMeta, ExternalArticle } from "@/types";
+import type {
+  CategoryMeta,
+  ExternalArticle,
+  KnowledgeCategory,
+  SubcategoryMeta,
+} from "@/types";
 
 export const categories: CategoryMeta[] = [
   {
@@ -49,6 +54,19 @@ export const categories: CategoryMeta[] = [
     icon: "settings",
   },
 ];
+
+export const subcategories: Partial<
+  Record<KnowledgeCategory, SubcategoryMeta[]>
+> = {
+  "ai-tools": [
+    {
+      slug: "agents",
+      label: "AIエージェント",
+      description:
+        "Claude Code、Codex、ChatGPT、Gemini、ClaudeなどのLLMアシスタント・AIエージェントツール",
+    },
+  ],
+};
 
 // 外部プラットフォームに公開した記事
 // 記事を追加する場合はここにエントリを追加する
