@@ -532,12 +532,12 @@ describe("getArticlesByCategoryAndSubcategory", () => {
 });
 
 describe("getSubcategories", () => {
-  it("正常系: ai-tools のとき、agents メタ情報を返すこと", () => {
+  it("正常系: ai-tools のとき、claude-code メタ情報を返すこと", () => {
     const result = getSubcategories("ai-tools");
     expect(result.length).toBeGreaterThanOrEqual(1);
-    const agents = result.find((s) => s.slug === "agents");
-    expect(agents).toBeDefined();
-    expect(agents?.label).toBe("AIエージェント");
+    const claudeCode = result.find((s) => s.slug === "claude-code");
+    expect(claudeCode).toBeDefined();
+    expect(claudeCode?.label).toBe("Claude Code");
   });
 
   it("正常系: サブカテゴリ未登録カテゴリのとき、空配列を返すこと", () => {
