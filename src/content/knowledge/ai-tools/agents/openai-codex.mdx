@@ -1,0 +1,128 @@
+---
+title: "OpenAI Codex徹底解説：クラウドサンドボックス型コーディングエージェント"
+description: "2025年に再ローンチされたOpenAI Codex（CLI / IDE拡張 / クラウドエージェント / macOSアプリ）の機能、料金、GPT-5系Codexモデル、Claude Codeとの違いを2026年4月時点でまとめた詳細解説。"
+category: "ai-tools"
+subcategory: "agents"
+tags: ["OpenAI", "Codex", "AI エージェント", "CLI", "GPT-5"]
+sortOrder: 1
+createdAt: 2026-04-13
+author: "田中省伍"
+---
+
+## ツール概要
+
+OpenAI Codexは、2025年5月16日にChatGPT内のリサーチプレビューとして再ローンチされたクラウド型のソフトウェアエンジニアリングエージェントです。2021年に廃止された旧Codex（code-davinci系）とは別物で、コードを書くだけでなくテスト実行・バグ修正・PR生成・CI/CDモニタリングまでを担います。
+
+現在は次の4つのインターフェースが揃っています。
+
+- **Codex CLI**: ターミナルで動くオープンソースエージェント（2025年6月にTypeScriptからRustへ移行）
+- **Codex IDE拡張**: VS Code / Cursor / Windsurfに対応
+- **Codex クラウドエージェント**: ChatGPT Web上から複数タスクを並列実行
+- **Codex app（macOS）**: 2026年2月リリースのデスクトップアプリ。Automationsでスケジュール実行が可能
+
+Anthropic Claude Codeが「ローカルでインタラクティブに使うCLIエージェント」だとすると、Codexは「クラウドサンドボックスでPRを非同期生成する委任型エージェント」という位置付けです。
+
+## 主要機能
+
+- **Codex CLI**: ファイル読み書き・コマンド実行・Webサーチに対応。MCPサーバーとして他エージェントから呼び出すこともできます。
+- **クラウドサンドボックス実行**: 各タスクは隔離されたサンドボックス内で走り、テストハーネス・リンター・型チェッカーを実行します。
+- **PR自動生成**: タスクが完了するとレビュー用のPull Requestを提案します。
+- **並列タスク実行**: 複数のコーディングタスクを同時に独立したサンドボックスで処理。Codex appではパネル形式で進行状況を一覧できます。
+- **Automations**: バックグラウンドでスケジュール実行し、Issueトリアージ・CI/CD・アラート監視を回せます。
+- **Skills / Plugins**: 再利用可能なワークフロー・MCP設定をバンドルしてチーム間で共有できます。
+- **Slack統合・Codex SDK**: Slack経由でCodexにタスクを割り当てたり、SDKで自社プロダクトに組み込んだりできます。
+
+## 強み・特徴
+
+- **非同期委任型のワークフロー**: ユーザーはタスクを投げて離れ、1〜30分後に結果とPR案をレビューする使い方に最適化されています。並列で複数案件を進めたい開発者に向きます。
+- **クロスプラットフォームのCLI**: macOS（Apple Silicon / x86_64）・Linux（x86_64 / arm64）に対応。Windows向けページも用意されています。
+- **Webサーチ内蔵**: CLIとIDE拡張からそのままWeb検索を呼び出せます。
+- **エージェント特化モデル**: GPT-5.3-CodexはSWE-bench Verifiedで約80%、Terminal-Bench 2.0で77.3%（2026年2月時点でNo.1）とコーディング系ベンチマークで上位の評価を得ています。
+- **Skills/MCPによる拡張性**: Codex CLI自体をMCPサーバーとして公開でき、他のエージェントSDKから呼び出して大規模パイプラインに組み込めます。
+
+## 弱み・限界
+
+- **サンドボックスのネットワーク制限**: デフォルトではインターネットアクセスがなく、外部API依存のテストが通らないケースがあります。GitHubのIssueにもタイムアウトやネットワークツールエラーの報告が多数あります。
+- **環境差異**: サンドボックスは本番環境と完全には一致しないため、サンドボックスで通ったテストが実環境で必ず通るとは限りません。
+- **コンテキストウィンドウの公式情報が限定的**: GPT-5.3-Codex-Sparkは128kと明記されていますが、上位モデルのコンテキストサイズはモデルカード以外で公開情報が乏しく、Claude Codeの1Mと比べた厳密な比較が難しい状況です。
+- **サイバーセキュリティリスク**: GPT-5.3-Codexはサイバーセキュリティ領域で初の「High capability」判定を受けており、運用面では権限制御が重要です。
+
+## 料金体系
+
+2026年4月2日からクレジット単位ベースから**APIトークンベース料金**に移行しました。最新は[OpenAI Developers Pricing](https://developers.openai.com/codex/pricing)を確認してください。
+
+**ChatGPTプラン経由での利用**
+
+| プラン | 月額 | Codex利用 |
+|---|---|---|
+| Free | $0 | 期間限定で開放（恒久組み込みは未確認） |
+| Plus | $20 | 含まれる（週数回のセッション相当） |
+| Pro（$100、2026年4月新設） | $100 | Plusの5倍。2026年4月9日に発表されたClaude Max対抗プラン |
+| Pro（$200、上位） | $200 | GPT-5.4 Pro含む最上位、Codex最大利用枠 |
+| Business | $30/ユーザー/月 | 含まれる |
+| Enterprise / Edu | 要問合せ | 含まれる |
+
+**API（`codex-mini-latest`）**
+
+- 入力: $1.50 / 1Mトークン
+- 出力: $6.00 / 1Mトークン
+- プロンプトキャッシュ割引: 75%
+
+GPT-5.3-Codexなど上位モデルの料金は[公式モデルページ](https://developers.openai.com/codex/models)で確認してください。
+
+## 主なユースケース
+
+- バックログ消化を非同期にCodexへ委任し、開発者はレビューに集中するワークフロー
+- 複数機能を同時並行で進めたい小規模チーム
+- Issueトリアージ・依存ライブラリ更新・テスト追加などの定型タスク自動化
+- ChatGPT内から自然言語でリポジトリに変更を入れたい非エンジニアとの協働
+- Slack経由でのバグ報告 → 修正PR生成
+
+## 始め方
+
+Codex CLIをインストールします。
+
+```bash
+# npm
+npm install -g @openai/codex
+
+# Homebrew (macOS)
+brew install --cask codex
+
+# 起動
+codex
+```
+
+初回起動時にChatGPTアカウントまたはAPIキーでサインインを求められます。
+
+ChatGPT Web版から使う場合は、chatgpt.comにPlus以上のプランでログインし、サイドバーから「Codex」を選択 → プロンプト入力 → 「Code」ボタンで実行します。
+
+## 他ツールとの比較
+
+| 観点 | OpenAI Codex | Claude Code | Cursor |
+|---|---|---|---|
+| アーキテクチャ | クラウドサンドボックス（非同期委任） | ローカルCLI（インタラクティブ） | AIファーストIDE |
+| GitHub連携 | PR自動生成（クラウド） | ローカルgit操作 | 限定的 |
+| 得意領域 | 並列バックグラウンドタスク、PR委任 | 大規模リファクタ、長コンテキスト解析 | 日常エディタ補完 |
+| SWE-bench Verified | 約80%（GPT-5.3-Codex系） | 80.8%（Claude Opus 4.6） | 非公表 |
+| 価格（最安） | $20/月（ChatGPT Plus） | $20/月（Claude Pro） | $20/月（Pro） |
+
+「インタラクティブに対話しながら一緒に作りたい」ならClaude Code、「タスクを投げてレビューに専念したい」ならCodex、というのが現状の使い分けです。
+
+## 2026年最新動向
+
+- **2026年2月2日**: macOS向けデスクトップアプリ「Codex app」がリリース。複数エージェントを同一画面で管理しAutomationsでスケジュール実行が可能になりました。
+- **2026年2月5日**: GPT-5.3-Codexリリース。GPT-5.2-Codexより25%高速化し、Cursor / VS CodeへのネイティブIDE統合も開始。
+- **2026年4月2日**: 料金がクレジット単位からAPIトークンベースに移行。
+- **2026年4月9日**: ChatGPT Pro $100/月プランが発表され、PlusのCodex利用枠の5倍を提供（Claude Max $100対抗）。発表3日前の4月8日にはCodex週間ユーザーが300万人を突破しています。
+- Skills / Plugins、SlackのCodex SDK統合、Webサーチのキャッシュモード/ライブモード切替も同時期に追加されました。
+
+## 参考リンク
+
+- [Introducing Codex（OpenAI公式）](https://openai.com/index/introducing-codex/)
+- [Codex 開発者ドキュメント](https://developers.openai.com/codex)
+- [Codex CLI ドキュメント](https://developers.openai.com/codex/cli)
+- [Codex 料金ページ](https://developers.openai.com/codex/pricing)
+- [GitHub: openai/codex](https://github.com/openai/codex)
+- [Introducing GPT-5.3-Codex](https://openai.com/index/introducing-gpt-5-3-codex/)
+- [Introducing the Codex app](https://openai.com/index/introducing-the-codex-app/)
