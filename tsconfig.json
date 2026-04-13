@@ -8,5 +8,5 @@
     "jsx": "react-jsx",
     "jsxImportSource": "react"
   },
-  "exclude": ["tests", "scripts", "vitest.config.ts"]
+  "exclude": ["tests", "scripts", "vitest.config.ts", "dist"]
 }

@@ -3,6 +3,8 @@ import {
   getPublishedArticles,
   getArticlesByCategory,
   getAdjacentArticles,
+  getAllTags,
+  getArticlesByTag,
   getCategoryArticleCount,
   getRelatedArticles,
   mergeArticles,
@@ -221,6 +223,53 @@ describe("getAdjacentArticles", () => {
     );
     // draft-articleは含まれないのでnextはnull
     expect(result.next).toBeNull();
+  });
+});
+
+describe("getAllTags", () => {
+  it("公開記事に含まれる全タグと出現回数を返すこと", () => {
+    const result = getAllTags(mockEntries);
+    const tags = result.map((t) => t.tag);
+    // ai タグは claude-code(1) + cursor-tips(1) = 2件
+    const aiTag = result.find((t) => t.tag === "ai");
+    expect(aiTag?.count).toBe(2);
+    // draft 記事のタグは含まれない
+    expect(tags).not.toContain("draft");
+  });
+
+  it("件数降順、同件数ならタグ名昇順でソートされること", () => {
+    const result = getAllTags(mockEntries);
+    for (let i = 1; i < result.length; i++) {
+      const prev = result[i - 1];
+      const curr = result[i];
+      if (prev.count === curr.count) {
+        expect(prev.tag.localeCompare(curr.tag)).toBeLessThanOrEqual(0);
+      } else {
+        expect(prev.count).toBeGreaterThan(curr.count);
+      }
+    }
+  });
+
+  it("空配列を渡した場合、空配列を返すこと", () => {
+    expect(getAllTags([])).toEqual([]);
+  });
+});
+
+describe("getArticlesByTag", () => {
+  it("指定タグを含む公開記事のみ返すこと", () => {
+    const result = getArticlesByTag(mockEntries, "ai");
+    expect(result).toHaveLength(2);
+    expect(result.every((e) => e.data.tags.includes("ai"))).toBe(true);
+  });
+
+  it("draft記事を除外すること", () => {
+    const result = getArticlesByTag(mockEntries, "draft");
+    expect(result).toHaveLength(0);
+  });
+
+  it("該当タグの記事がない場合、空配列を返すこと", () => {
+    const result = getArticlesByTag(mockEntries, "non-existent-tag");
+    expect(result).toEqual([]);
   });
 });
 

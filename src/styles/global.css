@@ -210,6 +210,10 @@ body {
   color: var(--color-muted-foreground);
 }
 
+.knowledge-prose blockquote a {
+  color: var(--color-primary);
+}
+
 .knowledge-prose code {
   font-family: var(--font-mono);
   font-size: 0.875em;
@@ -219,20 +223,34 @@ body {
   color: var(--color-foreground);
 }
 
+.knowledge-prose a code {
+  color: inherit;
+}
+
 .knowledge-prose pre {
   margin: 1.5rem 0;
-  padding: 1rem 1.25rem;
+  padding: 1.25rem 1.5rem;
   border-radius: 0.75rem;
   overflow-x: auto;
   font-size: 0.875rem;
   line-height: 1.7;
+  background: #282c34;
+  border: 1px solid hsl(220 13% 22%);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  color: #abb2bf;
 }
 
 .knowledge-prose pre code {
-  background: none;
+  background: none !important;
   padding: 0;
   border-radius: 0;
   font-size: inherit;
+  color: inherit;
+}
+
+.knowledge-prose pre code .line {
+  display: block;
+  min-height: 1.5em;
 }
 
 .knowledge-prose img {
@@ -259,6 +277,11 @@ body {
 .knowledge-prose th {
   background: var(--color-secondary);
   font-weight: 600;
+}
+
+.knowledge-prose td a,
+.knowledge-prose th a {
+  color: var(--color-primary);
 }
 
 .knowledge-prose hr {

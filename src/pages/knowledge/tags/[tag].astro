@@ -1,0 +1,75 @@
+---
+import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
+import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
+import ArticleCard from "@/components/knowledge/ArticleCard.astro";
+import { categories } from "@/data/knowledge";
+import { getAllTags, getArticlesByTag } from "@/utils/knowledge";
+import type { KnowledgeCategory } from "@/types";
+
+export const getStaticPaths = (async () => {
+  const allEntries = await getCollection("knowledge");
+  const tags = getAllTags(allEntries);
+  return tags.map(({ tag }) => ({
+    params: { tag },
+    props: { tag },
+  }));
+}) satisfies GetStaticPaths;
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { tag } = Astro.props as Props;
+const allEntries = await getCollection("knowledge");
+const articles = getArticlesByTag(allEntries, tag);
+
+function getCategoryLabel(slug: string): string {
+  return categories.find((c) => c.slug === slug)?.label ?? slug;
+}
+---
+
+<BaseLayout
+  title={`#${tag} | Knowledge Base | shogoworks`}
+  description={`タグ「${tag}」が付いたナレッジ記事の一覧 (${articles.length}件)`}
+>
+  <section class="py-20 px-4">
+    <div class="max-w-5xl mx-auto">
+      <Breadcrumb
+        items={[
+          { label: "Knowledge Base", href: "/knowledge" },
+          { label: "タグ", href: "/knowledge/tags" },
+          { label: `#${tag}` },
+        ]}
+      />
+
+      <SectionHeader
+        title={`#${tag}`}
+        subtitle={`${articles.length}件の記事が見つかりました`}
+      />
+
+      {
+        articles.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {articles.map((entry) => {
+              const slug = entry.id.split("/").pop() as string;
+              const category = entry.data.category as KnowledgeCategory;
+              return (
+                <ArticleCard
+                  title={entry.data.title}
+                  description={entry.data.description}
+                  categoryLabel={getCategoryLabel(category)}
+                  tags={entry.data.tags}
+                  createdAt={entry.data.createdAt}
+                  href={`/knowledge/${category}/${slug}`}
+                />
+              );
+            })}
+          </div>
+        ) : (
+          <p class="text-muted-foreground">該当する記事がありません。</p>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>
