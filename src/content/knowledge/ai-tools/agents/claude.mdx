@@ -1,0 +1,108 @@
+---
+title: "Claude徹底解説：Anthropicの汎用AIアシスタント（claude.ai）"
+description: "Anthropicの汎用AIアシスタント「Claude」（claude.ai）のClaude 4.6系モデル、Artifacts、Skills、Projects、Memory、料金プランを2026年4月時点でまとめた詳細解説。"
+category: "ai-tools"
+subcategory: "agents"
+tags: ["Claude", "Anthropic", "Artifacts", "Skills", "AI アシスタント"]
+sortOrder: 4
+createdAt: 2026-04-13
+author: "田中省伍"
+---
+
+## ツール概要
+
+ClaudeはAnthropicが提供する汎用AIアシスタントです。Web（claude.ai）・iOS・Android・デスクトップアプリ（macOS / Windows）で利用でき、Constitutional AIと呼ばれる安全設計手法を基盤にしています。長文処理・自然な文章生成・コーディングを強みとし、2026年4月時点のフラッグシップはClaude Opus 4.6（1Mトークンコンテキスト対応）です。
+
+開発元のAnthropicは2021年にOpenAI出身のDario AmodeiとDaniela Amodei兄妹らが設立。2023年3月のClaude 1から始まり、2024年3月のClaude 3、2025年5月のClaude 4を経て、2026年2月にClaude 4.6世代へと進化してきました。
+
+> Claude Code（CLI）と本記事のClaude（claude.ai）は同じAnthropic製ですが製品が別です。CLI版は[Claude Code徹底解説](/knowledge/ai-tools/agents/claude-code/)を参照してください。
+
+## 主要機能
+
+- **Artifacts**: 生成したコード・ドキュメント・インタラクティブUIを会話パネルの隣に別ウィンドウで表示し、プレビュー・ダウンロード・URL共有ができる機能。Word・スプレッドシート・PDFなどにも対応。
+- **Projects**: 会話・ファイル・指示をトピック別に整理する機能。クライアントや案件ごとにナレッジベースを独立管理できます。
+- **Memory**: 過去の会話から「役職・進行中プロジェクト・個人設定」などを自動要約して記憶。2025年9月にTeam / Enterprise向けに開始され、2026年3月2日に無料プランを含む全ユーザーに開放されました。デフォルトはオフで、内容の確認・削除も可能です。
+- **Research（Deep Research）**: Pro以上で利用できるマルチエージェント調査モード。複数のサブエージェントが並列で数百ソースを検索し、最大45分かけて構造化レポートを生成します。
+- **Skills / Plugins / MCPコネクタ**: SkillsはClaudeが呼び出せるMCP統合の単位、PluginsはSkills + コネクタ + スラッシュコマンドのパッケージ。Anthropic公式が15本以上のPluginsをオープンソース提供しています（セールス・法務・マーケ・財務・サポートなど）。
+- **Computer Use**: 画面の内容を解釈してキーボード・マウス操作をシミュレートし、PC上のアプリを自律操作できる機能。Claude Sonnet 4.6がOSWorldベンチマークで72.5%を記録しています。
+- **ファイルアップロード**: CSV・PDF・画像をアップロードしてデータ分析・可視化が可能。
+- **Web検索**: 無料プランを含む全プランで利用可能。
+- **Extended Thinking（拡張思考）**: 有料プラン限定。プロンプトの複雑さを自己評価し、思考時間と推論過程を表示します。
+- **Styles**: Normal / Concise / Explanatoryなどのプリセット文体を選択可能。
+- **デスクトップ / モバイルアプリ**: macOS・Windows・iOS・Androidに対応。モバイルではハンズフリー音声モード、書類スキャン、ヘルスデータ連携（米国Pro/Max）なども提供。
+
+## 強み・特徴
+
+- **長文処理**: 1Mトークンコンテキストでコードベース全体・教科書・大量ドキュメントを一括処理できます。
+- **文章品質**: ライター・編集者の評価で最高水準とされ、スタイル指示への忠実さと「AIっぽさの薄さ」が特徴です。
+- **安全性・誠実性**: Constitutional AIにより不確実性を明示する傾向が強く、エンタープライズ・医療・法律分野で信頼性が評価されています。
+- **Artifactsによるコード/UIプレビュー**: コード生成と同時にインタラクティブUIを別パネルでレンダリングできるため、プロトタイピング体験が滑らかです。
+- **コーディング**: SWE-benchで80.8%。Claude Codeとの組み合わせで開発者体験が一段と強化されます。
+
+## 弱み・限界
+
+- **マルチモーダル制限**: 画像入力には対応しますが、ネイティブの動画・音声理解は非対応です（Geminiが優位）。
+- **機能数のミニマル設計**: ChatGPTと比べると組み込み機能の数が少なく、プラグイン的な広がりは控えめです。
+- **長コンテキストの実効性**: 1Mトークンを使えても、長大なコンテキスト内で「情報のスレッド」を見失うケースが報告されています。
+- **Haiku 4.5の情報粒度**: claude.ai UIでの利用条件・Extended Thinking対応可否などが公式ページで明示されていない部分があります。
+
+## 料金体系
+
+2026年4月時点の主なプランは次のとおりです（最新は[claude.com/pricing](https://claude.com/pricing)）。
+
+| プラン | 月額 | 主な内容 |
+|---|---|---|
+| Free | $0 | Sonnet 4.6 / Haiku 4.5、Web検索、Artifacts、Projects、Memory、MCPコネクタ。日次利用上限あり |
+| Pro | $20 | Freeの5倍の利用量、Opus 4.6含む全モデル、Research、Extended Thinking |
+| Max 5x | $100 | Proの5倍。最大優先度、Claude Codeフルアクセス、1Mコンテキスト |
+| Max 20x | $200 | Proの20倍。ゼロレイテンシ優先、Claude Codeフルアクセス |
+| Team | $25/ユーザー | Memoryのチーム共有、管理コンソール、最低5名から |
+| Enterprise | カスタム | SSO、監査ログ、コンプライアンスAPI、RBAC、OpenTelemetry対応 |
+
+1MコンテキストはMax / Team / Enterpriseで追加料金なしで利用可能（2026年3月13日にGA）。
+
+## 主なユースケース
+
+- 長大な仕様書・契約書・論文の読解と要約
+- ライティング業務（記事執筆、編集、推敲、文体調整）
+- データ分析（CSV・PDFアップロードからの可視化）
+- Artifactsによるプロトタイプ作成・社内共有
+- Projects単位でのナレッジベース運用
+- Computer Useによるデスクトップアプリ操作の自動化
+
+## 始め方
+
+1. [claude.ai](https://claude.ai)にアクセス、メールアドレスまたはGoogle / Appleアカウントで登録（クレジットカード不要）
+2. デスクトップアプリは[claude.com](https://claude.com)からダウンロード
+3. iOS / Androidアプリは各ストアで「Claude by Anthropic」を検索
+
+## 他ツールとの比較
+
+| 観点 | Claude | ChatGPT | Gemini |
+|---|---|---|---|
+| 文章品質 | 最高評価、自然な文体 | 汎用的 | 実用的だが品質ムラあり |
+| コーディング | 強い（SWE-bench 80.8%） | 汎用的 | 高速・大コンテキスト |
+| 長文処理 | 1Mトークン | 約40万 | 1M〜2M |
+| マルチモーダル | 画像のみ | 画像・音声・動画 | 画像・音声・動画（最強） |
+| 安全性 | 最も保守的・透明 | 改善中 | 不均一 |
+| Workspace連携 | MCP経由 | 限定的 | ネイティブ統合 |
+
+「精密な文章とコードを書きたい」ならClaude、「幅広いプラグインエコシステムを使いたい」ならChatGPT、「Google環境と統合したい」ならGemini、というのが現在の大まかな棲み分けです。
+
+## 2026年最新動向
+
+- **2026年2月5日**: Claude Opus 4.6リリース。1Mトークンコンテキスト、Agent Teams機能搭載。
+- **2026年2月17日**: Claude Sonnet 4.6リリース。
+- **2026年3月2日**: Memoryが無料プランを含む全ユーザーに開放。ChatGPTからの移行インポートツールも同時提供。
+- **2026年3月13日**: 1MコンテキストがMax / Team / Enterpriseに対し追加料金なしでGA。
+- **Claude Cowork GA**: デスクトップアプリでのタスクスケジューリング・反復タスク自動化が一般公開。
+- **2026年4月7日**: 次世代モデル「Claude Mythos Preview」を限定研究公開。サイバーセキュリティ分野で全OS・主要ブラウザの脆弱性を発見できる水準とされ、当面は一般公開しない方針が示されました。同時にProject Glasswing（Amazon、Apple、Microsoft、Linux Foundationなど12社との防衛的セキュリティ連携）も発表。
+
+## 参考リンク
+
+- [claude.ai 公式](https://claude.ai)
+- [Plans & Pricing | Claude](https://claude.com/pricing)
+- [Models overview - Claude API Docs](https://platform.claude.com/docs/en/about-claude/models/overview)
+- [What are artifacts? | Claude Help Center](https://support.claude.com/en/articles/9487310-what-are-artifacts-and-how-do-i-use-them)
+- [Claude takes research to new places（Anthropic）](https://www.anthropic.com/news/research)
+- [Release notes | Claude Help Center](https://support.claude.com/en/articles/12138966-release-notes)

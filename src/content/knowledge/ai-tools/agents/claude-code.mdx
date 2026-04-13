@@ -1,0 +1,129 @@
+---
+title: "Claude Code徹底解説：Anthropic公式エージェント型コーディングCLI"
+description: "Anthropic公式のエージェント型コーディングCLI「Claude Code」の機能、料金、Skills/MCP/Hooks/Sub-agentsの仕組み、他ツールとの違いを2026年4月時点の最新情報でまとめた詳細解説。"
+category: "ai-tools"
+subcategory: "agents"
+tags: ["Claude Code", "Anthropic", "AI エージェント", "CLI", "MCP", "Skills"]
+sortOrder: 0
+createdAt: 2026-04-13
+author: "田中省伍"
+---
+
+## ツール概要
+
+Claude CodeはAnthropicが提供するターミナルネイティブのエージェント型コーディングツールです。2025年2月にリサーチプレビューとして公開され、同年5月22日にClaude 4ファミリーのリリースと同時にGAしました。2025年10月にはブラウザから利用できるWeb版（claude.ai/code）も登場し、現在はターミナル・VS Code/JetBrains拡張・デスクトップアプリ・Web・モバイルの5サーフェスから同じ設定とSkillsを共有して利用できます。
+
+「IDEに付属する補完機能」ではなく「コードベース全体を読み、ファイル編集・コマンド実行・Git操作までを自律的にこなすエージェント」として位置付けられているのが特徴です。
+
+## 主要機能
+
+- **CLAUDE.md / Auto Memory**: プロジェクトルートに置いたMarkdownでビルドコマンドや設計ルール、禁止事項などを恒久的に指示できる仕組み。Auto Memoryはセッション間で学んだ設計判断を自動的に記録します。
+- **MCP（Model Context Protocol）**: Google Drive、Slack、Jira、GitHubなど外部データソースとClaudeを接続するための標準プロトコル。サブエージェント単位でinlineサーバーを起動・切断できます。
+- **Hooks**: `PreToolUse` / `PostToolUse` / セッション開始終了などのライフサイクルイベントにシェルコマンドを紐付けられます。「編集後にauto-format」「コミット前にlintを走らせる」といった自動化が可能です。
+- **Sub-agents / Agent Teams**: `--agents`フラグで並列ワーカーを起動できます。2026年2月にはリードエージェントが複数のClaudeインスタンスを協調させるAgent Teamsが実験機能としてリリースされました。
+- **Skills / Slash commands**: `.claude/skills/`配下に置いたスキルが`/skill-name`でスラッシュコマンドとして呼び出せます。チーム間でワークフローを共有できる単位です。
+- **Plan mode**: 実行前に計画を提示して承認を求めるモード。`opusplan`エイリアスを使うと、計画段階はOpus、実行段階はSonnetに自動切り替えできます。
+- **Background tasks / Scheduled tasks**: クラウド側でPCがオフでも動くスケジュールタスクと、デスクトップ側のタスクの2種類があります。
+- **VS Code / JetBrains拡張、Web版、デスクトップアプリ**: ターミナル外でも同じClaude Codeセッションが動きます。Cursorからも同じ拡張が利用できます。
+- **Agent SDK**: Claude Codeの内部ツール・パーミッションフレームワークをそのまま使って独自エージェントを構築できるSDKです（旧称 Claude Code SDK）。
+
+## 強み・特徴
+
+- **ターミナルネイティブ**: シェル・Git・CI/CDとの親和性が高く、`tail -200 app.log | claude -p "..."`のようなUnixパイプ連携も自然に組めます。
+- **1Mトークンコンテキスト**: Opus 4.6とSonnet 4.6が1Mトークンに対応しており、約25,000〜30,000行のコードを分割なしに一括処理できます。コードベース全体の把握が必要な大規模リファクタリングで威力を発揮します。
+- **マルチファイル編集の自律実行**: テスト実行 → 失敗解析 → 修正 → 再実行 → コミットの一連を最後まで通せます。
+- **全サーフェス共通の設定**: CLAUDE.md・MCPサーバー・Skillsがターミナル・IDE・Web・デスクトップで共有されるため、環境を切り替えても挙動が揃います。
+
+## 弱み・限界
+
+- **レート制限の枯渇問題**: 2026年3月以降、ProプランやMaxプランで「期待していた5時間制限が実際は1〜2時間で切れる」事例が報告されました。Anthropicも問題を認識し、ピーク時の調整を進めています。
+- **使用量の可視性**: プランごとの厳密な利用上限が公式に数値化されておらず、ダッシュボードで実測するしかない点は課題です。
+- **セキュリティ脆弱性**: 信頼されないディレクトリでの任意シェルコマンド実行（CVE-2025-59536）など複数の脆弱性が報告されており、未知のリポジトリで起動する際は権限設定に注意が必要です。
+- **無料プランでは利用不可**: Pro / Max / Team / Enterprise / Consoleアカウントが必要です。
+- **画像・音声生成は非対応**: 入力には画像を扱えますが、画像生成や音声出力には対応していません。
+
+## 料金体系
+
+2026年4月時点の主な料金は次のとおりです（API料金は[公式ドキュメント](https://platform.claude.com/docs/en/about-claude/pricing)で常時最新を確認してください）。
+
+**サブスクリプションプラン**
+
+| プラン | 月額 | Claude Codeの利用 |
+|---|---|---|
+| Free | $0 | 利用不可 |
+| Pro | $20 | 5x制限で利用可 |
+| Max 5x | $100 | Proの5倍、Opusアクセス含む |
+| Max 20x | $200 | Proの20倍、最大スループット |
+
+Team / Enterpriseは別途見積もりです。
+
+**API従量課金（1Mトークンあたり）**
+
+| モデル | 入力 | 出力 |
+|---|---|---|
+| Opus 4.6 | $5 | $25 |
+| Sonnet 4.6 | $3 | $15 |
+| Haiku 4.5 | $1 | $5 |
+
+Batch APIで全モデル50%オフ。プロンプトキャッシュは書き込み時に標準入力価格の1.25倍（5分）または2倍（1時間）、読み出し時は10%まで下がります。Opus 4.6限定の**Fast mode（β）**は標準の6倍（入力$30 / 出力$150）で出力速度が大幅に向上します。
+
+## 主なユースケース
+
+- 既存コードベースを読みながらの大規模リファクタリング
+- TDDサイクルの自律実行（テスト追加 → 実装 → リファクタ）
+- バグ調査・再現スクリプト作成・修正PRまでの一連
+- CI上での自動コードレビュー、Issueトリアージ（GitHub Actions / GitLab CI連携）
+- Slack `@Claude`からのバグ報告 → PR自動生成フロー
+- ローカルファイルとMCPコネクタを横断したナレッジ調査
+
+## 始め方
+
+ネイティブインストーラーが推奨です。
+
+```bash
+# macOS / Linux / WSL
+curl -fsSL https://claude.ai/install.sh | bash
+
+# Windows PowerShell
+irm https://claude.ai/install.ps1 | iex
+
+# Homebrew
+brew install --cask claude-code
+
+# npm（非推奨。自動更新なし。バージョン固定したい場合のみ）
+npm install -g @anthropic-ai/claude-code
+```
+
+インストール後、プロジェクトディレクトリで`claude`を実行すると初回はOAuth認証用のブラウザが開きます。`ANTHROPIC_API_KEY`環境変数を使った直接認証も可能です。
+
+> **Tips**: プロジェクトルートに`CLAUDE.md`を置いておくと、ビルドコマンドや禁止事項、コーディング規約をClaude Codeが起動時に必ず読み込んでくれます。最初に整備すべきファイルです。
+
+## 他ツールとの比較
+
+| ツール | 特徴 | 強み | 弱み |
+|---|---|---|---|
+| Claude Code | ターミナルネイティブのエージェント | 1Mコンテキスト、自律実行、マルチサーフェス共通設定 | レート制限、API単価が高め |
+| OpenAI Codex CLI | クラウドサンドボックス + CLI | 並列タスク、PR自動生成、トークン効率 | ローカル統合は限定的 |
+
+| Cursor | AIファーストIDE（VS Codeフォーク） | エディタ統合の深さ、Composerの操作感 | CLIネイティブではない |
+| GitHub Copilot | マルチIDE拡張 | インライン補完、IDEサポートの広さ | 自律タスク実行は不向き |
+
+実務では「日常編集はCursor + 重い作業はClaude Code」「Copilotで補完 + Claude Codeでエージェント実行」のように使い分けるパターンが定着しつつあります。
+
+## 2026年最新動向
+
+- **2026年2月5日**: Claude Opus 4.6のリリースと同時に**Agent Teams**が登場。複数のClaudeインスタンスが共有タスクリストで自律的に役割分担します。
+- **2026年2月17日**: Sonnet 4.6リリース。Sonnet 4.5と同価格のままClaude Codeのデフォルトモデルに昇格しました。
+- **2026年Q1**: Remote Control / Dispatch / Channels / Computer Use / Auto Modeが順次リリースされ、スマホやSlack、Discordからセッションを継続できるようになりました。
+- **2026年2月**: **Claude Managed Agents**が発表され、Console / Claude Code / 新CLI（`ant`）からエージェントをビルド・デプロイできるようになりました。
+- 一方で同じ時期にレート制限の枯渇報告やセキュリティCVE報告も増えており、運用面の成熟は2026年後半の課題として残っています。
+
+## 参考リンク
+
+- [Claude Code 製品ページ（Anthropic公式）](https://www.anthropic.com/product/claude-code)
+- [Claude Code ドキュメント](https://code.claude.com/docs/en/overview)
+- [Sub-agents ドキュメント](https://code.claude.com/docs/en/sub-agents)
+- [Agent Teams ドキュメント](https://code.claude.com/docs/en/agent-teams)
+- [Anthropic API Pricing](https://platform.claude.com/docs/en/about-claude/pricing)
+- [GitHub: anthropics/claude-code](https://github.com/anthropics/claude-code)
+- [Enabling Claude Code to work more autonomously（Anthropicブログ）](https://www.anthropic.com/news/enabling-claude-code-to-work-more-autonomously)

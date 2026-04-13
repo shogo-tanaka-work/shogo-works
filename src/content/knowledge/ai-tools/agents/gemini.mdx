@@ -1,0 +1,124 @@
+---
+title: "Google Gemini徹底解説：長コンテキストとGoogleエコシステム統合"
+description: "Google DeepMindのAIアシスタント「Gemini」のGemini 3系モデル、Deep Research、Gems、Code Assist、Gemini CLI、Workspace連携を2026年4月時点でまとめた詳細解説。"
+category: "ai-tools"
+subcategory: "agents"
+tags: ["Gemini", "Google", "AI アシスタント", "Code Assist", "マルチモーダル"]
+sortOrder: 3
+createdAt: 2026-04-13
+author: "田中省伍"
+---
+
+## ツール概要
+
+Google GeminiはGoogle DeepMindが開発するマルチモーダルAIアシスタント・モデルファミリーです。2023年3月に限定公開されたBardを起源とし、2024年2月8日にBardが「Gemini」へリブランドされました。同時期にWorkspace向けの企業AI「Duet AI」も「Gemini for Workspace」へ統合されています。
+
+個人向けチャット（gemini.google.com）、開発者向けAPI（ai.google.dev）、IDE拡張（Gemini Code Assist）、エージェント型ターミナルツール（Gemini CLI）など多面的に展開し、Googleエコシステムとの深い統合が最大の差別化要因です。2025年11月以降、Gemini 3系モデルが順次リリースされ、2026年4月時点でも高頻度のアップデートが続いています。
+
+## 主要機能
+
+- **Gemini チャット**: テキスト・画像・音声・動画を横断するマルチモーダル対話。
+- **Deep Research**: 複雑なリサーチタスクをWeb横断で自律実行し、レポート化。Canvas上でクイズやAudio Overviewにも変換できます。
+- **Canvas**: ドキュメントやコードをリアルタイム編集できるインタラクティブワークスペース。Webアプリ・Pythonスクリプト・ゲームのプロトタイピングにも対応。
+- **Gems / Super Gems**: カスタムAIアシスタント作成機能。2026年にはボタンやフォームを持つ「Super Gems」が登場し、アプリ的なUIを構築できます。
+- **Workspace連携**: Gmail、Docs、Sheets、Slides、Drive、MeetでのAI支援。Google AI Pro以上のプランに含まれます。
+- **Gemini Code Assist**: VS Code / JetBrains向けコーディング支援。コード補完・チャット・スマートアクションに加え、複数ファイルにまたがる複雑なタスクを計画→承認→実行する**エージェントモード**が一般公開されています。MCP経由の外部サービス連携にも対応。
+- **Gemini CLI**: ターミナルで動作するオープンソースAIエージェント。2026年4月時点でv0.37.1。動的サンドボックス・ブラウザエージェント・メモリ管理機能を搭載し、Gemini 3 FlashがCLIのデフォルトモデルとして統合されています。
+- **Project Astra**: リアルタイム動画・音声理解を行うユニバーサルAIアシスタント研究プロジェクト。Google Searchの「Search Live」機能としてカメラ経由のリアルタイム解析が全ユーザーに展開されつつあります。
+- **Imagen / Veo / Lyria**: 画像生成（Imagen）、ネイティブオーディオ付き動画生成（Veo 3）、最大3分の音楽生成（Lyria 3 Pro）を提供。
+
+## 強み・特徴
+
+- **長コンテキスト**: 現行のGemini 3系は最大1Mトークンに対応。旧世代のGemini 1.5 Proは2Mトークン対応で、現時点でも2M対応の数少ない選択肢として残っています。
+- **Googleエコシステム統合**: Gmail・Docs・Sheets・Drive・Maps・Calendar・YouTubeなどとネイティブ連携。後付けではなく設計レベルで統合されているのが他社AIにない強みです。
+- **マルチモーダルの深度**: テキスト・画像・動画・音声を設計当初からネイティブ処理するアーキテクチャです。
+- **無料枠の広さ**: Geminiチャット無料版でDeep Research・Live・Canvas・Gemsを利用可能。Code Assist個人版は月18万コード補完まで無料で、開発者の入り口が広く取られています。
+
+## 弱み・限界
+
+- **回答の一貫性**: 同じ質問に対して異なる回答を返すケースが報告されており、予測可能性ではClaudeに劣ります。
+- **複雑な論理推論**: トリッキーな論理問題ではClaudeに遅れを取る評価が散見されます。
+- **2Mコンテキストの後退**: 最新世代（Gemini 2.5 Pro以降）では1Mトークンに縮小されており、2M対応は旧世代モデルに限定されています。
+- **エコシステム依存**: Googleサービスを使わないユーザーには統合メリットが薄く、AI性能だけで選ぶなら他の選択肢が合うケースもあります。
+
+## 料金体系
+
+2026年4月時点の主な個人向けプランは次のとおりです。
+
+| プラン | 月額 | 主な内容 |
+|---|---|---|
+| 無料 | $0 | Gemini 2.5 Flash + 限定的な2.5 Pro、Deep Research、Live、Canvas、Gems |
+| Google AI Plus | $7.99 | Gemini 2.5 Pro拡張アクセス、Veo 3.1動画生成、200GBストレージ |
+| Google AI Pro | $19.99 | 上位モデルアクセス、5TBストレージ（2026年4月から）、Workspace連携 |
+| Google AI Ultra | $249.99 | Gemini 3 Deep Thinkなど最上位機能、30TBストレージ |
+
+**Workspace向け**
+
+| プラン | 月額（per user, 1年契約） |
+|---|---|
+| Business | $20 |
+| Enterprise | $30 |
+
+**Gemini Code Assist**
+
+- Individual: 無料（月18万コード補完まで）
+- Standard / Enterprise: 有料プラン（最新は[Gemini for Google Cloud pricing](https://cloud.google.com/products/gemini/pricing)で確認）
+
+**Gemini Developer API**
+
+| モデル | 入力 / 1Mtok | 出力 / 1Mtok |
+|---|---|---|
+| Gemini 2.5 Pro（〜200K） | $1.25 | $10.00 |
+| Gemini 2.5 Pro（200K超） | $2.50 | $15.00 |
+| Gemini 2.5 Flash | $0.30 | $2.50 |
+| Gemini 2.5 Flash-Lite | $0.10 | $0.40 |
+
+無料ティアもあり、開発者の試用障壁は低めです。
+
+## 主なユースケース
+
+- Google Workspace上で完結する社内文書・メール作成支援
+- 大量PDF・コードベースを一括投入する長文リサーチ・分析
+- マルチモーダル制作（画像・動画・音声をまたいだコンテンツ生成）
+- Code AssistによるGCPプロジェクトのコーディング支援
+- Gemini CLIによるエージェント型コマンドライン作業
+- Project Astraによるカメラ越しのリアルタイム支援
+
+## 始め方
+
+- **チャット**: [gemini.google.com](https://gemini.google.com)にGoogleアカウントでログイン
+- **Code Assist**: VS CodeまたはJetBrainsに拡張をインストール。個人Gmailで無料利用可能
+- **Gemini CLI**: [github.com/google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)からインストール
+- **API**: [ai.google.dev](https://ai.google.dev)でAPIキーを取得し、無料ティアから開始
+
+## 他ツールとの比較
+
+| 観点 | Gemini | ChatGPT | Claude |
+|---|---|---|---|
+| コンテキスト長 | 1M〜2M（モデルによる） | 約40万 | 1M |
+| Google統合 | ネイティブ | プラグイン経由 | 限定的 |
+| マルチモーダル | 画像・音声・動画すべて | 画像・音声・動画 | 主に画像 |
+| 文章品質 | 良好 | 汎用的 | 最高評価 |
+| 料金（Pro相当） | $19.99 | $20 | $20 |
+| 向くユーザー | Workspaceユーザー、長文処理重視 | 汎用業務、プラグイン活用 | コーディング・精密文書 |
+
+## 2026年最新動向
+
+- **2025年11月**: Gemini 3 Pro / Deep Thinkリリース。
+- **2025年12月17日**: Gemini 3 Flashリリース、Geminiアプリのデフォルトモデルに採用。
+- **2026年1月**: Google AI Plus（$7.99）が全市場で展開開始。
+- **2026年2月19日**: Gemini 3.1 Proリリース。
+- **2026年3月3日**: Gemini 3.1 Flash LiteのAPI公開。
+- **2026年4月1日**: Google AI Proに5TBストレージが追加（価格据え置き）。
+- **2026年4月9日**: Gemini CLI v0.37.1リリース。動的サンドボックス・ブラウザエージェント機能などを搭載。
+- Code Assistのエージェントモード一般公開、Veo 3 / Lyria 3 Proなど新世代モデルも順次提供されています。
+
+## 参考リンク
+
+- [Gemini 公式](https://gemini.google.com)
+- [Models | Gemini API](https://ai.google.dev/gemini-api/docs/models)
+- [Gemini API Pricing](https://ai.google.dev/gemini-api/docs/pricing)
+- [Gemini Deep Research](https://gemini.google/overview/deep-research/)
+- [Gemini Code Assist](https://codeassist.google/)
+- [GitHub: google-gemini/gemini-cli](https://github.com/google-gemini/gemini-cli)
+- [Project Astra（Google DeepMind）](https://deepmind.google/models/project-astra/)
