@@ -27,7 +27,7 @@ const iconSvgs: Record<string, string> = {
   ]}
 >
   <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-    <div class:list={[index !== 0 && "animate-on-scroll"]}>
+    <div class:list={[index === 0 ? "animate-fade-in-up" : "animate-on-scroll"]}>
       <!-- ヘッダー -->
       <div class="flex items-center gap-4 mb-6">
         <div class="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center shrink-0">
