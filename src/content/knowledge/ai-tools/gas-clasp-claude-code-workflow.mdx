@@ -1,0 +1,291 @@
+---
+title: "GAS × clasp × Claude Code でローカル開発体験を最高にする"
+description: "Google Apps Script を script.google.com で書く辛さから卒業し、clasp でローカル化、TypeScript 化、Claude Code との連携で AI 補助開発に持ち込むまでの実践ワークフローを解説します。"
+category: "ai-tools"
+tags: ["claude-code", "google-apps-script", "gas", "clasp", "typescript", "ai-coding", "workflow"]
+sortOrder: 1
+createdAt: 2026-04-13
+author: "田中省伍"
+---
+
+Google Apps Script（以下 GAS）は、スプレッドシートやGmail、Drive を自動化するうえで圧倒的に便利な存在です。一方で、標準のエディタ（script.google.com）で長く書き続けるのは正直つらい。補完は弱いし、Git に乗らないし、レビューもできない。何より AI コーディングの文脈にまったく乗れません。
+
+この記事では、私が普段使いしている「**clasp でローカル化 → TypeScript 化 → Claude Code で AI 補助開発**」というワークフローを、導入手順とハマりどころまで含めて解説します。移行コストは一度きり、得られる生産性の向上は継続的。GAS を日常的に書く人ほど、見返りは大きいはずです。
+
+## script.google.com で書く辛さ
+
+まずは「なぜわざわざローカル化するのか」を棚卸ししておきます。私が Web エディタで消耗していたポイントはだいたい次の通りです。
+
+- **補完が弱い**: 型情報が乏しく、`SpreadsheetApp.getActive...` と打ったときのサジェストが物足りない。どの戻り値にどんなメソッドが生えているか、毎回ドキュメントを開く羽目になる。
+- **差分が取れない**: 変更履歴はあるが、Git のような粒度で diff を追えない。誰が何をなぜ変えたかも曖昧。
+- **テストが書けない**: ユニットテストを回す仕組みがない。動かしてみるまで壊れているかわからない。
+- **Git 管理できない**: バックアップは Google 任せ。ブランチ運用もできないので、破壊的変更が怖い。
+- **レビューできない**: PR ベースのコードレビュー文化に乗せられない。ペアで見るときも画面共有頼み。
+- **スニペット管理が地獄**: 再利用したいコードが散らばり、結局スプレッドシートにメモしてコピペするという原始生活になる。
+
+一言でいうと、**script.google.com で書いている限り、2020年代後半の開発体験にアクセスできない**。ここを越える鍵が clasp です。
+
+## clasp とは
+
+[clasp](https://github.com/google/clasp)（Command Line Apps Script Projects）は、Google 公式の GAS 用 CLI ツールです。GAS プロジェクトをローカルファイルとして扱い、push / pull で script.google.com と同期できます。
+
+主要なコマンドは次のとおり。
+
+| コマンド | 役割 |
+| --- | --- |
+| `clasp login` | Google アカウントで認証する |
+| `clasp clone <scriptId>` | 既存プロジェクトをローカルに取得する |
+| `clasp create` | 新規プロジェクトを作成する |
+| `clasp push` | ローカルの変更をリモートへ反映する |
+| `clasp pull` | リモートの変更をローカルへ取り込む |
+| `clasp deploy` | 新しいバージョンをデプロイする |
+| `clasp run` | ローカルから関数を直接実行する |
+
+要は「GAS プロジェクトを Git リポジトリのように扱えるようにする」ツールです。`clone → 編集 → push` という Git ライクなメンタルモデルで動くので、一度覚えれば迷うことはありません。
+
+## 導入手順
+
+### インストールと認証
+
+Node.js 20 以上が必要です（2026 年時点の要件）。
+
+```bash
+npm install -g @google/clasp
+clasp login
+```
+
+`clasp login` すると ブラウザが立ち上がって OAuth 認証に進みます。認証情報はホームディレクトリの `~/.clasprc.json` に保存されます。
+
+その後、[Apps Script API の設定ページ](https://script.google.com/home/usersettings)で API を有効化しておきます。ここを忘れると後で `User has not enabled the Apps Script API` で詰まります。
+
+### 既存プロジェクトの clone
+
+既存の GAS プロジェクトをローカル化するには、script.google.com の「プロジェクトの設定」から `Script ID` をコピーして次を実行します。
+
+```bash
+mkdir my-gas-project && cd my-gas-project
+clasp clone <scriptId>
+```
+
+新規作成なら次のとおり。
+
+```bash
+clasp create --title "My GAS Project" --type standalone --rootDir ./src
+```
+
+`--type` には `standalone` / `sheets` / `docs` / `slides` / `forms` / `webapp` / `api` などが指定できます。
+
+### `.clasp.json` と `appsscript.json` の役割
+
+- **`.clasp.json`**: プロジェクトローカルの設定ファイル。`scriptId` や `rootDir` を持つ。**認証情報ではないが、`scriptId` を晒したくなければ `.gitignore` に入れる運用もあり**。
+- **`appsscript.json`**: GAS プロジェクトのマニフェスト。タイムゾーン、ランタイム（`V8` 一択）、有効にするサービス、OAuth スコープなどを定義する。こちらはリポジトリに含めてよい。
+
+```json
+{
+  "timeZone": "Asia/Tokyo",
+  "dependencies": {
+    "enabledAdvancedServices": []
+  },
+  "exceptionLogging": "STACKDRIVER",
+  "runtimeVersion": "V8"
+}
+```
+
+## clasp で得られる4つのメリット
+
+### (a) Git 管理
+
+ローカル化すれば当然 Git に載ります。ブランチを切って、PR を出して、CI を回して、main にマージする。普通のソフトウェア開発と同じフローに GAS を乗せられるのは、一度味わうと戻れません。履歴が追えるので「先週動いてたのに誰が壊した？」が 5 秒で判明します。
+
+### (b) IDE 補完
+
+VS Code や Cursor 上で書けば、構造解析と補完が段違いです。`@types/google-apps-script` を入れれば、`SpreadsheetApp` 配下のメソッドに完全な型が効きます。`getRange()` の戻り値が `Range` であり、さらに `.getValues()` すると `any[][]` が返る、みたいな情報が即座に手に入ります。
+
+### (c) TypeScript 対応
+
+型を入れたまま書けるのが大きい。GAS は実行時の型エラーが地味に痛く、「スプレッドシートの値が空欄だと null」「数値に見えて string」といった罠を型で事前に潰せるのは精神衛生上かなり良いです。
+
+### (d) チーム開発・レビュー
+
+PR ベースで GAS コードをレビューできます。`clasp push` は main マージ後の GitHub Actions で自動化すれば、「リポジトリが single source of truth」が徹底されます。**Web エディタで直接編集するルートを封じる**ことが、ドリフトを防ぐコツです。
+
+## TypeScript セットアップ
+
+現行の clasp 3.x は TypeScript の自動トランスパイルをサポートしていません。つまり「clasp に `.ts` を投げれば勝手に `.gs` に変換してくれる」という旧 2.x の挙動は無くなっており、**自分でビルドしてから push する**構成が標準です。
+
+最低限の構成は次のとおり。
+
+```bash
+npm init -y
+npm install --save-dev typescript @types/google-apps-script
+```
+
+`tsconfig.json` はこんな雰囲気です。
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "none",
+    "lib": ["ES2020"],
+    "types": ["google-apps-script"],
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true
+  },
+  "include": ["src/**/*.ts"]
+}
+```
+
+`.clasp.json` 側は `rootDir` をビルド後の `dist` に向けます。
+
+```json
+{
+  "scriptId": "xxxxxxxxxxxxxxxxxxxxxxxxx",
+  "rootDir": "./dist"
+}
+```
+
+ビルドと push を npm scripts にまとめておくと楽です。
+
+```json
+{
+  "scripts": {
+    "build": "tsc",
+    "push": "npm run build && clasp push",
+    "deploy": "npm run build && clasp push && clasp deploy"
+  }
+}
+```
+
+bundler を噛ませたい場合は `esbuild` や `rollup-plugin-gas` を使って 1 ファイルに束ねる構成もあります。ただし GAS はトップレベル関数しか UI からトリガーできないので、**エントリポイントの関数はグローバルに公開される形**にする必要があります。この辺は bundler 設定のハマりどころです。
+
+## Claude Code との連携で何が変わるか
+
+ここからが本題です。ローカル化が済めば、GAS プロジェクトは Claude Code にとって普通の TypeScript リポジトリに見えます。つまり、Claude Code の強みがほぼそのまま適用できる。
+
+### 1. CLAUDE.md に GAS 固有のルールを刻む
+
+プロジェクトルートに `CLAUDE.md` を置いて、GAS 特有の制約を明文化します。これは [ハーネスエンジニアリング](/knowledge/ai-tools/claude-code-introduction/) の基本動作と同じで、AI に毎回同じ注意書きを渡す手間を省く仕組みです。
+
+```markdown
+# プロジェクト規約
+- ランタイムは GAS V8。Node.js の API（fs, path, process）は使用不可
+- 外部 HTTP は UrlFetchApp を使う（axios / fetch は動かない）
+- 非同期は使わない。GAS は同期実行モデル
+- エラーは try/catch で拾い、Logger.log でスタックを残す
+- エントリポイント関数は src/main.ts にまとめる
+- push 前に npm run build を通すこと
+```
+
+これを置いておくだけで、Claude Code が「`await fetch(...)` を書いてきてしまう」事故がほぼ消えます。GAS と Node.js の差分は AI がハマりがちなポイントなので、ここを先回りで教え込むのが効きます。
+
+### 2. スプレッドシート操作の定型コードを自動生成
+
+「シート A の B 列から C 列を読み取り、重複を除いてシート B に書き出して」みたいな雑な依頼で、型付きコードが即座に出てきます。`SpreadsheetApp.getActiveSpreadsheet().getSheetByName(...)` の戻り値が `Sheet | null` であることを踏まえた null チェック付きコードが返ってくるのは、型情報が載っているからこそです。
+
+### 3. 既存スクリプトのリファクタリング・型付け
+
+`.gs` からローカル化した直後のコードは `var` まみれで関数も巨大、というのがよくあるパターンです。Claude Code に「`src/legacy.ts` を関数単位に分割し、型を付けて」と頼むと、TDD 的に小さく分解してくれます。私は毎回 `noImplicitAny` を ON にしてから依頼して、未解決の型を順に潰していくアプローチを取っています。
+
+### 4. テストコード生成
+
+GAS そのものは `SpreadsheetApp` などのグローバルが依存注入できず、厳密なユニットテストが難しい領域です。そこで **ビジネスロジックを純関数に切り出す → その純関数だけを vitest でテストする**、という設計を Claude Code に指示します。
+
+```typescript
+// src/lib/dedupe.ts  ← 純関数。vitest で単体テスト可能
+export const dedupeByKey = <T, K>(rows: T[], key: (row: T) => K): T[] => {
+  const seen = new Set<K>();
+  return rows.filter((row) => {
+    const k = key(row);
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
+
+// src/main.ts  ← GAS の入り口。ここは薄く保つ
+const runDedupe = (): void => {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("source");
+  if (!sheet) throw new Error("source シートが見つかりません");
+  const values = sheet.getDataRange().getValues();
+  const unique = dedupeByKey(values, (row) => row[0]);
+  // ... 書き出し処理
+};
+```
+
+この「**GAS 境界を薄く、ロジックを純関数に**」というパターンを `CLAUDE.md` に書いておくと、以降のコード生成がすべてこの形に揃います。
+
+### 5. エラーハンドリング・ロギング統一
+
+`logger.ts` のような共通ロガーを作り、`Logger.log` を直接呼ばないルールを敷きます。Claude Code に「全関数を logger 経由に書き換え、呼び出し時点でのコンテキスト（関数名・引数サマリ）を残して」と頼むと、一括で揃います。ここも AI 補助が効く典型です。
+
+## 実践ワークフロー
+
+1 日の流れはだいたいこうなります。
+
+```bash
+# 1. リモートの最新を取り込む（他の開発者が触った可能性に備える）
+clasp pull
+
+# 2. 機能ブランチを切る
+git checkout -b feat/dedupe-sheet
+
+# 3. Claude Code を起動して編集
+claude
+
+# 4. ビルドしてローカルで型チェック
+npm run build
+
+# 5. 動作確認のために push
+clasp push
+
+# 6. script.google.com から関数を実行、または clasp run で実行
+clasp run runDedupe
+
+# 7. 問題なければコミット & PR
+git add .
+git commit -m "feat: シート重複除去処理を追加"
+git push origin feat/dedupe-sheet
+
+# 8. PR レビュー → main マージ → GitHub Actions で本番プロジェクトに clasp push
+```
+
+ポイントは **「ローカルが真、リモートは投影先」という運用を崩さないこと**。誰かが Web エディタで直接いじり始めた瞬間、ドリフトが始まって地獄が口を開けます。
+
+## ハマりどころと対策
+
+- **認証失敗 (`invalid_grant`)**: `~/.clasprc.json` を削除して `clasp login` をやり直す。複数アカウントを切り替えたい場合は `clasp login --creds` でサービスアカウント的な運用もできる。
+- **`User has not enabled the Apps Script API`**: [User Settings](https://script.google.com/home/usersettings) で API を ON にする。組織アカウントだと管理者ブロックされているケースがあるので注意。
+- **`push` しても反映されない**: `.claspignore` で除外されている可能性。clasp 2.2.0 以降は `rootDir` 外を自動で無視するので、ディレクトリ構成を見直す。
+- **ローカルとリモートのドリフト**: Web エディタでの直接編集を封じる。どうしても必要なら、作業前に必ず `clasp pull` してからローカルに反映する運用を徹底する。
+- **TypeScript と GAS の非互換**: `import` / `export` は GAS ランタイムに存在しない。モジュール解決は bundler か、ファイル単位の分割のみ使用し、`module: "none"` 相当で書く。
+- **`appsscript.json` の手動編集が必要なケース**: OAuth スコープを明示したいとき、ライブラリ依存を追加したいときなど。Web エディタから触らず、ローカルで編集して push するのが原則。
+
+## 個人的にハマったTips
+
+- **クォートの扱い**: GAS エディタからコピペしたコードに「全角ダブルクォート」が混入していることがある。TypeScript 化の際、lint が落ちて気付く。置換で一括修正する前提で動く。
+- **`Logger.log` vs `console.log`**: V8 ランタイムでは `console.log` が使えるが、出力先は Cloud Logging。`Logger.log` は Apps Script のエグゼキューション画面。どちらに出したいか意識しないと「ログが見当たらない」で時間を溶かす。私はプロジェクトごとにどちらを使うか `CLAUDE.md` で固定しています。
+- **`clasp run` の制約**: 事前にプロジェクトを GCP プロジェクトに紐付け、OAuth スコープを `appsscript.json` で宣言しておかないと動かない。個人開発では「`push` して script.google.com から実行」のほうが結果的に早い場面も多い。
+- **`clasp push --force`**: リモートの差分を容赦なく上書きする。CI から叩くときは必須だが、ローカルで安易に打つとリモートの手作業変更が消える。**GitHub Actions 用のコマンド**と割り切る。
+
+## まとめ
+
+clasp と Claude Code を組み合わせることで、GAS は「片手間で書く雑なスクリプト」から「ちゃんと型が効く・テストできる・レビューできる」環境に一気に格上げできます。セットアップ当日はいろいろ詰まるかもしれませんが、**一度整えた設定とワークフローは別プロジェクトにも流用できる**ので、投資対効果は極めて高い領域です。
+
+- 補完と型が効く
+- Git に乗る
+- AI がプロジェクト文脈を理解した状態で編集に参加できる
+- チームで PR ベースのレビューができる
+
+これだけ揃えば、GAS は普通に「モダンな TypeScript プロジェクト」として扱えます。社内ツールやスプレッドシート自動化を書き続けるなら、今から clasp 化する価値は十分にあります。
+
+## 参考リンク
+
+- [google/clasp (GitHub)](https://github.com/google/clasp)
+- [Use the command-line interface with clasp | Google for Developers](https://developers.google.com/apps-script/guides/clasp)
+- [TypeScript | Apps Script](https://developers.google.com/apps-script/guides/typescript)
+- [Claude Code Docs](https://docs.claude.com/en/docs/claude-code/overview)
+- [@types/google-apps-script](https://www.npmjs.com/package/@types/google-apps-script)
