@@ -1,0 +1,100 @@
+---
+import type { GetStaticPaths } from "astro";
+import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
+import ArticleCard from "@/components/knowledge/ArticleCard.astro";
+import { categories, subcategories } from "@/data/knowledge";
+import {
+  getArticlesByCategoryAndSubcategory,
+  toUnifiedFromInternal,
+} from "@/utils/knowledge";
+import type { CategoryMeta, SubcategoryMeta } from "@/types";
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  const paths: Array<{
+    params: { category: string; subcategory: string };
+    props: { category: CategoryMeta; subcategory: SubcategoryMeta };
+  }> = [];
+  for (const cat of categories) {
+    const subs = subcategories[cat.slug] ?? [];
+    for (const sub of subs) {
+      paths.push({
+        params: { category: cat.slug, subcategory: sub.slug },
+        props: { category: cat, subcategory: sub },
+      });
+    }
+  }
+  return paths;
+};
+
+interface Props {
+  category: CategoryMeta;
+  subcategory: SubcategoryMeta;
+}
+
+const { category, subcategory } = Astro.props;
+const allEntries = await getCollection("knowledge");
+const entries = getArticlesByCategoryAndSubcategory(
+  allEntries,
+  category.slug,
+  subcategory.slug,
+);
+const articles = entries.map(toUnifiedFromInternal);
+---
+
+<BaseLayout
+  title={`${subcategory.label} | ${category.label} | Knowledge Base | shogoworks`}
+  description={subcategory.description}
+>
+  <section class="py-20 px-4">
+    <div class="max-w-5xl mx-auto">
+      <Breadcrumb
+        items={[
+          { label: "Knowledge Base", href: "/knowledge" },
+          { label: category.label, href: `/knowledge/${category.slug}` },
+          { label: subcategory.label },
+        ]}
+      />
+
+      <SectionHeader
+        title={subcategory.label}
+        subtitle={subcategory.description}
+      />
+
+      {
+        articles.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {articles.map((article, i) => (
+              <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                <ArticleCard
+                  title={article.title}
+                  description={article.description}
+                  categoryLabel={subcategory.label}
+                  tags={article.tags}
+                  createdAt={article.createdAt}
+                  href={article.href}
+                  isExternal={article.isExternal}
+                  platform={article.platform}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-16 animate-on-scroll">
+            <p class="text-muted-foreground text-lg">
+              このサブカテゴリにはまだ記事がありません。
+            </p>
+            <a
+              href={`/knowledge/${category.slug}`}
+              class="inline-block mt-4 text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              ← {category.label} に戻る
+            </a>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

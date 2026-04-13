@@ -20,6 +20,8 @@ interface Props {
   title: string;
   description: string;
   category: KnowledgeCategory;
+  subcategorySlug?: string;
+  subcategoryLabel?: string;
   tags: string[];
   createdAt: Date;
   updatedAt?: Date;
@@ -34,6 +36,8 @@ const {
   title,
   description,
   category,
+  subcategorySlug,
+  subcategoryLabel,
   tags,
   createdAt,
   updatedAt,
@@ -46,6 +50,25 @@ const {
 
 const categoryMeta = categories.find((c) => c.slug === category);
 const categoryLabel = categoryMeta?.label ?? category;
+
+const articleBasePath = subcategorySlug
+  ? `/knowledge/${category}/${subcategorySlug}`
+  : `/knowledge/${category}`;
+const backLinkLabel = subcategoryLabel ?? categoryLabel;
+
+const breadcrumbItems = [
+  { label: "Knowledge Base", href: "/knowledge" },
+  { label: categoryLabel, href: `/knowledge/${category}` },
+  ...(subcategorySlug && subcategoryLabel
+    ? [
+        {
+          label: subcategoryLabel,
+          href: `/knowledge/${category}/${subcategorySlug}`,
+        },
+      ]
+    : []),
+  { label: title },
+];
 
 const formattedCreatedAt = createdAt.toLocaleDateString("ja-JP", {
   year: "numeric",
@@ -79,13 +102,7 @@ const jsonLd = JSON.stringify({
   </Fragment>
   <article class="py-20 px-4">
     <div class="max-w-6xl mx-auto">
-      <Breadcrumb
-        items={[
-          { label: "Knowledge Base", href: "/knowledge" },
-          { label: categoryLabel, href: `/knowledge/${category}` },
-          { label: title },
-        ]}
-      />
+      <Breadcrumb items={breadcrumbItems} />
 
       <div class="lg:flex lg:gap-10 lg:items-start">
         <aside
@@ -96,6 +113,8 @@ const jsonLd = JSON.stringify({
             currentSlug={currentSlug}
             categoryLabel={categoryLabel}
             categorySlug={category}
+            subcategorySlug={subcategorySlug}
+            subcategoryLabel={subcategoryLabel}
           />
         </aside>
 
@@ -146,7 +165,7 @@ const jsonLd = JSON.stringify({
             {
               previous ? (
                 <a
-                  href={`/knowledge/${category}/${previous.slug}`}
+                  href={`${articleBasePath}/${previous.slug}`}
                   class="group block p-4 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
                 >
                   <span class="block text-xs text-muted-foreground mb-1">
@@ -163,7 +182,7 @@ const jsonLd = JSON.stringify({
             {
               next ? (
                 <a
-                  href={`/knowledge/${category}/${next.slug}`}
+                  href={`${articleBasePath}/${next.slug}`}
                   class="group block p-4 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors text-right sm:text-right"
                 >
                   <span class="block text-xs text-muted-foreground mb-1">
@@ -181,10 +200,10 @@ const jsonLd = JSON.stringify({
 
           <footer class="mt-8">
             <a
-              href={`/knowledge/${category}`}
+              href={articleBasePath}
               class="text-teal-600 hover:text-teal-700 transition-colors inline-flex items-center gap-1"
             >
-              ← {categoryLabel} の記事一覧に戻る
+              ← {backLinkLabel} の記事一覧に戻る
             </a>
           </footer>
         </div>

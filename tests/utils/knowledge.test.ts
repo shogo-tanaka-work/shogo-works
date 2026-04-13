@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   getPublishedArticles,
   getArticlesByCategory,
+  getArticlesByCategoryAndSubcategory,
+  getSubcategories,
   getAdjacentArticles,
   getAllTags,
   getArticlesByTag,
@@ -21,6 +23,7 @@ interface MockEntry {
     title: string;
     description: string;
     category: string;
+    subcategory?: string;
     tags: string[];
     sortOrder: number;
     createdAt: Date;
@@ -402,5 +405,180 @@ describe("getUnifiedCategoryCount", () => {
     expect(counts["web-development"]).toBe(2); // 外部1 + 内部1
     expect(counts["devops"]).toBe(0);
     expect(counts["career"]).toBe(0);
+  });
+});
+
+// --- サブカテゴリ機能のテスト ---
+
+const mockEntriesWithSubcategory: MockEntry[] = [
+  {
+    id: "ai-tools/claude-code-intro",
+    data: {
+      title: "Claude Code入門",
+      description: "",
+      category: "ai-tools",
+      tags: ["claude"],
+      sortOrder: 0,
+      createdAt: new Date("2026-04-01"),
+      draft: false,
+      author: "田中省伍",
+    },
+  },
+  {
+    id: "ai-tools/agents/claude-code",
+    data: {
+      title: "Claude Code詳細",
+      description: "",
+      category: "ai-tools",
+      subcategory: "agents",
+      tags: ["claude"],
+      sortOrder: 0,
+      createdAt: new Date("2026-04-10"),
+      draft: false,
+      author: "田中省伍",
+    },
+  },
+  {
+    id: "ai-tools/agents/chatgpt",
+    data: {
+      title: "ChatGPT詳細",
+      description: "",
+      category: "ai-tools",
+      subcategory: "agents",
+      tags: ["chatgpt"],
+      sortOrder: 1,
+      createdAt: new Date("2026-04-11"),
+      draft: false,
+      author: "田中省伍",
+    },
+  },
+  {
+    id: "ai-tools/agents/gemini",
+    data: {
+      title: "Gemini詳細",
+      description: "",
+      category: "ai-tools",
+      subcategory: "agents",
+      tags: ["gemini"],
+      sortOrder: 2,
+      createdAt: new Date("2026-04-12"),
+      draft: true,
+      author: "田中省伍",
+    },
+  },
+  {
+    id: "web-development/astro-basics",
+    data: {
+      title: "Astro基礎",
+      description: "",
+      category: "web-development",
+      tags: ["astro"],
+      sortOrder: 0,
+      createdAt: new Date("2026-04-02"),
+      draft: false,
+      author: "田中省伍",
+    },
+  },
+];
+
+describe("getArticlesByCategoryAndSubcategory", () => {
+  it("正常系: subcategory省略時、カテゴリ直下（subcategory未指定）の記事のみ返すこと", () => {
+    const result = getArticlesByCategoryAndSubcategory(
+      mockEntriesWithSubcategory,
+      "ai-tools",
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("ai-tools/claude-code-intro");
+  });
+
+  it("正常系: subcategory指定時、そのサブカテゴリの公開記事のみ返すこと", () => {
+    const result = getArticlesByCategoryAndSubcategory(
+      mockEntriesWithSubcategory,
+      "ai-tools",
+      "agents",
+    );
+    expect(result).toHaveLength(2);
+    expect(result.every((e) => e.data.subcategory === "agents")).toBe(true);
+    expect(result.every((e) => !e.data.draft)).toBe(true);
+  });
+
+  it("正常系: sortOrder昇順でソートされること", () => {
+    const result = getArticlesByCategoryAndSubcategory(
+      mockEntriesWithSubcategory,
+      "ai-tools",
+      "agents",
+    );
+    expect(result[0].id).toBe("ai-tools/agents/claude-code");
+    expect(result[1].id).toBe("ai-tools/agents/chatgpt");
+  });
+
+  it("異常系: 該当記事がない場合、空配列を返すこと", () => {
+    const result = getArticlesByCategoryAndSubcategory(
+      mockEntriesWithSubcategory,
+      "ai-tools",
+      "non-existent",
+    );
+    expect(result).toEqual([]);
+  });
+
+  it("異常系: 他カテゴリの記事が混ざらないこと", () => {
+    const result = getArticlesByCategoryAndSubcategory(
+      mockEntriesWithSubcategory,
+      "web-development",
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("web-development/astro-basics");
+  });
+});
+
+describe("getSubcategories", () => {
+  it("正常系: ai-tools のとき、agents メタ情報を返すこと", () => {
+    const result = getSubcategories("ai-tools");
+    expect(result.length).toBeGreaterThanOrEqual(1);
+    const agents = result.find((s) => s.slug === "agents");
+    expect(agents).toBeDefined();
+    expect(agents?.label).toBe("AIエージェント");
+  });
+
+  it("正常系: サブカテゴリ未登録カテゴリのとき、空配列を返すこと", () => {
+    const result = getSubcategories("career");
+    expect(result).toEqual([]);
+  });
+});
+
+describe("getAdjacentArticles with subcategory", () => {
+  it("正常系: subcategory指定時、同じサブカテゴリ内で前後を返すこと", () => {
+    const result = getAdjacentArticles(
+      mockEntriesWithSubcategory,
+      "ai-tools/agents/chatgpt",
+      "ai-tools",
+      "agents",
+    );
+    expect(result.previous?.id).toBe("ai-tools/agents/claude-code");
+    expect(result.next).toBeNull();
+  });
+
+  it("正常系: subcategory省略時、カテゴリ直下記事のみで前後を返すこと", () => {
+    const result = getAdjacentArticles(
+      mockEntriesWithSubcategory,
+      "ai-tools/claude-code-intro",
+      "ai-tools",
+    );
+    expect(result.previous).toBeNull();
+    expect(result.next).toBeNull();
+  });
+});
+
+describe("toUnifiedFromInternal with subcategory", () => {
+  it("正常系: subcategoryありの場合、3階層hrefを生成すること", () => {
+    const result = toUnifiedFromInternal(mockEntriesWithSubcategory[1]);
+    expect(result.href).toBe("/knowledge/ai-tools/agents/claude-code");
+    expect(result.subcategory).toBe("agents");
+  });
+
+  it("正常系: subcategoryなしの場合、2階層hrefを生成すること", () => {
+    const result = toUnifiedFromInternal(mockEntriesWithSubcategory[0]);
+    expect(result.href).toBe("/knowledge/ai-tools/claude-code-intro");
+    expect(result.subcategory).toBeUndefined();
   });
 });

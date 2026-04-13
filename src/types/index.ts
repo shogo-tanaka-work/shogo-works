@@ -101,6 +101,12 @@ export interface CategoryMeta {
   icon: string;
 }
 
+export interface SubcategoryMeta {
+  slug: string;
+  label: string;
+  description: string;
+}
+
 export type ArticlePlatform = "zenn" | "qiita" | "note";
 
 export interface ExternalArticle {

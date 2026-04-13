@@ -15,6 +15,7 @@ const knowledge = defineCollection({
       "context-engineering",
       "harness-engineering",
     ]),
+    subcategory: z.string().optional(),
     tags: z.array(z.string()).default([]),
     sortOrder: z.number().int().default(0),
     createdAt: z.coerce.date(),

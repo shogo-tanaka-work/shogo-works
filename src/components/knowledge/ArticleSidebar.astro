@@ -11,17 +11,34 @@ interface Props {
   currentSlug: string;
   categoryLabel: string;
   categorySlug: KnowledgeCategory;
+  subcategorySlug?: string;
+  subcategoryLabel?: string;
 }
 
-const { articles, currentSlug, categoryLabel, categorySlug } = Astro.props;
+const {
+  articles,
+  currentSlug,
+  categoryLabel,
+  categorySlug,
+  subcategorySlug,
+  subcategoryLabel,
+} = Astro.props;
+
+const headingLabel = subcategoryLabel ?? categoryLabel;
+const headingHref = subcategorySlug
+  ? `/knowledge/${categorySlug}/${subcategorySlug}`
+  : `/knowledge/${categorySlug}`;
+const articleBasePath = subcategorySlug
+  ? `/knowledge/${categorySlug}/${subcategorySlug}`
+  : `/knowledge/${categorySlug}`;
 ---
 
-<nav class="text-sm" aria-label={`${categoryLabel} の記事一覧`}>
+<nav class="text-sm" aria-label={`${headingLabel} の記事一覧`}>
   <a
-    href={`/knowledge/${categorySlug}`}
+    href={headingHref}
     class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-teal-600 transition-colors mb-3"
   >
-    {categoryLabel}
+    {headingLabel}
   </a>
   <ol class="space-y-1 border-l border-border">
     {
@@ -30,7 +47,7 @@ const { articles, currentSlug, categoryLabel, categorySlug } = Astro.props;
         return (
           <li>
             <a
-              href={`/knowledge/${categorySlug}/${article.slug}`}
+              href={`${articleBasePath}/${article.slug}`}
               class:list={[
                 "block px-3 py-1.5 -ml-px border-l transition-colors leading-snug",
                 isCurrent
