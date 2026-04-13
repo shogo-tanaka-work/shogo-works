@@ -1,0 +1,49 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
+import { getAllTags } from "@/utils/knowledge";
+
+const allEntries = await getCollection("knowledge");
+const tags = getAllTags(allEntries);
+---
+
+<BaseLayout
+  title="タグ一覧 | Knowledge Base | shogoworks"
+  description="ナレッジ記事のタグから記事を探せます。"
+>
+  <section class="py-20 px-4">
+    <div class="max-w-5xl mx-auto">
+      <Breadcrumb
+        items={[
+          { label: "Knowledge Base", href: "/knowledge" },
+          { label: "タグ" },
+        ]}
+      />
+
+      <SectionHeader
+        title="タグ一覧"
+        subtitle={`${tags.length} 個のタグから記事を探せます`}
+      />
+
+      {
+        tags.length > 0 ? (
+          <div class="flex flex-wrap gap-2">
+            {tags.map(({ tag, count }) => (
+              <a
+                href={`/knowledge/tags/${encodeURIComponent(tag)}`}
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-white hover:border-teal-500/60 hover:bg-teal-50/40 hover:text-teal-700 transition-colors text-sm"
+              >
+                <span class="font-medium text-foreground">#{tag}</span>
+                <span class="text-xs text-muted-foreground">{count}</span>
+              </a>
+            ))}
+          </div>
+        ) : (
+          <p class="text-muted-foreground">タグはまだありません。</p>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

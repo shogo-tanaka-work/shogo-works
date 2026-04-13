@@ -135,6 +135,31 @@ export function getArticlesByCategory<T extends KnowledgeEntry>(
   );
 }
 
+/** 全タグと出現回数を取得する（公開記事のみ、件数降順→タグ名昇順） */
+export function getAllTags<T extends KnowledgeEntry>(
+  entries: T[],
+): Array<{ tag: string; count: number }> {
+  const counts = new Map<string, number>();
+  for (const entry of getPublishedArticles(entries)) {
+    for (const tag of entry.data.tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return Array.from(counts.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+}
+
+/** 指定タグを含む公開記事を返す */
+export function getArticlesByTag<T extends KnowledgeEntry>(
+  entries: T[],
+  tag: string,
+): T[] {
+  return getPublishedArticles(entries).filter((entry) =>
+    entry.data.tags.includes(tag),
+  );
+}
+
 /** 同カテゴリ内で前後の記事を返す（sortOrder順） */
 export function getAdjacentArticles<T extends KnowledgeEntry>(
   entries: T[],

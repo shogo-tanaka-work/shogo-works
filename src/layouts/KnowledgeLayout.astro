@@ -122,7 +122,13 @@ const jsonLd = JSON.stringify({
               tags.length > 0 && (
                 <div class="flex gap-1.5 flex-wrap mt-4">
                   {tags.map((tag) => (
-                    <Badge variant="default">{tag}</Badge>
+                    <a
+                      href={`/knowledge/tags/${encodeURIComponent(tag)}`}
+                      class="hover:opacity-80 transition-opacity"
+                      aria-label={`タグ ${tag} の記事一覧へ`}
+                    >
+                      <Badge variant="default">#{tag}</Badge>
+                    </a>
                   ))}
                 </div>
               )

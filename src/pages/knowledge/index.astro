@@ -28,7 +28,7 @@ function getCategoryLabel(slug: string): string {
         subtitle="AI活用・Web開発・DevOpsなど、実践的な技術ナレッジを発信しています"
       />
 
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-16">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         {
           categories.map((category, i) => (
             <div class={`animate-on-scroll stagger-${i + 1}`}>
@@ -39,6 +39,15 @@ function getCategoryLabel(slug: string): string {
             </div>
           ))
         }
+      </div>
+
+      <div class="mb-16 flex justify-end">
+        <a
+          href="/knowledge/tags"
+          class="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 transition-colors"
+        >
+          タグから記事を探す →
+        </a>
       </div>
 
       {
