@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface NavItem {
   label: string;
@@ -12,6 +12,20 @@ interface Props {
 
 export default function MobileMenu({ navItems, currentPath }: Props) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const body = document.body;
+    const previousOverflow = body.style.overflow;
+    if (open) {
+      body.style.overflow = "hidden";
+    } else {
+      body.style.overflow = previousOverflow;
+    }
+    return () => {
+      body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
   return (
     <div className="md:hidden">
@@ -54,7 +68,7 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
           />
 
           {/* Menu panel */}
-          <div className="fixed top-0 right-0 bottom-0 w-72 bg-white/95 backdrop-blur-xl border-l border-gray-200 z-50 shadow-xl">
+          <div className="fixed top-0 right-0 bottom-0 w-72 bg-white/95 backdrop-blur-xl border-l border-gray-200 z-50 shadow-xl overflow-y-auto overscroll-contain">
             <div className="flex justify-end p-4">
               <button
                 onClick={() => setOpen(false)}
