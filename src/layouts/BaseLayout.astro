@@ -39,7 +39,7 @@ const { title, description, ogType } = Astro.props;
             }
           });
         },
-        { threshold: 0.1, rootMargin: "-50px" }
+        { threshold: 0, rootMargin: "0px 0px -10% 0px" }
       );
 
       document.querySelectorAll(".animate-on-scroll").forEach((el) => {
