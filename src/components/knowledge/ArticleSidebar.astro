@@ -1,0 +1,49 @@
+---
+import type { KnowledgeCategory } from "@/types";
+
+interface SidebarArticle {
+  slug: string;
+  title: string;
+}
+
+interface Props {
+  articles: SidebarArticle[];
+  currentSlug: string;
+  categoryLabel: string;
+  categorySlug: KnowledgeCategory;
+}
+
+const { articles, currentSlug, categoryLabel, categorySlug } = Astro.props;
+---
+
+<nav class="text-sm" aria-label={`${categoryLabel} の記事一覧`}>
+  <a
+    href={`/knowledge/${categorySlug}`}
+    class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-teal-600 transition-colors mb-3"
+  >
+    {categoryLabel}
+  </a>
+  <ol class="space-y-1 border-l border-border">
+    {
+      articles.map((article) => {
+        const isCurrent = article.slug === currentSlug;
+        return (
+          <li>
+            <a
+              href={`/knowledge/${categorySlug}/${article.slug}`}
+              class:list={[
+                "block px-3 py-1.5 -ml-px border-l transition-colors leading-snug",
+                isCurrent
+                  ? "border-teal-500 text-teal-600 font-semibold bg-teal-50/50"
+                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40",
+              ]}
+              aria-current={isCurrent ? "page" : undefined}
+            >
+              {article.title}
+            </a>
+          </li>
+        );
+      })
+    }
+  </ol>
+</nav>

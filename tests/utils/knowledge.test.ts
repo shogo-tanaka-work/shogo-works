@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getPublishedArticles,
   getArticlesByCategory,
+  getAdjacentArticles,
   getCategoryArticleCount,
   getRelatedArticles,
   mergeArticles,
@@ -178,6 +179,48 @@ describe("getArticlesByCategory", () => {
   it("該当カテゴリの記事がない場合、空配列を返すこと", () => {
     const result = getArticlesByCategory(mockEntries, "career");
     expect(result).toEqual([]);
+  });
+});
+
+describe("getAdjacentArticles", () => {
+  it("中間の記事の前後を返すこと", () => {
+    const result = getAdjacentArticles(
+      mockEntries,
+      "ai-tools/cursor-tips",
+      "ai-tools",
+    );
+    expect(result.previous?.id).toBe("ai-tools/claude-code");
+    expect(result.next).toBeNull();
+  });
+
+  it("先頭記事はpreviousがnullになること", () => {
+    const result = getAdjacentArticles(
+      mockEntries,
+      "ai-tools/claude-code",
+      "ai-tools",
+    );
+    expect(result.previous).toBeNull();
+    expect(result.next?.id).toBe("ai-tools/cursor-tips");
+  });
+
+  it("該当記事がない場合、両方nullになること", () => {
+    const result = getAdjacentArticles(
+      mockEntries,
+      "non-existent",
+      "ai-tools",
+    );
+    expect(result.previous).toBeNull();
+    expect(result.next).toBeNull();
+  });
+
+  it("draft記事は対象から除外されること", () => {
+    const result = getAdjacentArticles(
+      mockEntries,
+      "ai-tools/cursor-tips",
+      "ai-tools",
+    );
+    // draft-articleは含まれないのでnextはnull
+    expect(result.next).toBeNull();
   });
 });
 

@@ -3,7 +3,11 @@ import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
 import { getCollection, render } from "astro:content";
 import KnowledgeLayout from "@/layouts/KnowledgeLayout.astro";
 import { categories } from "@/data/knowledge";
-import { getPublishedArticles } from "@/utils/knowledge";
+import {
+  getPublishedArticles,
+  getArticlesByCategory,
+  getAdjacentArticles,
+} from "@/utils/knowledge";
 import type { KnowledgeCategory } from "@/types";
 
 export const getStaticPaths = (async () => {
@@ -16,19 +20,47 @@ export const getStaticPaths = (async () => {
     .filter((entry) => validCategories.has(entry.data.category as KnowledgeCategory))
     .map((entry) => {
       const slug = entry.id.split("/").pop() as string;
+      const category = entry.data.category as KnowledgeCategory;
+      const sameCategoryArticles = getArticlesByCategory(allEntries, category);
+      const sidebarArticles = sameCategoryArticles.map((e) => ({
+        slug: e.id.split("/").pop() as string,
+        title: e.data.title,
+      }));
+      const { previous, next } = getAdjacentArticles(
+        allEntries,
+        entry.id,
+        category,
+      );
       return {
         params: {
-          category: entry.data.category,
+          category,
           slug,
         },
-        props: { entry },
+        props: {
+          entry,
+          currentSlug: slug,
+          sidebarArticles,
+          previous: previous
+            ? {
+                slug: previous.id.split("/").pop() as string,
+                title: previous.data.title,
+              }
+            : null,
+          next: next
+            ? {
+                slug: next.id.split("/").pop() as string,
+                title: next.data.title,
+              }
+            : null,
+        },
       };
     });
 }) satisfies GetStaticPaths;
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
-const { entry } = Astro.props as Props;
+const { entry, currentSlug, sidebarArticles, previous, next } =
+  Astro.props as Props;
 const { Content } = await render(entry);
 ---
 
@@ -40,6 +72,10 @@ const { Content } = await render(entry);
   createdAt={entry.data.createdAt}
   updatedAt={entry.data.updatedAt}
   author={entry.data.author}
+  currentSlug={currentSlug}
+  sidebarArticles={sidebarArticles}
+  previous={previous}
+  next={next}
 >
   <Content />
 </KnowledgeLayout>
