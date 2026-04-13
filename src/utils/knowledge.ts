@@ -135,6 +135,21 @@ export function getArticlesByCategory<T extends KnowledgeEntry>(
   );
 }
 
+/** 同カテゴリ内で前後の記事を返す（sortOrder順） */
+export function getAdjacentArticles<T extends KnowledgeEntry>(
+  entries: T[],
+  currentId: string,
+  category: KnowledgeCategory,
+): { previous: T | null; next: T | null } {
+  const list = getArticlesByCategory(entries, category);
+  const idx = list.findIndex((e) => e.id === currentId);
+  if (idx === -1) return { previous: null, next: null };
+  return {
+    previous: idx > 0 ? list[idx - 1] : null,
+    next: idx < list.length - 1 ? list[idx + 1] : null,
+  };
+}
+
 export function getCategoryArticleCount<T extends KnowledgeEntry>(
   entries: T[],
 ): Record<KnowledgeCategory, number> {

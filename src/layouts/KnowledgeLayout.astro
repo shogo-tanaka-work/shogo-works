@@ -2,8 +2,19 @@
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import Badge from "@/components/ui/Badge.astro";
+import ArticleSidebar from "@/components/knowledge/ArticleSidebar.astro";
 import { categories } from "@/data/knowledge";
 import type { KnowledgeCategory } from "@/types";
+
+interface SidebarArticle {
+  slug: string;
+  title: string;
+}
+
+interface AdjacentArticle {
+  slug: string;
+  title: string;
+}
 
 interface Props {
   title: string;
@@ -13,10 +24,25 @@ interface Props {
   createdAt: Date;
   updatedAt?: Date;
   author: string;
+  currentSlug: string;
+  sidebarArticles: SidebarArticle[];
+  previous: AdjacentArticle | null;
+  next: AdjacentArticle | null;
 }
 
-const { title, description, category, tags, createdAt, updatedAt, author } =
-  Astro.props;
+const {
+  title,
+  description,
+  category,
+  tags,
+  createdAt,
+  updatedAt,
+  author,
+  currentSlug,
+  sidebarArticles,
+  previous,
+  next,
+} = Astro.props;
 
 const categoryMeta = categories.find((c) => c.slug === category);
 const categoryLabel = categoryMeta?.label ?? category;
@@ -52,7 +78,7 @@ const jsonLd = JSON.stringify({
     <script type="application/ld+json" set:html={jsonLd} />
   </Fragment>
   <article class="py-20 px-4">
-    <div class="max-w-3xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <Breadcrumb
         items={[
           { label: "Knowledge Base", href: "/knowledge" },
@@ -61,47 +87,102 @@ const jsonLd = JSON.stringify({
         ]}
       />
 
-      <header class="mb-10 animate-on-scroll">
-        <div class="flex items-center gap-2 flex-wrap mb-4">
-          <Badge variant="teal">{categoryLabel}</Badge>
-          <span class="text-sm text-muted-foreground">
-            {formattedCreatedAt}
-          </span>
-          {
-            formattedUpdatedAt && formattedUpdatedAt !== formattedCreatedAt && (
-              <span class="text-sm text-muted-foreground">
-                (更新: {formattedUpdatedAt})
-              </span>
-            )
-          }
-        </div>
-        <h1 class="text-3xl md:text-4xl font-bold text-foreground mb-4">
-          {title}
-        </h1>
-        <p class="text-muted-foreground text-lg">{description}</p>
-        {
-          tags.length > 0 && (
-            <div class="flex gap-1.5 flex-wrap mt-4">
-              {tags.map((tag) => (
-                <Badge variant="default">{tag}</Badge>
-              ))}
-            </div>
-          )
-        }
-      </header>
-
-      <div class="knowledge-prose">
-        <slot />
-      </div>
-
-      <footer class="mt-16 pt-8 border-t border-border">
-        <a
-          href={`/knowledge/${category}`}
-          class="text-teal-600 hover:text-teal-700 transition-colors inline-flex items-center gap-1"
+      <div class="lg:flex lg:gap-10 lg:items-start">
+        <aside
+          class="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
         >
-          ← {categoryLabel} の記事一覧に戻る
-        </a>
-      </footer>
+          <ArticleSidebar
+            articles={sidebarArticles}
+            currentSlug={currentSlug}
+            categoryLabel={categoryLabel}
+            categorySlug={category}
+          />
+        </aside>
+
+        <div class="flex-1 min-w-0 max-w-3xl">
+          <header class="mb-10">
+            <div class="flex items-center gap-2 flex-wrap mb-4">
+              <Badge variant="teal">{categoryLabel}</Badge>
+              <span class="text-sm text-muted-foreground">
+                {formattedCreatedAt}
+              </span>
+              {
+                formattedUpdatedAt && formattedUpdatedAt !== formattedCreatedAt && (
+                  <span class="text-sm text-muted-foreground">
+                    (更新: {formattedUpdatedAt})
+                  </span>
+                )
+              }
+            </div>
+            <h1 class="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              {title}
+            </h1>
+            <p class="text-muted-foreground text-lg">{description}</p>
+            {
+              tags.length > 0 && (
+                <div class="flex gap-1.5 flex-wrap mt-4">
+                  {tags.map((tag) => (
+                    <Badge variant="default">{tag}</Badge>
+                  ))}
+                </div>
+              )
+            }
+          </header>
+
+          <div class="knowledge-prose">
+            <slot />
+          </div>
+
+          <nav
+            class="mt-16 pt-8 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-4"
+            aria-label="記事ナビゲーション"
+          >
+            {
+              previous ? (
+                <a
+                  href={`/knowledge/${category}/${previous.slug}`}
+                  class="group block p-4 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
+                >
+                  <span class="block text-xs text-muted-foreground mb-1">
+                    ← 前の記事
+                  </span>
+                  <span class="block font-semibold text-foreground group-hover:text-teal-600 transition-colors line-clamp-2">
+                    {previous.title}
+                  </span>
+                </a>
+              ) : (
+                <div />
+              )
+            }
+            {
+              next ? (
+                <a
+                  href={`/knowledge/${category}/${next.slug}`}
+                  class="group block p-4 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors text-right sm:text-right"
+                >
+                  <span class="block text-xs text-muted-foreground mb-1">
+                    次の記事 →
+                  </span>
+                  <span class="block font-semibold text-foreground group-hover:text-teal-600 transition-colors line-clamp-2">
+                    {next.title}
+                  </span>
+                </a>
+              ) : (
+                <div />
+              )
+            }
+          </nav>
+
+          <footer class="mt-8">
+            <a
+              href={`/knowledge/${category}`}
+              class="text-teal-600 hover:text-teal-700 transition-colors inline-flex items-center gap-1"
+            >
+              ← {categoryLabel} の記事一覧に戻る
+            </a>
+          </footer>
+        </div>
+      </div>
     </div>
   </article>
 </BaseLayout>
