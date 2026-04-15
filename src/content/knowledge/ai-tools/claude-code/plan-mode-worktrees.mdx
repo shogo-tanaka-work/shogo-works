@@ -1,0 +1,267 @@
+---
+title: "Plan Mode & Worktrees：安全な計画・実行の分離とリスクゼロの実験環境"
+description: "Claude Code の Plan Mode と Worktrees を解説。読み取り専用での計画立案、--worktreeフラグによる独立ブランチの作成、.worktreeinclude、サブエージェントのisolation設定まで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Plan Mode", "Worktrees", "安全な実行", "ブランチ管理", "実験的実装"]
+sortOrder: 8
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Claude Code には「計画を立ててから実行する」ための 2 つの機能があります。
+
+- **Plan Mode**: Claude を読み取り専用に制限し、実装前に計画を立てて承認を求めるモード
+- **Worktrees**: 独立した Git Worktree で作業することで、メインブランチに一切影響なく実験できる機能
+
+この 2 つを組み合わせると「Claude が計画を立て → 人が承認 → 隔離された環境で実行」という安全なワークフローを実現できます。
+
+---
+
+## Plan Mode
+
+### 概要
+
+Plan Mode は Claude Code を **読み取り専用操作のみに制限するモード**です。このモードで Claude は：
+- ✅ ファイルの読み取り（Read / Grep / Glob）はできる
+- ✅ 実装計画の立案と説明はできる
+- ❌ ファイルの変更（Edit / Write）はできない
+- ❌ コマンド実行（Bash）はできない
+
+大きな変更や不可逆な操作（DB マイグレーション・デプロイ・大規模リファクタリングなど）の前に「何をするか」を確認してから実行できます。
+
+---
+
+### Plan Mode の有効化
+
+**キーボードショートカット（セッション中）：**
+```
+Shift+Tab を繰り返し押す
+Normal Mode → Auto-Accept Mode → Plan Mode → Normal Mode（ループ）
+```
+
+**起動時から Plan Mode で開始：**
+```bash
+claude --permission-mode plan
+```
+
+**デフォルトを Plan Mode に設定：**
+```json
+// .claude/settings.json
+{
+  "permissions": {
+    "defaultMode": "plan"
+  }
+}
+```
+
+**計画のエディタ編集（Plan Mode 中）：**
+```
+Ctrl+G でプランを外部エディタで開いて編集できる
+```
+
+---
+
+### Opus Plan Mode
+
+`opusplan` エイリアスを使うと、計画段階は Claude Opus 4.6（高精度）、実行段階は Claude Sonnet 4.6（高速・低コスト）に自動切り替えできます。
+
+```bash
+# ~/.zshrc や ~/.bashrc に追加
+alias opusplan='claude --model claude-opus-4-6 --permission-mode plan'
+```
+
+使い方：
+1. `opusplan` でセッション開始（Opus が計画を立案）
+2. 計画を確認して承認
+3. Plan Mode を解除（`Shift+Tab`）すると実行フェーズへ（モデルはそのまま）
+
+---
+
+### 実践的な使い方
+
+```
+あなた（Plan Mode で）:
+「users テーブルに phone_number カラムを追加するマイグレーションを作成して」
+
+Claude（計画立案）:
+「以下の手順で実装します：
+1. prisma/schema.prisma の User モデルに phoneNumber フィールドを追加
+2. `npx prisma migrate dev --name add-phone-to-user` でマイグレーション生成
+3. バリデーションスキーマ（zod）を更新
+4. ユーザー更新 API エンドポイントに phoneNumber を追加
+5. 既存テストを更新
+
+既存のユーザーデータへの影響：phoneNumber は optional のため既存レコードに影響なし。
+実行してもよいですか？」
+
+あなた: 「OK、実行して」（Plan Mode を解除）
+
+→ Claude が実装を実行
+```
+
+---
+
+## Worktrees
+
+### 概要
+
+Git Worktree は同一リポジトリで複数の作業ディレクトリを持てる Git の標準機能です。Claude Code はこれを `--worktree` フラグでシームレスに利用できます。
+
+```bash
+# メインブランチへの影響なく、独立したブランチで作業を開始
+claude --worktree feature-experimental
+
+# ランダムな名前で Worktree を作成
+claude --worktree
+```
+
+Worktree 内で作業すると：
+- メインの作業ディレクトリとは**完全に独立した**ブランチが作られる
+- 実験的な変更をメインに影響なく試せる
+- 気に入らなければブランチごと捨てられる
+- 良ければそのままブランチを PR として提出できる
+
+---
+
+### Worktree の保存場所
+
+```
+リポジトリルート/
+└── .claude/
+    └── worktrees/
+        ├── feature-experimental/  ← claude --worktree feature-experimental で作成
+        └── tmp-abc123/            ← 名前省略時はランダム生成
+```
+
+---
+
+### 終了時の動作
+
+| 変更の有無 | 終了後の動作 |
+|---|---|
+| 変更なし | Worktree は自動削除 |
+| 変更あり | 「保持する / 削除する」の確認プロンプト |
+
+保持した Worktree は後で `git worktree list` で確認し、PR を作成するか削除するか選べます。
+
+---
+
+### .worktreeinclude — 環境ファイルを Worktree にコピー
+
+`.env` など gitignore 済みファイルを Worktree にも持ち込みたい場合は `.worktreeinclude` を使います。
+
+```bash
+# .worktreeinclude
+# gitignore に入っているが Worktree にもコピーしたいファイルを列挙
+.env
+.env.local
+config/secrets.json
+```
+
+`.worktreeinclude` に書いたファイルは、`--worktree` で Worktree を作成する際に自動的にコピーされます。
+
+---
+
+### サブエージェントで Worktree 分離を使う
+
+サブエージェントに `isolation: worktree` を指定すると、サブエージェントが独立した Worktree で作業します。メインの作業ディレクトリへの影響がゼロになります。
+
+```markdown
+---
+name: experimental-refactor
+description: |
+  実験的なリファクタリングを独立したWorktreeで試みる。
+  良ければブランチとして残し、不要なら自動削除される。
+isolation: worktree
+tools: Read Glob Grep Edit Write Bash
+---
+
+与えられたリファクタリングタスクを実験的に実装してください。
+
+完了したら：
+1. どのようなアプローチで実装したか
+2. 変更の概要（ファイル数・変更行数）
+3. テスト結果
+
+をサマリーとして報告してください。
+```
+
+---
+
+### /resume でセッションを再開
+
+Worktree で作業中のセッションは `/resume` ピッカーから再開できます。
+
+```bash
+# 通常のセッション再開（同一リポジトリの Worktree も含めて一覧表示）
+/resume
+
+# 特定のセッション ID で再開
+claude --resume <session-id>
+```
+
+---
+
+## Plan Mode × Worktrees の組み合わせ
+
+最も安全なワークフローは 2 つを組み合わせることです。
+
+```bash
+# 1. Plan Mode + Worktree で起動（最も安全な設定）
+claude --permission-mode plan --worktree feature-new-auth
+```
+
+このコマンドで：
+1. **Plan Mode**: 最初に計画を立案してもらう（読み取り専用）
+2. **Worktree**: 承認後の実行はメインブランチとは独立した環境で行われる
+
+気に入らなければ Worktree ごと破棄。良ければそのまま PR を作れます。
+
+---
+
+## 権限モードの種類
+
+Claude Code には 3 つの権限モードがあります。
+
+| モード | ファイル変更 | コマンド実行 | 用途 |
+|---|---|---|---|
+| `normal` | 確認あり | 確認あり | 通常の使用（デフォルト） |
+| `acceptEdits` | 自動承認 | 確認あり | 編集は任せたいが実行は確認したい |
+| `plan` | 不可 | 不可 | 計画立案・調査のみ |
+| `autoAccept` | 自動承認 | 自動承認 | 完全自律実行（リスクあり） |
+
+```bash
+# 起動時に指定
+claude --permission-mode normal      # デフォルト
+claude --permission-mode acceptEdits
+claude --permission-mode plan
+claude --permission-mode autoAccept  # ⚠️ すべて自動承認
+```
+
+---
+
+## ハマりポイント・注意事項
+
+**Plan Mode を解除するのを忘れずに**
+Plan Mode のまま「実行して」と言っても Claude は実行できません。`Shift+Tab` でモードを確認してください。
+
+**Worktree の .env ファイルに注意**
+`.worktreeinclude` を設定しないと、Worktree 内で `.env` が読み込まれず「API キーが見つからない」エラーが出ることがあります。
+
+**Worktree は同一リポジトリのブランチ**
+Worktree は独立したディレクトリを持ちますが、Git の意味では同一リポジトリのブランチです。`git push` すれば通常通りリモートに送れます。
+
+**大量の Worktree を放置しない**
+Worktree はディスクスペースを消費します。`git worktree list` で定期的に確認し、不要なものは `git worktree remove <path>` で削除してください。
+
+---
+
+## 参考リンク
+
+- [Common workflows — Claude Code Docs](https://code.claude.com/docs/en/common-workflows)
+- [Permissions & security — Claude Code Docs](https://code.claude.com/docs/en/security)
+- [Sub-agents — Claude Code Docs](https://code.claude.com/docs/en/sub-agents)
+- [Git worktree — Git 公式ドキュメント](https://git-scm.com/docs/git-worktree)

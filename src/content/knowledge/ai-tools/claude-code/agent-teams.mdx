@@ -1,0 +1,252 @@
+---
+title: "Claude Code Agent Teams（実験的）：複数エージェントが協調して作業する仕組み"
+description: "Claude Code の実験的機能 Agent Teams を解説。Subagents との違い、チーム構成・共有タスクリスト・メールボックスによる相互通信の仕組み、有効化方法、Hooks との組み合わせまで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Agent Teams", "マルチエージェント", "並列実行", "実験的機能", "Opus 4.6"]
+sortOrder: 4
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Agent Teams は 2026 年 2 月に Claude Opus 4.6 と同時に登場した**実験的機能**です。複数の Claude Code インスタンスが「共有タスクリスト」と「メールボックス」を介して相互通信しながら協調作業します。
+
+Subagents との最大の違いは**エージェント同士が直接コミュニケーションできる点**です。「実装エージェント」「レビューエージェント」「テストエージェント」がお互いに作業内容を確認しながら進められます。
+
+> ⚠️ **注意**: Agent Teams は 2026 年 4 月時点で実験的機能（experimental）です。挙動が変わる可能性があります。本番環境での利用は慎重に判断してください。
+
+---
+
+## Subagents との比較
+
+| 比較項目 | Subagents | Agent Teams |
+|---|---|---|
+| コーディネーション | 親エージェントが一方的に管理 | 共有タスクリストで自律的に調整 |
+| エージェント間通信 | 親にしか結果を返せない | チームメンバー同士でメッセージ送受信 |
+| 適したタスク | 結果のみが必要な独立タスク | 議論・協調・相互レビューが必要なタスク |
+| 可視性 | 親だけが全体を把握 | 全員が共有タスクリストを参照 |
+| セットアップ難度 | 低い（定義ファイル 1 枚） | 中程度（チーム設定 + 環境変数） |
+| 安定性 | 安定版 | 実験的（要フラグ） |
+
+---
+
+## 仕組み
+
+Agent Teams は 3 つのコンポーネントで動作します。
+
+```
+チームリード（Claude Code セッション）
+    ↓ タスクを追加
+共有タスクリスト（~/.claude/teams/<team>/tasks.json）
+    ↑↓ 読み取り・更新
+チームメイト A（Claude Code インスタンス）
+チームメイト B（Claude Code インスタンス）
+    ↑↓
+メールボックス（エージェント間の直接メッセージ）
+```
+
+- **チームリード**: チームを起動し、タスクを作成・割り当てる役割
+- **チームメイト**: タスクリストからタスクを取得して実行。完了後にリードと他のメイトに報告
+- **共有タスクリスト**: 全員がアクセスできる JSON ファイル。タスクのステータス・担当者・依存関係を管理
+- **メールボックス**: チームメンバー間の非同期メッセージキュー。「実装完了したのでレビューお願いします」のような連絡に使う
+
+---
+
+## 有効化方法
+
+Agent Teams は環境変数で有効化します。v2.1.32 以上が必要です。
+
+```json
+// ~/.claude/settings.json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+または起動時に設定：
+
+```bash
+CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1 claude
+```
+
+---
+
+## チームの起動
+
+Agent Teams は `--team` フラグで起動します。
+
+```bash
+# チームリードとして起動
+claude --team feature-payment-system
+
+# チームメイトとして起動（別ターミナルで）
+claude --team feature-payment-system --teammate
+
+# 既存チームに参加
+claude --team feature-payment-system --join
+```
+
+チームの状態は `~/.claude/teams/<team-name>/` に保存されます：
+- `config.json`: チームメタデータ
+- `tasks.json`: 共有タスクリスト
+- `mailboxes/`: エージェント間メッセージ
+
+---
+
+## tmux / iTerm2 でのマルチペイン表示
+
+Agent Teams は複数のターミナルセッションを同時に表示できるターミナルマルチプレクサとの組み合わせが効果的です。
+
+```bash
+# tmux でのセットアップ例
+tmux new-session -s ai-team
+
+# ペイン 1（左上）: チームリード
+claude --team feature-auth
+
+# ペイン 2（右上）: 実装担当チームメイト
+# tmux split-window -h
+claude --team feature-auth --teammate --role implementer
+
+# ペイン 3（左下）: レビュー担当チームメイト
+# tmux split-window -v
+claude --team feature-auth --teammate --role reviewer
+```
+
+各エージェントの進捗が別ペインにリアルタイム表示されるため、どのエージェントが何をしているかが一目でわかります。
+
+---
+
+## Hooks との組み合わせ
+
+Agent Teams は Hooks で品質ゲートを設定できます。
+
+### タスク完了時のレビュー強制
+
+```json
+// .claude/settings.json
+{
+  "hooks": {
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/require-tests.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+```bash
+#!/bin/bash
+# require-tests.sh: タスク完了時にテストが通っているか確認
+
+cd "$CLAUDE_PROJECT_DIR"
+if ! npm test 2>/dev/null; then
+  echo "テストが失敗しています。タスク完了を承認できません。" >&2
+  exit 2
+fi
+```
+
+### チームメイトがアイドルになったら通知
+
+```json
+{
+  "hooks": {
+    "TeammateIdle": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "osascript -e 'display notification \"チームメイトがアイドル状態です\" with title \"Agent Teams\"'"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## 実践的なユースケース
+
+### フルスタック機能の並列開発
+
+```
+チームリード:「ユーザー認証機能（JWT）を実装してください」
+    ↓ タスク分解
+├── チームメイト A: バックエンド（API エンドポイント・ミドルウェア）
+├── チームメイト B: フロントエンド（ログインフォーム・状態管理）
+└── チームメイト C: テスト（E2E・ユニットテスト）
+
+各メイトが完了後にリードへ報告 → リードが統合・レビュー
+```
+
+### コードレビューとリファクタリングの同時進行
+
+```
+チームリード:「PR #123 をレビューして修正してください」
+    ↓
+├── レビュアーエージェント: コードを読んで問題点をリストアップ
+│       ↓ メールボックスで実装エージェントに送信
+└── 実装エージェント: 指摘された問題を修正
+
+リードがレビュアーエージェントのレポートと実装エージェントの修正を確認して承認
+```
+
+### ドキュメント生成の並列化
+
+```
+チームリード:「すべてのモジュールのドキュメントを生成してください」
+    ↓ モジュールごとにタスク分割
+├── エージェント A: src/auth/ のドキュメント生成
+├── エージェント B: src/payment/ のドキュメント生成
+├── エージェント C: src/notification/ のドキュメント生成
+└── ...（ファイル数だけ並列実行）
+```
+
+---
+
+## 制限事項と現在の課題
+
+**実験的機能のため API が変更される可能性がある**
+`--team` フラグや環境変数名が将来のバージョンで変更される可能性があります。本番の自動化フローに組み込む場合はバージョンを固定してください。
+
+**チームメイトのモデルはリードと同じ**
+現時点では、チームメイトのモデルをリードと異なるものに設定するオプションはありません。コスト最適化の観点では Subagents の方が柔軟です。
+
+**共有タスクリストの整合性**
+複数エージェントが同時にタスクリストを更新する場合に競合が発生することがあります。現時点では楽観的ロックで対応していますが、高頻度の更新ではリトライが発生することがあります。
+
+---
+
+## どちらを使うべきか判断フロー
+
+```
+タスクを並列化したい
+  ├── 各タスクが独立していて結果のみ必要
+  │     → Subagents を使う
+  └── タスク間で相互レビュー・議論が必要
+        ├── シンプルな協調（2〜3エージェント）
+        │     → Subagents + Hooks で十分
+        └── 複雑な協調（相互フィードバックが重要）
+              → Agent Teams（実験的）を検討
+```
+
+---
+
+## 参考リンク
+
+- [Orchestrate teams of Claude Code sessions — Claude Code Docs](https://code.claude.com/docs/en/agent-teams)
+- [Create custom subagents — Claude Code Docs](https://code.claude.com/docs/en/sub-agents)
+- [Hooks reference — Claude Code Docs](https://code.claude.com/docs/en/hooks)
+- [Claude Code changelog（GitHub）](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)

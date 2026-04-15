@@ -1,0 +1,369 @@
+---
+title: "Codex CLI × GitHub Action：CI/CD連携の完全セットアップガイド"
+description: "Codex CLI の GitHub Action を徹底解説。openai/codex-action@v1 の設定・パラメータ・セキュリティ設定、Agents SDKとの連携、自動コードレビュー・Issue対応・テスト修正の実践ワークフローまで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "GitHub Action", "CI/CD", "自動化", "コードレビュー", "openai/codex-action"]
+sortOrder: 5
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Codex CLI は `openai/codex-action@v1` として GitHub Actions に組み込めます。PR の自動レビュー・失敗したテストの自動修正・Issue への自動対応など、CI/CD パイプライン上での AI エージェント実行が公式にサポートされています。
+
+---
+
+## openai/codex-action の基本設定
+
+```yaml
+# .github/workflows/codex-review.yml
+name: Codex Code Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 全履歴を取得（差分比較に必要）
+
+      - name: Codex Code Review
+        uses: openai/codex-action@v1
+        with:
+          prompt: |
+            この PR のコードレビューを実施してください。
+            以下の観点で問題を指摘してください：
+            - セキュリティ上のリスク
+            - パフォーマンスへの影響
+            - コーディング規約（AGENTS.md を参照）への準拠
+            問題がある場合は PR にコメントを追加してください。
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+---
+
+## パラメータ一覧
+
+| パラメータ | 必須 | デフォルト | 説明 |
+|---|---|---|---|
+| `prompt` | どちらか必須 | — | インライン指示テキスト |
+| `prompt-file` | どちらか必須 | — | 指示を書いたMarkdownファイルのパス |
+| `sandbox` | 推奨 | `workspace-write` | `read-only` / `workspace-write` / `danger-full-access` |
+| `safety-strategy` | 推奨 | `drop-sudo` | `drop-sudo`（sudo 系コマンドを除去）/ `none` |
+| `codex-args` | 任意 | — | 追加の Codex CLI フラグ（JSON 配列形式） |
+| `output-file` | 任意 | — | 実行結果を保存するファイルパス |
+| `model` | 任意 | `gpt-5.4` | 使用するモデル |
+| `approval-policy` | 任意 | `never` | CI では通常 `never`（自動実行） |
+
+---
+
+## 代表的なユースケース
+
+### 1. PR 自動コードレビュー
+
+```yaml
+name: AI Code Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - 'src/**'
+      - '!src/**/*.test.ts'
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: AI Review
+        uses: openai/codex-action@v1
+        with:
+          prompt-file: .github/codex/prompts/code-review.md
+          sandbox: read-only   # 読み取り専用（変更なし）
+          safety-strategy: drop-sudo
+          output-file: /tmp/review-result.md
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Post Review Comment
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const review = fs.readFileSync('/tmp/review-result.md', 'utf8');
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## AI コードレビュー\n\n${review}`,
+            });
+```
+
+```markdown
+<!-- .github/codex/prompts/code-review.md -->
+# コードレビュー指示
+
+この PR の変更内容（`git diff origin/main...HEAD`）をレビューしてください。
+
+## チェック項目
+- [ ] SQLインジェクション・XSS・CSRF の可能性がないか
+- [ ] 認証・認可ロジックに問題がないか
+- [ ] N+1 クエリや非効率なループがないか
+- [ ] エラーハンドリングが適切か（空の catch ブロックがないか）
+- [ ] テストのカバレッジが適切か
+
+## 出力形式
+問題がある場合は Markdown テーブルで出力してください：
+| 深刻度 | ファイル:行 | 問題の説明 | 修正提案 |
+```
+
+---
+
+### 2. テスト失敗の自動修正
+
+```yaml
+name: Auto Fix Failing Tests
+on:
+  push:
+    branches:
+      - 'fix/**'
+      - 'feat/**'
+
+jobs:
+  fix-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - run: npm ci
+
+      - name: Run Tests (expect failure)
+        id: test-run
+        run: npm test 2>&1 | tee /tmp/test-output.txt || true
+
+      - name: Fix Failing Tests with Codex
+        if: ${{ contains(steps.test-run.outputs.*, 'FAIL') }}
+        uses: openai/codex-action@v1
+        with:
+          prompt: |
+            テストが失敗しています。テスト出力を分析して修正してください。
+
+            テスト出力:
+            ```
+            $(cat /tmp/test-output.txt)
+            ```
+
+            指示：
+            1. 失敗している各テストの原因を特定する
+            2. 実装コードのバグを修正する（テストを変更してはいけない）
+            3. 修正後に `npm test` を実行して全テストが通ることを確認する
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Commit Fixes
+        run: |
+          git config --local user.email "codex-bot@example.com"
+          git config --local user.name "Codex Bot"
+          git diff --quiet || git commit -am "fix: Codex によるテスト失敗の自動修正"
+          git push
+```
+
+---
+
+### 3. Issue への自動対応
+
+```yaml
+name: Auto Fix Issue
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  auto-fix:
+    if: contains(github.event.label.name, 'codex-fix')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract Issue Info
+        id: issue
+        uses: actions/github-script@v7
+        with:
+          result-encoding: string
+          script: |
+            const issue = await github.rest.issues.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            return `Issue #${issue.data.number}: ${issue.data.title}\n\n${issue.data.body}`;
+
+      - name: Fix with Codex
+        uses: openai/codex-action@v1
+        with:
+          prompt: |
+            以下の Issue を修正してください：
+
+            ${{ steps.issue.outputs.result }}
+
+            指示：
+            1. Issue の内容を分析して根本原因を特定する
+            2. テストを先に書いてから修正を実装する（TDD）
+            3. 修正後にすべてのテストが通ることを確認する
+            4. コミットメッセージに Issue 番号を含める: "fix: ... (#${{ github.event.issue.number }})"
+          sandbox: workspace-write
+          safety-strategy: drop-sudo
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+      - name: Create PR
+        run: |
+          git config --local user.email "codex-bot@example.com"
+          git config --local user.name "Codex Bot"
+          BRANCH="codex-fix/issue-${{ github.event.issue.number }}"
+          git checkout -b $BRANCH
+          git add -A
+          git commit -m "fix: Issue #${{ github.event.issue.number }} を Codex で自動修正"
+          git push origin $BRANCH
+          gh pr create \
+            --title "fix: Issue #${{ github.event.issue.number }} の自動修正" \
+            --body "Closes #${{ github.event.issue.number }}" \
+            --base main
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+---
+
+## Agents SDK との連携
+
+より細かい制御が必要な場合は GitHub Actions + OpenAI Agents SDK を組み合わせます。
+
+```python
+# .github/scripts/codex-review.py
+import asyncio
+import os
+from agents import Agent, Runner
+from agents.mcp import MCPServerStdio
+
+async def main():
+    # Codex を MCP サーバーとして起動
+    codex_server = MCPServerStdio(
+        command="codex",
+        args=["mcp-server", "--approval-policy", "never"],
+    )
+
+    # PR レビューエージェントを定義
+    reviewer = Agent(
+        name="pr-reviewer",
+        instructions="""
+        PR の差分をレビューする専門エージェントです。
+        コードの品質、セキュリティ、パフォーマンスの問題を指摘します。
+        """,
+        mcp_servers=[codex_server],
+    )
+
+    # PR 番号を環境変数から取得
+    pr_number = os.environ.get("PR_NUMBER", "")
+
+    result = await Runner.run(
+        reviewer,
+        f"PR #{pr_number} をレビューして問題点を Markdown で報告してください"
+    )
+
+    # 結果をファイルに保存
+    with open("/tmp/review.md", "w") as f:
+        f.write(result.final_output)
+
+asyncio.run(main())
+```
+
+```yaml
+# GitHub Actions でのスクリプト実行
+- name: Run Codex Review Script
+  run: python .github/scripts/codex-review.py
+  env:
+    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    PR_NUMBER: ${{ github.event.pull_request.number }}
+```
+
+---
+
+## セキュリティのベストプラクティス
+
+**API キーを Secrets で管理する**
+```yaml
+env:
+  OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+リポジトリの Settings → Secrets and variables → Actions でシークレットを設定してください。
+
+**sandbox: read-only をデフォルトにする**
+レビューや調査目的の場合は `read-only` でコードを変更させないようにしてください。`workspace-write` は修正が必要なタスク専用にします。
+
+**safety-strategy: drop-sudo を必ず指定する**
+CI 環境では `sudo` を使ったコマンドを意図せず実行されるリスクがあります。`drop-sudo` で sudo 系コマンドを除去してください。
+
+**`danger-full-access` は使わない**
+CI 環境で `danger-full-access` を使うと、ランナーマシン全体へのフルアクセスが与えられます。使用しないでください。
+
+**permissions を最小限に設定する**
+```yaml
+permissions:
+  contents: read     # 読み取りのみ（変更しない場合）
+  pull-requests: write  # PRコメントが必要な場合のみ
+```
+
+---
+
+## Claude Code の GitHub Action との比較
+
+| 観点 | `openai/codex-action` | Claude Code（非公式） |
+|---|---|---|
+| 公式サポート | あり（OpenAI 公式） | 公式アクションは未提供（Agent SDK 使用が推奨） |
+| サンドボックス | OS レベル（`sandbox` パラメータ） | Hooks ベース |
+| セットアップ | Action 1 行で完結 | SDK のスクリプト実装が必要 |
+| 柔軟性 | `codex-args` で拡張可能 | SDK での完全カスタマイズ |
+
+---
+
+## 参考リンク
+
+- [GitHub Action — Codex CLI Docs](https://developers.openai.com/codex/github-action)
+- [Use Codex with the Agents SDK — Codex CLI Docs](https://developers.openai.com/codex/guides/agents-sdk)
+- [openai/codex-action — GitHub](https://github.com/openai/codex-action)
+- [GitHub Actions: Secrets の管理](https://docs.github.com/ja/actions/security-for-github-actions/security-guides/using-secrets-in-github-actions)

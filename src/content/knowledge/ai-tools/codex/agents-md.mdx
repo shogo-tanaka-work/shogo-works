@@ -1,0 +1,229 @@
+---
+title: "AGENTS.md設定ガイド：Codex CLIへの永続的な指示の書き方"
+description: "Codex CLI の AGENTS.md を徹底解説。グローバル・プロジェクト・サブディレクトリの階層構造、AGENTS.override.md による上書き、代替ファイル名・最大サイズの設定、Claude Code の CLAUDE.md との比較まで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "AGENTS.md", "プロジェクト設定", "インストラクション", "CLAUDE.md比較"]
+sortOrder: 2
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+`AGENTS.md` は Codex CLI に対してセッションをまたいで有効な指示を与えるためのファイルです。Claude Code の `CLAUDE.md` に相当します。
+
+- グローバル（`~/.codex/AGENTS.md`）とプロジェクト（`./AGENTS.md`）の 2 スコープ
+- サブディレクトリにも置け、ディレクトリ階層に応じて自動マージされる
+- `AGENTS.override.md` で上位ディレクトリのルールを完全置換できる
+- `config.toml` でファイル名変更・最大サイズの設定が可能
+
+---
+
+## AGENTS.md の読み込み優先順位
+
+Codex は複数の AGENTS.md をマージして読み込みます。優先度は**下（具体的）が上（一般）を上書き**します。
+
+```
+読み込み順（上から順に結合）:
+
+1. ~/.codex/AGENTS.override.md または ~/.codex/AGENTS.md（グローバル）
+2. Git リポジトリルートの AGENTS.md
+3. 現在ディレクトリに向かって、各サブディレクトリの AGENTS.md
+4. 現在ディレクトリの AGENTS.md（最優先）
+```
+
+**具体例：**
+```
+プロジェクトルート/
+├── AGENTS.md            ← 2番目に読み込まれる
+├── services/
+│   ├── AGENTS.md        ← services/ 配下の作業時に読み込まれる
+│   └── payments/
+│       └── AGENTS.md    ← payments/ 作業時に最優先
+└── frontend/
+    └── AGENTS.md        ← frontend/ 作業時に読み込まれる
+```
+
+---
+
+## 基本的な AGENTS.md の書き方
+
+```markdown
+# プロジェクト名 AGENTS.md
+
+## 開発環境のセットアップ
+- Node.js 20.x を使用
+- パッケージマネージャーは pnpm（npm や yarn は使わない）
+- 開発サーバー: `pnpm dev`（port 3000）
+- テスト: `pnpm test`
+- ビルド: `pnpm build`
+
+## コーディング規約
+- TypeScript strict モードを使用
+- `any` 型は禁止（`unknown` を使う）
+- エラーハンドリングは空の catch を使わない
+- コミットメッセージは Conventional Commits 形式（日本語）
+
+## 重要な制約
+- `main` ブランチへの直接コミットは禁止
+- テストなしの実装コミットは禁止
+- `.env` の内容をコードにハードコードしない
+
+## アーキテクチャの注意点
+- `UserService` と `AuthService` は循環依存に注意（`forwardRef` 使用中）
+- soft delete 実装: `users.deleted_at` が NULL のレコードのみアクティブ
+- キャッシュは Redis（TTL: 300 秒）を使用
+```
+
+---
+
+## グローバル設定（~/.codex/AGENTS.md）
+
+全プロジェクト共通のルール・好みを設定します。
+
+```markdown
+# ~/.codex/AGENTS.md
+
+## 共通の作業スタイル
+- 変更前に必ず計画を説明してから実行する
+- 大きな変更は一度に行わず、小さな単位に分割する
+- 不確かな場合は必ず確認を求める
+
+## 出力の好み
+- 説明は日本語で行う
+- コードとコメントは英語で書く
+- 長い説明より短い箇条書きを好む
+
+## セキュリティ
+- シークレット・API キーをコードやログに出力しない
+- 外部 URL へのリクエストは必ず確認を求める
+```
+
+---
+
+## AGENTS.override.md — 上位ルールを完全置換
+
+通常の AGENTS.md は上位のものとマージされますが、**AGENTS.override.md は上位のすべてのルールを無視して**そのファイルのみを使います。
+
+```markdown
+# services/payments/AGENTS.override.md
+# この支払いサービスでは特別なルールを使う（グローバルルールは無視）
+
+## 支払いサービス固有のルール
+- テストは `make test-payments` を使う（`pnpm test` ではない）
+- DB マイグレーションは DBA のレビューが必要。実行前に必ず確認を求める
+- 外部 API（Stripe・PayPal）への呼び出しは staging 環境でのみ許可
+- PCI DSS 準拠のため、カード情報はメモリに保持する時間を最小化する
+```
+
+**使い分け：**
+- 通常: `AGENTS.md` →上位ルールと**マージ**
+- 上書き: `AGENTS.override.md` → 上位ルールを**無視**して置換
+
+---
+
+## サブディレクトリ別の設定例
+
+### フロントエンド専用ルール
+
+```markdown
+# frontend/AGENTS.md
+
+## フロントエンド固有のルール
+- React 19 の使用。クラスコンポーネントは使わない
+- スタイリングは Tailwind CSS のみ（インライン styles は禁止）
+- テストは `@testing-library/react` を使う
+- E2E テストには Playwright を使う（Cypress は使わない）
+
+## コンポーネント設計
+- ファイル命名: PascalCase（例: `UserProfile.tsx`）
+- Props の型は必ず明示（`React.FC<Props>` より明示的な型引数を使う）
+- 再利用可能なコンポーネントは `components/ui/` に置く
+```
+
+### マイクロサービス別の設定
+
+```markdown
+# services/notification/AGENTS.md
+
+## 通知サービスのルール
+- テストコマンド: `make test-notification`
+- メール送信は必ず staging SMTP サーバーを使う（本番への誤送信防止）
+- Slack 通知は `#notifications-test` チャンネルのみ使う（開発中）
+- プッシュ通知のテストは FCM sandbox 環境のみ
+```
+
+---
+
+## config.toml での AGENTS.md 設定
+
+```toml
+# ~/.codex/config.toml
+
+[agents_md]
+# AGENTS.md の代わりに使うファイル名（チームの既存ドキュメントに合わせる場合）
+filename = "TEAM_GUIDE.md"   # デフォルト: "AGENTS.md"
+
+# 読み込む最大サイズ（バイト）
+max_bytes = 65536             # デフォルト: 32768（32KiB）
+
+# グローバル AGENTS.md の検索を無効化
+skip_global = false           # デフォルト: false
+```
+
+---
+
+## AGENTS.md vs CLAUDE.md の比較
+
+| 観点 | AGENTS.md（Codex） | CLAUDE.md（Claude Code） |
+|---|---|---|
+| フォーマット | プレーン Markdown | Markdown + frontmatter（path-scoped rules） |
+| 階層構造 | Git ルートから現在ディレクトリまで自動マージ | 個人/プロジェクト/ローカルの 4 スコープ |
+| 上書き機能 | `AGENTS.override.md` で完全置換 | 下位スコープが上位を上書き |
+| インポート | なし | `@path/to/file` でファイルインポート可能 |
+| 代替ファイル名 | `config.toml` で変更可能 | 変更不可（`CLAUDE.md` 固定） |
+| 自動学習 | なし | Auto Memory（MEMORY.md）で自動蓄積 |
+| スコープ制限 | ディレクトリベース | `paths` frontmatter でファイルパターン指定 |
+
+---
+
+## ベストプラクティス
+
+**テストコマンドは必ず書く**
+Codex は「テストを実行して確認する」行動を好みます。テストコマンドが間違っていると誤った「テスト通過」レポートが生成されます。
+
+```markdown
+## テストの実行方法
+- ユニットテスト: `pnpm test:unit`（全テスト: `pnpm test`）
+- E2E テスト（ローカル）: `pnpm test:e2e`（Playwright が必要）
+- 型チェック: `pnpm typecheck`
+```
+
+**「やらないこと」を明示する**
+
+```markdown
+## 禁止事項
+- `console.log` をコミットに含めない
+- `TODO:` コメントを残さない（Issue を作って削除する）
+- 動作するコードを理由なしにリファクタリングしない
+- テストなしで機能追加をコミットしない
+```
+
+**CI/CD コマンドを書く**
+Codex は CI 環境でも動くため、GitHub Actions などの環境での実行方法も書いておくと役立ちます。
+
+```markdown
+## CI 環境での注意
+- CI では `pnpm install --frozen-lockfile` を使う（lockfile 更新禁止）
+- DB はテスト実行前に `make db:reset:test` でリセットする
+- E2E テストは CI では `pnpm test:e2e:ci` を使う（headless モード）
+```
+
+---
+
+## 参考リンク
+
+- [Custom instructions with AGENTS.md — Codex CLI Docs](https://developers.openai.com/codex/guides/agents-md)
+- [Configuration reference — Codex CLI Docs](https://developers.openai.com/codex/config-reference)
+- [GitHub: openai/codex](https://github.com/openai/codex)

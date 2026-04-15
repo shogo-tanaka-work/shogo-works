@@ -1,0 +1,338 @@
+---
+title: "Claude Code Skills完全ガイド：カスタムスラッシュコマンドの作り方と活用パターン"
+description: "Claude Code の Skills 機能を徹底解説。SKILL.md の書き方、allowed-tools・context:fork・disable-model-invocation などのフロントマター、引数展開、チーム共有の方法まで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Skills", "スラッシュコマンド", "SKILL.md", "自動化", "カスタムコマンド"]
+sortOrder: 2
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Claude Code の Skills は、**Markdown ファイル 1 枚でカスタムスラッシュコマンドを定義できる拡張機能**です。`/commit`・`/review`・`/deploy` のようなよく使うワークフローをチーム全員で共有できます。
+
+Skills でできること：
+- `/skill-name` で即呼び出せるカスタムコマンドを定義
+- 使用するツール、実行モデルをスキル単位で制限
+- 引数（`$ARGUMENTS`）を受け取る動的なコマンド
+- サブエージェントとして独立したコンテキストで実行（`context: fork`）
+- Claude が自動判断で呼び出す「バックグラウンド知識」として機能させる
+
+---
+
+## Skills の保存場所
+
+Skills ファイルはスコープに応じて 4 か所に置けます。優先度は下ほど高くなります（プロジェクトスコープがグローバルを上書き）。
+
+| スコープ | パス | 用途 |
+|---|---|---|
+| 個人（全プロジェクト共通） | `~/.claude/skills/<name>/SKILL.md` | 自分だけが使う汎用コマンド |
+| プロジェクト | `.claude/skills/<name>/SKILL.md` | チーム共有のワークフロー |
+| プロジェクト（旧形式） | `.claude/commands/<name>.md` | 後方互換で引き続き動作 |
+| エンタープライズ | Managed Settings 経由 | 組織全体へのポリシー配布 |
+
+> **Tips**: プロジェクトの `.claude/skills/` に置いて Git 管理すると、チームメンバー全員が同じスラッシュコマンドを使えるようになります。
+
+---
+
+## SKILL.md の基本構造
+
+```markdown
+---
+name: fix-github-issue
+description: GitHub Issue を番号で指定して修正する。TDD で実装し PR を作成する。
+---
+
+GitHub Issue #$ARGUMENTS を修正してください。
+
+手順：
+1. `gh issue view $ARGUMENTS` でイシューの内容を確認する
+2. 関連するコードを読み、原因を特定する
+3. テストを先に書く
+4. 実装を行う
+5. `npm test` を実行してすべてのテストが通ることを確認する
+6. PR を作成する（タイトルに Issue 番号を含める）
+```
+
+呼び出し方：`/fix-github-issue 123`
+
+---
+
+## フロントマター一覧
+
+| フィールド | デフォルト | 説明 |
+|---|---|---|
+| `name` | ファイル名 | スラッシュコマンド名（`/name` で呼び出す） |
+| `description` | — | Claude がいつ使うかを判断するためのメタ説明 |
+| `disable-model-invocation` | `false` | `true` にするとユーザーのみ呼び出し可（副作用があるスキル向け） |
+| `user-invocable` | `true` | `false` にすると Claude のみ自動呼び出し可（ガイドラインとして機能） |
+| `context` | — | `fork` を指定するとサブエージェントとして独立したコンテキストで実行 |
+| `allowed-tools` | 全ツール | スキル実行中に使用を許可するツールをスペース区切りで指定 |
+| `model` | セッションのデフォルト | このスキル用のモデルを上書き指定 |
+| `paths` | — | 特定のファイルパターンにマッチした時のみ自動ロード |
+
+---
+
+## 引数の展開
+
+スキル本文中では以下の変数が使えます。
+
+| 変数 | 意味 |
+|---|---|
+| `$ARGUMENTS` | `/skill-name` の後に書いたテキスト全体 |
+| `$0` | スキル名 |
+| `$1`, `$2`, `$3`... | スペース区切りの引数（`$1` が最初の引数） |
+
+```markdown
+---
+name: pr-review
+description: PR を番号またはURLで指定してコードレビューする
+---
+
+PR $1 をレビューしてください。
+
+- セキュリティ上の問題がないか確認する
+- パフォーマンスへの影響を評価する
+- コーディング規約（CLAUDE.md を参照）への準拠を確認する
+- `gh pr view $1 --comments` で既存コメントも確認する
+```
+
+---
+
+## allowed-tools でツールを制限する
+
+スキル実行中に使えるツールを絞り込むと、意図しない操作を防げます。
+
+```markdown
+---
+name: read-only-audit
+description: コードベースを読み取り専用で監査する（変更は一切行わない）
+allowed-tools: Read Glob Grep
+---
+
+以下の観点でコードベースを監査してください：
+- 認証ロジックの問題点
+- 入力バリデーションの漏れ
+- ハードコードされた認証情報
+
+変更は一切行わないこと。監査レポートのみ出力する。
+```
+
+ツール名は `Read`・`Bash(git *)`（コマンドを絞り込む）・`Edit|Write` のようにパターン指定も使えます。
+
+---
+
+## context: fork — 独立コンテキストで実行
+
+`context: fork` を指定すると、スキルがサブエージェントとして実行されます。メインセッションのコンテキストを汚さずに独立したタスクを実行したい場合に使います。
+
+```markdown
+---
+name: dependency-check
+description: 依存関係の脆弱性チェックを独立して実行する
+context: fork
+allowed-tools: Bash(npm audit) Bash(yarn audit) Read
+---
+
+プロジェクトの依存関係をセキュリティ面で監査してください。
+
+1. `npm audit` または `yarn audit` を実行する
+2. CRITICAL・HIGH の脆弱性を一覧化する
+3. 修正方法（バージョンアップで解決するもの / 手動対応が必要なもの）を区別する
+4. 修正方法を Markdown テーブルで出力する
+
+修正は行わない。レポートのみ作成する。
+```
+
+---
+
+## disable-model-invocation — Claude に勝手に使わせない
+
+デプロイや DB マイグレーションのような副作用が大きいスキルは、`disable-model-invocation: true` で Claude が自動判断で使えないようにします。
+
+```markdown
+---
+name: deploy-production
+description: 本番環境にデプロイする（必ずユーザーが明示的に指示すること）
+disable-model-invocation: true
+allowed-tools: Bash(git *) Bash(npm run deploy)
+---
+
+本番環境へのデプロイを実行します。
+
+1. `git log --oneline -5` で最新コミットを確認する
+2. `npm run build` でビルドを実行する
+3. テストが通っていることを確認する
+4. `npm run deploy` を実行する
+5. デプロイ後のヘルスチェック URL にアクセスして動作確認する
+
+⚠️ 元に戻せない操作です。実行前に必ずコミット内容を確認してください。
+```
+
+---
+
+## user-invocable: false — Claude 専用の知識として使う
+
+`user-invocable: false` にすると、スラッシュコマンドとして一覧に表示されなくなり、Claude が文脈に応じて自動的に参照するバックグラウンド知識として機能します。コーディング規約・アーキテクチャ決定記録・よくある失敗パターンなどを Claude に常時読み込ませたい場合に使います。
+
+```markdown
+---
+name: error-handling-guidelines
+description: このプロジェクトのエラーハンドリング規約。エラー処理を書く際に必ず参照する。
+user-invocable: false
+---
+
+## エラーハンドリング規約
+
+### 基本方針
+- エラーは握りつぶさない。必ず catch して意味のあるメッセージをつけて再スロー
+- 外部 API エラーは `ExternalServiceError` でラップする
+- バリデーションエラーは `ValidationError` を使う
+- DB エラーは直接ユーザーに見せない（内部エラーを隠蔽する）
+
+### 禁止パターン
+```typescript
+// NG: エラーを握りつぶす
+try { ... } catch (e) {}
+
+// NG: any でキャッチする
+catch (e: any) { console.error(e) }
+```
+
+### 推奨パターン
+```typescript
+// OK: 意味のあるメッセージをつけて再スロー
+catch (error: unknown) {
+  throw new DatabaseError('ユーザー取得に失敗しました', { cause: error })
+}
+```
+```
+
+---
+
+## シェルコマンドの動的実行（`` !`command` `` 構文）
+
+スキル本文中で `` !`command` `` を使うと、スキルがロードされた時点でコマンドを実行して、その出力を本文に注入できます。
+
+```markdown
+---
+name: review-pr
+description: 現在チェックアウト中のブランチの PR をレビューする
+---
+
+現在の PR をレビューしてください。
+
+## 差分
+!`git diff main...HEAD`
+
+## 変更ファイル
+!`git diff --name-only main...HEAD`
+
+上記の変更について、セキュリティ・パフォーマンス・コーディング規約の観点でレビューしてください。
+```
+
+---
+
+## paths — ファイルパターンに応じた自動ロード
+
+特定のファイルを操作している時だけ自動的に読み込まれるスキルを作れます。
+
+```markdown
+---
+name: prisma-best-practices
+description: Prisma を使ったDBアクセスの規約。*.prisma や DB 操作ファイルで自動ロード。
+user-invocable: false
+paths: ["**/*.prisma", "**/repositories/**/*.ts", "**/db/**/*.ts"]
+---
+
+## Prisma の使い方規約
+
+- N+1 問題を避けるため、関連エンティティは `include` で一括取得する
+- トランザクションは `prisma.$transaction()` を使う
+- 生 SQL は原則禁止（パフォーマンス上やむを得ない場合は `$queryRaw` を使い、引数は必ずバインド変数にする）
+```
+
+---
+
+## 実践的なスキル集
+
+### /commit — 規約に従ったコミットメッセージを生成
+
+```markdown
+---
+name: commit
+description: ステージングされた変更を Conventional Commits 形式でコミットする
+allowed-tools: Bash(git *) Bash(npm test)
+---
+
+ステージングされている変更をコミットしてください。
+
+1. `git diff --staged` で変更内容を確認する
+2. `npm test` を実行してテストが通ることを確認する（失敗したらコミットしない）
+3. Conventional Commits 形式でコミットメッセージを作成する
+   - 形式: `type(scope): 件名（日本語）`
+   - type: feat / fix / refactor / test / docs / chore
+4. `git commit -m "..."` を実行する
+```
+
+### /generate-tests — テスト自動生成
+
+```markdown
+---
+name: generate-tests
+description: 指定ファイルのユニットテストを生成する
+---
+
+`$ARGUMENTS` のユニットテストを書いてください。
+
+- テストフレームワークはプロジェクトの設定（package.json を確認）に従う
+- 正常系・異常系・境界値をカバーする
+- テストファイルは `$ARGUMENTS` と同じディレクトリに `*.test.ts` として作成する
+- モックは最小限にする（統合テストを優先する）
+```
+
+### /explain — コードの解説
+
+```markdown
+---
+name: explain
+description: コードやアーキテクチャを日本語で解説する
+allowed-tools: Read Glob Grep
+context: fork
+---
+
+`$ARGUMENTS` について日本語で解説してください。
+
+- 引数が空の場合は現在の会話で話題になっているコードを解説する
+- 「なぜそう実装されているか」の背景まで含める
+- ジュニア開発者にも分かりやすい言葉を使う
+```
+
+---
+
+## ハマりポイント・注意事項
+
+**SKILL.md のファイル名がそのままコマンド名になる**
+`~/.claude/skills/fix-issue/SKILL.md` なら `/fix-issue` で呼び出せます。ハイフン区切りのケバブケースが推奨です。
+
+**`allowed-tools` の省略はリスクになりうる**
+指定しないと Claude Code が使えるすべてのツールを使います。副作用のあるスキルには必ず `allowed-tools` を設定してください。
+
+**`disable-model-invocation` と `user-invocable: false` は別物**
+前者は「ユーザーだけが使える（Claude は使えない）」、後者は「Claude だけが使える（ユーザーは使えない）」です。両方指定すると誰も呼び出せないので注意。
+
+**プロジェクトスキルはグローバルスキルを上書きしない（マージされる）**
+同名のスキルがある場合はプロジェクト側が優先されます。意図的に無効化したい場合は `disable-model-invocation: true` を使うか、同名でファイルを上書きしてください。
+
+**`/` コマンドで一覧確認**
+利用可能な全スキルは `/` を入力すると一覧表示されます。設定が反映されているか確認するのに使えます。
+
+---
+
+## 参考リンク
+
+- [Extend Claude with skills — Claude Code Docs](https://code.claude.com/docs/en/skills)
+- [Slash commands reference — Claude Code Docs](https://code.claude.com/docs/en/slash-commands)
+- [Claude Code settings — Claude Code Docs](https://code.claude.com/docs/en/settings)

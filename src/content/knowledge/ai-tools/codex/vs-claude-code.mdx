@@ -1,0 +1,257 @@
+---
+title: "Codex CLI vs Claude Code：機能・哲学・ユースケース徹底比較（2026年4月版）"
+description: "OpenAI Codex CLI と Anthropic Claude Code を徹底比較。アーキテクチャ・安全モデル・エージェント機能・MCP・CI/CD連携・コスト・SWEベンチマーク結果など、2026年4月時点での最新仕様を多角的に検証しました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "Claude Code", "比較", "ツール選択", "SWE-bench", "AIエージェント"]
+sortOrder: 7
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Codex CLI と Claude Code は「ターミナルで動く AI コーディングエージェント」という点では同じカテゴリですが、**設計哲学とアーキテクチャが根本的に異なります**。
+
+- **Codex CLI**: 「自律的に動かして後でレビュー」。OS レベルのサンドボックスで安全を確保し、並列タスク・CI/CD 連携が得意。OSS（Apache 2.0）。
+- **Claude Code**: 「逐次確認しながら一緒に作る」。コンテキスト理解と精度が高く、1M トークンの大規模コードベース処理が得意。クローズドソース。
+
+どちらかが「優れている」のではなく、**タスクの性質とチームのワークスタイルによって使い分け**が最適です。
+
+---
+
+## 基本情報の比較
+
+| 項目 | Codex CLI | Claude Code |
+|---|---|---|
+| 開発元 | OpenAI | Anthropic |
+| ライセンス | Apache 2.0（OSS） | クローズドソース |
+| 実装言語 | Rust | Node.js |
+| 主要モデル | GPT-5.4 / GPT-5.3-codex | Claude Sonnet 4.6 / Opus 4.6 |
+| コンテキストウィンドウ | 最大 256K トークン | 最大 1M トークン（Sonnet/Opus 4.6） |
+| インストール | `npm i -g @openai/codex` または brew | `curl -fsSL claude.ai/install.sh` または brew |
+| 最新安定版（2026年4月） | v0.120.0 | v2.1.80 |
+
+---
+
+## ベンチマーク比較
+
+### SWE-bench Verified（2026年4月時点）
+
+SWE-bench Verified は実際の GitHub Issue を自律的に修正できる割合を測定するベンチマークです。
+
+| モデル | スコア |
+|---|---|
+| Claude Code（Opus 4.6 + Agent Teams） | **72.5%** |
+| Claude Code（Sonnet 4.6） | 68.2% |
+| Codex CLI（GPT-5.3-codex） | 49.0% |
+| Codex CLI（GPT-5.4） | 44.7% |
+
+> ⚠️ ベンチマーク条件（モデル・プロンプト・ツール設定）によって結果は大きく変わります。実際の業務での体感とは異なる場合があります。
+
+### トークン効率
+
+Codex CLI は Rust 実装の効率的なコンテキスト管理により、同じタスクを処理する際のトークン消費が Claude Code の約 1/4〜1/2 程度とされています（独立した比較調査より）。
+
+---
+
+## 設計哲学の違い
+
+### Codex CLI：「自律実行モデル」
+
+```
+タスク指示 → エージェントが自律的に実行 → 結果を後でレビュー
+```
+
+- 人の介在を最小化することでスループットを最大化
+- OS サンドボックスが安全ネットになるため、承認なしで動かしやすい
+- CI/CD での完全自動化を想定した設計
+
+### Claude Code：「協調作業モデル」
+
+```
+タスク指示 → Claude が確認・計画を提示 → 人が承認 → 実行
+```
+
+- 人と Claude が対話しながら進めることを前提
+- Plan Mode で事前確認を促す設計
+- 複雑な意思決定を人が担うことを前提としたフロー
+
+---
+
+## 安全モデルの比較
+
+| 観点 | Codex CLI | Claude Code |
+|---|---|---|
+| サンドボックス | OS レベル（sandbox-exec / bwrap） | なし（Hooks でのソフト制限） |
+| ネットワーク制御 | OS 制限（デフォルト無効） | 制限なし（Hooks でブロック可） |
+| ファイルアクセス制限 | OS パス制限で強制 | `allowedDirectories` 設定で制限 |
+| 危険コマンドブロック | OS サンドボックスで強制 | PreToolUse Hook で実装 |
+| 承認モード | 4 種類（on-request/never/untrusted/granular） | 4 種類（normal/acceptEdits/plan/autoAccept） |
+
+**Codex CLI が有利な場面：** OS レベルの強制力が必要な場面（信頼できないコードの実行、共有 CI 環境）
+
+**Claude Code が有利な場面：** 柔軟なカスタマイズが必要な場面（プロジェクト固有のブロックルール、複雑な権限管理）
+
+---
+
+## エージェント機能の比較
+
+### サブエージェント
+
+| 観点 | Codex CLI | Claude Code |
+|---|---|---|
+| 定義ファイル形式 | TOML | Markdown（YAML frontmatter） |
+| 推論レベル設定 | `model_reasoning_effort: low/medium/high` | なし（モデル変更で代替） |
+| サンドボックス指定 | エージェント単位で `sandbox_mode` を設定 | `isolation: worktree` のみ |
+| スレッド切り替え | `/agent` コマンドでセッション中に切り替え | 切り替えなし（メインのみ） |
+
+### マルチエージェント
+
+| 観点 | Codex CLI | Claude Code |
+|---|---|---|
+| エージェント間通信 | メールボックス経由 | Agent Teams（実験的機能） |
+| 共有タスクリスト | あり | Agent Teams のみ |
+| 並列スレッド数制限 | `max_threads` で設定 | 制限設定なし |
+| 安定性 | 安定版 | Agent Teams は実験的 |
+
+---
+
+## プロジェクト設定の比較
+
+| 観点 | Codex CLI | Claude Code |
+|---|---|---|
+| 設定ファイル名 | `AGENTS.md` | `CLAUDE.md` |
+| 設定形式 | プレーン Markdown | Markdown + frontmatter（path-scoped rules） |
+| インポート | なし | `@path/to/file` でインポート可能 |
+| 上書き機能 | `AGENTS.override.md` | 下位スコープが上書き |
+| 自動学習 | なし | Auto Memory（MEMORY.md）で自動蓄積 |
+| 代替ファイル名 | `config.toml` で変更可 | 変更不可（`CLAUDE.md` 固定） |
+
+**Claude Code の CLAUDE.md が有利な点：** `@インポート` による分割管理、path-scoped rules によるファイル種別ごとの設定、Auto Memory による自動学習
+
+**Codex CLI の AGENTS.md が有利な点：** `AGENTS.override.md` による完全置換、サブディレクトリ自動マージ、チームの既存ドキュメントファイルへのリネーム対応
+
+---
+
+## MCP / ツール連携の比較
+
+| 観点 | Codex CLI | Claude Code |
+|---|---|---|
+| 設定ファイル | `config.toml`（TOML） | `.mcp.json`（JSON） |
+| Tool Search（遅延ロード） | 未対応（全ツールロード） | v2.1.76 以降でデフォルト有効 |
+| 公式レジストリ | 未提供 | `api.anthropic.com/mcp-registry` |
+| MCP サーバーとして公開 | `codex mcp-server` | `claude mcp serve` |
+| MCP Apps | v0.119.0 以降で対応（ファイルパラメータ等） | 標準的な MCP 仕様のみ |
+
+---
+
+## CI/CD 連携の比較
+
+| 観点 | Codex CLI | Claude Code |
+|---|---|---|
+| 公式 GitHub Action | `openai/codex-action@v1`（公式） | 公式提供なし |
+| CI でのセットアップ難度 | Action 1 行で完結 | Agent SDK スクリプトの実装が必要 |
+| OS サンドボックスの有無 | あり（安全な CI 実行） | なし（Hooks でのソフト制限のみ） |
+| 承認不要の自動実行 | `approval-policy: never` で完全自動 | `autoAccept` モードで完全自動 |
+
+**Codex CLI が有利な場面：** CI/CD での完全自動化、OS レベルのセキュリティが必要な環境
+
+**Claude Code が有利な場面：** 既存の Python/TypeScript スクリプトとの統合（Agent SDK）、細かいカスタマイズが必要な場合
+
+---
+
+## コストの比較（2026年4月時点）
+
+### モデル料金（1M トークンあたり）
+
+| モデル | 入力 | 出力 |
+|---|---|---|
+| GPT-5.4（Codex デフォルト） | $2.50 | $10.00 |
+| GPT-5.4-mini（軽量版） | $0.15 | $0.60 |
+| GPT-5.3-codex | $3.00 | $15.00 |
+| Claude Sonnet 4.6（CC デフォルト） | $3.00 | $15.00 |
+| Claude Opus 4.6 | $5.00 | $25.00 |
+| Claude Haiku 4.5 | $1.00 | $5.00 |
+
+> 価格は変動します。最新情報は各社の公式ドキュメントを確認してください。
+
+### サブスクリプション比較
+
+| プラン | Codex CLI | Claude Code |
+|---|---|---|
+| 無料 | なし（API 従量のみ） | なし |
+| 標準 | ChatGPT Plus（$20/月）でクレジット付与 | Claude Pro（$20/月）で 5x 制限 |
+| 高機能 | ChatGPT Pro（$200/月）でフル機能 | Claude Max 5x（$100/月）/ 20x（$200/月） |
+| 企業向け | ChatGPT Enterprise（要見積もり） | Claude Team / Enterprise（要見積もり） |
+
+---
+
+## ユースケース別推奨
+
+### Codex CLI が向いているケース
+
+- **完全自動化パイプライン**: CI/CD での承認なし実行、Issue→PR の自動生成
+- **信頼できないコードの安全な実行**: OS サンドボックスが必須の環境
+- **コスト最適化重視**: GPT-5.4-mini + 低推論レベルでトークンコストを最小化
+- **既存 OpenAI エコシステム**: Agents SDK・Realtime API を使っているチーム
+- **GitHub Action との統合**: 公式アクションで簡単にセットアップしたい
+
+### Claude Code が向いているケース
+
+- **大規模コードベースの理解**: 1M トークンで 25,000 行以上を一括処理
+- **精度重視の実装**: SWE-bench スコアが重要なタスク
+- **対話型の協調作業**: Plan Mode で計画を確認しながら進めるスタイル
+- **CLAUDE.md の高度な管理**: path-scoped rules・@インポート・Auto Memory を活用
+- **チームの知識蓄積**: Auto Memory でプロジェクト固有の知識を継続的に蓄積
+
+### 両方使うハイブリッド構成
+
+実務では使い分けが最も効果的です：
+
+```
+【日常的な開発作業】
+Claude Code（対話型・精度重視）
+
+【CI/CD での自動化】
+Codex CLI（完全自動・GitHub Action）
+
+【大規模コードベースの調査】
+Claude Code（1M コンテキスト）
+
+【並列タスクの高速処理】
+Codex CLI（効率的なトークン使用・並列スレッド）
+```
+
+---
+
+## 2026年の進化トレンド
+
+### Codex CLI の方向性
+- Rust 実装のパフォーマンス優位性を活かした高速処理
+- GitHub Action・Agents SDK との統合強化
+- MCP Apps のリッチな機能拡張（ファイルアップロード・サーバー駆動エリシテーション）
+- Windows サポートの成熟（v0.118.0 以降でネットワーク制御を強化）
+
+### Claude Code の方向性
+- Agent Teams の安定版リリースに向けた開発継続
+- CLAUDE.md・Auto Memory によるプロジェクト知識の自動蓄積
+- Agent SDK による他プラットフォーム（Bedrock・Vertex AI）連携の強化
+- VS Code 拡張のネイティブ統合（Web 版との機能統一）
+
+---
+
+## 参考リンク
+
+**Codex CLI 公式：**
+- [Codex CLI 概要](https://developers.openai.com/codex/cli)
+- [Codex CLI Changelog](https://developers.openai.com/codex/changelog)
+- [GitHub: openai/codex](https://github.com/openai/codex)
+
+**Claude Code 公式：**
+- [Claude Code 概要](https://code.claude.com/docs/en/overview)
+- [Claude Code Changelog（GitHub）](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)
+
+**比較記事：**
+- [Claude Code vs OpenAI Codex — Northflank](https://northflank.com/blog/claude-code-vs-openai-codex)
+- [Codex vs Claude Code — builder.io](https://www.builder.io/blog/codex-vs-claude-code)
