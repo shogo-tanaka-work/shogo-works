@@ -1,0 +1,458 @@
+---
+title: "Claude Agent SDK：Python/TypeScriptからエージェントをプログラムで制御する"
+description: "Claude Agent SDK（旧Claude Code SDK）の使い方を徹底解説。基本的なquery()関数、ツール許可・Hooks・サブエージェントの設定、セッション継続、Amazon Bedrock/Vertex AI連携まで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Agent SDK", "Claude Agent SDK", "Python", "TypeScript", "エージェント開発"]
+sortOrder: 7
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Claude Agent SDK（旧称: Claude Code SDK）は、**Claude Code と同じエージェントループ・ツール・コンテキスト管理機能を Python / TypeScript から利用できるライブラリ**です。
+
+AI エージェントを組み込んだアプリケーション、CI/CD パイプライン上での自動コードレビュー、コード生成 CLI ツールなど、Claude Code の能力をプログラムから制御したい場面で使います。
+
+**Anthropic Client SDK との違い：**
+
+| | Claude Agent SDK | Anthropic Client SDK |
+|---|---|---|
+| ツールループ | 自動（Claude が判断して実行） | 自前で実装が必要 |
+| ファイル操作 | 組み込みツール（Read/Write/Edit）が使える | なし |
+| CLAUDE.md | プロジェクトの設定を自動読み込み | なし |
+| 用途 | エージェントアプリ・CI/CD 自動化 | チャット・テキスト生成・API 直接呼び出し |
+
+---
+
+## インストール
+
+```bash
+# TypeScript / JavaScript
+npm install @anthropic-ai/claude-agent-sdk
+
+# Python
+pip install claude-agent-sdk
+```
+
+**必要条件：**
+- Node.js 18+ または Python 3.10+
+- Claude Code がインストール済み（`npm install -g @anthropic-ai/claude-code`）
+- 認証情報（`ANTHROPIC_API_KEY` 環境変数、または `claude auth login` 済み）
+
+---
+
+## 基本的な使い方
+
+### TypeScript
+
+```typescript
+import { query, type SDKMessage } from "@anthropic-ai/claude-agent-sdk";
+
+// 非同期イテレーターでメッセージをストリーミング
+for await (const message of query({
+  prompt: "src/auth/service.ts の認証ロジックにあるバグを修正して",
+  options: {
+    allowedTools: ["Read", "Edit", "Bash"],
+    maxTokens: 4096,
+  },
+})) {
+  if (message.type === "assistant") {
+    console.log("Claude:", message.message.content);
+  } else if (message.type === "result") {
+    console.log("完了:", message.result);
+  }
+}
+```
+
+### Python
+
+```python
+import asyncio
+from claude_agent_sdk import query, ClaudeAgentOptions
+
+async def main():
+    async for message in query(
+        prompt="src/auth/service.py の認証ロジックにあるバグを修正して",
+        options=ClaudeAgentOptions(
+            allowed_tools=["Read", "Edit", "Bash"],
+            max_tokens=4096,
+        )
+    ):
+        if message.type == "assistant":
+            print("Claude:", message.message.content)
+        elif message.type == "result":
+            print("完了:", message.result)
+
+asyncio.run(main())
+```
+
+---
+
+## メッセージの種類
+
+`query()` が返すメッセージには複数の種類があります。
+
+| type | 内容 |
+|---|---|
+| `assistant` | Claude からの応答テキスト・ツール呼び出し |
+| `user` | ツール実行結果（内部的にユーザーターンとして送られる） |
+| `result` | 最終結果（`subtype: "success"` / `"error_max_turns"` など） |
+| `system` | システムメッセージ（ヒント・警告など） |
+
+```typescript
+for await (const message of query({ prompt: "..." })) {
+  switch (message.type) {
+    case "assistant":
+      // Claude の応答 or ツール呼び出し
+      for (const block of message.message.content) {
+        if (block.type === "text") {
+          process.stdout.write(block.text);
+        } else if (block.type === "tool_use") {
+          console.log(`\n[ツール呼び出し: ${block.name}]`);
+        }
+      }
+      break;
+    case "result":
+      if (message.subtype === "success") {
+        console.log("\n✓ 完了");
+      } else {
+        console.error("\n✗ エラー:", message.error);
+      }
+      break;
+  }
+}
+```
+
+---
+
+## 主要オプション一覧
+
+```typescript
+interface ClaudeAgentOptions {
+  // ツール制御
+  allowedTools?: string[];           // 使用を許可するツール
+  disallowedTools?: string[];        // 禁止するツール
+
+  // モデル設定
+  model?: string;                    // 使用するモデル
+  maxTokens?: number;                // 最大出力トークン数
+  systemPrompt?: string;             // システムプロンプト上書き
+
+  // セッション管理
+  resume?: string;                   // 継続するセッション ID
+  maxTurns?: number;                 // 最大ターン数
+
+  // ファイルシステム設定
+  cwd?: string;                      // 作業ディレクトリ（デフォルト: process.cwd()）
+  settingSources?: string[];         // 設定ソース（["project"] でCLAUDE.mdを読む）
+
+  // エージェント設定
+  agents?: Record<string, AgentDefinition>; // カスタムサブエージェント
+
+  // MCP サーバー
+  mcpServers?: Record<string, MCPServerConfig>;
+
+  // Hooks
+  hooks?: HooksConfig;
+
+  // 環境変数
+  env?: Record<string, string>;
+}
+```
+
+---
+
+## ツール制御
+
+### 使用するツールを限定する
+
+```typescript
+// 読み取り専用モード（コードレビューや調査に）
+const result = query({
+  prompt: "このコードベースのセキュリティ上の問題を調査して",
+  options: {
+    allowedTools: ["Read", "Glob", "Grep"],
+  },
+});
+
+// 特定ツールのみ禁止
+const result = query({
+  prompt: "バグを修正して",
+  options: {
+    disallowedTools: ["Bash"],  // シェルコマンドは禁止
+  },
+});
+```
+
+### 組み込みツール一覧
+
+| ツール | 機能 |
+|---|---|
+| `Read` | ファイル読み取り |
+| `Write` | ファイル書き込み（新規作成） |
+| `Edit` | ファイル編集（差分ベース） |
+| `Bash` | シェルコマンド実行 |
+| `Glob` | ファイルパターン検索 |
+| `Grep` | 内容検索（ripgrep） |
+| `Agent` | サブエージェント起動 |
+| `WebSearch` | ウェブ検索 |
+| `WebFetch` | URL のコンテンツ取得 |
+
+---
+
+## Hooks の設定
+
+SDK でも Hooks を使えます。コールバック関数として設定します。
+
+```typescript
+import { query } from "@anthropic-ai/claude-agent-sdk";
+
+const result = query({
+  prompt: "依存パッケージを最新化して",
+  options: {
+    hooks: {
+      PreToolUse: [
+        {
+          matcher: "Bash",
+          handler: async (event) => {
+            const command = event.toolInput.command as string;
+            // rm -rf の実行をブロック
+            if (/rm\s+-rf/.test(command)) {
+              return { block: true, reason: "rm -rf は禁止されています" };
+            }
+            return { block: false };
+          },
+        },
+      ],
+      PostToolUse: [
+        {
+          matcher: "Edit",
+          handler: async (event) => {
+            // ファイル編集後の処理（ログ記録など）
+            console.log(`編集: ${event.toolInput.file_path}`);
+          },
+        },
+      ],
+    },
+  },
+});
+```
+
+---
+
+## カスタムサブエージェントの定義
+
+```typescript
+import { query, type AgentDefinition } from "@anthropic-ai/claude-agent-sdk";
+
+const result = query({
+  prompt: "PR #456 をセキュリティとコード品質の観点でレビューして",
+  options: {
+    allowedTools: ["Read", "Glob", "Grep", "Agent"],
+    agents: {
+      "security-auditor": {
+        description: "セキュリティ脆弱性の特定専門エージェント。SQLi・XSS・認証バイパスを調べる",
+        prompt: "セキュリティの専門家として、コードの脆弱性を調べてレポートしてください",
+        tools: ["Read", "Glob", "Grep"],
+        model: "claude-haiku-4-5-20251001",
+      } satisfies AgentDefinition,
+      "code-reviewer": {
+        description: "コード品質・可読性・パフォーマンスのレビュー専門エージェント",
+        prompt: "コードレビュアーとして、品質・可読性・パフォーマンスの問題を指摘してください",
+        tools: ["Read", "Glob", "Grep"],
+        model: "claude-sonnet-4-6",
+      } satisfies AgentDefinition,
+    },
+  },
+});
+```
+
+---
+
+## MCP サーバーの設定
+
+```typescript
+const result = query({
+  prompt: "Issue #789 を調査して修正 PR を作成して",
+  options: {
+    allowedTools: ["Read", "Edit", "Bash"],
+    mcpServers: {
+      github: {
+        type: "http",
+        url: "https://api.githubcopilot.com/mcp/",
+        headers: {
+          Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+        },
+      },
+      playwright: {
+        type: "stdio",
+        command: "npx",
+        args: ["@playwright/mcp@latest"],
+      },
+    },
+  },
+});
+```
+
+---
+
+## セッションの保存と継続
+
+長時間タスクや途中から再開したいタスクのためにセッション ID を保存できます。
+
+```typescript
+import { query } from "@anthropic-ai/claude-agent-sdk";
+import { writeFileSync, readFileSync } from "fs";
+
+const SESSION_FILE = ".claude-session-id";
+
+// 新規セッションまたは既存セッションの継続
+let sessionId: string | undefined;
+try {
+  sessionId = readFileSync(SESSION_FILE, "utf-8").trim();
+  console.log(`セッション継続: ${sessionId}`);
+} catch {
+  console.log("新規セッションを開始");
+}
+
+for await (const message of query({
+  prompt: "データベースのマイグレーションを作成して",
+  options: {
+    resume: sessionId,
+    allowedTools: ["Read", "Write", "Edit", "Bash"],
+  },
+})) {
+  if (message.type === "system" && message.session_id) {
+    // セッション ID を保存
+    writeFileSync(SESSION_FILE, message.session_id);
+  }
+  // メッセージ処理...
+}
+```
+
+---
+
+## CLAUDE.md を読み込む
+
+プロジェクトの CLAUDE.md や Skills をエージェントに読み込ませるには `settingSources` を設定します。
+
+```typescript
+const result = query({
+  prompt: "コーディング規約に従ってコードをリファクタリングして",
+  options: {
+    cwd: "/path/to/project",
+    settingSources: ["project"],  // CLAUDE.md・Skills・Hooks を読み込む
+    allowedTools: ["Read", "Edit"],
+  },
+});
+```
+
+---
+
+## Amazon Bedrock / Google Vertex AI での利用
+
+Claude Agent SDK は Bedrock・Vertex AI 経由での認証に対応しています。
+
+```typescript
+// Amazon Bedrock
+const result = query({
+  prompt: "...",
+  options: {
+    auth: {
+      type: "bedrock",
+      region: "us-east-1",
+      model: "anthropic.claude-sonnet-4-6-v1:0",
+    },
+  },
+});
+
+// Google Vertex AI
+const result = query({
+  prompt: "...",
+  options: {
+    auth: {
+      type: "vertex",
+      project: "my-gcp-project",
+      location: "us-central1",
+      model: "claude-sonnet-4-6@20260215",
+    },
+  },
+});
+```
+
+---
+
+## CI/CD パイプラインでの活用例
+
+```yaml
+# GitHub Actions: コードレビュー自動化
+name: AI Code Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g @anthropic-ai/claude-code @anthropic-ai/claude-agent-sdk
+
+      - name: Run AI Code Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          node << 'EOF'
+          const { query } = require('@anthropic-ai/claude-agent-sdk');
+
+          async function main() {
+            let reviewComment = '';
+            for await (const message of query({
+              prompt: `PR の変更（git diff main...HEAD）をレビューしてください。
+                       セキュリティ・パフォーマンス・コーディング規約の観点で問題を指摘してください。`,
+              options: {
+                allowedTools: ['Read', 'Bash(git *)'],
+                maxTurns: 5,
+              }
+            })) {
+              if (message.type === 'result') {
+                reviewComment = message.result;
+              }
+            }
+            console.log(reviewComment);
+          }
+
+          main().catch(console.error);
+          EOF
+```
+
+---
+
+## ハマりポイント・注意事項
+
+**Claude Code がインストールされていないと動かない**
+Agent SDK は内部で Claude Code を利用します。CI 環境では `npm install -g @anthropic-ai/claude-code` が必要です。
+
+**`allowedTools` を指定しないと全ツール許可**
+CI 環境では特に注意。想定外の `Bash` 実行を防ぐため、必要なツールのみ指定してください。
+
+**`maxTurns` でループを防ぐ**
+指定がない場合、Claude は目標達成まで何ターンでも実行し続けます。CI では `maxTurns` を設定してタイムアウトを防いでください。
+
+**ストリーミングは非同期イテレーターのみ**
+`query()` の結果は Promise ではなく AsyncIterable です。`for await` でのみ処理できます。
+
+---
+
+## 参考リンク
+
+- [Agent SDK overview — Claude Code Docs](https://code.claude.com/docs/en/agent-sdk/overview)
+- [Agent SDK TypeScript リファレンス — Claude Code Docs](https://code.claude.com/docs/en/agent-sdk/typescript)
+- [Agent SDK Python リファレンス — Claude Code Docs](https://code.claude.com/docs/en/agent-sdk/python)
+- [npm: @anthropic-ai/claude-agent-sdk](https://www.npmjs.com/package/@anthropic-ai/claude-agent-sdk)
+- [PyPI: claude-agent-sdk](https://pypi.org/project/claude-agent-sdk/)

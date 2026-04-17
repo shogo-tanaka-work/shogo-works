@@ -1,0 +1,404 @@
+---
+title: "Claude Code Hooks完全ガイド：12種のライフサイクルイベントで自動化を極める"
+description: "Claude CodeのHooks機能を徹底解説。PreToolUse・PostToolUse・SessionStartなど12種以上のイベント、command/http/prompt/agentの4ハンドラ、設定例と実践パターンを2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Hooks", "自動化", "PreToolUse", "PostToolUse", "settings.json"]
+sortOrder: 1
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Claude Code の Hooks は、セッション開始・ツール呼び出し・エージェント制御など 12 種以上のライフサイクルイベントに、シェルコマンド・HTTP リクエスト・プロンプト・サブエージェントの 4 種のハンドラを紐付けられる機能です。`~/.claude/settings.json`（グローバル）または `.claude/settings.json`（プロジェクト）に JSON で記述します。
+
+Hooks で実現できる主な自動化：
+- ファイル編集後に auto-format（prettier / gofmt など）を実行
+- `rm -rf` など危険なコマンドを事前ブロック
+- ツール呼び出しのログを外部システムに送信
+- セッション終了時にサマリーを Slack 通知
+
+---
+
+## Hooks の仕組み
+
+Claude Code がアクションを起こす際、内部でライフサイクルイベントが発火します。Hooks はそのイベントをフックして、Claude とは独立した処理をユーザー定義のコードとして差し込む仕組みです。
+
+```
+Claude Code の動作フロー（Hooks あり）
+
+UserPromptSubmit → [UserPromptSubmit Hook] → Claude が処理
+Claude がツール呼び出し → [PreToolUse Hook] → ツール実行 → [PostToolUse Hook]
+Claude がセッション終了 → [Stop Hook] → [SessionEnd Hook]
+```
+
+Hooks はあくまで「Claude Code のプロセスの外側」で動きます。Claude 自身が Hooks の処理を知ることはなく、Hook の stdout を Claude に渡したい場合は JSON を返す形で明示的に連携します。
+
+---
+
+## ライフサイクルイベント一覧
+
+2026 年 4 月時点で利用可能なイベントは以下のとおりです。
+
+### セッション系
+
+| イベント | 発火タイミング |
+|---|---|
+| `SessionStart` | セッション開始時（最初のユーザー入力前） |
+| `SessionEnd` | セッション終了時（`/exit` やウィンドウクローズ） |
+
+### ターン・制御系
+
+| イベント | 発火タイミング |
+|---|---|
+| `UserPromptSubmit` | ユーザーがプロンプトを送信した直後 |
+| `Stop` | Claude が応答を終了した直後 |
+| `StopFailure` | Claude が応答を完了できなかった場合 |
+| `PreCompact` | コンテキスト圧縮前 |
+| `PostCompact` | コンテキスト圧縮後 |
+
+### ツール呼び出し系
+
+| イベント | 発火タイミング | 特殊機能 |
+|---|---|---|
+| `PreToolUse` | ツール実行前 | exitcode 2 でブロック、入力の書き換え可能 |
+| `PostToolUse` | ツール実行後 | 結果へのアクセス可能 |
+| `PostToolUseFailure` | ツール実行が失敗した場合 | エラー情報へのアクセス可能 |
+| `PermissionRequest` | Claude がパーミッションを要求した時 | 承認・拒否の自動化 |
+| `PermissionDenied` | パーミッションが拒否された時 | ログ・通知向け |
+
+### エージェント・タスク系
+
+| イベント | 発火タイミング |
+|---|---|
+| `SubagentStart` | サブエージェントが起動した時 |
+| `SubagentStop` | サブエージェントが終了した時 |
+| `TaskCreated` | タスクが作成された時 |
+| `TaskCompleted` | タスクが完了した時 |
+| `TeammateIdle` | Agent Teams のメンバーがアイドル状態になった時 |
+
+### その他
+
+| イベント | 発火タイミング |
+|---|---|
+| `FileChanged` | 監視ファイルが変更された時 |
+| `CwdChanged` | 作業ディレクトリが変わった時 |
+| `ConfigChange` | 設定ファイルが変更された時 |
+| `InstructionsLoaded` | CLAUDE.md や Skills が読み込まれた時 |
+| `Notification` | Claude Code が通知を送ろうとした時 |
+| `WorktreeCreate` | Worktree が作成された時 |
+| `WorktreeRemove` | Worktree が削除された時 |
+| `Elicitation` | Claude がユーザーへの確認を求めた時 |
+
+---
+
+## ハンドラの種類
+
+Hooks には 4 種類のハンドラがあります。
+
+### command
+
+最も汎用性が高い。シェルコマンドを実行し、stdout・exit code で Claude Code と連携します。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "prettier --write $CLAUDE_TOOL_RESULT_FILE_PATH 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### http
+
+HTTP エンドポイントに POST します。ログ収集・外部 Webhook・Zapier 連携などに使います。
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "http",
+            "url": "https://hooks.example.com/claude-session-end",
+            "headers": {
+              "X-API-Key": "$WEBHOOK_SECRET"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### prompt
+
+Claude Code 自身に追加プロンプトを投げ込みます。ツール実行結果を受けて「次に何をするか」を Claude に自律判断させたい場合に使います。
+
+### agent
+
+サブエージェントを起動します。メインの Claude Code セッションとは独立したコンテキストウィンドウで処理させたい場合に使います。
+
+---
+
+## 設定ファイルの書き方
+
+### 基本構造
+
+```json
+// ~/.claude/settings.json または .claude/settings.json
+{
+  "hooks": {
+    "EventName": [
+      {
+        "matcher": "ToolName",   // 省略可能（特定ツールにのみ発火させる場合）
+        "hooks": [
+          {
+            "type": "command",
+            "command": "your-command",
+            "if": "条件式（省略可能）"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### matcher の書き方
+
+`matcher` は特定のツール名やツール入力にマッチさせるパターンです。
+
+```json
+"matcher": "Bash"                    // ツール名で完全一致
+"matcher": "Bash(rm *)"             // ツール名 + コマンドパターン
+"matcher": "Edit|Write"             // OR 条件
+"matcher": ""                        // すべてのツールにマッチ（省略と同義）
+```
+
+### 複数 Hook を組み合わせる
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash(rm *)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/block-rm.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd $CLAUDE_PROJECT_DIR && npx prettier --write $CLAUDE_TOOL_INPUT_FILE_PATH 2>/dev/null || true"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo 'Session ended at $(date)' >> ~/.claude/session.log"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+## exit code の意味
+
+`command` ハンドラの終了コードは特別な意味を持ちます。
+
+| exit code | 動作 |
+|---|---|
+| `0` | 正常終了。stdout の JSON をパース（設定されていれば Claude に渡す） |
+| `2` | **PreToolUse のみ**：ツール呼び出しをブロックする |
+| その他 | エラーとして扱う（Hook 自体は無視して Claude Code は続行） |
+
+### PreToolUse でのブロック例
+
+```bash
+#!/bin/bash
+# .claude/hooks/block-rm.sh
+
+# $CLAUDE_TOOL_INPUT に JSON でツール入力が渡される
+COMMAND=$(echo "$CLAUDE_TOOL_INPUT" | jq -r '.command')
+
+if echo "$COMMAND" | grep -qE "^rm\s+-rf\s+/"; then
+  echo "危険: / 以下への rm -rf は禁止されています" >&2
+  exit 2
+fi
+
+exit 0
+```
+
+---
+
+## ツール入力の書き換え（v2.0.10 以降）
+
+`PreToolUse` では Hook の stdout に `hookSpecificOutput.updatedInput` を返すことで、ツールへの入力を Claude に気づかれずに書き換えられます。
+
+```bash
+#!/bin/bash
+# Bash ツールに渡されるコマンドにタイムアウトを自動付与する
+
+COMMAND=$(echo "$CLAUDE_TOOL_INPUT" | jq -r '.command')
+
+# timeout が付いていないコマンドに 30 秒のタイムアウトを追加
+if ! echo "$COMMAND" | grep -q "timeout"; then
+  PATCHED="timeout 30 $COMMAND"
+  echo '{"hookSpecificOutput": {"updatedInput": {"command": "'"$PATCHED"'"}}}'
+fi
+```
+
+---
+
+## 環境変数
+
+Hook スクリプト内では以下の環境変数が利用できます。
+
+| 変数 | 内容 |
+|---|---|
+| `$CLAUDE_PROJECT_DIR` | プロジェクトのルートディレクトリ |
+| `$CLAUDE_SESSION_ID` | 現在のセッション ID |
+| `$CLAUDE_TOOL_NAME` | 呼び出されたツール名（例: `Bash`、`Edit`） |
+| `$CLAUDE_TOOL_INPUT` | ツール入力の JSON 文字列 |
+| `$CLAUDE_TOOL_INPUT_FILE_PATH` | Edit ツールで編集されたファイルパス |
+| `$CLAUDE_TOOL_RESULT` | PostToolUse でのツール実行結果 |
+| `$CLAUDE_TOOL_RESULT_FILE_PATH` | PostToolUse での結果ファイルパス |
+
+---
+
+## 実践パターン集
+
+### パターン 1：編集後に自動フォーマット
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd $CLAUDE_PROJECT_DIR && npx prettier --write \"$CLAUDE_TOOL_INPUT_FILE_PATH\" 2>/dev/null || true"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+### パターン 2：危険コマンドのブロック
+
+```bash
+#!/bin/bash
+# .claude/hooks/safety-check.sh
+
+CMD=$(echo "$CLAUDE_TOOL_INPUT" | jq -r '.command // empty')
+[ -z "$CMD" ] && exit 0
+
+DANGEROUS_PATTERNS=(
+  "rm -rf /"
+  "chmod -R 777 /"
+  "dd if=/dev/zero"
+  "> /etc/passwd"
+)
+
+for PATTERN in "${DANGEROUS_PATTERNS[@]}"; do
+  if echo "$CMD" | grep -qF "$PATTERN"; then
+    echo "ブロック: '$PATTERN' を含むコマンドは実行禁止です" >&2
+    exit 2
+  fi
+done
+```
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/safety-check.sh" }]
+      }
+    ]
+  }
+}
+```
+
+### パターン 3：セッション終了時に Slack 通知
+
+```bash
+#!/bin/bash
+# セッション終了時に要約を Slack に送る
+SUMMARY="Claude Code セッション終了: $(date '+%Y-%m-%d %H:%M') — プロジェクト: $(basename $CLAUDE_PROJECT_DIR)"
+
+curl -s -X POST "$SLACK_WEBHOOK_URL" \
+  -H 'Content-Type: application/json' \
+  -d "{\"text\": \"$SUMMARY\"}"
+```
+
+### パターン 4：ツール呼び出しの監査ログ
+
+```bash
+#!/bin/bash
+LOG_FILE="$CLAUDE_PROJECT_DIR/.claude/audit.log"
+echo "$(date -u +%FT%TZ) | $CLAUDE_SESSION_ID | $CLAUDE_TOOL_NAME | $(echo "$CLAUDE_TOOL_INPUT" | jq -c '.')" >> "$LOG_FILE"
+```
+
+---
+
+## ハマりポイント・注意事項
+
+**Hook スクリプトは必ず実行可能にする**
+```bash
+chmod +x .claude/hooks/*.sh
+```
+
+**環境変数の展開はシングルクォートに注意**
+JSON 内の `command` はシェル展開されます。`$CLAUDE_PROJECT_DIR` は動的に展開されますが、ダブルクォートを含む場合はエスケープが必要です。
+
+**PreToolUse のブロックは Claude に見える**
+exit code 2 でブロックされた場合、Claude Code はブロックされたことを知らされます。Claude が同じことを別の方法で試みる場合があります。完全にやめさせるには CLAUDE.md にも明示的に禁止事項を書くのが確実です。
+
+**Hook の実行は直列**
+同一イベントに複数の Hook が定義されている場合、上から順番に実行されます（並列実行ではありません）。重い処理をバックグラウンドで走らせたい場合は `&` でデタッチしてください。
+
+**`/hooks` コマンドで確認**
+現在有効なすべての Hook 設定は `/hooks` コマンドで確認できます。設定が反映されていない場合はここで確認するのが最初のステップです。
+
+---
+
+## 参考リンク
+
+- [Hooks reference — Claude Code Docs](https://code.claude.com/docs/en/hooks)
+- [Settings reference — Claude Code Docs](https://code.claude.com/docs/en/settings)
+- [Security & permissions — Claude Code Docs](https://code.claude.com/docs/en/security)

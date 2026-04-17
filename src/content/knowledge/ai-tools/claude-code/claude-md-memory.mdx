@@ -1,0 +1,294 @@
+---
+title: "CLAUDE.md & Auto Memory：セッションをまたぐ記憶の設計と運用ガイド"
+description: "Claude Code の CLAUDE.md と Auto Memory を徹底解説。ファイルの階層・優先度・インポート構文、path-scoped rules、Auto Memory の仕組みと MEMORY.md の管理、/init コマンドの使い方まで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "CLAUDE.md", "Auto Memory", "MEMORY.md", "プロジェクト設定", "コンテキスト管理"]
+sortOrder: 6
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Claude Code の「記憶」は 2 種類あります。
+
+- **CLAUDE.md**: 開発者が書く恒久的な指示。「このプロジェクトはこう動かす」「これは禁止」を Claude に覚えさせる設定ファイル
+- **Auto Memory**: Claude が自動的に学習・記録するメモ。セッションをまたいで設計判断・注意点・ユーザーの好みを蓄積する
+
+2 つを組み合わせると「毎回同じことを説明する手間」がなくなり、Claude Code が初日から「プロジェクトを知っているエンジニア」として振る舞います。
+
+---
+
+## CLAUDE.md とは
+
+CLAUDE.md は Claude Code が起動時・プロジェクト開始時に必ず読み込む Markdown ファイルです。ビルドコマンド・コーディング規約・禁止事項・アーキテクチャの説明などを書いておくことで、毎回説明する手間が省けます。
+
+**読み込まれるタイミング：**
+1. Claude Code セッション開始時
+2. Skills や MCP サーバーが読み込まれる時（`InstructionsLoaded` イベント）
+3. `@path/to/CLAUDE.md` で明示的に参照された時
+
+---
+
+## CLAUDE.md の階層と優先度
+
+CLAUDE.md は複数の場所に置けます。下にあるものほど優先度が高く、上のものを上書きします。
+
+| 優先度 | スコープ | パス |
+|---|---|---|
+| 最低 | マネージドポリシー（組織） | macOS: `/Library/Application Support/ClaudeCode/CLAUDE.md` |
+| ↑ | ユーザー（全プロジェクト共通） | `~/.claude/CLAUDE.md` |
+| ↑ | プロジェクト（チーム共有） | `./CLAUDE.md` または `./.claude/CLAUDE.md` |
+| 最高 | ローカル（個人・非共有） | `./CLAUDE.local.md` |
+
+```
+読み込み順（全て結合される）:
+組織ポリシー → ユーザー設定 → プロジェクト設定 → ローカル設定
+```
+
+> **実務パターン**: チームのルールは `./CLAUDE.md` に Git 管理、個人の好み（好きなエディタ・口調の指定など）は `./CLAUDE.local.md`（gitignore 済み）か `~/.claude/CLAUDE.md` に書く。
+
+---
+
+## CLAUDE.md に書くべき内容
+
+### 必須項目（最低限書く）
+
+```markdown
+# プロジェクト名 CLAUDE.md
+
+## ビルド・開発コマンド
+- 開発サーバー起動: `npm run dev`
+- テスト実行: `npm test`
+- 型チェック: `npm run check`
+- ビルド: `npm run build`
+
+## 重要な制約
+- テストなしの実装コミットは禁止
+- `main` への直接プッシュは禁止（PR 必須）
+- `.env` の内容をコードにハードコードしない
+
+## コーディング規約
+- TypeScript の `any` は使わない（`unknown` を使う）
+- エラーは握りつぶさない（空の catch ブロック禁止）
+- 関数の命名は camelCase、コンポーネントは PascalCase
+```
+
+### プロジェクト特有の情報
+
+```markdown
+## アーキテクチャの概要
+- バックエンド: NestJS + TypeORM（PostgreSQL）
+- フロントエンド: Next.js 15 + TailwindCSS
+- 認証: JWT（HS256）、リフレッシュトークンは Redis に保存
+
+## よくある落とし穴
+- `User` エンティティは soft delete（`deletedAt` で管理）。通常の `.find()` は削除済みを除外しない
+- テスト用 DB は `test_db`（本番 `prod_db` を絶対に使わない）
+- `UserService` と `AuthService` は循環依存に注意（`forwardRef` 使用中）
+```
+
+---
+
+## @インポート構文でファイルを分割
+
+CLAUDE.md が長くなってきたら `@path/to/file` 構文で外部ファイルに分割できます。
+
+```markdown
+# CLAUDE.md
+
+## 基本情報
+@docs/SPEC.md
+@.claude/rules/coding-standards.md
+@.claude/rules/architecture.md
+
+## API 設計規約
+@docs/api-design-guide.md
+```
+
+インポートはネスト可能で、インポートされたファイルも `@` を使えます。大規模プロジェクトでは `.claude/rules/` ディレクトリにルールを分割して管理するパターンが効果的です。
+
+---
+
+## path-scoped rules — ファイルによって異なるルールを適用
+
+`paths` frontmatter を使うと、特定のファイルパターンにマッチした時だけロードされるルールファイルを作れます。
+
+```markdown
+---
+paths: ["**/api/**/*.ts", "**/routes/**/*.ts"]
+---
+
+## API エンドポイントの規約
+- すべてのエンドポイントには認証ミドルウェアを必ずつける
+- レスポンスは `ApiResponse<T>` 型でラップする
+- エラーは `ApiError` クラスを使う（生の Error を throw しない）
+```
+
+```markdown
+---
+paths: ["**/*.test.ts", "**/*.spec.ts"]
+---
+
+## テストファイルの規約
+- モックは `jest.mock()` より `vi.mock()` を使う（Vitest 採用のため）
+- `describe` のネストは 2 階層まで
+- テストケースの命名は「〜の場合、〜である」の形式
+```
+
+---
+
+## Auto Memory の仕組み
+
+Auto Memory（v2.1.59 以降）は Claude Code が自動的にプロジェクトの情報を記録・蓄積するシステムです。
+
+**保存場所：**
+```
+~/.claude/projects/<プロジェクトパスのハッシュ>/memory/MEMORY.md
+```
+
+**仕組み：**
+1. セッション中に Claude がプロジェクトについて学んだことを自動記録
+2. 次のセッション開始時に `MEMORY.md` の**先頭 200 行または 25KB** が自動的に読み込まれる
+3. セッションをまたいで「このプロジェクトについて知っていること」が蓄積される
+
+**自動的に記録される情報の例：**
+- 「`UserRepository.findByEmail()` は非アクティブユーザーも返す」
+- 「`npm run dev` は port 3001 を使う（3000 ではない）」
+- 「テストの実行には事前に `npm run db:seed:test` が必要」
+- 「ユーザーは TDD スタイルを好む」
+
+---
+
+## MEMORY.md の管理
+
+Auto Memory が記録する `MEMORY.md` は、Claude Code が自動管理しますが、内容を確認・編集することもできます。
+
+### 確認方法
+
+```bash
+# メモリファイルの場所を確認
+ls ~/.claude/projects/
+
+# 特定プロジェクトのメモリを確認
+cat ~/.claude/projects/<hash>/memory/MEMORY.md
+```
+
+### 手動でメモを追加
+
+会話中に「これを覚えておいてください」と伝えると、Claude が `MEMORY.md` に追記します。
+
+```
+あなた: "このプロジェクトのデプロイには
+         `npm run deploy:staging` を使います。
+         覚えておいてください。"
+
+→ Claude が MEMORY.md に記録:
+  "デプロイには `npm run deploy:staging` を使う（`npm run build && deploy` ではない）"
+```
+
+### 不要なメモを削除
+
+```
+あなた: "前に覚えてもらったデプロイコマンドの情報を忘れてください"
+
+→ Claude が MEMORY.md から該当部分を削除
+```
+
+---
+
+## MEMORY.md のフォーマット
+
+Auto Memory が管理する `MEMORY.md` は frontmatter 付きの Markdown ファイルとして構造化されます。
+
+```markdown
+---
+name: project-dev-notes
+description: このプロジェクトの開発上の注意点と学習内容
+type: project
+---
+
+## 開発環境
+- 開発サーバーは port 3001（`npm run dev` で起動）
+- テスト DB は Docker Compose で起動（`docker-compose up db-test`）
+
+## よくある問題
+- `npm test` が失敗する場合は `node_modules/.cache` を削除する
+- ホットリロードが効かない時は `CHOKIDAR_USEPOLLING=true` を設定
+
+## ユーザーの好み
+- コミットメッセージは日本語で書く
+- 変更前に必ずプランモードで確認を求める
+```
+
+---
+
+## /init コマンドで CLAUDE.md を自動生成
+
+プロジェクトに CLAUDE.md がない場合、`/init` コマンドでコードベースを分析して自動生成できます。
+
+```bash
+# 通常の /init（シンプルな CLAUDE.md を生成）
+/init
+
+# 対話型マルチフェーズフロー（CLAUDE_CODE_NEW_INIT=1 が必要）
+CLAUDE_CODE_NEW_INIT=1 claude
+/init
+```
+
+対話型フローでは以下をガイド付きで設定できます：
+1. ビルドコマンドの検出と記録
+2. テストコマンドの検出と記録
+3. コーディング規約の設定
+4. Skills の自動提案とセットアップ
+5. Hooks の自動提案とセットアップ
+
+---
+
+## ベストプラクティス
+
+**1 ファイル 200 行以内を目安にする**
+`MEMORY.md` は先頭 200 行しか毎回読まれません。CLAUDE.md も長すぎると起動時のトークン消費が増えます。Rules の `@インポート` で分割し、不要な記述は削除しましょう。
+
+**具体的・検証可能な表現で書く**
+```markdown
+# NG: 曖昧
+コードは読みやすく書く
+
+# OK: 具体的
+インデントは 2 スペース（タブではなく）。
+関数は 20 行以内を目安にする。超える場合は分割を検討する。
+```
+
+**「なぜ」を書く**
+制約の理由を書くと、Claude が例外ケースを適切に判断できます。
+```markdown
+# NG: 理由なし
+生 SQL の使用禁止
+
+# OK: 理由あり
+生 SQL の使用禁止（ORM を通じてすべてのクエリが監査ログに記録されるため）。
+パフォーマンス上やむを得ない場合のみ `$queryRaw` を使い、必ず PR でレビューを受ける。
+```
+
+---
+
+## CLAUDE.md vs Skills vs Hooks の使い分け
+
+| 何を管理したいか | 使うもの |
+|---|---|
+| プロジェクト概要・コーディング規約・禁止事項 | CLAUDE.md |
+| 特定ファイルにのみ適用するルール | path-scoped rules |
+| よく使う手順をコマンドとして呼び出したい | Skills（SKILL.md） |
+| 自動的に実行されるアクション（フォーマット・ブロック） | Hooks（settings.json） |
+| セッションをまたいだプロジェクト固有の学習 | Auto Memory（MEMORY.md） |
+
+---
+
+## 参考リンク
+
+- [How Claude remembers your project — Claude Code Docs](https://code.claude.com/docs/en/memory)
+- [CLAUDE.md reference — Claude Code Docs](https://code.claude.com/docs/en/claude-md)
+- [Extend Claude with skills — Claude Code Docs](https://code.claude.com/docs/en/skills)
+- [Settings reference — Claude Code Docs](https://code.claude.com/docs/en/settings)

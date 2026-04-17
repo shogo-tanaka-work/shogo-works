@@ -1,0 +1,252 @@
+---
+title: "Codex CLIサブエージェント：TOML定義と並列スレッド実行の完全ガイド"
+description: "Codex CLI のサブエージェント機能を徹底解説。TOMLフォーマットによるエージェント定義、max_threads・max_depth・タイムアウトのグローバル設定、/agentコマンドでのスレッド切り替え、Agents SDKとの連携まで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "サブエージェント", "Subagents", "TOML", "並列実行", "マルチスレッド"]
+sortOrder: 3
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+Codex CLI のサブエージェントは **TOML フォーマット**で定義します。Claude Code の Markdown ベース定義と異なり、型安全な設定ファイルでモデル・推論レベル・サンドボックスモード・タイムアウトを細かく制御できます。
+
+サブエージェントでできること：
+- 探索・調査・実装・テストを専門化した複数エージェントを並列実行
+- エージェントごとにモデル・推論レベルを最適化（コスト最適化）
+- 読み取り専用サンドボックスで安全な調査エージェントを作成
+- セッション中に `/agent` コマンドでスレッドを切り替えて確認
+
+---
+
+## エージェント定義ファイルの配置
+
+```
+~/.codex/agents/<name>.toml       ← 個人グローバル定義
+.codex/agents/<name>.toml         ← プロジェクト定義（チーム共有）
+```
+
+プロジェクトの `.codex/agents/` ディレクトリを Git 管理することで、チーム全員が同じエージェント定義を使えます。
+
+---
+
+## TOML フォーマットの定義例
+
+### 基本的なサブエージェント
+
+```toml
+# .codex/agents/explorer.toml
+name = "explorer"
+description = """
+コードベースを読み取り専用で探索・調査する専門エージェント。
+「どこで定義されている？」「このフローを追って」のような
+調査タスクに適切。ファイルの変更は一切行わない。
+"""
+model = "gpt-5.4-mini"
+model_reasoning_effort = "low"
+sandbox_mode = "read-only"
+developer_instructions = """
+あなたはコードベース探索の専門家です。
+
+- ファイルを読み、検索し、パターンを追う
+- ファイルの変更・作成・削除は絶対に行わない
+- 発見した内容はファイルパスと行番号を含めて報告する
+- 探索結果を簡潔な Markdown レポートとしてまとめる
+"""
+```
+
+### 高精度な実装エージェント
+
+```toml
+# .codex/agents/senior-implementer.toml
+name = "senior-implementer"
+description = """
+複雑な機能実装を担当する上級エンジニアエージェント。
+設計判断・リファクタリング・アーキテクチャ変更を含むタスク向け。
+"""
+model = "gpt-5.4"
+model_reasoning_effort = "high"
+sandbox_mode = "workspace-write"
+job_max_runtime_seconds = 1800
+developer_instructions = """
+あなたは 10 年以上の経験を持つシニアエンジニアです。
+
+実装する前に必ず：
+1. 既存コードのパターンを調査する
+2. テストを先に書く（TDD）
+3. 変更の意図をコメントで残す
+
+コーディング規約は AGENTS.md を参照してください。
+"""
+```
+
+### テスト専門エージェント
+
+```toml
+# .codex/agents/test-writer.toml
+name = "test-writer"
+description = """
+ユニットテスト・統合テストの生成専門エージェント。
+新機能追加後や既存テストのカバレッジ向上に使用。
+"""
+model = "gpt-5.4-mini"
+model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
+developer_instructions = """
+テスト専門エンジニアとしてテストを書いてください。
+
+ルール：
+- 既存のテストファイルを読んでパターンを把握してから書く
+- 正常系・異常系・境界値のテストケースを必ず含める
+- モックは必要最小限にする
+- テストを実行して全件通ることを確認してから報告する
+"""
+```
+
+---
+
+## TOML フィールド一覧
+
+| フィールド | 型 | デフォルト | 説明 |
+|---|---|---|---|
+| `name` | string | ファイル名 | エージェントの識別名 |
+| `description` | string | — | Codex がいつこのエージェントを使うか判断する説明 |
+| `model` | string | セッションのデフォルト | 使用するモデル（例: `"gpt-5.4-mini"`） |
+| `model_reasoning_effort` | string | `"medium"` | 推論レベル: `"low"` / `"medium"` / `"high"` |
+| `sandbox_mode` | string | `"workspace-write"` | サンドボックスモード |
+| `developer_instructions` | string | — | エージェントへのシステムプロンプト |
+| `job_max_runtime_seconds` | integer | 900（15分） | タイムアウト（秒） |
+| `tools` | string[] | 全ツール | 使用を許可するツールのリスト |
+
+---
+
+## グローバル設定（config.toml）
+
+すべてのサブエージェントに適用されるデフォルト設定は `config.toml` で管理します。
+
+```toml
+# ~/.codex/config.toml
+
+[agents]
+# 同時に実行できる最大スレッド数
+max_threads = 6                        # デフォルト: 4
+
+# サブエージェントのネスト深度の上限
+max_depth = 1                          # デフォルト: 2（サブエージェントがさらにサブを起動できる深さ）
+
+# 各ジョブのデフォルトタイムアウト（秒）
+job_max_runtime_seconds = 1800         # デフォルト: 900
+
+# サブエージェントのログを保存するかどうか
+log_agent_runs = true
+log_dir = "~/.codex/logs/agents"
+```
+
+---
+
+## 並列実行の効果
+
+複数の独立したタスクを同時並列で処理することで、直列実行と比べて大幅に時間を短縮できます。
+
+```
+【直列実行（並列化なし）】
+1. 認証モジュールのテスト生成（10分）
+2. 支払いモジュールのテスト生成（8分）
+3. 通知モジュールのテスト生成（7分）
+合計: 25分
+
+【並列実行（3エージェント同時）】
+認証/支払い/通知 のテスト生成を同時実行
+合計: 10分（最も遅いタスクの時間のみ）
+```
+
+---
+
+## セッション中のスレッド管理
+
+Codex のサブエージェントは「スレッド」として管理され、セッション中にインタラクティブに切り替えられます。
+
+```bash
+# セッション中のコマンド
+
+/agent                   # アクティブなスレッドの一覧を表示
+/agent 2                 # スレッド 2 に切り替え
+/agent /root/agent_a     # パスでスレッドを指定（v0.117.0 以降の新形式）
+/agent new               # 新しいスレッドを追加で起動
+```
+
+**スレッドアドレスの表記（v0.117.0 以降）：**
+```
+/root             → ルート（メイン）エージェント
+/root/agent_a     → ルート直下のサブエージェント A
+/root/agent_a/1   → agent_a が起動した孫エージェント
+```
+
+---
+
+## Agents SDK との連携
+
+Codex CLI を MCP サーバーとして公開し、OpenAI の Agents SDK からサブエージェントとして制御できます。
+
+```python
+# OpenAI Agents SDK から Codex を制御する
+from agents import Agent, Runner
+from agents.mcp import MCPServerStdio
+
+# Codex CLI を MCP サーバーとして起動
+codex_server = MCPServerStdio(
+    command="codex",
+    args=["mcp-server"],  # Codex を MCP サーバーとして起動
+)
+
+# Codex エージェントを定義
+codex_agent = Agent(
+    name="codex-implementer",
+    instructions="与えられた実装タスクを Codex CLI で実行してください",
+    mcp_servers=[codex_server],
+)
+
+# 実行
+result = Runner.run_sync(
+    codex_agent,
+    "src/auth/ の認証ロジックにあるバグを修正して"
+)
+print(result.final_output)
+```
+
+---
+
+## コスト最適化の考え方
+
+サブエージェントごとにモデルと推論レベルを最適化することで、品質を保ちながらトークンコストを削減できます。
+
+| タスクの種類 | 推奨設定 | 理由 |
+|---|---|---|
+| コードベース探索・検索 | `gpt-5.4-mini` + `reasoning_effort: low` | 読み取りのみ、高精度不要 |
+| テスト生成・コメント追加 | `gpt-5.4-mini` + `reasoning_effort: medium` | 定型的な生成タスク |
+| 複雑な実装・バグ修正 | `gpt-5.4` + `reasoning_effort: high` | 品質重視 |
+| アーキテクチャ設計 | `gpt-5.3-codex` + `reasoning_effort: high` | ソフトウェアエンジニアリング特化 |
+
+---
+
+## ハマりポイント・注意事項
+
+**description の具体性がサブエージェント選択の精度を決める**
+Codex がどのサブエージェントを使うか自動判断するのに `description` しか参照しません。「いつ使うか」を 1〜2 文で明確に書いてください。
+
+**max_depth のデフォルトは 2**
+`config.toml` で `max_depth = 1` にしないと、サブエージェントがさらにサブエージェントを起動する（孫エージェント）可能性があります。制御が難しくなるため、明示的に設定することを推奨します。
+
+**job_max_runtime_seconds を設定する**
+タイムアウトなしだと、ループや無限に実行し続けるエージェントが生まれることがあります。デフォルト（900 秒）を超えるタスクが想定される場合のみ拡大してください。
+
+---
+
+## 参考リンク
+
+- [Subagents — Codex CLI Docs](https://developers.openai.com/codex/subagents)
+- [Configuration reference — Codex CLI Docs](https://developers.openai.com/codex/config-reference)
+- [Use Codex with the Agents SDK — Codex CLI Docs](https://developers.openai.com/codex/guides/agents-sdk)
+- [Models — Codex CLI Docs](https://developers.openai.com/codex/models)

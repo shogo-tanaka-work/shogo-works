@@ -1,0 +1,299 @@
+---
+title: "Claude Code MCPガイド：外部ツール・API接続の全手順と活用パターン"
+description: "Claude Code の MCP（Model Context Protocol）を徹底解説。サーバーの追加・設定・トランスポート種別、Tool Search による遅延ロード、claude mcp serve、おすすめ公式サーバーまで2026年4月の最新仕様でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "MCP", "Model Context Protocol", "ツール連携", "GitHub", "外部API"]
+sortOrder: 5
+createdAt: 2026-04-15
+author: "田中省伍"
+---
+
+## TL;DR
+
+MCP（Model Context Protocol）は、Claude Code に外部ツール・データベース・API を接続するためのオープン標準プロトコルです。GitHub・Slack・Google Drive・PostgreSQL など既存のサーバーをそのまま使えるほか、自作のカスタムサーバーも作れます。
+
+MCP でできること：
+- Claude Code から GitHub の Issue・PR を直接操作
+- Slack・Notion・Linear などの SaaS ツールにアクセス
+- ローカル DB への直接クエリ
+- プロジェクト固有の社内ツールを Claude Code に接続
+- Claude Code 自身を MCP サーバーとして他ツールに公開
+
+---
+
+## MCP の仕組み
+
+MCP はクライアント（Claude Code）とサーバー（ツール提供側）が JSON-RPC でやり取りする標準プロトコルです。
+
+```
+Claude Code (MCP クライアント)
+    ↓ JSON-RPC
+MCP サーバー（GitHub / Slack / 自作ツールなど）
+    ↓
+外部 API / データベース / ローカルファイルシステム
+```
+
+Claude Code は MCP サーバーが提供するツールを、組み込みツール（Read・Bash・Edit など）と同じ感覚で呼び出せます。
+
+---
+
+## MCP サーバーの追加方法
+
+### CLI で追加（推奨）
+
+```bash
+# HTTP トランスポート（クラウドサービス向け）
+claude mcp add --transport http <name> <url>
+claude mcp add --transport http github-api https://mcp.github.com/mcp \
+  --header "Authorization: Bearer $GITHUB_TOKEN"
+
+# Stdio トランスポート（ローカルプロセス向け）
+claude mcp add --transport stdio <name> -- <command> [args...]
+claude mcp add --transport stdio github -- npx @modelcontextprotocol/server-github
+
+# 追加済みサーバーの一覧
+claude mcp list
+
+# サーバーの削除
+claude mcp remove <name>
+```
+
+### .mcp.json で管理（チーム共有に推奨）
+
+プロジェクトルートに `.mcp.json` を置くと、リポジトリをクローンしたメンバー全員が同じ MCP 設定を使えます。
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://mcp.github.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"]
+    },
+    "postgres": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@modelcontextprotocol/server-postgres", "${DATABASE_URL}"]
+    }
+  }
+}
+```
+
+> `.mcp.json` はチームで共有するため、シークレットは環境変数（`${ENV_VAR}`）で参照します。シークレット自体は `.env` や `~/.claude/settings.local.json` で管理してください。
+
+### settings.json で管理（個人設定・シークレットあり）
+
+```json
+// ~/.claude/settings.local.json（git 管理しない）
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://mcp.github.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ghp_your_actual_token_here"
+      }
+    }
+  }
+}
+```
+
+---
+
+## トランスポートの種類
+
+| トランスポート | 特徴 | 向いているケース |
+|---|---|---|
+| `http` | クラウドサービスへの HTTPS 接続。認証ヘッダー指定可能 | GitHub・Slack・Notion など SaaS API |
+| `stdio` | ローカルプロセスを起動し stdin/stdout で通信 | ローカル DB・ファイルシステム・自作ツール |
+
+---
+
+## Tool Search（v2.1.76 以降のデフォルト）
+
+MCP サーバーが増えてツール数が多くなると、起動時にすべてのツールをコンテキストにロードするとトークンを大量消費します。Tool Search はこれを解決する遅延ロード機能です。
+
+**従来の動作：**
+```
+セッション開始 → 全 MCP ツール定義をコンテキストにロード → Claude が使いたいツールを選択
+```
+
+**Tool Search の動作：**
+```
+セッション開始 → ツール定義はロードしない
+Claude がタスクを理解 → 必要なツールを名前で検索 → 該当ツールのみコンテキストにロード
+```
+
+これにより、MCP サーバーが 10 個あっても「現在のタスクに必要なツール」だけがロードされ、トークン消費を最小化できます。
+
+```json
+// .claude/settings.json でモード変更
+{
+  "env": {
+    "ENABLE_TOOL_SEARCH": "auto"   // デフォルト: タスク数が閾値超えで自動切替
+    // "ENABLE_TOOL_SEARCH": "1"  // 常に Tool Search を使う
+    // "ENABLE_TOOL_SEARCH": "0"  // 無効化（従来の全ロード）
+  }
+}
+```
+
+---
+
+## claude mcp serve — Claude Code を MCP サーバーとして公開
+
+Claude Code 自身を MCP サーバーとして起動すると、Claude Desktop・Cursor・Windsurf など MCP クライアントから Claude Code のツール（ファイル編集・コマンド実行など）を利用できます。
+
+```bash
+# Claude Code を MCP サーバーとして起動
+claude mcp serve
+
+# 特定のポートで起動
+claude mcp serve --port 3000
+```
+
+**活用例：** Claude Desktop から「このリポジトリのファイルを読んで説明して」と依頼すると、Claude Desktop が `claude mcp serve` を通じてローカルのファイルシステムにアクセスできます。
+
+---
+
+## 主要な公式 MCP サーバー
+
+### GitHub（[mcp.github.com](https://github.com/github/github-mcp-server)）
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer ${GITHUB_TOKEN}"
+      }
+    }
+  }
+}
+```
+
+提供ツール：`create_issue`・`list_pull_requests`・`search_code`・`get_file_contents` など
+
+### Filesystem（ローカルファイル）
+
+```bash
+claude mcp add --transport stdio filesystem -- \
+  npx @modelcontextprotocol/server-filesystem ~/Documents ~/Projects
+```
+
+### PostgreSQL
+
+```bash
+claude mcp add --transport stdio postgres -- \
+  npx @modelcontextprotocol/server-postgres "postgresql://user:pass@localhost/mydb"
+```
+
+### Puppeteer / Playwright（ブラウザ操作）
+
+```bash
+claude mcp add --transport stdio playwright -- npx @playwright/mcp@latest
+```
+
+E2E テストのシナリオを Claude Code に書かせて実行させる、スクリーンショットを撮って UI バグを報告させるなどの用途に使えます。
+
+---
+
+## 自作 MCP サーバーの作成
+
+社内 API・独自データベース・社内 Slack Bot などを Claude Code に接続したい場合は MCP サーバーを自作します。
+
+### TypeScript SDK を使った最小実装
+
+```typescript
+import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import {
+  CallToolRequestSchema,
+  ListToolsRequestSchema,
+} from "@modelcontextprotocol/sdk/types.js";
+
+const server = new Server(
+  { name: "my-internal-api", version: "1.0.0" },
+  { capabilities: { tools: {} } }
+);
+
+// ツールの一覧を返す
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: [
+    {
+      name: "get_deployment_status",
+      description: "指定したサービスのデプロイ状況を取得する",
+      inputSchema: {
+        type: "object",
+        properties: {
+          service: { type: "string", description: "サービス名" }
+        },
+        required: ["service"]
+      }
+    }
+  ]
+}));
+
+// ツールの実行ハンドラ
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  if (request.params.name === "get_deployment_status") {
+    const { service } = request.params.arguments as { service: string };
+    // 実際の API 呼び出し
+    const status = await fetchDeploymentStatus(service);
+    return { content: [{ type: "text", text: JSON.stringify(status) }] };
+  }
+  throw new Error(`Unknown tool: ${request.params.name}`);
+});
+
+const transport = new StdioServerTransport();
+await server.connect(transport);
+```
+
+---
+
+## セキュリティの考慮事項
+
+**`~/.claude/settings.local.json` でシークレットを管理する**
+`.mcp.json` はチームで共有するため Git にコミットします。API トークンなどのシークレットは必ず `settings.local.json`（gitignore 済み）か環境変数で参照してください。
+
+**MCP サーバーの権限を最小にする**
+ローカル Filesystem サーバーを追加する場合は、アクセスを許可するディレクトリを必要最小限に絞ります。`~/` 全体へのアクセスを許可するのは避けてください。
+
+**サードパーティ MCP サーバーに注意**
+信頼できる出所のサーバーのみを使用してください。MCP サーバーは Claude Code のコンテキストに情報を注入できるため、悪意のあるサーバーによる Prompt Injection のリスクがあります。
+
+---
+
+## ハマりポイント・注意事項
+
+**環境変数の展開は起動時に行われる**
+`.mcp.json` 内の `${ENV_VAR}` は Claude Code の起動時に展開されます。起動後に環境変数を変更しても反映されません。
+
+**`claude mcp list` で接続状態を確認**
+設定したサーバーが認識されているか、エラーが出ていないかは `claude mcp list` で確認できます。
+
+**Stdio サーバーのログを確認する方法**
+Stdio 型サーバーのデバッグログは標準エラー出力に出ます。`claude mcp add --transport stdio <name> -- npx ... 2>/tmp/mcp.log` のようにリダイレクトすると確認しやすいです。
+
+**Tool Search が有効な場合、ツールが見当たらない場合がある**
+Tool Search が有効な場合、Claude が「必要ない」と判断したツールは検索されません。特定のツールを必ず使わせたい場合は指示に明示的にツール名を含めてください。
+
+---
+
+## 参考リンク
+
+- [Connect Claude Code to tools via MCP — Claude Code Docs](https://code.claude.com/docs/en/mcp)
+- [MCP サーバーレジストリ — api.anthropic.com/mcp-registry](https://api.anthropic.com/mcp-registry)
+- [Model Context Protocol 公式サイト](https://modelcontextprotocol.io)
+- [GitHub MCP サーバー](https://github.com/github/github-mcp-server)
+- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
+- [awesome-mcp-servers（コミュニティ）](https://github.com/punkpeye/awesome-mcp-servers)
