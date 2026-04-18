@@ -1,0 +1,91 @@
+---
+title: "Gemini API 2026年料金改定完全解説：無料枠縮小・強制上限・プリペイド制の全容"
+description: "2026年3〜4月のGemini API料金体系の大幅改定を解説。無料枠の段階的縮小、プリペイド課金の強制、支出上限の適用、Gemini 2.0 Flash廃止予定など、API利用者が知るべき変更点を網羅。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Google", "API", "料金", "プリペイド"]
+sortOrder: 3
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## 概要
+
+2025年末から段階的に進んできたGemini APIの料金体系見直しが、**2026年3〜4月に大きな節目**を迎えました。無料枠の縮小・プリペイド課金の強制・強制支出上限の適用という3つの変更が立て続けに実施され、開発者への影響が出始めています。
+
+---
+
+## 変更のタイムライン
+
+| 時期 | 変更内容 |
+|---|---|
+| 2025年12月 | 無料枠を50〜80%削減 |
+| 2026年3月23日 | 新規サインアップユーザーにプリペイド課金を強制 |
+| **2026年4月1日** | **全課金アカウントに強制支出上限を適用** |
+| 2026年6月1日（予定） | Gemini 2.0 Flash シャットダウン |
+
+---
+
+## 主要変更点の詳細
+
+### 1. 無料枠の縮小（2025/12〜2026/4）
+
+- Proモデルが**無料枠から完全除外**（2026年4月時点）
+- 実験・プロトタイピング用途は引き続きFlash系モデルの無料枠で対応可能
+- Google AI Studioでの個人開発者向け無料利用には制限が残る
+
+### 2. プリペイド課金制（2026/3/23〜）
+
+- **新規ユーザーはクレジット前払い**が必要
+- 従来の月末後払いモデルから転換
+- 残高不足でリクエストが即停止するため、事前の残高管理が重要
+
+### 3. 強制支出上限（2026/4/1〜）
+
+| ティア | 月間支出上限 |
+|---|---|
+| Tier 1 | $250 |
+| Tier 2 | $2,000 |
+| Tier 3 | $20,000〜$100,000以上 |
+
+上限に達するとリクエストが一時停止されます。上位ティアへの移行はGoogle Cloudコンソールから申請できます。
+
+---
+
+## 2026年4月時点のモデル別料金
+
+| モデル | 入力（$/1M） | 出力（$/1M） |
+|---|---|---|
+| Gemini 3.1 Pro（〜200k tokens） | $1.25 | $10.00 |
+| Gemini 3.1 Pro（200k超） | $2.50 | $15.00 |
+| Gemini 3 Flash | $0.10〜 | $0.40〜 |
+| Gemini 3.1 Flash-Lite | 無料枠あり | 無料枠あり |
+
+バッチAPI利用で最大50%コスト削減が適用されます。
+
+---
+
+## Gemini 2.0 Flash 廃止への対応
+
+**2026年6月1日にGemini 2.0 Flashがシャットダウン**予定です。該当APIを使用しているプロジェクトは以下の移行を推奨します：
+
+- **品質重視** → Gemini 3.1 Flash
+- **コスト重視** → Gemini 3.1 Flash-Lite
+- **リアルタイム音声** → Gemini 3.1 Flash Live
+
+---
+
+## 影響を受けるユーザーへの対応策
+
+1. **Google AI Studioでの支出モニタリング**を設定する（3月12日追加機能）
+2. **プリペイドクレジット**を余裕を持って確保する
+3. **Tier昇格申請**を早めに実施し、上限リスクを回避する
+4. **Gemini 2.0 Flash依存コード**を6月1日前に移行する
+
+---
+
+## 参考リンク
+
+- [Gemini API Pricing | ai.google.dev](https://ai.google.dev/gemini-api/docs/pricing)
+- [Gemini API Changelog | ai.google.dev](https://ai.google.dev/gemini-api/docs/changelog)
+- [Google Introduces Prepay Billing for Gemini API | ai-daily.news](https://www.ai-daily.news/articles/google-introduces-prepay-billing-for-gemini-api-in-ai-studio)
