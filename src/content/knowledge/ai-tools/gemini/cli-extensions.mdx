@@ -1,0 +1,145 @@
+---
+title: "Gemini CLI Extensions完全解説：BigQuery・Cloud SQLを自然言語で操作するデータ分析拡張"
+description: "2025年9月発表のGemini CLI Extensionsを解説。対話型シェル対応（vim・REPL実行可能）、BigQuery・Cloud SQL・Looker等のGoogle Data Cloud拡張機能のインストール方法と活用法、便利なショートカットを網羅。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Gemini CLI", "Extensions", "BigQuery", "データ分析"]
+sortOrder: 6
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- Gemini CLIが**対話型シェル対応**（vim・git rebase -i・REPL等が使えるようになった）
+- **Extensions**でBigQuery・Cloud SQL・Lookerを自然言語で操作できる
+- `gemini extensions install <GitHub URL>` で1コマンドインストール
+
+---
+
+## 概要
+
+**Gemini CLI Extensions** は、2025年9月に発表されたGemini CLIのプラグインシステムです。プロンプト・MCPサーバー・カスタムコマンド・サブエージェントをパッケージ化して配布・共有できます。
+
+同時期のアップデートでは**対話型シェルへの対応**も実現し、従来は動かなかった `vim` や `htop`、Pythonの対話型REPLなどをGemini CLI内で直接実行できるようになりました。
+
+---
+
+## 対話型シェル対応（v0.9.0〜）
+
+内部でPTY（疑似ターミナル）技術を採用し、以下が実行可能になりました：
+
+| 従来は不可 | 対応後 |
+|---|---|
+| `vim` / `nano` でのファイル編集 | ✅ |
+| `git rebase -i` / `git log` | ✅ |
+| `python3` / `node` REPL | ✅ |
+| `htop` / `top` プロセス監視 | ✅ |
+| `mysql` / `psql` CLIクライアント | ✅ |
+
+---
+
+## Extensions のインストール
+
+```bash
+# GitHub URLを指定してインストール
+gemini extensions install https://github.com/gemini-cli-extensions/bigquery-data-analytics
+
+# インストール済み一覧を確認
+/extensions
+
+# Extensionを有効化
+/extensions enable bigquery-data-analytics
+```
+
+---
+
+## Google Data Cloud拡張機能
+
+GoogleがGemini CLI向けに公式提供するデータ基盤向け拡張機能群です。
+
+### 対応サービス
+
+| サービス | 主な操作 |
+|---|---|
+| **BigQuery** | 自然言語でSQL生成・実行・結果分析 |
+| **Cloud SQL** | PostgreSQL / MySQL / SQL Server の操作 |
+| **AlloyDB** | 高性能PostgreSQL互換DBの操作 |
+| **Firestore** | ドキュメントDBの検索・更新 |
+| **Spanner** | グローバル分散DBの操作 |
+| **Dataplex** | データレイクの管理・クリーニング |
+| **Looker** | BIダッシュボードのデータ参照 |
+
+### 使い方の例（BigQuery）
+
+```bash
+# BigQuery拡張を使ってデータを探索
+$ gemini
+
+You: 先月の月別売上トップ5の商品を教えて
+
+Gemini: BigQueryを確認します...
+
+SELECT product_name, SUM(revenue) as total_revenue
+FROM `myproject.sales.transactions`
+WHERE DATE_TRUNC(date, MONTH) = DATE_TRUNC(DATE_SUB(CURRENT_DATE(), INTERVAL 1 MONTH), MONTH)
+GROUP BY product_name
+ORDER BY total_revenue DESC
+LIMIT 5;
+
+# 結果:
+# 1. 商品A: ¥4,820,000
+# 2. 商品B: ¥3,210,000
+# ...
+```
+
+---
+
+## 便利なショートカット
+
+| ショートカット | 動作 |
+|---|---|
+| `Ctrl+R` | プロンプト履歴の逆引き検索 |
+| `Ctrl+Z` | 誤削除テキストの復元 |
+| `Ctrl+Shift+Z` | やり直し |
+| `/extensions` | インストール済みExtensions一覧 |
+| `/` + Tab | スラッシュコマンド補完 |
+
+---
+
+## 非インタラクティブモードでのExtension呼び出し
+
+スクリプトやCI/CDからExtensionを呼び出す場合：
+
+```bash
+# スラッシュコマンドを直接実行（非インタラクティブ）
+gemini "/bq:query 先月の売上合計を教えて"
+
+# パイプで使う
+cat query.txt | gemini "/sql:analyze"
+```
+
+---
+
+## カスタムExtensionの作成
+
+```
+my-extension/
+├── EXTENSION.md       # 説明・コマンド一覧
+├── prompts/
+│   └── system.md     # システムプロンプト
+├── commands/
+│   └── analyze.md    # カスタムコマンド
+└── mcp/
+    └── server.js     # MCPサーバー（任意）
+```
+
+作成したExtensionはGitHubに公開して `gemini extensions install` で配布できます。
+
+---
+
+## 参考リンク
+
+- [Google Developers Blog - Gemini CLI 対話型シェル](https://developers.googleblog.com/en/say-hello-to-a-new-level-of-interactivity-in-gemini-cli/)
+- [Google Cloud Blog - Gemini CLI Extensions for Data Cloud](https://cloud.google.com/blog/products/databases/gemini-cli-extensions-for-google-data-cloud)
+- [Gemini CLI Changelog | 公式](https://google-gemini.github.io/gemini-cli/docs/changelogs/)

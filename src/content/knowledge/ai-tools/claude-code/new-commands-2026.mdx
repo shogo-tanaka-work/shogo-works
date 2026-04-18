@@ -1,0 +1,145 @@
+---
+title: "Claude Code 新コマンド2026ガイド：/ultrareview・/effort・/tui・/less-permission-prompts"
+description: "2026年4月に追加されたClaude Codeの新スラッシュコマンドを解説。並列マルチエージェントレビューの/ultrareview、推論強度制御の/effort（xhigh新設）、権限プロンプト削減の/less-permission-prompts、フルスクリーンの/tuiを網羅。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "スラッシュコマンド", "ultrareview", "effort", "自動化"]
+sortOrder: 12
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **`/ultrareview`** — 並列マルチエージェントによる包括的コードレビュー
+- **`/effort`** — 推論強度をxhigh〜autoで切り替え（Opus 4.7で`xhigh`新設）
+- **`/less-permission-prompts`** — 権限確認ダイアログを自動で減らす設定支援
+- **`/tui`** — フルスクリーンTUIレンダリングで集中作業
+
+---
+
+## `/ultrareview` — 並列コードレビュー
+
+Claude Opus 4.7 の一般公開に合わせて追加されたコマンドです。クラウド上で複数の専門エージェントが並列にコードを検査し、単一エージェントでは見落としがちな問題を検出します。
+
+### 使い方
+
+```bash
+# 現在のブランチの変更をレビュー
+/ultrareview
+
+# 指定したGitHub PRをフェッチしてレビュー
+/ultrareview 1234
+```
+
+### レビュー観点
+
+| エージェント | 担当観点 |
+|---|---|
+| アーキテクチャ担当 | 設計パターン・依存関係・モジュール分離 |
+| セキュリティ担当 | インジェクション・認証・データ露出リスク |
+| パフォーマンス担当 | 計算量・メモリ・N+1クエリ |
+| 保守性担当 | 命名・テストカバレッジ・ドキュメント |
+
+### 料金
+
+Pro/Max ユーザーは初回3セッションが無料。以降は従量課金です。
+
+---
+
+## `/effort` — 推論強度制御
+
+モデルが各タスクにかける推論リソースを対話的に調整できます。
+
+### 使い方
+
+```bash
+# インタラクティブスライダーで選択（矢印キー→Enter）
+/effort
+
+# 直接レベル指定
+/effort xhigh    # 最大限の推論（Opus 4.7で新設）
+/effort high     # 高い推論強度
+/effort medium   # 標準（日常タスク向け）
+/effort auto     # モデルデフォルトに戻す
+```
+
+**2026年4月現在：Opus 4.7では全プランのデフォルトが `xhigh` に引き上げられています。**
+
+### 使い分け目安
+
+| レベル | 向いているタスク |
+|---|---|
+| xhigh | 複雑なアルゴリズム設計・難解なバグ調査・セキュリティ監査 |
+| high | 中規模の機能実装・パフォーマンス最適化 |
+| medium | 小さなバグ修正・定型的なコード生成・ドキュメント作成 |
+| auto | モデルに任せる（通常はこれで十分） |
+
+コスト観点では、`medium` の方が `xhigh` より大幅に安価です。難所以外は `auto` か `medium` 推奨です。
+
+---
+
+## `/less-permission-prompts` — 権限確認の自動設定
+
+Claude Code の操作で頻繁に表示される権限確認ダイアログを減らすための設定支援コマンドです。
+
+### 仕組み
+
+```bash
+/less-permission-prompts
+```
+
+1. 過去のトランスクリプトを走査
+2. 繰り返し実行されている読み取り専用の Bash コマンドと MCP ツールコールを分析
+3. 許可リストを優先度付きで提案
+4. 承認すると `.claude/settings.json` に自動追記
+
+### 設定例（自動追記後）
+
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "Bash(ls:*)",
+      "Bash(git status:*)",
+      "Bash(npm run test:*)"
+    ]
+  }
+}
+```
+
+`/less-permission-prompts` を定期的に実行することで、作業が進むにつれて自動化の範囲が広がっていきます。
+
+---
+
+## `/tui` — フルスクリーンTUI
+
+```bash
+/tui
+```
+
+ターミナルUIをフルスクリーン化して、チャットとツール出力に集中できるモードです。v2.1.110 で追加されました。画面のちらつきが解消され、長時間作業でも目が疲れにくくなります。
+
+`q` で通常表示に戻ります。
+
+---
+
+## `/team-onboarding` — チーム導入支援
+
+```bash
+/team-onboarding
+```
+
+v2.1.101 で追加された対話型オンボーディングコマンドです。チームに Claude Code を導入する際の設定（CLAUDE.md の初期内容・許可リスト・MCPサーバー設定）を質問形式で組み立てます。
+
+新メンバーが参加するたびに実行することで、プロジェクトのコーディング規約・禁止操作・優先ツールを Claude Code に伝えることができます。
+
+---
+
+## 参考リンク
+
+- [Claude Code Changelog | claudefa.st](https://claudefa.st/blog/guide/changelog)
+- [Claude Code Release Notes | Releasebot](https://releasebot.io/updates/anthropic/claude-code)
+- [Introducing Claude Opus 4.7 | Anthropic](https://www.anthropic.com/news/claude-opus-4-7)
+- [CHANGELOG.md | GitHub](https://raw.githubusercontent.com/anthropics/claude-code/refs/heads/main/CHANGELOG.md)

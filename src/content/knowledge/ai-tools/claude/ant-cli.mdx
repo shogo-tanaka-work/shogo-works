@@ -1,0 +1,272 @@
+---
+title: "ant CLI完全ガイド：Claude APIをターミナルから操作するコマンドラインクライアント"
+description: "Anthropicが2026年4月8日にリリースしたant CLIの全機能を解説。インストールからYAMLによるAPIリソースのバージョン管理、Claude Codeとのネイティブ統合、Managed Agents操作まで実践的なコマンド例と合わせて網羅します。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["ant CLI", "Claude API", "Anthropic", "Managed Agents", "Claude Code"]
+sortOrder: 0
+createdAt: 2026-04-16
+author: "田中省伍"
+draft: true
+---
+
+## 概要
+
+`ant` CLIは、Anthropicが2026年4月8日にリリースしたClaude API公式コマンドラインクライアントです。Messages APIへの問い合わせから、Claude Managed Agentsのエージェント・セッション・環境管理まで、Claude APIのあらゆるリソースをターミナルから操作できます。
+
+`curl` でAPIを叩く場合と比べて、フラグによる型付きリクエスト組み立て・YAML/JSONファイルのパイプ入力・`--transform`によるレスポンスのフィルタリングが標準搭載されており、スクリプトやCI/CDパイプラインにもそのまま組み込めます。Claude Code とのネイティブ統合も備わっており、Claude Code がエージェントとして `ant` を呼び出してAPIリソースを操作することも可能です。
+
+公式ドキュメントは[CLI reference](https://platform.claude.com/docs/en/api/sdks/cli)で確認できます。
+## 主要機能
+
+### インストール
+
+macOS では Homebrew が最も簡単です。
+```bash
+brew install anthropics/tap/ant
+
+# macOS のみ: Gatekeeper の検疫フラグを解除
+xattr -d com.apple.quarantine "$(brew --prefix)/bin/ant"
+```
+
+Linux / WSL 環境では curl でバイナリを直接取得します。
+```bash
+VERSION=1.0.0
+curl -fsSL \
+  "https://github.com/anthropics/anthropic-cli/releases/download/v${VERSION}/ant_${VERSION}_linux_amd64.tar.gz" \
+  | sudo tar -xz -C /usr/local/bin ant
+```
+
+Go 1.22 以降がある環境ではソースからビルドすることもできます。
+```bash
+go install github.com/anthropics/anthropic-cli/cmd/ant@latest
+```
+
+インストール確認:
+```bash
+ant --version
+```
+### 認証
+
+`ANTHROPIC_API_KEY` 環境変数を設定するだけです。APIキーは[Claude Console](https://platform.claude.com/settings/keys)で発行できます。
+```bash
+echo 'export ANTHROPIC_API_KEY=sk-ant-api03-...' >> ~/.zshrc
+source ~/.zshrc
+```
+
+別のAPIホストを使いたい場合は `ANTHROPIC_BASE_URL` 環境変数か `--base-url` フラグで上書きできます。
+### 最初のリクエスト
+```bash
+ant messages create \
+  --model claude-opus-4-6 \
+  --max-tokens 1024 \
+  --message '{role: user, content: "Hello, Claude"}'
+```
+```json
+{
+  "model": "claude-opus-4-6",
+  "id": "msg_01YMmR5XodC5nTqMxLZMKaq6",
+  "type": "message",
+  "role": "assistant",
+  "content": [{ "type": "text", "text": "Hello! How are you doing today?" }],
+  "stop_reason": "end_turn",
+  "usage": { "input_tokens": 27, "output_tokens": 20 }
+}
+```
+### コマンド構造
+
+コマンドは `<リソース> <アクション>` の形式です。ネストしたリソースはコロンで区切ります。
+```bash
+# モデル一覧
+ant models list
+
+# メッセージ作成
+ant messages create --model claude-opus-4-6 --max-tokens 1024 ...
+
+# ベータリソース（エージェント、セッション、環境など）
+ant beta:agents retrieve --agent-id agent_01...
+ant beta:sessions:events list --session-id session_01...
+```
+
+`beta:` プレフィックス配下のコマンドは自動的に適切な `anthropic-beta` ヘッダーを付与するため、手動で指定する必要はありません。
+### 出力フォーマット
+
+`--format` フラグで出力形式を変更できます。ターミナル出力時のデフォルトは `auto`（pretty-print JSON）です。
+
+| フォーマット | 説明 |
+|---|---|
+| `auto` | ターミナルではpretty JSON、パイプ時はコンパクトJSON |
+| `json` | コンパクトJSON |
+| `jsonl` | 1行1オブジェクトのJSON Lines |
+| `yaml` | YAML形式 |
+| `pretty` | 常にpretty-print JSON |
+| `raw` | APIレスポンスをそのまま出力 |
+| `explore` | 折りたたみ・検索可能なインタラクティブTUI |
+```bash
+ant models retrieve --model-id claude-opus-4-6 --format yaml
+```
+```yaml
+type: model
+id: claude-opus-4-6
+display_name: Claude Opus 4.6
+created_at: "2026-02-04T00:00:00Z"
+```
+### GJSONによるレスポンス変換
+
+`--transform` フラグに[GJSON path](https://github.com/tidwall/gjson/blob/master/SYNTAX.md)を指定することで、レスポンスの整形やフィールド抽出ができます。
+```bash
+ant beta:agents list \
+  --transform "{id,name,model}" \
+  --format jsonl
+```
+```jsonl
+{"id": "agent_011CYm1BLqPX...", "name": "Docs CLI Test Agent", "model": "claude-sonnet-4-6"}
+{"id": "agent_011CYkVwfaEt...", "name": "Coffee Making Assistant", "model": "claude-sonnet-4-6"}
+```
+シェル変数への代入には `--format yaml` と組み合わせると便利です。スカラー値がクォートなしで出力されるため、そのままシェル変数に代入できます。
+```bash
+AGENT_ID=$(ant beta:agents create \
+  --name "My Agent" \
+  --model '{id: claude-sonnet-4-6}' \
+  --transform id --format yaml)
+```
+### リクエストボディの渡し方
+
+**フラグ**: スカラー値・短い構造体に使います。構造体はYAML的な緩い記法でもJSONでも書けます。
+```bash
+ant beta:sessions create \
+  --agent '{type: agent, id: agent_011CYm1BLqPXpQRk5khsSXrs, version: 1}' \
+  --environment-id env_01595EKxaaTTGwwY3kyXdtbs \
+  --title "CLI docs test session"
+```
+**標準入力（stdin）**: 複雑なネスト構造にはYAMLドキュメントをパイプします。フラグとの同時指定も可能で、フラグが優先されます。
+```yaml
+# ant beta:agents create < this-file.yaml
+name: Research Agent
+model: claude-opus-4-6
+system: |
+  You are a research assistant. Cite sources for every claim.
+tools:
+  - type: agent_toolset_20260401
+```
+**`@file` 参照**: 文字列フィールドにファイル内容をインライン展開します。バイナリファイルは自動でbase64エンコードされます。
+```bash
+ant beta:agents create \
+  --name "Researcher" --model '{id: claude-sonnet-4-6}' \
+  --system @./prompts/researcher.txt
+```
+### APIリソースのYAMLバージョン管理
+
+`ant` CLIの大きな特徴の1つが、エージェント・環境・スキルなどのAPI設定をYAMLファイルとしてGitリポジトリで管理できる点です。
+
+**エージェント定義ファイル（`summarizer.agent.yaml`）:**
+```yaml
+name: Summarizer
+model: claude-sonnet-4-6
+system: |
+  You are a helpful assistant that writes concise summaries.
+tools:
+  - type: agent_toolset_20260401
+```
+**初回作成:**
+```bash
+ant beta:agents create < summarizer.agent.yaml
+```
+**更新（楽観的ロック付き）:**
+```bash
+ant beta:agents update \
+  --agent-id agent_011CYm1BLqPXpQRk5khsSXrs \
+  --version 1 \
+  < summarizer.agent.yaml
+```
+
+CIパイプラインに組み込むことで、staging環境で検証してからproductionに昇格するような標準的なソフトウェアリリースフローをAIエージェントにも適用できます。
+### セッション操作の一連のフロー
+```bash
+# 1. 環境を作成
+ant beta:environments create < summarizer.environment.yaml
+
+# 2. セッションを開始
+ant beta:sessions create \
+  --agent agent_011CYm1BLqPXpQRk5khsSXrs \
+  --environment-id env_01595EKxaaTTGwwY3kyXdtbs \
+  --title "Summarization task"
+
+# 3. ユーザーメッセージを送信
+ant beta:sessions:events send \
+  --session-id session_01JZCh78XvmxJjiXVy3oSi7K \
+  --event '{type: user.message, content: [{type: text, text: "Summarize the benefits of type safety."}]}'
+
+# 4. 会話を取得
+ant beta:sessions:events list \
+  --session-id session_01JZCh78XvmxJjiXVy3oSi7K \
+  --transform 'content.0.text' --format yaml
+
+# 5. セッションをリアルタイムで監視
+ant beta:sessions stream --session-id session_01JZCh78XvmxJjiXVy3oSi7K
+```
+### Claude Code との連携
+
+Claude Code は `ant` CLIをネイティブで認識しています。`ANTHROPIC_API_KEY` が設定されていれば、Claude Code に自然言語で依頼するだけでAPIリソースを操作できます。
+```text
+Claude Code への依頼例:
+- List my recent agent sessions and summarize which ones errored.
+- Upload every PDF in ./reports to the Files API and print the resulting IDs.
+- Pull the events for session session_01... and tell me where the agent got stuck.
+```
+
+Claude Code が `ant` にシェルアウトし、構造化出力をパースして推論するため、カスタム統合コードは不要です。
+
+### シェル補完
+
+bash、zsh、fish、PowerShell向けの補完スクリプトが組み込まれています。
+```bash
+# zsh の場合
+ant @completion zsh > ~/.zsh/completions/_ant
+autoload -U compinit && compinit
+```
+## 強み・特徴
+
+**curl や SDK と比較した優位点:**
+
+| 比較軸 | curl | Python/TS SDK | ant CLI |
+|---|---|---|---|
+| インタラクティブ探索 | 難しい | REPL が必要 | `--format explore` で即座に |
+| レスポンスのフィルタリング | `jq` が必要 | コード記述が必要 | `--transform` で完結 |
+| ファイルのインライン展開 | base64手動 | ライブラリが必要 | `@path` で自動 |
+| Managed Agentsの操作 | 手書きJSON | SDK経由 | YAML + 数コマンド |
+| リスト取得のページネーション | 手動実装 | 手動実装 | 自動 |
+| Claude Codeとの統合 | なし | なし | ネイティブ |
+
+YAMLによるインフラとしてのAIエージェント管理は特に注目すべき点です。TerraformがAWSリソースを宣言的に管理するように、`ant` はClaude APIリソースをYAMLで宣言し、Gitによるバージョン管理・差分確認・CI/CDパイプラインへの組み込みが可能になります。
+
+デバッグのしやすさも実用上の強みです。`--debug` フラグで1つで実際のHTTPリクエスト・レスポンス（APIキーはマスク済み）がstderrに出力されます。
+```bash
+ant --debug beta:agents list
+```
+```text
+GET /v1/agents?beta=true HTTP/1.1
+Host: api.anthropic.com
+Anthropic-Beta: managed-agents-2026-04-01
+Anthropic-Version: 2023-06-01
+X-Api-Key: [REDACTED]
+```
+## 注意点
+
+**ベータ機能の安定性**: `beta:` プレフィックス配下のコマンド（agents、sessions、environments、skillsなど）はManaged Agentsの公開ベータ（2026年4月8日開始）に対応しています。APIの変更が入る可能性があり、本番利用には注意が必要です。
+
+**Go 環境の依存**: ソースからのインストールには Go 1.22 以降が必要です。ただしHomebrewやcurlによるバイナリ取得ではGo環境は不要です。
+
+**macOS の Gatekeeper**: Homebrew でインストールした場合、`xattr -d com.apple.quarantine` コマンドで検疫フラグを手動解除しないと実行できません。このステップを忘れると「開発元を検証できないため開けません」と表示されます。
+
+**Windows サポート**: PowerShell向けの補完スクリプトは提供されていますが、ネイティブWindowsでのバイナリ取得はWSL経由が想定されています（公式ドキュメントでは Linux/WSL のみ記載）。
+
+**Managed Agents のコスト**: `ant beta:sessions` で起動するセッションは Claude Managed Agents の料金が発生します。ベータ期間中の料金体系は変更される可能性があるため、[公式の Managed Agents 概要](https://platform.claude.com/docs/en/managed-agents/overview)を確認してください。
+
+## まとめ
+
+- **2026年4月8日リリース**: Claude Managed Agentsと同日リリースされた公式CLIクライアント（v1.0.0）。Managed Agentsと合わせて使うことで真価を発揮します。
+- **YAMLによるAPIリソース管理**: エージェント・環境・スキルをYAMLファイルで定義してGit管理し、CI/CDパイプラインに組み込めます。Terraform的なアプローチをAIエージェントに適用できます。
+- **curl不要の簡潔な操作**: フラグ・stdin・`@file`参照による直感的なリクエスト組み立てと、`--transform` / `--format` によるレスポンス加工が標準搭載されており、`jq` などの外部ツールが不要です。
+- **Claude Codeとのネイティブ統合**: 追加実装なしにClaude CodeがAPIリソースを操作するエージェントとして `ant` を利用できます。
+- **`beta:` リソースは公開ベータ中**: agents・sessions・environments・skillsコマンドはManaged Agentsベータに対応しており、API仕様が変わる可能性があります。本番導入前に[リリースノート](https://platform.claude.com/docs/en/release-notes/overview)を確認することを推奨します。
