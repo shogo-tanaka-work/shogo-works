@@ -292,6 +292,23 @@ Hook スクリプト内では以下の環境変数が利用できます。
 | `$CLAUDE_TOOL_INPUT_FILE_PATH` | Edit ツールで編集されたファイルパス |
 | `$CLAUDE_TOOL_RESULT` | PostToolUse でのツール実行結果 |
 | `$CLAUDE_TOOL_RESULT_FILE_PATH` | PostToolUse での結果ファイルパス |
+| `$CLAUDE_ENV_FILE` | Hook から書き込むと、以降のセッションで読み込まれる環境変数ファイルのパス |
+
+`$CLAUDE_ENV_FILE` は SessionStart で `echo "FOO=bar" >> "$CLAUDE_ENV_FILE"` のように追記すると、その変数がセッション全体で参照できるようになります。プロジェクト固有の API ベースURLや一時的なフィーチャーフラグの注入に使えます。
+
+---
+
+## /hooks コマンドで対話セットアップ
+
+JSON を直接書く代わりに、`/hooks` コマンドからメニュー形式で Hook を追加・編集できます。
+
+```
+/hooks
+```
+
+新規追加では「イベント → matcher → ハンドラ種別 → 実行内容」を順に選び、最終的に `settings.json` に書き込まれます。コマンド本体を直接書くか、`.claude/hooks/*.sh` に切り出してパスだけ指定するかも選べます。複雑な処理は外部 sh ファイル化してリポジトリに置くと、Git でレビュー・差分追跡できる利点があります。
+
+既存 Hook の一覧確認にも `/hooks` が使えます。設定が想定どおり読み込まれているかの最初の切り分けポイントとして覚えておくと便利です。
 
 ---
 
@@ -373,6 +390,113 @@ curl -s -X POST "$SLACK_WEBHOOK_URL" \
 LOG_FILE="$CLAUDE_PROJECT_DIR/.claude/audit.log"
 echo "$(date -u +%FT%TZ) | $CLAUDE_SESSION_ID | $CLAUDE_TOOL_NAME | $(echo "$CLAUDE_TOOL_INPUT" | jq -c '.')" >> "$LOG_FILE"
 ```
+
+### パターン 5：SessionStart で開発環境の自動セットアップ
+
+セッション開始のたびに `npm install` や Docker 起動などの定型作業を流す例です。SessionStart は matcher を取らないので、条件分岐はスクリプト側で書きます。
+
+```bash
+#!/bin/bash
+# .claude/hooks/session-init.sh
+cd "$CLAUDE_PROJECT_DIR"
+
+# package.json があり、node_modules が無ければ install
+if [ -f package.json ] && [ ! -d node_modules ]; then
+  npm install
+fi
+
+# Docker Compose で DB が必要なら立ち上げ
+if [ -f docker-compose.yml ] && ! docker compose ps db --status running -q | grep -q .; then
+  docker compose up -d db
+fi
+
+# セッション中で使う API ベースURLを永続化
+echo "API_BASE_URL=http://localhost:3000" >> "$CLAUDE_ENV_FILE"
+```
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-init.sh" }]
+      }
+    ]
+  }
+}
+```
+
+### パターン 6：UserPromptSubmit でコンテキスト注入と機密情報ブロック
+
+`UserPromptSubmit` は stdin に JSON でユーザー入力が渡され、stdout に書いた内容がそのままプロンプトに追加コンテキストとして注入されます。`exit 2` でブロックも可能です。
+
+```bash
+#!/bin/bash
+# .claude/hooks/prompt-guard.sh
+PAYLOAD=$(cat)
+PROMPT=$(echo "$PAYLOAD" | jq -r '.prompt')
+
+# 機密情報の検出（API キー / 認証情報）。検出時はブロック
+if echo "$PROMPT" | grep -qE "(sk-[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|password\s*=\s*['\"])"; then
+  echo "機密情報を含むプロンプトはブロックされました" >&2
+  exit 2
+fi
+
+# 現在のブランチ名と最近の変更ファイルを毎回コンテキストに追加
+echo "## 作業状況"
+echo "- 現在のブランチ: $(git -C "$CLAUDE_PROJECT_DIR" branch --show-current)"
+echo "- 直近の変更:"
+git -C "$CLAUDE_PROJECT_DIR" diff --name-only HEAD~3 2>/dev/null | head -10 | sed 's/^/  - /'
+```
+
+```json
+{
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/prompt-guard.sh" }]
+      }
+    ]
+  }
+}
+```
+
+CLAUDE.md に毎回書くと長くなる「直近の作業状況」のような揮発的なコンテキストは、UserPromptSubmit 側に寄せると CLAUDE.md を肥大化させずに済みます。
+
+---
+
+## async: true で非同期実行
+
+`async: true` を Hook 定義に追加すると、その Hook は完了を待たずバックグラウンドで実行されます（v2.0.50 前後で追加）。整形・通知・ログ送信のように「結果が即座に必要ない」処理は async 化すると体感速度が改善します。
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd $CLAUDE_PROJECT_DIR && npx prettier --write \"$CLAUDE_TOOL_INPUT_FILE_PATH\"",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+ただし async 化してはいけないものがあります。
+
+| async に向く | async に向かない |
+|---|---|
+| フォーマッタ、Lint、通知、ログ送信、メトリクス記録 | PreToolUse のブロック判定（exit 2 が間に合わない） |
+| Slack / Discord への完了通知 | Claude にコンテキストを返す処理（stdout が捨てられる） |
+| バックグラウンドのキャッシュ更新 | updatedInput を返してツール入力を書き換える Hook |
+
+判断軸はシンプルで、「Claude Code の挙動を変える Hook は同期、副作用だけの Hook は async」と覚えておけば事故は防げます。
 
 ---
 
