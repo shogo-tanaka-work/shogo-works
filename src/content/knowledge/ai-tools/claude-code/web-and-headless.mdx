@@ -1,0 +1,203 @@
+---
+title: "Claude Code on the Web とヘッドレスモード：CLI 以外の Claude Code 活用"
+description: "Claude Code on the Web（claude.ai/code）と Headless モード（claude -p）を1記事に集約。ブラウザでのクラウド実行、CIパイプ連携、Open in CLI、JSON 出力、サンドボックス制御までを実務目線でまとめました。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Web版", "Headless", "CI", "GitHub", "サンドボックス"]
+sortOrder: 15
+createdAt: 2026-05-03
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **Claude Code on the Web**（claude.ai/code）は GitHub リポジトリをクラウドサンドボックスにクローンして動かすブラウザ版。スマホからも使える
+- **ヘッドレスモード**（`claude -p`）は CLI を対話なしで一発実行する形式。CI / シェルパイプ連携の基盤
+- どちらも「PC を開かずに進めたい」「自動化に組み込みたい」用途で、CLI を補完する
+- Web 版は GitHub App 連携と並列タスクが強み、ヘッドレスは `--output-format json` でメタデータ込みの後処理が強み
+
+---
+
+## Claude Code on the Web
+
+### 何ができるか
+
+ブラウザから [claude.ai/code](https://claude.ai/code) にアクセスし、GitHub アカウントを接続するとリポジトリ単位でクラウドサンドボックスが起動します。タスクを自然言語で投げると、サンドボックス内で実装が進み、完了後に GitHub に PR が作られる、というフローです。
+
+主な強みは次のとおりです。
+
+- **ローカル環境を汚さずに動く**: 仮想マシン側でコードがクローンされ実行される
+- **複数タスクの並列処理**: ブラウザ上で別タスクを同時に走らせられる
+- **モバイル対応**: 公式アプリから状況確認・追加指示が可能。移動中の差し込み作業に強い
+- **GitHub と一気通貫**: PR 作成までクラウド側で完結する
+
+### セットアップ
+
+1. [claude.ai/code](https://claude.ai/code) にアクセス
+2. GitHub アカウントを接続
+3. 作業したいリポジトリに **Claude GitHub App** をインストール
+4. デフォルト環境を選択（ネットワークアクセスレベル設定）
+5. タスクを投げる
+
+GitHub App は一度入れれば以後その GitHub アカウント配下のリポジトリで使えます。組織アカウントでは Owner 権限が必要なので、業務利用時は管理者と調整します。
+
+### サンドボックスの設計
+
+Web 版はクラウド仮想マシン上で動くため、ネットワーク・環境変数・依存関係の挙動を意識する必要があります。
+
+| 設定 | 何を決めるか |
+|---|---|
+| ネットワークアクセスレベル | パブリック API のみ / プライベート / オフライン などの段階 |
+| 環境変数 | サンドボックス内で参照される値（DB 接続情報、外部 API キー等） |
+| 起動時セットアップ | 依存インストールやマイグレーションの自動実行 |
+
+ローカル CLI 版とは別の環境なので、`.env` の値はクラウド側に登録し直す必要があります。GitHub Secrets と連動させるかは現状サポートにより異なるため、初期設定時に確認しておきます。
+
+### `SessionStart` フックで初期化を自動化
+
+依存パッケージのインストールや DB 起動は SessionStart フックで自動化します。詳細は [Hooks 完全ガイド](./hooks) のパターン5にあるとおりですが、Web 版でも同じ仕組みが効きます。
+
+```bash
+#!/bin/bash
+# .claude/hooks/session-init.sh
+cd "$CLAUDE_PROJECT_DIR"
+[ -f package.json ] && [ ! -d node_modules ] && npm install
+[ -f docker-compose.yml ] && docker compose up -d db || true
+```
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [{ "type": "command", "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-init.sh" }] }
+    ]
+  }
+}
+```
+
+サンドボックスは毎回まっさらなので、**初期化スクリプトの実行時間 = タスク開始までのリードタイム**になります。重い `npm install` や `docker compose pull` がある場合、CI のキャッシュ活用や Devcontainer の事前ビルドを検討すると体感が変わります。
+
+### Open in CLI
+
+Web 版で開始したセッションをローカル CLI に引き継ぐ機能です。「ブラウザで仕掛けた作業を、家に帰って手元のターミナルで続ける」のような使い方ができます。詳細は同じセッション ID で `claude --resume <id>` 相当の挙動になります。
+
+### 制限事項
+
+- **GitHub リポジトリのみ**（GitLab / Bitbucket は対象外）
+- **プラン制限**: Pro / Max / Team 等で利用枠が異なる
+- **ローカル特有のツールは動かない**: ホストのファイルシステムや個別 CLI ツールに依存する処理は Web 版では再現が難しい場合がある
+
+---
+
+## ヘッドレスモード（`claude -p`）
+
+### 何ができるか
+
+CLI を対話モードに入れず、**プロンプトを引数で渡して結果だけ受け取る**実行形式です。
+
+```bash
+claude -p "README.md を読んで概要を 3 行で説明して"
+```
+
+戻り値は標準出力に出るので、シェルスクリプト・GitHub Actions・cron などから自然に呼べます。CLI 版の自動化基盤として中心的な位置づけになります。
+
+### 主要オプション
+
+```bash
+# モデルを指定
+claude -p "..." --model opus
+
+# 使えるツールを制限（読み取りだけにしたい時）
+claude -p "..." --allowedTools "Read,Grep,Glob"
+
+# 出力形式を JSON に
+claude -p "..." --output-format json
+
+# 直前のセッションの続きとして実行
+claude -p "..." --continue
+```
+
+`--allowedTools` は **対話モードの `permissions.allow` と同じ書式**でツールを絞れます。CI 上で意図しない `Bash` 実行が走るのを防ぐために必ず指定します。
+
+### 出力形式
+
+| `--output-format` | 用途 |
+|---|---|
+| `text`（デフォルト） | ログ・人間目視 |
+| `json` | スクリプトでパースしてメタデータも取りたい時 |
+
+JSON 出力には `session_id`、`cost`、`turn_count` などのメタが含まれるため、コスト集計やセッション再開の自動化に使えます。
+
+```bash
+RESPONSE=$(claude -p "コードレビュー" --output-format json)
+SESSION=$(echo "$RESPONSE" | jq -r '.session_id')
+COST=$(echo "$RESPONSE" | jq -r '.cost')
+echo "session=$SESSION cost=$COST"
+```
+
+### パイプ連携
+
+stdin に渡したテキストもプロンプト末尾に結合されます。
+
+```bash
+# ファイル内容を渡してレビュー
+cat src/auth.ts | claude -p "セキュリティ観点でレビューして"
+
+# コマンド出力を渡して原因分析
+tail -200 app.log | claude -p "直近のエラーから根本原因をまとめて"
+
+# Git 差分をレビュー
+git diff main...HEAD | claude -p "差分のリスクを 3 段階で評価して"
+```
+
+シェルワンライナーで完結するので、`pre-commit` フックや GitHub Actions の Step に1行で組み込めます。
+
+### カスタムコマンドをスクリプトから呼ぶ
+
+`.claude/commands/` や `.claude/skills/<name>/SKILL.md` に置いたスラコマも `-p` から起動できます。引数も同様に渡せます。
+
+```bash
+claude -p "/code-review src/main.ts"
+claude -p "/compare-files src/old.ts src/new.ts"
+```
+
+スクリプト経由で「PR ごとに自動レビューを走らせる」「定期的にコード健全性チェックを回す」用途で便利です。
+
+### 権限確認スキップ
+
+CI 上で対話プロンプトに止まると永遠に待ってしまうので、`--dangerously-skip-permissions` で承認をスキップします。**サンドボックス内 / 隔離された CI 環境でのみ**使うのが原則です。
+
+```bash
+claude -p "テストを書いてコミットして" --dangerously-skip-permissions
+```
+
+`permissions.deny` のルールはこのフラグ下でも効きます。「全許可だが特定パターンだけ確実にブロック」という設計を組み合わせると、CI でも事故が起きにくくなります。
+
+### コンテキストの独立性に注意
+
+`claude -p` は**毎回独立したセッション**として動きます。「対話セッションの続きをスクリプトから動かす」場合は `--continue` か `--resume <session-id>` を明示します。CI で複数ステップに分ける場合は、各ステップで `session_id` を JSON 出力から取り出してチェーンします。
+
+---
+
+## どちらをいつ使うか
+
+| 状況 | 推奨 |
+|---|---|
+| PC 前で対話的に開発 | CLI（対話モード） |
+| 出先・スマホからタスクを投げたい | Claude Code on the Web |
+| 並列タスクで一気に消化したい | Claude Code on the Web |
+| ローカル環境特有のツールが必要 | CLI（対話モード） |
+| GitHub Actions / pre-commit に組み込みたい | Headless（`-p`） |
+| 既存のシェルパイプから呼びたい | Headless（`-p`） |
+| 1ファイル / 1差分の自動レビュー | Headless（`-p`） + カスタムコマンド |
+
+3 つを「主軸 = 対話 CLI、出先 = Web、自動化 = Headless」と捉えておくと、迷わず選べます。
+
+---
+
+## 関連ドキュメント
+
+- [日常運用ガイド](./daily-operations)（CLI 対話モードの全体像）
+- [Hooks 完全ガイド](./hooks)（SessionStart 自動セットアップ / async）
+- [カスタムスラッシュコマンド実践](./custom-commands)
+- [Skills 完全ガイド](./skills)
