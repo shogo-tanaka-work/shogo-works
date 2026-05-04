@@ -1,0 +1,68 @@
+# タスク：コンテキストエンジニアリング 体系的ナレッジ作成
+
+## あなたの役割
+AIエデュケーター兼リサーチャーとして、「コンテキストエンジニアリング」を
+カリキュラムレベルで体系化したMarkdownドキュメントを作成してください。
+
+## リサーチ手順（この順番で必ず実行すること）
+
+### Step 1: 一次情報を取得する
+以下のURLをweb_fetchで取得してください（検索ではなく直接取得）：
+1. https://blog.langchain.com/context-engineering-for-agents/
+2. https://www.elastic.co/search-labs/blog/context-engineering-overview
+3. https://arxiv.org/abs/2507.13334
+
+### Step 2: 補完情報を検索する
+以下のクエリで検索し、上位3件をweb_fetchで取得してください：
+1. "context engineering techniques write select compress isolate 2025"
+2. "context rot LLM performance degradation context length"
+3. "context engineering vs prompt engineering difference practical"
+4. "コンテキストエンジニアリング 実践 日本語"
+
+### Step 3: Markdownを生成する
+
+## 出力フォーマット（厳守）
+
+```markdown
+# コンテキストエンジニアリング 完全ガイド
+
+> 作成日: {今日の日付}
+> 情報ソース: ウェブリサーチ（2025-2026年情報）
+
+## 1. 定義・概要
+- コンテキストエンジニアリングとは何か
+- プロンプトエンジニアリングとの違い（必ず対比で説明）
+- なぜ2025年に重要になったのか
+
+## 2. 背景・登場経緯
+- Andrej Karpathyの定義と提唱
+- GartnerやCognition AIの見解
+- プロンプトエンジニアリングからの進化
+
+## 3. 核心概念
+### 3-1. コンテキストウィンドウの構成要素
+（システムプロンプト / ユーザープロンプト / RAG / メモリ / ツール）
+### 3-2. Context Rot（コンテキスト劣化）問題
+### 3-3. 4つの基本戦略（Write / Select / Compress / Isolate）
+
+## 4. 実践テクニック集
+（具体的な実装方法を列挙。初級・中級・上級で分類）
+
+## 5. カリキュラム構成案
+### 初級（1〜2時間で習得可能）
+### 中級（実装経験必要）
+### 上級（エージェント設計レベル）
+
+## 6. ツール・フレームワーク
+（LangGraph, LangChain, Weaviate等の位置付け）
+
+## 7. 参考リンク集
+（取得したURLを全て記載）
+```
+
+## 注意事項
+- 日本語で出力すること
+- 各セクションは最低200文字以上で記述すること
+- 具体例・コード例を可能な限り含めること
+- 情報が取得できなかったURLはスキップしてOK
+- 出力はMarkdownのみ（前置きや後書きは不要）
