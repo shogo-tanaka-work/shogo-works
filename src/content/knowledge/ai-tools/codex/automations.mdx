@@ -1,0 +1,132 @@
+---
+title: "Codex Automations完全ガイド：スレッド自動化でバックグラウンド実行を制する"
+description: "Codexのスレッド自動化（Automations）機能を解説。定期チェックイン・スケジュール形式・効果的なプロンプト設計・GitHub Webhook連携・Claude Code Routinesとの比較を網羅。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "OpenAI", "自動化", "スケジュール実行", "Automations"]
+sortOrder: 9
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- 同一スレッドにスケジュールで「戻ってくる」ハートビート型の自動化
+- 会話コンテキストを保持したまま定期実行できる点が特徴
+- Claude Code Routines と設計思想が似るが、**コンテキスト継続性** が Codex の差別化点
+
+---
+
+## 概要
+
+**Codex Automations** は、1つのスレッド（会話）に定期的に戻ってきてタスクを継続実行する仕組みです。「新しいタスクを毎回起動する」Claude Code Routines と異なり、**会話の文脈を保持したまま定期チェックイン** するアプローチを取ります。
+
+長時間コマンドの終了待ち・Slack/GitHubの定期監視・研究タスクの継続実行に向いています。
+
+---
+
+## スケジュール形式
+
+| 形式 | 例 |
+|---|---|
+| 分単位 | `every 30 minutes` |
+| 日次 | `daily at 9am JST` |
+| 週次 | `every Monday at 8am` |
+| cron | `0 2 * * 1-5`（平日夜2時） |
+
+---
+
+## 効果的なプロンプト設計
+
+Automations のプロンプトには **3点を明示** することが推奨されています。
+
+```markdown
+# 週次コードレビューAutomation
+
+## 何をするか
+毎週月曜8時に先週マージされたPRを一覧取得し、
+コードの品質・テストカバレッジ・セキュリティリスクを評価してください。
+
+## いつ報告するか
+評価完了後、Slack #code-review チャンネルにサマリーを投稿してください。
+指摘が5件以上ある場合は @channel でメンションを付けてください。
+
+## いつ停止するか
+PRが存在しない週はサマリーを投稿せずに終了してください。
+GitHubのAPIが3回連続で失敗した場合は停止してください。
+```
+
+---
+
+## 主要ユースケース
+
+### 長時間タスクの進捗監視
+
+```markdown
+30分ごとにチェックインし、ビルドが完了していたら結果を報告してください。
+ビルドが失敗していたらエラーを解析して修正案を提示してください。
+成功またはエラー解決後は自動停止してください。
+```
+
+### GitHub 定期ウォッチ
+
+```markdown
+毎時、リポジトリのオープンIssueを確認し、
+「triage」ラベルがついていないものに適切なラベルを自動付与してください。
+1回あたり最大10件を処理し、処理済みIssueのIDを記録しておいてください。
+```
+
+### PR レビューループ
+
+```markdown
+新しいPRレビューコメントが投稿されたら、コンテキストを確認して返信してください。
+「LGTM」または「Approved」がついたら停止してください。
+```
+
+---
+
+## Triggers との組み合わせ（v0.116〜）
+
+GitHub イベントをトリガーに Automation を起動できます。`codex-action@v1` と組み合わせることで、PR・Issue・Pushイベントに反応した Automation が実現します。
+
+```yaml
+# .github/workflows/codex-triage.yml
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          prompt: |
+            このIssueを分析し、適切なラベルを付けて
+            担当者候補をコメントで提案してください。
+          sandbox: workspace-write
+```
+
+---
+
+## Claude Code Routines との比較
+
+| 項目 | Codex Automations | Claude Code Routines |
+|---|---|---|
+| コンテキスト | 同一スレッドで継続 | タスクごとに新規（移行機能あり） |
+| トリガー種別 | スケジュール・GitHub Webhook | スケジュール・API・GitHub Webhook |
+| プラン別上限 | 制限なし（従量課金） | Pro: 5回、Max: 15回、Team/Ent: 25回 |
+| セキュリティ | OS層サンドボックス | Auto mode 2層防御 |
+| 得意タスク | 長期継続・監視ループ | イベント駆動・バッチ処理 |
+
+長期間継続するタスク（監視・調査・反復修正）は Codex Automations が向いており、単発の自動実行や API/Webhookトリガーが中心なら Claude Code Routines を選ぶと整理しやすいです。
+
+---
+
+## 参考リンク
+
+- [Automations – Codex app | OpenAI Developers](https://developers.openai.com/codex/app/automations)
+- [Codex CLI Triggers | danielvaughan.com](https://codex.danielvaughan.com/2026/04/01/codex-cli-triggers-event-driven-github-automation/)
+- [openai/codex-action | GitHub](https://github.com/openai/codex-action)
+- [Claude Code Routinesガイド](/knowledge/ai-tools/claude-code/routines/)

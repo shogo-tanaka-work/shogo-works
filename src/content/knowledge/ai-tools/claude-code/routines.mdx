@@ -1,0 +1,123 @@
+---
+title: "Claude Code Routines完全ガイド：クラウド上で動くスケジュール自動化"
+description: "2026年4月14日発表のClaude Code Routinesを解説。スケジュール・API・GitHub Webhookの3種トリガー、プラン別実行回数上限、Routines設計のベストプラクティスを網羅。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Routines", "自動化", "スケジュール実行", "GitHub Webhook"]
+sortOrder: 9
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- ラップトップを閉じていても Anthropic クラウド上で Claude Code を自動実行できる
+- トリガーは **スケジュール・API・GitHub Webhook** の3種
+- プラン別の日次実行上限あり（Pro: 5回、Max: 15回、Team/Enterprise: 25回）
+
+---
+
+## 概要
+
+**Claude Code Routines** は、2026年4月14日に発表されたスケジュール実行機能です。従来の Claude Code はターミナルを開いたまま人間が待機する必要がありましたが、Routines により **Anthropic のクラウドインフラ上で Claude Code を自動実行** できます。
+
+従来の `/schedule` コマンドで設定済みのタスクは自動でRoutineに移行されます。
+
+---
+
+## 3種のトリガー
+
+### 1. スケジュールトリガー
+
+時間指定で定期実行します。
+
+```
+毎時 / 毎晩 / 毎週 / カスタムcron式
+```
+
+**活用例：**
+- 毎晩2時に積み残しバグを自動修正
+- 月曜朝にPRサマリーを生成してSlack通知
+- 毎時テストスイートを実行してエラーを報告
+
+### 2. APIトリガー
+
+各Routineに専用のHTTPエンドポイントが発行されます。
+
+```bash
+curl -X POST https://api.claude.ai/routines/{routine-id}/trigger \
+  -H "Authorization: Bearer {token}" \
+  -H "Content-Type: application/json" \
+  -d '{"message": "本日のリリースブランチをレビューしてください"}'
+```
+
+外部システム（CI/CD・Slack Bot・Webhookサービス等）から Claude Code を起動できます。
+
+### 3. GitHub Webhookトリガー
+
+リポジトリイベントに反応して自動起動します。
+
+| イベント例 | ユースケース |
+|---|---|
+| PR opened / synchronized | コードレビューを自動実行 |
+| CI failure | 失敗したテストを自動修正しPRを更新 |
+| Issue opened | ラベル付け・担当者アサイン・初期調査 |
+| Release published | CHANGELOGを自動生成してPRを作成 |
+
+---
+
+## プラン別実行上限
+
+| プラン | 日次上限 |
+|---|---|
+| Pro | 5回 |
+| Max | 15回 |
+| Team / Enterprise | 25回 |
+
+上限を超えた分は従量課金で対応可能です。
+
+---
+
+## Routines設計のベストプラクティス
+
+### プロンプトに3点を明示する
+
+効果的なRoutineのプロンプトには以下を含めます：
+
+1. **何をするか** — 具体的なタスク内容
+2. **いつ報告するか** — 完了時・エラー時・途中経過の通知先
+3. **いつ停止するか** — 正常終了条件・失敗時の対応
+
+```markdown
+毎晩2時にリポジトリのオープンIssueをスキャンし、
+「bug」ラベルかつ7日以上未更新のものを修正してPRを作成してください。
+修正できたIssueの番号をSlack #dev-alerts に投稿し、
+修正対象がなければ何もしないで終了してください。
+1Routineあたり最大3件まで処理し、それ以上あれば翌日に持ち越します。
+```
+
+### Plan Modeと組み合わせる
+
+変更が大きいRoutineは最初の数回はPlan Modeで実行確認を挟み、安定したら自動実行に切り替えます。
+
+---
+
+## Routinesを使うべきケース
+
+✅ **向いているケース：**
+- 夜間バッチ処理（テスト修正・コードレビュー）
+- イベント駆動の自動化（PR・Issue・CI）
+- 定期的なレポート生成・通知
+
+❌ **向かないケース：**
+- インタラクティブな対話が必要なタスク
+- リアルタイム性が求められる処理
+- 実行環境に強い依存があるタスク（ローカルDB等）
+
+---
+
+## 参考リンク
+
+- [Introducing routines in Claude Code | Anthropic](https://claude.com/blog/introducing-routines-in-claude-code)
+- [Claude Code Routines | 9to5Mac](https://9to5mac.com/2026/04/14/anthropic-adds-repeatable-routines-feature-to-claude-code-heres-how-it-works/)
+- [Claude Code Docs | code.claude.com](https://code.claude.com/docs)
