@@ -1,0 +1,67 @@
+---
+title: "Codex進化完全解説：コーディングを超えたAIエージェント端末へ"
+description: "2026年4月16日のCodex大型アップデートでコーディング専用CLIが汎用AIエージェント端末に転換。macOSアプリ制御・画像生成・GitHub PR統合・CLI v0.121.0の変更点を網羅。"
+category: "ai-tools"
+subcategory: "chatgpt"
+tags: ["Codex", "OpenAI", "AIエージェント", "CLI", "MCP"]
+sortOrder: 3
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## 概要
+
+2026年4月16日、OpenAIはCodexに大規模なアップデートを実施し、**「コーディング専用CLIツール」から「汎用AIエージェント端末」への転換**を宣言しました。公式の表現は "Codex for (almost) everything" です。
+
+2025年4月のOSSリリース以来、Codexはターミナル上でコードを書くツールとして認識されてきましたが、今回のアップデートで対応領域が大幅に拡張されました。Claude Codeとの機能競争が一層激化しています。
+
+---
+
+## 主要機能・変更点
+
+### エージェント機能の拡張
+
+- **macOSアプリ制御**: ネイティブデスクトップアプリをエージェント的に操作可能
+- **インアプリブラウザ**: Codex内蔵ブラウザでWebタスクを実行
+- **画像生成**: DALL-E/GPT-5.4のネイティブ画像生成をエージェントフロー内で使用
+- **メモリ機能**: セッション横断でコンテキストを保持
+- **GitHub PRレビュー統合**: PRに対してCodexがコメント・修正提案を自動実行
+- **スレッド自動化**: 定期チェックインによるバックグラウンドタスク実行
+
+### CLI v0.121.0（2026年4月15日）
+
+| 変更 | 内容 |
+|---|---|
+| Marketplaceインストール | GitHubおよびローカルディレクトリからスキルをインストール可能 |
+| TUIヒストリー逆引き検索 | 過去コマンドを素早く再利用 |
+| メモリ管理コントロール | 保存する情報の粒度を制御 |
+| MCP並列ツールコール | 複数MCPツールを同時実行してスループット向上 |
+
+---
+
+## 強み・注目ポイント
+
+**コーディングエージェントの枠を超えた実用性**が今回のアップデートの核心です。以前はClaude CodeがMCP・フック・サブエージェントで先行していた「コーディング以外の自動化」領域に、Codexが追いついてきた形です。
+
+GitHub PR統合は特にチーム開発での実用性が高く、エンジニアが手を動かすことなくレビューサイクルを回せる可能性があります。
+
+---
+
+## Claude Codeとの比較
+
+| 項目 | Codex（2026/4時点） | Claude Code |
+|---|---|---|
+| ライセンス | Apache 2.0（OSS） | 商用（無料ティアあり） |
+| コンピュータ操作 | macOSアプリ制御 | コンピュータユースツール |
+| ブラウザ統合 | インアプリブラウザ | MCPサーバー経由 |
+| GitHub統合 | PRレビュー組み込み | GitHub Actions対応 |
+| MCP対応 | 並列ツールコール | フルサポート |
+| スケジュール実行 | スレッド自動化 | Routines（4/14追加） |
+
+---
+
+## 参考リンク
+
+- [Changelog – Codex | OpenAI Developers](https://developers.openai.com/codex/changelog)
+- [Releases · openai/codex | GitHub](https://github.com/openai/codex/releases)
+- [OpenAI Release Notes | Releasebot](https://releasebot.io/updates/openai)
