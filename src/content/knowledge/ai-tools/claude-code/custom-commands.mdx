@@ -1,0 +1,249 @@
+---
+title: "Claude Code カスタムスラッシュコマンド実践：引数・フロントマター・実例集"
+description: "Claude Code のカスタムスラッシュコマンドを Skills と区別しながら整理。$ARGUMENTS / $1$2 の引数、description / allowed-tools / argument-hint のフロントマター、実用コマンド例までを集約。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "カスタムコマンド", "スラッシュコマンド", "Skills", "$ARGUMENTS", "argument-hint"]
+sortOrder: 14
+createdAt: 2026-05-03
+author: "田中省伍"
+---
+
+## TL;DR
+
+- カスタムコマンドは `.claude/commands/<name>.md` または `.claude/skills/<name>/SKILL.md` に置く Markdown 1枚のスラコマ定義
+- 引数は **`$ARGUMENTS`**（全部まとめて）と **`$1` `$2` `$3`...**（位置引数）の2種類。スペース区切りで自動パース
+- フロントマターでは **`description`**（一覧での説明）、**`allowed-tools`**（権限制限）、**`argument-hint`**（入力ヒント）の3つが運用上の必須セット
+- Skills と本質は同じ仕組みなので、本格的なものは `.claude/skills/<name>/SKILL.md` 形式で書く
+
+> Skills 全般は [Skills 完全ガイド](./skills) を参照してください。本記事は「コマンド呼び出し（`/foo`）として使う」観点で、引数とフロントマターの実践に絞って整理します。
+
+---
+
+## 配置場所と Skills との関係
+
+カスタムコマンドの実体は Skills と同じ Markdown フォーマットです。3 種類の配置パスがすべて有効です。
+
+| 配置 | 形式 | 主な用途 |
+|---|---|---|
+| `.claude/commands/<name>.md` | 旧来形式（後方互換） | 単純なコマンド、サンプル流用 |
+| `.claude/skills/<name>/SKILL.md` | Skills 形式 | references/ や scripts/ を伴う本格運用 |
+| `~/.claude/commands/<name>.md` または `~/.claude/skills/<name>/SKILL.md` | 個人用 | 全プロジェクト共通の自分専用コマンド |
+
+「とりあえず短いプロンプトを呼び出したい」だけなら `.claude/commands/<name>.md` が最短ですが、**サポートファイルが増える / チームで共有する / 引数を多用する** ような場面では Skills 形式に寄せた方が後から困りません。
+
+サブディレクトリも有効です。`.claude/commands/git/commit.md` と置けば `/git:commit` で呼び出せます。コマンド数が増えてきたら名前空間で整理します。
+
+---
+
+## 最小構成
+
+```markdown
+---
+description: 直前の git diff の要約を作る
+---
+
+`git diff` の差分を読み、変更点を 5 行以内で要約してください。
+```
+
+ファイルを `.claude/commands/diff-summary.md` として置き、Claude Code を再起動（または `/help` を叩く）と一覧に出ます。`/diff-summary` で呼び出せます。
+
+---
+
+## 引数の取り扱い
+
+### `$ARGUMENTS` ：全文をまとめて使う
+
+```markdown
+---
+description: エラーメッセージを分析して原因を特定
+argument-hint: <error message>
+---
+
+以下のエラーメッセージを読み、原因と対処方法を整理してください。
+
+エラー:
+$ARGUMENTS
+```
+
+呼び出し例：
+
+```
+/analyze-error TypeError: Cannot read property 'foo' of undefined at App.tsx:42
+```
+
+`$ARGUMENTS` には `/analyze-error` 以降のテキストが**そのまま**入ります。改行・記号・スペースを保持できるので、長いエラーログをそのまま流し込む用途に向きます。
+
+### `$1` `$2` `$3` ：位置引数で受ける
+
+```markdown
+---
+description: 2つのファイルを比較
+argument-hint: [ファイル1] [ファイル2]
+---
+
+@$1 と @$2 を比較し、差分の意味を説明してください。
+特に重要な差分があれば強調してください。
+```
+
+呼び出し例：
+
+```
+/compare-files src/old.ts src/new.ts
+```
+
+スペース区切りで分割され、`$1` = `src/old.ts`、`$2` = `src/new.ts` になります。`$0` はコマンド名そのもの（`compare-files`）が入ります。
+
+### スペースを含む引数の制約
+
+位置引数はスペースで自動分割されます。クォートで囲ってもそのまま渡される実装が多いので、**スペースを含むパラメータは `$ARGUMENTS` 側で受けて Claude にパースさせる**のが現実解です。「ファイル名にスペースを含む可能性がある」ようなケースでは `$1` に頼らない設計にします。
+
+### 引数が足りない時の挙動
+
+`$1` が指定されていない場合、その変数は空文字列に展開されます。プロンプトが「`$1` のテストを書いて」のような形だと「のテストを書いて」になり、Claude が混乱します。対策は2つです。
+
+1. プロンプト内で「引数が空なら現在の会話のコードを対象とする」のような分岐を明示する
+2. `argument-hint` を必ず書く（UI 上で必要数の入力を促せる）
+
+両方やっておくと事故が減ります。
+
+---
+
+## フロントマター運用必須セット
+
+### `description`
+
+スラコマ一覧（`/` 入力時）に出る説明文です。
+
+```markdown
+---
+description: PR レビュー用の差分・コミット履歴を整理する
+---
+```
+
+「これがなくても動く」ですが、書かないと一覧で「何だったか」が思い出せず、後から自分で書いたコマンドを呼び忘れる原因になります。**1行 = 約 60 字以内**で「いつ使うか」が伝わるように書きます。
+
+### `allowed-tools`
+
+そのコマンド実行中だけツールを絞れます。事故防止と「誤発火しても破壊が起きない」設計のために重要です。
+
+| 指定 | 意味 |
+|---|---|
+| `Read, Grep, Glob` | 読み取り系のみ。レビュー / 監査向け |
+| `Bash(git:*), Read, Edit` | git 系シェルだけ許可 + ファイル編集 |
+| `Bash(npm test), Read` | テスト実行だけ許可 |
+| 省略 | セッションの権限を継承（ゆるくなりがち） |
+
+```markdown
+---
+description: コードを読み取り専用で監査する
+allowed-tools: Read, Grep, Glob
+---
+```
+
+副作用のあるコマンド（デプロイ・DB マイグレーション系）は逆に **`allowed-tools` を狭く絞って `disable-model-invocation: true` を併用**し、「ユーザーが明示的に呼んだ時だけ動く」設計にします。
+
+### `argument-hint`
+
+入力ヒントです。コマンド一覧で `/foo <hint>` のように表示されるので、必要な引数を視覚的に伝えられます。
+
+```markdown
+---
+description: ブランチを切ってマイグレーションファイルを作る
+argument-hint: <branch-name> <migration-name>
+---
+```
+
+---
+
+## 実用コマンド例
+
+### 安全なコミットコマンド
+
+```markdown
+---
+description: ステージ済みの変更を Conventional Commits でコミット
+allowed-tools: Bash(git:*), Bash(npm test)
+---
+
+ステージされている変更をコミットしてください。
+
+1. `git diff --staged` で内容を確認
+2. `npm test` を実行して通ることを確認（失敗したらコミットしない）
+3. Conventional Commits 形式（feat/fix/refactor/test/docs/chore）でメッセージを作成
+4. `git commit -m "..."` を実行
+```
+
+### PR レビュー準備
+
+```markdown
+---
+description: PR レビュー用の情報を集約
+argument-hint: <branch-name> <category>
+allowed-tools: Bash(git:*), Bash(gh:*), Read
+---
+
+PR レビュー前の情報を準備してください。
+
+- 対象ブランチ: $1
+- 変更カテゴリ: $2
+
+1. `git log main..$1 --oneline` でコミット一覧
+2. `git diff main...$1 --stat` で変更ファイル一覧
+3. $2 の観点（例: security / performance / readability）で重点レビューポイントを 3 つ抽出
+4. 結果を Markdown で出力
+```
+
+### エラーログ解析
+
+```markdown
+---
+description: 貼り付けたエラーログから原因を絞り込む
+argument-hint: <error log>
+allowed-tools: Read, Grep, Glob
+---
+
+以下のエラーログを分析してください。
+
+ログ:
+$ARGUMENTS
+
+1. 直接の原因と思われる行を特定
+2. 関連しそうなソースコードを Grep / Glob で探す
+3. 原因仮説を 3 つ、優先度順に並べる
+4. 最も可能性が高い仮説について検証手順を提示
+```
+
+### 環境チェック
+
+```markdown
+---
+description: 開発環境の前提が揃っているか確認
+allowed-tools: Bash(node *), Bash(git *), Bash(docker *), Read
+---
+
+このプロジェクトの開発環境チェックを行ってください。
+
+- Node.js のバージョン（package.json の engines と一致するか）
+- git のクリーンさ（uncommitted changes はないか）
+- Docker / Docker Compose の起動状態
+- .env.example と .env の差分
+
+問題があれば修正コマンドを提示してください。修正は実行しないこと。
+```
+
+---
+
+## 反映タイミングとデバッグ
+
+- **追加 / 編集後の反映**: `/help` か `/skills` で一覧を再ロードすると認識されます。場合によっては Claude Code を再起動
+- **動かない時の確認順**: ファイル名 → `description` の有無 → 配置パス（`.claude/commands/` か `.claude/skills/<name>/SKILL.md`） → `allowed-tools` で必要なツールが落ちていないか
+- **手動呼び出しで動くか**: `/skill-name foo` で手動実行して動けば「自動選択精度」の問題、動かなければ定義そのものの問題と切り分けられる
+
+---
+
+## 関連ドキュメント
+
+- [Skills 完全ガイド](./skills)（同じ仕組みのフルセット解説）
+- [サブエージェント活用ガイド](./subagents)（コマンドではなく独立コンテキストで委譲する場合）
+- [Hooks 完全ガイド](./hooks)（決定論的に走らせたい処理はこちら）
