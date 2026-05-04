@@ -1,0 +1,118 @@
+---
+title: "Claude Code Auto Mode解説：2層防御で承認ダイアログを93%削減"
+description: "Claude Code Auto modeの仕組みを解説。入力層のプロンプトインジェクション検査と出力層のSonnet分類器による2層防御アーキテクチャ、Max向け提供状況、承認率93%の意味を詳しくカバー。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "Auto mode", "セキュリティ", "承認モード", "Max"]
+sortOrder: 11
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- Maxプラン加入者向けの自動承認モード（v2.1.111〜）
+- 承認リクエストの **93%を自動認可** し、過剰な確認ダイアログを大幅削減
+- セキュリティは **2層防御** で担保（インジェクション検査 + Sonnet分類器）
+
+---
+
+## 概要
+
+**Claude Code Auto mode** は、通常ならユーザーに確認を求める操作を Anthropic のセキュリティ評価に基づいて自動認可する機能です。v2.1.111 から Max サブスクライバーを対象に提供開始されました。
+
+「安全かどうかをいちいち確認するコスト」と「確認なしで実行するリスク」のバランスを取り、**信頼できる操作を自動化しながら危険な操作は止める** 設計です。
+
+---
+
+## 2層防御アーキテクチャ
+
+### 第1層：入力層（プロンプトインジェクション検査）
+
+エージェントへの入力を評価します。
+
+- Webページ・ファイル・ツール出力に悪意あるインジェクションが含まれていないか検査
+- 外部コンテンツがエージェントの行動を乗っ取ろうとするパターンを検出
+- インジェクションを検出した場合は自動実行を停止してユーザーに通知
+
+### 第2層：出力層（Sonnet 分類器）
+
+エージェントが提案するアクションを評価します。
+
+- Claude Sonnet 4.x が各アクション（ファイル書き込み・コマンド実行・API呼び出し等）を評価
+- 想定されるリスクレベルを分類（low / medium / high）
+- low・medium は自動承認、high はユーザーへエスカレーション
+
+---
+
+## 承認率93%の意味
+
+通常の開発作業では承認リクエストの 93% が「low / medium」に分類され自動認可されます。
+
+**自動認可される代表的な操作：**
+- ファイルの読み取り・書き込み（プロジェクト内）
+- `npm install` / `pip install` などのパッケージ管理
+- テスト実行・ビルドコマンド
+- Git操作（add / commit / diff）
+
+**ユーザー確認が必要な操作（自動認可しない）：**
+- `rm -rf` などの破壊的削除
+- 外部ネットワークへのリクエスト（不審なもの）
+- 環境変数・シークレットの変更
+- システムレベルの設定変更
+
+---
+
+## 有効化方法
+
+```bash
+# Max プランで自動的に利用可能
+# 旧フラグは不要（v2.1.111以降）
+claude
+
+# 明示的に指定する場合
+claude --auto-mode
+
+# Auto modeの状態確認
+/status
+```
+
+---
+
+## グローバルシステムプロンプトキャッシング
+
+Auto mode では **グローバルシステムプロンプトキャッシング** も有効化されます。Anthropic が管理するシステムプロンプト（Sonnet 分類器の評価基準等）がキャッシュされ、各リクエストのレイテンシとコストを削減します。
+
+---
+
+## Hooks との組み合わせ
+
+Auto mode が自動承認しない操作は `PreToolUse` フックで追加制御できます。
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /path/to/security-check.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Hooks が終了コード 2 を返すとツール実行を中断できます。Auto mode + Hooks で「自動化しつつ独自ルールを適用する」構成が組めます。
+
+---
+
+## 参考リンク
+
+- [Claude Code auto mode | Anthropic Engineering](https://www.anthropic.com/engineering/claude-code-auto-mode)
+- [Claude Code Release Notes | Releasebot](https://releasebot.io/updates/anthropic/claude-code)
+- [Claude Code Hooks完全ガイド](/knowledge/ai-tools/claude-code/hooks/)

@@ -1,0 +1,84 @@
+---
+title: "Gemini 3.1 Flash Live解説：リアルタイム音声会話を実現するストリーミングAPI"
+description: "2026年3月26日リリースのGemini 3.1 Flash Liveを解説。低遅延リアルタイム音声会話・128Kトークンコンテキスト・セッション管理・function callingなど開発者向け情報を網羅。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Google", "Flash Live", "音声AI", "リアルタイム", "API"]
+sortOrder: 2
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## 概要
+
+**Gemini 3.1 Flash Live**（モデルID: `gemini-3.1-flash-live-preview`）は、2026年3月26日にGemini APIで公開されたリアルタイム音声対話特化モデルです。テキスト・画像・音声・動画を入力として受け付け、低遅延でストリーミング応答を返します。
+
+前世代のGemini 2.0 Flash Live（2025年4月公開）で実証されたアーキテクチャをGemini 3.1ベースに刷新し、会話速度の向上とコンテキスト保持時間の2倍化を実現しています。
+
+---
+
+## 主要機能・仕様
+
+### 入出力
+
+| 項目 | 内容 |
+|---|---|
+| 入力モダリティ | テキスト・画像・音声・動画 |
+| 出力 | テキスト・音声（ストリーミング） |
+| コンテキスト | 128Kトークン |
+
+### セッション制限
+
+| セッション種別 | 最大時間 |
+|---|---|
+| 音声のみ | 15分 |
+| 音声＋映像 | 2分 |
+
+### 対応機能
+
+- **function calling**（同期のみ）
+- **Search grounding**（Google検索との連携）
+- **多言語対応**（日本語含む）
+- **音声アクティビティ検出**（発話区切りの自動検出）
+- **セッション管理**（コンテキスト圧縮による長期対話）
+
+---
+
+## 強み・注目ポイント
+
+**ターン制AI vs リアルタイムAI**の違いが本モデルの核心です。通常のチャット型AIは「入力→処理→出力」を繰り返しますが、Flash Liveはストリーミング接続を維持して**人間の会話速度に追従**します。
+
+音声面では複数の音声オプションと細かなアクティビティ検出設定が提供されており、カスタマーサポートBot・音声インターフェース・リアルタイム翻訳といったユースケースに対応できます。
+
+---
+
+## 開発者向けの使い方（概要）
+
+```python
+import google.generativeai as genai
+
+model = genai.GenerativeModel("gemini-3.1-flash-live-preview")
+# WebSocketベースのセッションを確立してストリーミング
+```
+
+詳細なセッション管理・function calling設定は [公式ドキュメント](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-live-preview) を参照してください。
+
+---
+
+## 他のリアルタイム音声AIとの比較
+
+| 項目 | Gemini 3.1 Flash Live | OpenAI Realtime API | Claude（音声モード） |
+|---|---|---|---|
+| 入力 | テキスト/画像/音声/動画 | 音声/テキスト | 音声/テキスト |
+| コンテキスト | 128K | 128K | 最大200K |
+| セッション時間 | 音声15分/映像2分 | セッション制限あり | - |
+| function calling | 同期のみ | 並列対応 | 対応 |
+| Search grounding | あり（Google検索） | なし | なし |
+
+---
+
+## 参考リンク
+
+- [Gemini 3.1 Flash Live Preview ドキュメント | ai.google.dev](https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-live-preview)
+- [Build with Gemini 3.1 Flash Live | blog.google](https://blog.google/innovation-and-ai/technology/developers-tools/build-with-gemini-3-1-flash-live/)
+- [Gemini API Changelog | ai.google.dev](https://ai.google.dev/gemini-api/docs/changelog)

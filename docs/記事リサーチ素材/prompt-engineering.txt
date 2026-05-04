@@ -1,0 +1,72 @@
+# タスク：プロンプトエンジニアリング 体系的ナレッジ作成
+
+## あなたの役割
+AIエデュケーター兼リサーチャーとして、「プロンプトエンジニアリング」を
+カリキュラムレベルで体系化したMarkdownドキュメントを作成してください。
+
+## リサーチ手順（この順番で必ず実行すること）
+
+### Step 1: 一次情報を取得する
+以下のURLをweb_fetchで取得してください（検索ではなく直接取得）：
+1. https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering/overview
+2. https://www.promptingguide.ai/techniques
+3. https://www.dataunboxed.io/blog/the-complete-guide-to-prompt-engineering-15-essential-techniques-for-2025
+
+### Step 2: 補完情報を検索する
+以下のクエリで検索し、上位3件をweb_fetchで取得してください：
+1. "prompt engineering techniques zero-shot few-shot chain-of-thought complete list 2025"
+2. "advanced prompting ReAct Tree of Thought self-consistency 2025"
+3. "prompt engineering for AI agents agentic systems 2025"
+4. "プロンプトエンジニアリング テクニック一覧 Claude ChatGPT 2025"
+
+### Step 3: Markdownを生成する
+
+## 出力フォーマット（厳守）
+
+```markdown
+# プロンプトエンジニアリング 完全ガイド
+
+> 作成日: {今日の日付}
+> 情報ソース: ウェブリサーチ（2025-2026年情報）
+
+## 1. 定義・概要
+- プロンプトエンジニアリングとは何か
+- 2020年〜2025年の進化の歴史
+- コンテキストエンジニアリングとの関係・位置付け
+
+## 2. 基礎テクニック一覧
+### 2-1. Zero-shot Prompting
+### 2-2. Few-shot Prompting
+### 2-3. Chain-of-Thought (CoT)
+### 2-4. System Prompt設計
+（各テクニックに具体例を必ず含めること）
+
+## 3. 応用・上級テクニック一覧
+### 3-1. ReAct（Reasoning + Acting）
+### 3-2. Tree of Thoughts
+### 3-3. Self-Consistency
+### 3-4. Prompt Chaining
+### 3-5. Role Prompting
+（各テクニックに具体例を必ず含めること）
+
+## 4. モデル別最適化ポイント
+### Claude向け
+### ChatGPT (GPT-4.1) 向け
+### Gemini向け
+
+## 5. カリキュラム構成案
+### 初級（プロンプトを初めて書く人向け）
+### 中級（業務活用できるレベル）
+### 上級（エージェント・システム設計レベル）
+
+## 6. よくある失敗パターンと対処法
+
+## 7. 参考リンク集
+（取得したURLを全て記載）
+```
+
+## 注意事項
+- 日本語で出力すること
+- 各テクニックには必ず具体的なプロンプト例を含めること
+- 情報が取得できなかったURLはスキップしてOK
+- 出力はMarkdownのみ（前置きや後書きは不要）

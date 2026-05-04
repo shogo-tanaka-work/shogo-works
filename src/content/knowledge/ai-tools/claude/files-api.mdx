@@ -1,0 +1,165 @@
+---
+title: "Claude Files API完全解説：ファイルを事前アップロードしてAPIコストを削減する"
+description: "2025年5月22日betaリリースのClaude Files APIを解説。file_idによるファイル再利用、プロンプトキャッシュとの組み合わせによるコスト削減、Code Execution Toolとの連携パターンを網羅。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "Files API", "API", "プロンプトキャッシュ", "コスト削減"]
+sortOrder: 6
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- ファイルを事前アップロード → `file_id` で参照 → 毎回base64エンコード不要
+- 同じPDF・コードベースを繰り返し使うワークフローでトークンコストを大幅削減
+- **Code Execution Tool**と組み合わせると「CSVをアップロードして分析」が1APIコールで完結
+
+---
+
+## 概要
+
+**Claude Files API** は、2025年5月22日にbetaとして公開されたファイル管理APIです。PDFや画像・テキストファイルを事前にアップロードしておき、Messages APIから `file_id` で参照できます。
+
+従来は毎回ファイルをbase64エンコードしてリクエストペイロードに含める必要がありましたが、Files APIにより**ファイルの送信コストが初回アップロードの1回だけ**になります。
+
+---
+
+## 基本的な使い方
+
+### 1. ファイルをアップロード
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# PDFをアップロード
+with open("specification.pdf", "rb") as f:
+    response = client.beta.files.upload(
+        file=("specification.pdf", f, "application/pdf"),
+    )
+
+file_id = response.id
+print(file_id)  # file_abc123...
+```
+
+### 2. file_id でメッセージに組み込む
+
+```python
+message = client.beta.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {
+                        "type": "file",
+                        "file_id": file_id,
+                    },
+                },
+                {
+                    "type": "text",
+                    "text": "この仕様書の要点を箇条書きで整理してください。"
+                }
+            ],
+        }
+    ],
+    betas=["files-api-2025-04-14"],
+)
+```
+
+---
+
+## Code Execution Tool との組み合わせ
+
+```python
+# CSVをアップロード
+with open("sales_data.csv", "rb") as f:
+    file = client.beta.files.upload(
+        file=("sales_data.csv", f, "text/plain"),
+    )
+
+# アップロードしたCSVをPythonで分析
+message = client.beta.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=4096,
+    tools=[{"type": "code_execution_20250522", "name": "code_execution"}],
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {"type": "file", "file_id": file.id},
+                },
+                {
+                    "type": "text",
+                    "text": "このCSVを月別に集計して折れ線グラフを作成してください。"
+                }
+            ],
+        }
+    ],
+    betas=["files-api-2025-04-14"],
+)
+```
+
+---
+
+## プロンプトキャッシュとの組み合わせ
+
+繰り返し参照するファイル（仕様書・コードベース等）はFiles APIでアップロードし、さらに**プロンプトキャッシュ**を適用することで二重のコスト削減が可能です。
+
+```python
+messages=[
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "document",
+                "source": {"type": "file", "file_id": file_id},
+                "cache_control": {"type": "ephemeral"}  # 1時間キャッシュ
+            },
+            {"type": "text", "text": "質問内容"}
+        ],
+    }
+]
+```
+
+---
+
+## ファイル管理
+
+```python
+# アップロード済みファイル一覧
+files = client.beta.files.list()
+
+# ファイルのメタデータを取得
+file_info = client.beta.files.retrieve_metadata(file_id)
+
+# ファイルを削除
+client.beta.files.delete(file_id)
+```
+
+---
+
+## 対応ファイル形式
+
+| 形式 | MIMEタイプ |
+|---|---|
+| PDF | `application/pdf` |
+| テキスト | `text/plain` |
+| HTML | `text/html` |
+| Markdown | `text/markdown` |
+| CSV | `text/csv` |
+| 画像（PNG/JPEG/GIF/WebP） | `image/*` |
+
+---
+
+## 参考リンク
+
+- [Files API Documentation | Anthropic](https://docs.anthropic.com/en/docs/build-with-claude/files)
+- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)
