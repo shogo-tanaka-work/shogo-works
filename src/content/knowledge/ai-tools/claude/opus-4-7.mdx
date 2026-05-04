@@ -1,0 +1,76 @@
+---
+title: "Claude Opus 4.7完全解説：ソフトウェアエンジニアリング特化の最新フロンティアモデル"
+description: "2026年4月16日リリースのClaude Opus 4.7を解説。/ultrareviewコマンド・/effortによる処理強度制御・高解像度ビジョン・価格据え置きの詳細をカバー。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "Anthropic", "Opus 4.7", "AIコーディング", "フロンティアモデル"]
+sortOrder: 2
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## 概要
+
+**Claude Opus 4.7** は、Anthropicが2026年4月16日にリリースした一般公開モデルの最高性能版です。複雑な長時間エージェントタスクへの耐性と高度なソフトウェアエンジニアリング能力が主な強化点で、**価格はOpus 4.6から据え置き**という点も特徴です。
+
+同日、より高性能なClaude Mythos（限定公開）の存在も明らかになりましたが、一般ユーザーが利用できる最強モデルはOpus 4.7です。
+
+---
+
+## 主要機能・変更点
+
+### 新コマンド
+
+| コマンド | 内容 |
+|---|---|
+| `/ultrareview` | 並列マルチエージェントによるコードレビュー。複数エージェントが同時にコードを検査し、高速で包括的なレビューを実施 |
+| `/effort [xhigh/high/medium]` | 処理強度を調整。`xhigh`が今回新設され、より多くの推論リソースを投入 |
+| `/tui` | フルスクリーンTUIレンダリング（ちらつきを解消） |
+
+### ビジョン強化
+
+- **高解像度ビジョン**: 最長辺2,576px相当の画像処理に対応
+- 図面・スクリーンショット・ドキュメント画像の詳細解析が向上
+
+### エージェント耐性
+
+- 長時間・複数ステップのエージェントタスクでの安定性が向上
+- コンテキストウィンドウの効率的な活用
+
+---
+
+## 料金
+
+| モデル | 入力（$/MTok） | 出力（$/MTok） |
+|---|---|---|
+| Claude Opus 4.7 | $5.00 | $25.00 |
+| Claude Opus 4.6 | $5.00 | $25.00 |
+
+Opus 4.6と同額のまま性能向上を実現しています。
+
+---
+
+## 強み・注目ポイント
+
+**ソフトウェアエンジニアリング全体像の把握**が最大の強みです。`/ultrareview`は単一エージェントでのレビューを超え、並列エージェントが異なる観点（セキュリティ・パフォーマンス・可読性など）を同時に検査します。
+
+`/effort xhigh`は複雑なアルゴリズム設計や難解なバグ調査で、通常より深い推論を要求できる機能です。日常的なタスクにはmediumを使い、難所でxhighに切り替えるという使い分けが想定されています。
+
+---
+
+## 他モデルとの比較
+
+| 項目 | Claude Opus 4.7 | GPT-5.4 Pro | Gemini 3.1 Pro |
+|---|---|---|---|
+| 入力価格 | $5.00/MTok | $30.00/MTok | $1.25〜2.50/MTok |
+| コーディング特化コマンド | `/ultrareview`, `/effort` | Codex連携 | Gemini CLI |
+| コンテキスト | 200K（Sonnet 4.x水準） | 1M | 1M |
+| ビジョン | 最長辺2,576px | マルチモーダル | マルチモーダル |
+
+---
+
+## 参考リンク
+
+- [Claude Opus 4.7 is generally available | GitHub Changelog](https://github.blog/changelog/2026-04-16-claude-opus-4-7-is-generally-available/)
+- [Anthropic reveals new Opus 4.7 model | 9to5Mac](https://9to5mac.com/2026/04/16/anthropic-reveals-new-opus-4-7-model-with-focus-on-advanced-software-engineering/)
+- [Claude Release Notes | Releasebot](https://releasebot.io/updates/anthropic/claude-code)

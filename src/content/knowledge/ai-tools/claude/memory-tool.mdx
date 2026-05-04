@@ -1,0 +1,136 @@
+---
+title: "Claude Memory Tool完全解説：会話をまたいで情報を保存する長期記憶API"
+description: "2025年9月29日betaリリースのClaude Memory Toolを解説。クライアントサイドメモリの仕組み、Context Editingとの組み合わせによる長期エージェント設計、実装パターンを網羅。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "Memory Tool", "API", "長期記憶", "エージェント"]
+sortOrder: 8
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- Claudeが会話をまたいで情報を**保存・参照・更新**できるツール
+- ストレージはクライアントサイド管理（開発者が保存先を自由に選択）
+- **Context Editing** と組み合わせると長期エージェントでのコンテキスト溢れを防止
+
+---
+
+## 概要
+
+**Claude Memory Tool** は、2025年9月29日にbetaとして公開されたメモリ管理ツールです。Claudeが自律的に情報を保存・参照・更新し、セッションをまたいでコンテキストを維持できます。
+
+ストレージはサーバーサイドではなく**クライアントサイドで管理**します。保存先はファイル・データベース・ベクターストアなど開発者が自由に選べます。
+
+---
+
+## ツールの種類
+
+Memory Toolは3種類の操作をカバーします：
+
+| ツール名 | 操作 | 用途 |
+|---|---|---|
+| `memory_create` | 新規保存 | 新しい情報を記録 |
+| `memory_read` | 読み取り | 過去の情報を参照 |
+| `memory_update` | 更新 | 既存情報を最新化 |
+
+---
+
+## 基本的な使い方
+
+```python
+import anthropic
+import json
+
+client = anthropic.Anthropic()
+
+# メモリストア（シンプルなdict例）
+memory_store = {}
+
+def handle_memory_tool(tool_name, tool_input):
+    """Memory Toolの実行ハンドラー"""
+    if tool_name == "memory_create":
+        key = tool_input["key"]
+        memory_store[key] = tool_input["value"]
+        return f"保存しました: {key}"
+
+    elif tool_name == "memory_read":
+        key = tool_input.get("key")
+        if key:
+            return memory_store.get(key, "データが見つかりません")
+        return json.dumps(memory_store)  # 全件返す
+
+    elif tool_name == "memory_update":
+        key = tool_input["key"]
+        memory_store[key] = tool_input["value"]
+        return f"更新しました: {key}"
+
+# Memory Tool を組み込んだエージェントループ
+response = client.beta.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=1024,
+    tools=[{"type": "memory_20250818", "name": "memory"}],
+    messages=[
+        {
+            "role": "user",
+            "content": "私は田中省伍です。Webエンジニアとして働いています。覚えておいてください。"
+        }
+    ],
+    betas=["memory-tool-2025-09-12"],
+)
+```
+
+---
+
+## Context Editing との組み合わせ
+
+長期エージェントでは、処理を続けるとツール出力が蓄積してコンテキストウィンドウを消費します。**Context Editing** と組み合わせることで、古いツール結果を削除しながら重要情報だけをメモリに保持できます。
+
+```python
+# コンテキスト削減 + メモリ保持の組み合わせ例
+
+# 1. エージェントが重要情報をMemory Toolで保存
+# 2. 古いtool_resultをContext Editingで削除
+# 3. 次のステップでMemory Toolから必要な情報を読み取る
+
+# SDKのtool_runner（自動コンパクション内蔵）を使う場合
+from anthropic import tool_runner
+
+result = tool_runner.run(
+    client=client,
+    model="claude-opus-4-7",
+    tools=[{"type": "memory_20250818", "name": "memory"}],
+    messages=[...],
+    betas=["memory-tool-2025-09-12"],
+    handle_tool_call=handle_memory_tool,
+)
+```
+
+---
+
+## Claude.ai のメモリとの違い
+
+| 項目 | Memory Tool（API） | Claude.ai メモリ |
+|---|---|---|
+| 管理者 | 開発者（クライアント側） | Anthropic（サーバー側） |
+| 保存先 | 自由（DB・ファイル等） | Anthropicのシステム |
+| ユーザー操作 | 開発者が設計 | claude.ai UIから管理 |
+| 対象 | API利用アプリ | claude.ai ユーザー |
+| カスタマイズ | 完全に自由 | 限定的 |
+
+---
+
+## 対応モデル
+
+- Claude Opus 4.1 / Opus 4
+- Claude Sonnet 4.6 / Sonnet 4
+- Claude Haiku 4.5
+
+---
+
+## 参考リンク
+
+- [Memory Tool Documentation | Anthropic](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)
+- [Context Editing Documentation | Anthropic](https://platform.claude.com/docs/en/build-with-claude/context-editing)
+- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)

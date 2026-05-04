@@ -1,0 +1,150 @@
+---
+title: "Gemini Implicit Caching完全解説：コード変更ゼロで最大90%のAPIコストを自動削減する"
+description: "2025年5月8日追加のGemini Implicit Cachingを解説。Gemini 2.5 Flash/Proでのキャッシュヒット率を上げるプロンプト設計、明示的キャッシングとの使い分け、usage_metadataでの節約量確認方法を網羅。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Google", "Implicit Caching", "コスト削減", "API"]
+sortOrder: 5
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **コードの変更ゼロ**でキャッシュが自動適用される（Gemini 2.5以降でデフォルト有効）
+- Gemini 2.5 Flash：キャッシュヒット時に **90%割引**
+- Gemini 2.0系：キャッシュヒット時に **75%割引**
+- プロンプトの「固定部分を先頭・可変部分を末尾」に置くだけでヒット率が上がる
+
+---
+
+## 概要
+
+**Implicit Caching（暗黙的キャッシング）** は、2025年5月8日に発表されたGemini APIの自動コスト削減機能です。Gemini 2.5以降のモデルでデフォルト有効になっており、開発者がキャッシュを明示的に設定しなくても、プロンプトの繰り返し部分が自動的にキャッシュされます。
+
+---
+
+## 割引率
+
+| モデル | キャッシュヒット時の割引 | 最小キャッシュサイズ |
+|---|---|---|
+| Gemini 2.5 Pro | 75% | 2,048トークン |
+| Gemini 2.5 Flash | **90%** | **1,024トークン** |
+| Gemini 2.0 Flash | 75% | 2,048トークン |
+
+Gemini 2.5 Flashが最もキャッシュ効率が高く、大量処理ワークフローで特に有利です。
+
+---
+
+## コード例：何も変えなくても動く
+
+```python
+import google.generativeai as genai
+
+genai.configure(api_key="YOUR_API_KEY")
+model = genai.GenerativeModel("gemini-2.5-flash")
+
+# この呼び出しだけで暗黙的キャッシングが適用される
+# 特別な設定は不要
+response = model.generate_content(
+    "以下のドキュメントをもとに質問に答えてください：\n\n"
+    + large_document_content  # ここが繰り返し部分
+    + "\n\n質問：要点を教えてください"
+)
+
+# キャッシュヒット状況を確認
+print(response.usage_metadata)
+# cached_content_token_count が 0 より大きければヒット
+```
+
+---
+
+## キャッシュヒット率を上げるプロンプト設計
+
+暗黙的キャッシングは「前回のリクエストと先頭部分が一致しているか」でヒットするかが決まります。
+
+### ❌ ヒットしにくい設計（可変部分が先頭）
+
+```python
+prompt = f"""
+ユーザー名：{user_name}
+質問：{user_question}
+
+以下のドキュメントを参照してください：
+{large_document}  # 変わらない部分が後ろにある
+"""
+```
+
+### ✅ ヒットしやすい設計（固定部分が先頭）
+
+```python
+prompt = f"""
+以下のドキュメントを参照してください：
+{large_document}  # 変わらない部分を先頭に
+
+ユーザー名：{user_name}
+質問：{user_question}  # 可変部分を末尾に
+"""
+```
+
+---
+
+## usage_metadata での節約量確認
+
+```python
+response = model.generate_content(prompt)
+metadata = response.usage_metadata
+
+print(f"入力トークン合計: {metadata.prompt_token_count}")
+print(f"キャッシュ読み取りトークン: {metadata.cached_content_token_count}")
+print(f"実際の課金トークン: {metadata.prompt_token_count - metadata.cached_content_token_count}")
+
+# 節約率を計算
+if metadata.prompt_token_count > 0:
+    hit_rate = metadata.cached_content_token_count / metadata.prompt_token_count
+    print(f"キャッシュヒット率: {hit_rate:.1%}")
+```
+
+---
+
+## 明示的キャッシングとの使い分け
+
+| 項目 | Implicit Caching | Explicit Caching |
+|---|---|---|
+| 設定 | 不要（自動） | TTL・内容を手動指定 |
+| ヒット保証 | なし（ベストエフォート） | あり（TTL内は確実） |
+| TTL制御 | なし | あり（デフォルト1時間） |
+| コスト | キャッシュ書き込み不要 | 書き込みコストあり |
+| 向いている用途 | 試験的・通常の繰り返しリクエスト | 確実にコスト削減したい本番環境 |
+
+**基本戦略**: まずImplicit Cachingで様子を見て、ヒット率が低ければExplicit Cachingに移行する。
+
+---
+
+## Explicit Caching の設定（参考）
+
+```python
+import google.generativeai as genai
+from google.generativeai import caching
+import datetime
+
+# 明示的にキャッシュを作成
+cache = caching.CachedContent.create(
+    model="gemini-2.5-flash",
+    system_instruction="あなたは専門的なアシスタントです。",
+    contents=[large_document_content],
+    ttl=datetime.timedelta(hours=1),  # 1時間保持
+)
+
+# キャッシュを指定してリクエスト
+model = genai.GenerativeModel.from_cached_content(cache)
+response = model.generate_content("質問内容")
+```
+
+---
+
+## 参考リンク
+
+- [Gemini 2.5 Models with Implicit Caching | Google Developers Blog](https://developers.googleblog.com/en/gemini-2-5-models-now-support-implicit-caching/)
+- [Context Caching Documentation | ai.google.dev](https://ai.google.dev/gemini-api/docs/caching)
+- [Gemini API Pricing | ai.google.dev](https://ai.google.dev/gemini-api/docs/pricing)
