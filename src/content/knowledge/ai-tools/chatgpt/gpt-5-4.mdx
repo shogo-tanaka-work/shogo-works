@@ -1,0 +1,148 @@
+---
+title: "GPT-5.4 / GPT-5.4 mini 徹底解説：ChatGPTの現行モデル体系と使い分け方"
+description: "OpenAIのGPT-5.4とGPT-5.4 miniの性能・料金・プラン別アクセス方法を解説。GPT-5.1廃止後の移行先とThinking機能の活用ポイントもカバー。"
+category: "ai-tools"
+subcategory: "chatgpt"
+tags: ["ChatGPT", "GPT-5.4", "GPT-5.4 mini", "OpenAI", "Thinking"]
+sortOrder: 0
+createdAt: 2026-04-16
+author: "田中省伍"
+draft: true
+---
+
+## ツール概要
+
+GPT-5.4 は OpenAI が 2026年3月5日に発表した現行フロンティアモデルです。推論・コーディング・エージェントワークフローの三領域を統合し、GPT-5.3 Codex 相当のコーディング能力を本体に取り込んだ点が最大の特徴です。同年3月17日にはより小型・高速な **GPT-5.4 mini** と **GPT-5.4 nano** も公開され、モデル体系が刷新されました。
+
+---
+
+## モデル体系と変更点
+
+### GPT-5.1 廃止と自動移行（2026年3月11日）
+
+2026年3月11日をもって、以下の GPT-5.1 系モデルが ChatGPT から完全廃止されました。廃止と同時に、既存会話は自動的に後継モデルへ引き継がれています（[ChatGPT リリースノート](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)）。
+
+| 廃止モデル | 移行先 |
+|---|---|
+| GPT-5.1 Instant | GPT-5.3 Instant |
+| GPT-5.1 Thinking | GPT-5.4 Thinking |
+| GPT-5.1 Pro | GPT-5.4 Pro |
+
+なお、2026年2月13日には GPT-4o・GPT-4.1・GPT-4.1 mini・OpenAI o4-mini・GPT-5（初代 Instant / Thinking）も ChatGPT から退役しており、GPT-5.4 世代への完全移行が 2026年3月に完了しました。
+
+### 現行モデルラインナップ（2026年4月時点）
+
+| モデル | 位置づけ | リリース日 |
+|---|---|---|
+| GPT-5.4 Thinking | 最高性能・推論特化 | 2026年3月5日 |
+| GPT-5.4 Pro | Thinking の上位版（Proプラン専用） | 2026年3月5日 |
+| GPT-5.4 mini | 小型・高速。Free / Go 向け Thinking | 2026年3月17日 |
+| GPT-5.4 nano | 超軽量（API 提供中心） | 2026年3月17日 |
+| GPT-5.3 Instant | 高速汎用。フォールバック用途 | 2026年2月 |
+
+---
+
+## GPT-5.4 mini の特徴と使い方
+
+GPT-5.4 mini は「最も優秀な小型モデル」として [OpenAI 公式ブログ](https://openai.com/index/introducing-gpt-5-4-mini-and-nano/) で発表されました。GPT-5 mini に比べてコーディング・推論・マルチモーダル理解・ツール利用の全領域で性能が向上しており、速度は **2倍以上** 高速です。
+
+### ChatGPT での使い方
+
+1. ChatGPT の画面上部にあるモデル選択メニューの **「+」アイコン** をクリックします。
+2. **「Thinking」** オプションを選択します。
+3. Free・Go ユーザーは GPT-5.4 mini による Thinking が利用できます。
+
+Plus・Pro ユーザーには GPT-5.4 Thinking が優先的に割り当てられますが、**レート制限に達した場合は GPT-5.4 mini に自動フォールバック**されます。
+
+### API でのアクセス
+
+API 経由では `gpt-5.4-mini` モデル ID で直接呼び出せます。
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+response = client.chat.completions.create(
+    model="gpt-5.4-mini",
+    messages=[
+        {"role": "user", "content": "SWE-Bench Pro に出題されるようなコードレビューをしてください。"}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+API の仕様（2026年4月時点）は以下のとおりです（[API ドキュメント](https://developers.openai.com/api/docs/models/gpt-5.4-mini)）。
+
+| 項目 | 値 |
+|---|---|
+| コンテキストウィンドウ | 400,000 トークン |
+| 入力価格 | $0.75 / 1M トークン |
+| 出力価格 | $4.50 / 1M トークン |
+| 対応入力 | テキスト・画像 |
+| 対応機能 | ツール呼び出し、Web 検索、ファイル検索、コンピューター操作、スキル |
+
+---
+
+## 強み・特徴
+
+### GPT-5.4（フルサイズ）
+
+- **コーディング能力の統合**: GPT-5.3 Codex 相当の能力を本体に取り込み、コーディング専用モデルを別途選択する必要がなくなりました。
+- **スプレッドシート・プレゼン性能**: 社内ベンチマークでは、ジュニア IB アナリスト相当のスプレッドシートモデリングタスクで平均スコア **87.3%**（GPT-5.2 比: 68.4%）を達成。プレゼンテーション評価では **68.0%** の確率でヒトが GPT-5.4 製作物を好むと評価しました（[Introducing GPT-5.4](https://openai.com/index/introducing-gpt-5-4/)）。
+- **エージェントワークフロー**: ツール・ソフトウェア環境をまたいだ複数ステップのタスク処理が改善されており、ChatGPT Agent との組み合わせで効果を発揮します。
+
+### GPT-5.4 mini
+
+- **SWE-Bench Pro に匹敵**: フルサイズの GPT-5.4 に近いパスレートを、はるかに低いレイテンシーで実現します。
+- **OSWorld-Verified での高評価**: GUI エージェントタスクでも GPT-5.4 に迫る性能を示しています。
+- **コスト効率**: API 価格は GPT-5.4 より大幅に低く、大量処理や Free / Go プランのコスト制約がある用途に適しています。
+
+---
+
+## 弱み・限界
+
+- **Thinking 系の応答速度**: GPT-5.4 Thinking は推論に時間がかかるため、軽い質問や高速レスポンスが必要な場面では GPT-5.3 Instant の方が向いています。
+- **Free プランのレート制限**: Free・Go ユーザーが利用できる GPT-5.4 mini Thinking には回数制限があります。制限に達した後の挙動はプランによって異なります。
+- **GPT-5.4 nano の情報**: 2026年4月時点では GPT-5.4 nano の ChatGPT 向け詳細仕様は公開されておらず、主に API・軽量組み込み用途が想定されています。
+- **ハルシネーション**: GPT-5 世代全体の傾向として、高精度の推論タスクでも誤情報を自信を持って出力するケースがゼロではありません。重要な事実確認は必ず一次情報で裏取りしてください。
+
+---
+
+## 料金体系
+
+ChatGPT プラン別の GPT-5.4 系モデルへのアクセス可否を以下にまとめます（2026年4月時点。最新情報は [chatgpt.com/pricing](https://chatgpt.com/pricing/) を参照）。
+
+| プラン | 月額 | GPT-5.4 Thinking | GPT-5.4 mini (Thinking) | GPT-5.4 Pro |
+|---|---|---|---|---|
+| Free | $0 | × | ○（Thinking メニュー） | × |
+| Go | $8 | × | ○（Thinking メニュー） | × |
+| Plus | $20 | ○（レート制限あり） | ○（フォールバック） | × |
+| Pro $100 | $100 | ○ | ○（フォールバック） | × |
+| Pro $200 | $200 | ○ | ○（フォールバック） | ○ |
+| Business | $25〜/ユーザー | ○ | ○（フォールバック） | × |
+| Enterprise | 要問合せ | ○ | ○（フォールバック） | 要確認 |
+
+> **補足**: API 利用の場合は従量課金となり、プランに関係なく `gpt-5.4` / `gpt-5.4-mini` モデルを直接呼び出せます。
+
+---
+
+## まとめ
+
+- **GPT-5.4 は 2026年3月5日リリース**。コーディング・推論・エージェント能力を統合した現行フロンティアモデルで、スプレッドシートやプレゼン作成での数値改善が顕著です。
+- **GPT-5.4 mini は 2026年3月17日リリース**。GPT-5.4 に迫る性能を 2倍以上の速度で実現し、Free・Go ユーザーが「Thinking」メニューから利用できます。
+- **GPT-5.1 は 2026年3月11日に廃止**。既存会話は GPT-5.3 Instant・GPT-5.4 Thinking・GPT-5.4 Pro へ自動移行済みです。
+- **Plus・Pro ユーザーは GPT-5.4 Thinking を優先利用**でき、レート上限に達した際に GPT-5.4 mini へ自動フォールバックされます。
+- **用途別の使い分け**: 高精度な推論や複雑なコーディングには GPT-5.4 Thinking、高速・大量処理や Free プランでのコスト最適化には GPT-5.4 mini が適しています。
+
+---
+
+## 参考リンク
+
+- [Introducing GPT-5.4（OpenAI）](https://openai.com/index/introducing-gpt-5-4/)
+- [Introducing GPT-5.4 mini and nano（OpenAI）](https://openai.com/index/introducing-gpt-5-4-mini-and-nano/)
+- [ChatGPT リリースノート（OpenAI Help Center）](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)
+- [GPT-5.3 and GPT-5.4 in ChatGPT（OpenAI Help Center）](https://help.openai.com/en/articles/11909943-gpt-53-and-gpt-54-in-chatgpt)
+- [GPT-5.4 mini API ドキュメント](https://developers.openai.com/api/docs/models/gpt-5.4-mini)
+- [ChatGPT 料金プラン](https://chatgpt.com/pricing/)
