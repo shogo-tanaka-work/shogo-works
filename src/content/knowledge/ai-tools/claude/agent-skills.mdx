@@ -1,0 +1,160 @@
+---
+title: "Claude Agent Skills完全解説：OfficeファイルをAIで操作するプリビルトスキル活用法"
+description: "2025年10月16日betaリリースのClaude Agent Skillsを解説。PowerPoint・Excel・Word・PDF操作のプリビルトスキル、カスタムスキルの作成方法、Code Execution Toolとの連携を網羅。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "Agent Skills", "API", "PowerPoint", "Excel", "自動化"]
+sortOrder: 7
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- Anthropicが**PowerPoint・Excel・Word・PDF操作**のプリビルトスキルを提供
+- スキル = 指示書 + スクリプト + リソースをまとめたフォルダ。動的にロードして専門知識を与える
+- **Code Execution Tool の有効化が必須**
+- カスタムスキルを `POST /v1/skills` でアップロードすれば独自業務フローを定義できる
+
+---
+
+## 概要
+
+**Claude Agent Skills** は、2025年10月16日にbetaとして公開されたスキル管理APIです。instructions・スクリプト・リソースをまとめた「スキル」フォルダをClaudeに動的にロードして、特定のドメイン知識や操作能力を与えます。
+
+従来は「Officeファイルを操作して」とプロンプトするとClaudeが自分でコードを書いていましたが、プリビルトスキルを使うと**検証済みの操作手順**でファイルを処理できます。
+
+---
+
+## プリビルトスキルの種類
+
+Anthropicが公式提供するプリビルトスキルは以下の4種です：
+
+| スキル | 対象ファイル | 主な操作 |
+|---|---|---|
+| PowerPoint Skill | .pptx | スライド追加・編集・レイアウト変更・グラフ挿入 |
+| Excel Skill | .xlsx | セル操作・数式・ピボットテーブル・グラフ生成 |
+| Word Skill | .docx | 文章挿入・書式設定・目次生成・コメント追加 |
+| PDF Skill | .pdf | テキスト抽出・分析・注釈（読み取り中心） |
+
+---
+
+## 基本的な使い方
+
+### 1. スキルを有効化してメッセージを作成
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# PowerPoint スキルを使って新規スライドを作成
+message = client.beta.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=4096,
+    tools=[
+        {"type": "code_execution_20250522", "name": "code_execution"},
+    ],
+    system="あなたはPowerPointの操作を担当するアシスタントです。",
+    messages=[
+        {
+            "role": "user",
+            "content": "Q3売上レポートのPPTXを作成してください。"
+                       "タイトルスライドと3つのデータスライドを含め、"
+                       "会社カラー（青 #003087）で統一してください。"
+        }
+    ],
+    betas=["skills-2025-10-02"],
+)
+```
+
+### 2. 既存ファイルへの操作（Files API と組み合わせ）
+
+```python
+# Files APIでExcelファイルをアップロード
+with open("sales.xlsx", "rb") as f:
+    uploaded = client.beta.files.upload(
+        file=("sales.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    )
+
+# Excelスキルで分析・編集
+message = client.beta.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=4096,
+    tools=[{"type": "code_execution_20250522", "name": "code_execution"}],
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "document",
+                    "source": {"type": "file", "file_id": uploaded.id}
+                },
+                {
+                    "type": "text",
+                    "text": "このExcelの売上データを月別に集計し、"
+                            "前月比の列を追加してください。"
+                }
+            ]
+        }
+    ],
+    betas=["skills-2025-10-02", "files-api-2025-04-14"],
+)
+```
+
+---
+
+## カスタムスキルの作成
+
+社内独自の業務フローをスキルとしてパッケージ化できます。
+
+### スキルのディレクトリ構造
+
+```
+my-custom-skill/
+├── SKILL.md          # スキルの説明・使い方
+├── scripts/
+│   ├── process.py    # メインスクリプト
+│   └── helpers.py    # ヘルパー関数
+└── resources/
+    └── template.xlsx # テンプレートファイル等
+```
+
+### アップロード
+
+```python
+# カスタムスキルをアップロード
+skill = client.beta.skills.upload(skill_dir="./my-custom-skill/")
+print(skill.id)  # skill_abc123...
+
+# アップロードしたスキルを指定
+message = client.beta.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=4096,
+    tools=[
+        {"type": "code_execution_20250522", "name": "code_execution"},
+    ],
+    skill_ids=[skill.id],
+    messages=[{"role": "user", "content": "スキルを使って処理してください。"}],
+    betas=["skills-2025-10-02"],
+)
+```
+
+---
+
+## 活用シーン
+
+| シーン | 使い方 |
+|---|---|
+| 月次レポート自動生成 | 売上データ(CSV) → Excelで集計 → PowerPointにグラフを挿入 |
+| 契約書の一括チェック | WordファイルをPDF Skillで読み込み → 問題箇所を抽出 |
+| プレゼン素材の量産 | テンプレートPPTXにデータを流し込んで30パターン生成 |
+| 社内ドメイン知識の定型化 | カスタムスキルに業界用語・フォーマット規則を記述 |
+
+---
+
+## 参考リンク
+
+- [Agent Skills Documentation | Anthropic](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
+- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)
+- [Files API Documentation | Anthropic](https://docs.anthropic.com/en/docs/build-with-claude/files)
