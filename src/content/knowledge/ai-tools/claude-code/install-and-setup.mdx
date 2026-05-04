@@ -1,0 +1,252 @@
+---
+title: "Claude Code インストールと初期設定ガイド：Mac/Windows/WSL とパーミッション設計"
+description: "Claude Code のインストール（Mac / Windows / WSL）から認証方式（Claude.ai サブスク / Anthropic Console API）の選び分け、パーミッション設定（allow / deny / ask、defaultMode、additionalDirectories）までを1ページに集約。"
+category: "ai-tools"
+subcategory: "claude-code"
+tags: ["Claude Code", "インストール", "セットアップ", "認証", "パーミッション", "settings.json"]
+sortOrder: 12
+createdAt: 2026-05-03
+author: "田中省伍"
+---
+
+## TL;DR
+
+- インストールは **ネイティブインストーラー推奨**（Mac は `curl ... | bash`、Windows は `irm ... | iex`）。`npm install -g` は自動更新がなく非推奨
+- 認証は **Claude.ai サブスク**（Pro / Max）か **Anthropic Console API キー** の2系統。日常開発はサブスク、CI / 自動化は API キーが定石
+- パーミッションは **`.claude/settings.json` の `permissions`** で `allow` / `deny` / `ask` / `defaultMode` / `additionalDirectories` を設計する
+- 詰まったら **`claude doctor`** が最初の診断ツール
+
+---
+
+## インストール
+
+### Mac（推奨：ネイティブインストーラー）
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+# Homebrew 派
+brew install --cask claude-code
+```
+
+ネイティブ版は Node.js 不要・自動更新ありの単一バイナリです。`~/.local/bin/claude` あたりに入るので、PATH に通っているか確認します。
+
+### Windows（推奨：PowerShell）
+
+```powershell
+# PowerShell（管理者権限不要のことが多いが、UAC が出れば許可）
+irm https://claude.ai/install.ps1 | iex
+```
+
+PowerShell の実行ポリシーで弾かれた場合は、現セッションだけ一時的に緩めます。
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
+irm https://claude.ai/install.ps1 | iex
+```
+
+WSL を使うなら、Mac と同じ `curl` ワンライナーが使えます。Windows ネイティブで動かしたいか、WSL から Linux ライクに使いたいかで選びます。
+
+### npm 経由（代替・非推奨）
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+Node.js 環境が前提・自動更新なし・グローバル権限の問題が出やすい、と運用コストが高いので、バージョン固定が必要な特殊ケース以外はネイティブ版を選びます。
+
+### インストール直後の確認
+
+```bash
+claude --version
+claude doctor
+```
+
+`claude doctor` は環境診断コマンドです。実行可能か、認証情報が読めるか、設定ファイルが妥当か、を一度に見てくれます。**何かおかしい時の最初の一手**として覚えておきます。
+
+---
+
+## 認証：2種類のアカウントと選び分け
+
+| 系統 | 認証元 | 課金 | 主な用途 |
+|---|---|---|---|
+| Claude.ai サブスク | Pro / Max プラン | 月額固定 | 日常の対話開発、長時間運用 |
+| Anthropic Console API | API キー | 従量（$/トークン） | CI 連携、Headless 実行、複数環境への配布 |
+
+初回 `claude` 実行で OAuth ブラウザが開きます。サブスク利用時はそこで Claude.ai アカウントにログインするだけです。API キー利用時は環境変数で渡します。
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+claude
+```
+
+**同じメールアドレスで両方持てる**ので、「個人作業はサブスク、GitHub Actions は API キー」のような分離が現実的です。アカウント切替は `/login` で行えます。
+
+---
+
+## パーミッション設計
+
+### 何を制御できるか
+
+`permissions` ブロックでは、Claude Code が呼び出すツールごとに動作を決めます。主要なツールは次の5つです。
+
+| ツール | 何をする | 主な指定例 |
+|---|---|---|
+| `Bash` | シェルコマンド実行 | `Bash(git *)` `Bash(npm test)` |
+| `Read` | ファイル読み取り | `Read(./src/**)` |
+| `Edit` | 既存ファイル編集 | `Edit(./src/**)` |
+| `Write` | 新規ファイル作成 | `Write(./src/**)` |
+| `WebFetch` | 外部URL取得 | `WebFetch(domain:github.com)` |
+
+### allow / deny / ask の3ルールと優先度
+
+```json
+// .claude/settings.json
+{
+  "permissions": {
+    "allow": ["Bash(git *)", "Bash(npm *)", "Read", "Edit"],
+    "deny":  ["Bash(rm -rf *)", "Bash(curl *)", "Write(./.env*)"],
+    "ask":   ["Bash(docker *)", "WebFetch"]
+  }
+}
+```
+
+- **`deny` が最優先**。allow に書いていても deny にマッチすれば必ず拒否される
+- 次に `ask` が評価され、毎回確認プロンプトが出る
+- 最後に `allow` で素通し
+
+「危険なものは deny で固定 → 普段使うものは allow → 判断がほしいものは ask」というレイヤ構成で書くと事故が減ります。
+
+### defaultMode で全体方針を決める
+
+明示パターンに該当しない操作のデフォルト挙動を決めます。
+
+| モード | 挙動 | 向くケース |
+|---|---|---|
+| `default` | すべて確認プロンプトを出す | 新規プロジェクト、危険な実験環境 |
+| `acceptEdits` | Read / Edit を自動承認、それ以外は確認 | 日常開発の主力モード |
+| `bypassPermissions` | すべて素通し（deny は効く） | 信頼済み環境での自動化、CI |
+
+`bypassPermissions` も `permissions.deny` のルールは効きます。「全許可だが特定パターンだけ確実にブロック」という設計が可能です。
+
+```json
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "deny": ["Bash(rm -rf /*)", "Write(./.env)", "Bash(curl *)"]
+  }
+}
+```
+
+### additionalDirectories でプロジェクト外も触らせる
+
+通常 Claude Code はカレントプロジェクト配下しか触れません。モノレポ外の共有ライブラリや dotfiles に触らせたい場合は許可ディレクトリを追加します。
+
+```json
+{
+  "permissions": {
+    "additionalDirectories": [
+      "../shared-libs/",
+      "~/dotfiles/"
+    ]
+  }
+}
+```
+
+### Bash パターンの落とし穴
+
+- `Bash(git)` … サブコマンド付きにマッチしない（`git status` は弾かれる）
+- `Bash(git *)` … `git` から始まる任意の引数を許可（推奨記法）
+- `Bash(npm run *)` … スペース区切りで階層を表現できる
+- `Read(./src/**)` … glob で深い階層まで指定可能
+
+「ワイルドカードを書いたつもりが効いていない」時は `claude doctor` または `/doctor` で実際にロードされたパターンを確認します。
+
+---
+
+## プロジェクト別の設定テンプレ
+
+### Web フロントエンド（TypeScript / Astro / Next 系）
+
+```json
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(npm *)", "Bash(npx *)", "Bash(git *)",
+      "Read", "Edit", "Write(./src/**)"
+    ],
+    "deny": ["Write(./.env*)", "Bash(rm -rf *)"]
+  }
+}
+```
+
+### Python / データ系
+
+```json
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Bash(uv *)", "Bash(python *)", "Bash(pytest *)", "Bash(git *)",
+      "Read", "Edit"
+    ],
+    "deny": ["Write(./.env*)", "Bash(rm -rf *)", "Bash(pip install *)"]
+  }
+}
+```
+
+### 高セキュリティ・本番触る系
+
+```json
+{
+  "permissions": {
+    "defaultMode": "default",
+    "allow": ["Read", "Bash(git status)", "Bash(git diff)"],
+    "deny":  ["Write", "Edit", "Bash(rm *)", "Bash(curl *)", "WebFetch"],
+    "ask":   ["Bash"]
+  }
+}
+```
+
+「読むだけ・調査だけ」用途のプロファイルとして用意し、本番ブランチを触る作業の前に切り替える運用が安全です。
+
+---
+
+## 設定ファイルの配置と優先順位
+
+| 場所 | スコープ | 用途 |
+|---|---|---|
+| `~/.claude/settings.json` | 全プロジェクト共通（個人） | 自分の汎用設定 |
+| `.claude/settings.json` | プロジェクト共有（チーム） | チーム合意のルール、Git 管理 |
+| `.claude/settings.local.json` | プロジェクト個人（非共有） | 個人の許可追記、シークレット |
+
+下のスコープほど優先されます。チーム共有は `settings.json`、個人で追加した「don't ask again」承認は自動的に `settings.local.json` に追記されるので、こちらは gitignore に入れておきます。
+
+---
+
+## トラブルシュート
+
+### `claude doctor` を最初に走らせる
+
+```bash
+claude doctor
+```
+
+実行可能か / 認証 / 設定ファイル / 推奨バージョンとの差分まで一気にチェックしてくれます。「動かない」と感じたら、ググる前にまずこれです。
+
+### よくあるパターン
+
+- **コマンドが見つからない**: PATH に `~/.local/bin`（または Homebrew の bin）が入っているか
+- **権限エラー**: ネイティブ版は `~/.local/bin` 配下に入るので sudo 不要。npm 版を使っているなら `npx` 経由か、グローバル install 先の権限を見直す
+- **古いバージョンが残っている**: `which -a claude` で複数パスがないか確認、`brew uninstall` / `npm uninstall -g` で旧版を消す
+- **Windows: 実行ポリシーで弾かれる**: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned` を実行してから再試行
+- **`--dangerously-skip-permissions` を使いたい**: 名前のとおり危険。サンドボックス内 / CI 内など隔離された環境でのみ使う。`permissions.deny` のルールは引き続き効く
+
+---
+
+## 関連ドキュメント
+
+- [Claude Code 概要](./overview)
+- [Hooks 完全ガイド](./hooks)（PreToolUse でブロックを自動化）
+- [MCP ガイド](./mcp)（外部ツール接続時の許可）
+- [Claude Code 公式ドキュメント](https://code.claude.com/docs/en/overview)
