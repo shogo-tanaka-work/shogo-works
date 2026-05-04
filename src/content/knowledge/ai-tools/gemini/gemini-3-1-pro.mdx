@@ -1,0 +1,81 @@
+---
+title: "Gemini 3.1 Pro完全解説：ARC-AGI-2スコア77.1%の推論最上位モデル"
+description: "2026年2月19日にプレビューリリースされたGemini 3.1 Proの推論性能・新機能・アクセス方法・料金を解説。ARC-AGI-2スコア77.1%や3月末の旧Previewモデル強制移行もカバー。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Google", "Gemini 3.1 Pro", "推論モデル", "マルチモーダル"]
+sortOrder: 1
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## 概要
+
+**Gemini 3.1 Pro** は、Google DeepMindが2026年2月19日にプレビューリリースしたGeminiシリーズの最上位推論モデルです。前世代のGemini 3 Proと比較してARC-AGI-2スコアが**2倍以上に向上**し、2026年3月末には旧Previewモデル（`gemini-3-pro-preview`）が廃止され、`gemini-3.1-pro-preview` への移行が必須化されたことで本格運用フェーズに入りました。
+
+---
+
+## 主要機能・変更点
+
+### 推論性能
+
+- **ARC-AGI-2スコア**: 77.1%（Gemini 3 Proの2倍以上）
+- **LMArena**: 最上位ランク維持
+- 科学・数学・コーディングでトップクラスのベンチマーク成績
+
+### 新機能
+
+- **SVGアニメーション生成**: コードベースのアニメーション制作をモデル単体で実行
+- **インタラクティブ3Dデザイン生成**: 視覚的なデザイン資産を直接生成
+- **コンテキスト**: 前世代から継続の1Mトークンコンテキストウィンドウ
+
+### アクセス方法
+
+| プラットフォーム | 対応 |
+|---|---|
+| Google AI Studio | ✅ |
+| Vertex AI | ✅ |
+| Gemini CLI | ✅ |
+| Android Studio | ✅ |
+| Gemini Enterprise | ✅（Gemini Advanced経由） |
+
+---
+
+## 強み・注目ポイント
+
+**推論の深さ**が最大の差別化要素です。Gemini 3.1 Proは応答前に推論チェーンを実行する「Deep Think」変種（AI Ultra限定）も提供しており、科学研究・工学計算・複雑な法的文書分析といったユースケースで特に強みを発揮します。
+
+Google Workspaceとの連携も深く、Docs・Sheets・Slides・DriveへのAI機能統合のバックエンドとして3.1 Proが使われています。
+
+---
+
+## 料金（API）
+
+| モデル | 入力（$/1M tokens） | 出力（$/1M tokens） |
+|---|---|---|
+| Gemini 3.1 Pro（〜200k） | $1.25 | $10.00 |
+| Gemini 3.1 Pro（200k超） | $2.50 | $15.00 |
+
+バッチAPI利用で50%コスト削減が適用されます。
+
+---
+
+## Gemini 3系モデルの全体像
+
+| モデル | 位置づけ |
+|---|---|
+| Gemini 3.1 Pro | 複雑な推論・エージェント |
+| Gemini 3.1 Deep Think | 科学・研究向け超高度推論（AI Ultra限定） |
+| Gemini 3 Flash | フロンティア級知能を高速で |
+| Gemini 3.1 Flash-Lite | 大量処理・コスト効率重視 |
+| Gemini 3.1 Flash Live | リアルタイム音声会話 |
+| Gemini 3.1 Flash TTS | テキスト読み上げ特化 |
+
+---
+
+## 参考リンク
+
+- [Gemini 3.1 Pro リリースブログ | blog.google](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-1-pro/)
+- [Gemini 3.1 Pro | Google DeepMind](https://deepmind.google/models/gemini/pro/)
+- [Gemini API Changelog | ai.google.dev](https://ai.google.dev/gemini-api/docs/changelog)
+- [Gemini 3.1 Pro on Vertex AI | cloud.google.com](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/3-1-pro)
