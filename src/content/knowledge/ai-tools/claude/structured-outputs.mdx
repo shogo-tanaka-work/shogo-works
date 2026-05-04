@@ -1,0 +1,162 @@
+---
+title: "Claude Structured Outputs完全解説：JSONスキーマ準拠レスポンスを保証する"
+description: "2025年11月14日betaリリースのClaude Structured Outputsを解説。JSONスキーマへの完全準拠、Strict tool use、対応モデル、「JSONで返して」プロンプト指示との違いを網羅。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "Structured Outputs", "JSON", "API", "スキーマ"]
+sortOrder: 11
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- 「JSONで返してください」指示だけでは**稀にフォーマットが崩れる**
+- Structured Outputsを使うと**JSONスキーマへの完全準拠を保証**
+- パースエラーが根本的になくなる → エラーハンドリングが不要に
+
+---
+
+## 概要
+
+**Claude Structured Outputs** は、2025年11月14日にbetaとして公開されたレスポンス形式制御機能です。JSONスキーマを指定すると、Claudeのレスポンスがスキーマに完全に準拠することを保証します。
+
+プロンプトに「JSONで返してください」と書くだけでは、稀に不完全なJSONやフォーマット違反が発生します。Structured Outputsはこの問題を根本的に解決します。
+
+---
+
+## 基本的な使い方
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# 出力スキーマを定義
+output_schema = {
+    "type": "object",
+    "properties": {
+        "title": {
+            "type": "string",
+            "description": "記事タイトル"
+        },
+        "summary": {
+            "type": "string",
+            "description": "200字以内のサマリー"
+        },
+        "tags": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "関連タグ（3〜5個）"
+        },
+        "sentiment": {
+            "type": "string",
+            "enum": ["positive", "neutral", "negative"],
+            "description": "記事のトーン"
+        }
+    },
+    "required": ["title", "summary", "tags", "sentiment"]
+}
+
+response = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    messages=[
+        {
+            "role": "user",
+            "content": "以下のニュース記事を分析してください：\n\n[記事本文...]"
+        }
+    ],
+    # Structured Outputsを有効化
+    output={
+        "type": "json_schema",
+        "json_schema": {
+            "name": "article_analysis",
+            "schema": output_schema
+        }
+    },
+    betas=["structured-outputs-2025-11-13"],
+)
+
+# スキーマに準拠したJSONが保証される
+import json
+result = json.loads(response.content[0].text)
+print(result["title"])   # 確実に文字列
+print(result["tags"])    # 確実にリスト
+print(result["sentiment"])  # "positive"/"neutral"/"negative"のみ
+```
+
+---
+
+## Strict tool use（ツール入力の検証）
+
+ツールコールの入力にもスキーマ準拠を強制できます：
+
+```python
+response = client.beta.messages.create(
+    model="claude-sonnet-4-6",
+    max_tokens=1024,
+    tools=[
+        {
+            "name": "create_user",
+            "description": "新規ユーザーを作成します",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string", "format": "email"},
+                    "name": {"type": "string", "minLength": 1},
+                    "role": {
+                        "type": "string",
+                        "enum": ["admin", "editor", "viewer"]
+                    }
+                },
+                "required": ["email", "name", "role"],
+                "additionalProperties": False  # 余分なフィールドを禁止
+            },
+            "strict": True  # Strict tool useを有効化
+        }
+    ],
+    messages=[{"role": "user", "content": "田中省伍をadminとして登録してください"}],
+    betas=["structured-outputs-2025-11-13"],
+)
+```
+
+---
+
+## 「JSONで返して」との比較
+
+| 項目 | プロンプト指示のみ | Structured Outputs |
+|---|---|---|
+| 準拠保証 | なし（99%は正常） | **完全保証** |
+| パースエラー | 稀に発生 | 発生しない |
+| エラーハンドリング | 必要 | 不要 |
+| enum制約 | プロンプト次第 | スキーマで強制 |
+| 追加プロパティ制御 | 困難 | `additionalProperties: false` |
+| 設定の手間 | 少ない | スキーマ定義が必要 |
+
+---
+
+## 対応モデル
+
+| モデル | 対応開始 |
+|---|---|
+| Claude Sonnet 4.5 | 2025年11月14日 |
+| Claude Opus 4.1 | 2025年11月14日 |
+| Claude Haiku 4.5 | 2025年12月4日 |
+| Claude Opus 4.7 | 対応 |
+
+---
+
+## 活用シーン
+
+- **データ抽出パイプライン**: ドキュメントから構造化データを一括抽出
+- **分類タスク**: カテゴリの選択肢をenumで強制
+- **フォーム入力の自動補完**: 型・必須フィールドを保証
+- **API統合**: 下流システムに渡すペイロードを確実にバリデーション
+
+---
+
+## 参考リンク
+
+- [Structured Outputs Documentation | Anthropic](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
+- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)

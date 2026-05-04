@@ -1,0 +1,149 @@
+---
+title: "Gems実践活用ガイド：Memory Card・Magic Wand・10ファイルKnowledgeで専用AIを作る"
+description: "GeminiのカスタムAI機能「Gems」の実践的な活用法を解説。Memory Cardによるパーソナルコンテキスト、Magic Wandによる指示文の自動改善、10ファイルKnowledge登録、チームへの共有方法を網羅。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Gems", "カスタムAI", "Knowledge", "パーソナライズ"]
+sortOrder: 9
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **Gems** = 指示書（システムプロンプト）＋ Knowledge（参照ファイル）のセット
+- **Magic Wand** で指示文をGemini自身に改善させる（見落とされがちな機能）
+- **10ファイル・1Mトークン**のKnowledgeを登録できる
+- 作成したGemsは**チームに共有**可能（閲覧/編集/コピー権限を設定）
+
+---
+
+## 概要
+
+**Gems** は、Gemini Advancedで利用できるカスタムAI機能です。特定の役割・知識・スタイルを設定した専用のGeminiを作れます。
+
+例えば「法律文書レビュー専門AI」「自社サービスのFAQ対応AI」「コードレビュー特化AI」のような専門化したGeminiを構築して、用途に応じて切り替えられます。
+
+---
+
+## Gems の基本構造
+
+| 要素 | 内容 |
+|---|---|
+| **名前・アイコン** | Gemの識別子 |
+| **指示（Instructions）** | システムプロンプト。役割・ルール・スタイルを定義 |
+| **Knowledge（ファイル）** | 参照させるドキュメント（最大10ファイル・合計1Mトークン） |
+
+---
+
+## 機能1：Magic Wand（指示文の自動改善）
+
+指示文が上手く書けない場合、**Gemini自身が指示文を書いてくれる**機能です。Gemの作成画面に表示される✨アイコンがMagic Wandです。
+
+### 使い方
+
+1. Instructionsのテキストボックスに大まかな意図を入力
+2. 右下の✨（Magic Wand）アイコンをクリック
+3. GeminiがInstructionsを自動改善・拡充してくれる
+4. 気に入らなければ再生成・手動編集
+
+### 活用例
+
+```
+【入力した大まかな意図】
+「技術ブログを書くのを手伝って。読者はエンジニア向け。」
+
+【Magic Wand後の改善例】
+あなたは経験豊富なテクニカルライターとして、
+エンジニア向けの技術ブログ記事作成を支援します。
+
+対象読者：中〜上級エンジニア（3〜10年の経験）
+文体：専門用語を使いつつも、簡潔で実践的な説明
+構成：TL;DR → 概要 → 実装例 → まとめ → 参考リンク
+コード例：すべてのコードブロックに言語タグを付与
+...（以下、詳細なルールが自動生成される）
+```
+
+---
+
+## 機能2：Memory Card（パーソナルコンテキスト）
+
+Knowledgeに**自分の好み・スタイル・プロジェクト履歴をまとめたGoogle Doc**を1枚登録することで、事実上の「パーソナルコンテキスト」として機能させるテクニックです。
+
+### Memory Card の内容例
+
+```markdown
+# 私のプロフィール（Memory Card）
+
+## 基本情報
+- 名前: 田中省伍
+- 役職: フルスタックエンジニア
+- 得意言語: TypeScript, Python, Go
+
+## 文章スタイル
+- 箇条書きを多用し、冗長な説明は避ける
+- 技術記事はTL;DRから始める
+- コメントは「なぜ」を書き、「何を」は書かない
+
+## プロジェクト文脈
+- 現在: Webアプリのリファクタリング（Next.js → Astro）
+- データベース: PostgreSQL + Prisma
+- デプロイ先: Cloudflare Pages
+
+## 避けてほしいこと
+- 過度な敬語
+- 「了解しました」等の不要な前置き
+- 箇条書きの過剰なネスト
+```
+
+---
+
+## 機能3：10ファイルのKnowledge登録
+
+最大10ファイル（合計1Mトークン）のドキュメントをKnowledgeとして登録できます。
+
+### 対応ファイル形式
+- Google Docs / Google Sheets / Google Slides（リンク指定）
+- PDF / TXT / Markdown（ファイルアップロード）
+- YouTube動画のURL（自動文字起こし）
+
+### 活用パターン
+
+| Gemsの種類 | 登録するKnowledge例 |
+|---|---|
+| 社内FAQ Bot | 製品仕様書・よくある質問集・サポート事例集 |
+| コードレビューAI | コーディング規約・設計原則・過去のレビューコメント集 |
+| 採用面接AI | 求める人材要件・評価基準・面接質問集 |
+| 競合分析AI | 競合他社の資料・業界レポート・自社との比較表 |
+
+---
+
+## チームへの共有
+
+作成したGemsをチームメンバーと共有できます。
+
+1. Gems Managerで対象のGemを開く
+2. 「共有」ボタンをクリック
+3. 権限を設定：
+   - **閲覧のみ**: 使えるが設定変更不可
+   - **編集可能**: 指示・Knowledgeを変更可能
+   - **コピー可能**: 自分のGemとして複製可能
+
+---
+
+## Gems の作り方（手順）
+
+1. [gemini.google.com](https://gemini.google.com) を開く
+2. 左サイドバーの「Gems」→「＋ 新しいGem」
+3. 名前・アイコンを設定
+4. Instructions に役割・ルールを入力（Magic Wand も活用）
+5. Knowledge にファイル・URLを追加（最大10件）
+6. 「保存」→ 完成
+
+---
+
+## 参考リンク
+
+- [Gemini Gems Tips | Google Support](https://support.google.com/gemini/answer/15235603?hl=en)
+- [Gemini Gems Overview | Google](https://gemini.google/overview/gems/)
+- [Gemini Advanced | Google One](https://one.google.com/about/ai-premium)
