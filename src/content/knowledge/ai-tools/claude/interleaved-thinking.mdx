@@ -1,0 +1,151 @@
+---
+title: "Claude Interleaved Thinking完全解説：ツール呼び出しの合間に思考を挟む高精度エージェント設計"
+description: "2025年5月22日betaリリースのInterleaved Thinkingを解説。従来のExtended Thinkingとの違い、マルチステップエージェントでの精度向上の仕組み、budget_tokensの設定指針を網羅。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "Extended Thinking", "Interleaved Thinking", "API", "エージェント"]
+sortOrder: 9
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **従来**: 思考してからツールを呼ぶ（1回だけ考える）
+- **Interleaved Thinking**: ツール結果を受け取った後にも思考してから次の判断（ステップごとに考える）
+- マルチステップエージェントで**精度が大幅に向上**
+- `budget_tokens` は最低 **1,024トークン** を確保すること
+
+---
+
+## 概要
+
+**Interleaved Thinking** は、2025年5月22日にbetaとして公開されたExtended Thinkingの拡張機能です。
+
+従来のExtended Thinkingは「最初に1回だけ深く考えてから処理を始める」設計でしたが、Interleaved Thinkingは**ツール呼び出しとツール結果の間にも思考ブロックを挟みます**。これにより、各ステップの結果を踏まえた適切な次手を考えられるようになります。
+
+---
+
+## 従来との比較
+
+### 通常のExtended Thinking
+
+```
+[考える] → [ツール呼び出し] → [ツール結果] → [ツール呼び出し] → [ツール結果] → [回答]
+  ↑ここだけ
+```
+
+### Interleaved Thinking
+
+```
+[考える] → [ツール呼び出し] → [ツール結果] → [考える] → [ツール呼び出し] → [ツール結果] → [考える] → [回答]
+  ↑                                             ↑                                              ↑
+  毎ステップで考える
+```
+
+ツール結果を受け取るたびに状況を再評価するため、複数のツールを組み合わせる複雑なタスクで特に効果が出ます。
+
+---
+
+## 基本的な使い方
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.beta.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=16000,
+    thinking={
+        "type": "enabled",
+        "budget_tokens": 10000  # 最低1,024トークン
+    },
+    tools=[
+        {
+            "name": "search_web",
+            "description": "Webを検索して最新情報を取得します",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "検索クエリ"}
+                },
+                "required": ["query"]
+            }
+        },
+        {
+            "name": "analyze_data",
+            "description": "データを分析して洞察を生成します",
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "data": {"type": "string", "description": "分析対象データ"}
+                },
+                "required": ["data"]
+            }
+        }
+    ],
+    messages=[
+        {
+            "role": "user",
+            "content": "2025年のAI業界のトレンドを調査・分析して、"
+                       "投資家向けのサマリーレポートを作成してください。"
+        }
+    ],
+    betas=["interleaved-thinking-2025-05-14"],
+)
+```
+
+---
+
+## レスポンスの構造
+
+Interleaved Thinkingを有効にすると、レスポンスに `thinking` ブロックが複数含まれます：
+
+```python
+# レスポンスのcontent例
+[
+    {"type": "thinking", "thinking": "まず最新のAIトレンドを調べよう..."},
+    {"type": "tool_use", "name": "search_web", "input": {"query": "AI industry trends 2025"}},
+    # ↓ tool_resultを受け取った後
+    {"type": "thinking", "thinking": "検索結果を見ると生成AIの台頭が顕著だ。次は..."},
+    {"type": "tool_use", "name": "analyze_data", "input": {"data": "..."}},
+    {"type": "thinking", "thinking": "分析結果から投資家向けの要点をまとめると..."},
+    {"type": "text", "text": "## 2025年AI業界トレンド サマリー..."}
+]
+```
+
+---
+
+## budget_tokens の設定指針
+
+| タスクの複雑さ | 推奨 budget_tokens |
+|---|---|
+| 2〜3ステップの単純なツール使用 | 2,000〜4,000 |
+| 5〜10ステップの中程度のタスク | 5,000〜10,000 |
+| 10ステップ超の複雑なリサーチ | 15,000〜32,000 |
+
+`budget_tokens` はmax_tokens より小さい値を設定してください。ツール数が多いほど大きめに設定します。
+
+---
+
+## プロンプトキャッシュとの組み合わせ
+
+思考ブロック（thinkingブロック）もプロンプトキャッシュの対象になります。長時間のエージェントセッションで同じシステムプロンプト + ツール定義を使う場合は1時間キャッシュを適用すると効果的です。
+
+---
+
+## 活用シーン
+
+| シーン | 効果 |
+|---|---|
+| 競合調査エージェント | 複数ソースを検索→各結果を評価→比較分析を段階的に深掘り |
+| コードデバッグエージェント | テスト実行→エラー解析→修正→再テストの各ステップで的確な判断 |
+| データパイプライン | データ取得→クリーニング→分析→可視化を柔軟に組み合わせ |
+
+---
+
+## 参考リンク
+
+- [Extended Thinking Documentation | Anthropic](https://platform.claude.com/docs/en/build-with-claude/extended-thinking)
+- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)
