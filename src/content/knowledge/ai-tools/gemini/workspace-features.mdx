@@ -1,0 +1,149 @@
+---
+title: "Google Workspace Gemini便利機能5選：=AI()関数・Catch Me Up・自然言語検索"
+description: "2025年後半に追加されたGoogle Workspace Geminiの実務直結便利機能を解説。Sheetsの=AI()関数、Driveの「Catch Me Up」、Gmailの自然言語検索、Meet音声翻訳、Workspace Studioを網羅。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Google Workspace", "Gmail", "Sheets", "自動化"]
+sortOrder: 8
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **`=AI()` 関数**: Sheetsのセルから直接Geminiを呼び出して分類・要約・生成
+- **Catch Me Up**: Driveで「前回から何が変わったか」を自動サマリー
+- **Gmail自然言語検索**: 「〇〇について何と言っていたか」で直接回答
+- **Meet音声翻訳**: 異言語間の会話をリアルタイムで翻訳（ベータ）
+- **Workspace Studio**: コード不要でAIワークフローを組める自動化ツール
+
+---
+
+## 概要
+
+2025年後半、Google WorkspaceのGemini統合が実務レベルで使えるクオリティに進化しました。単なる「文章を生成する」から、既存のワークフローに直接組み込める機能が順次追加されています。
+
+---
+
+## 機能1：Sheets の `=AI()` 関数
+
+スプレッドシートのセルからGeminiを直接呼び出せる関数です。プログラミング不要でAI処理をスプレッドシートに組み込めます。
+
+### 使い方
+
+```
+=AI("次のテキストの感情をポジティブ/ネガティブ/ニュートラルで分類してください: " & A1)
+
+=AI("以下のフィードバックを1文で要約してください: " & B2)
+
+=AI("次の会社名の業種を答えてください: " & C3)
+```
+
+### 活用例
+
+| 用途 | 数式例 |
+|---|---|
+| 顧客フィードバックの感情分析 | `=AI("感情分類: " & A1)` |
+| 商品説明の自動生成 | `=AI("以下のスペックから商品説明を50字で: " & B1)` |
+| リードの優先度スコアリング | `=AI("以下の情報からリードスコアを1-10で: " & C1)` |
+| タグ・カテゴリの自動付与 | `=AI("以下の記事タイトルのカテゴリを選択: " & D1)` |
+
+---
+
+## 機能2：Drive の「Catch Me Up」
+
+GoogleドライブのファイルをGeminiが分析し、**前回確認してから変更された内容を自動でサマリー**します。
+
+### 使い方
+
+1. Driveでファイルを開く
+2. 右側の「Gemini」サイドパネルを開く
+3. 「Catch Me Up」または「前回からの変更点」をクリック
+
+### 活用シーン
+
+- 大人数が共同編集するGoogle Docsで、自分が最後に確認した以降の変更を一括把握
+- 週次レポートの更新差分だけ素早く確認
+- チームのスプレッドシートで誰が何を変更したかを自然言語で把握
+
+---
+
+## 機能3：Gmail の自然言語検索
+
+従来の検索は「キーワード」でメールを探しますが、Geminiを使った自然言語検索では**質問の答えを直接返します**。
+
+### 使い方
+
+Gmailの検索バーに質問を入力するだけ：
+
+```
+「Aプロジェクトの納期についてクライアントは何と言っていたか？」
+→ 関連スレッドを47件表示する代わりに、直接回答を生成
+
+「先月の請求書の合計金額はいくらか？」
+→ 請求書メールを検索し金額を集計して回答
+```
+
+### 対象プラン
+
+Google One AI Premium（個人）またはGemini Businessアドオン（法人）が必要です。
+
+---
+
+## 機能4：Google Meet のリアルタイム音声翻訳（ベータ）
+
+異なる言語を話す参加者の会話を、**低遅延でリアルタイム翻訳**します。声質・トーン・表現を保持したまま翻訳するのが特徴です。
+
+### 仕様（2026年4月時点）
+
+| 項目 | 内容 |
+|---|---|
+| 対応言語（初期） | 英語・スペイン語 |
+| 遅延 | 低遅延（会話のリズムを崩さない） |
+| 声質保持 | あり（話者の声のトーンを模倣） |
+| 対象プラン | Google AI Pro / Ultra |
+
+---
+
+## 機能5：Workspace Studio
+
+複数ステップのAIワークフローをコード不要で作成できる自動化ツールです（2025年末リリース）。
+
+### できることの例
+
+```
+ワークフロー例1：メール自動ラベリング
+受信メール → Geminiが内容を分類 → ラベル付与 → フォルダに振り分け
+
+ワークフロー例2：会議前ブリーフィング資料の自動生成
+カレンダーイベント（1時間前） → 参加者情報・アジェンダを収集
+→ 関連メール・Drive文書を検索 → ブリーフィング文書を自動作成
+→ 会議参加者にDrive共有
+```
+
+### 主要なトリガー
+
+- Gmailへのメール受信
+- Google カレンダーのイベント開始X分前
+- Driveへのファイルアップロード
+- スプレッドシートの特定セル変更
+
+---
+
+## 利用に必要なプラン
+
+| 機能 | 必要なプラン |
+|---|---|
+| `=AI()` 関数 | Workspace Gemini アドオン |
+| Catch Me Up | Workspace Gemini アドオン |
+| Gmail 自然言語検索 | Google One AI Premium / Gemini Business |
+| Meet 音声翻訳 | Google AI Pro / Ultra |
+| Workspace Studio | Workspace Business/Enterprise |
+
+---
+
+## 参考リンク
+
+- [Google Workspace Blog - May 2025 Updates | blog.google](https://blog.google/products/workspace/google-workspace-gemini-may-2025-updates/)
+- [Google Workspace Gemini Features Guide | buildfastwithai.com](https://www.buildfastwithai.com/blogs/gemini-google-workspace-features-guide)
+- [Google Workspace AI Guide | eesel.ai](https://www.eesel.ai/blog/google-workspace-gemini)
