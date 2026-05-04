@@ -1,0 +1,161 @@
+---
+title: "Claude プロンプトキャッシング実践ガイド：5分 vs 1時間・コスト計算・Extended Thinkingとの組み合わせ"
+description: "Claude APIのプロンプトキャッシング（1時間TTL GA）を実践的に解説。5分と1時間の使い分け、コスト計算式、キャッシュヒット率を上げる設計パターン、Extended Thinkingとの組み合わせを網羅。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "プロンプトキャッシング", "API", "コスト削減", "最適化"]
+sortOrder: 12
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **1時間キャッシュ** は2025年8月13日にGA（betaヘッダー不要）
+- キャッシュ書き込みはベース価格の **2倍**、読み取りは **0.1倍**（90%割引）
+- **Extended Thinkingの思考ブロックもキャッシュ対象**
+- 2025年1月15日から「最長一致プレフィックスの自動読み取り」に変更（手動管理不要）
+
+---
+
+## 概要
+
+Claudeのプロンプトキャッシングは、システムプロンプト・ツール定義・固定ドキュメントなどの「変わらない部分」をキャッシュし、繰り返し送信するコストを削減する機能です。
+
+2025年8月13日に**1時間TTLキャッシュがGA**となり、長時間エージェントセッションでの活用が本格化しました。
+
+---
+
+## 5分 vs 1時間の使い分け
+
+| TTL | コスト（書き込み） | コスト（読み取り） | 向いているケース |
+|---|---|---|---|
+| **5分** | 基本価格 × 1.25 | 基本価格 × 0.1 | 短時間の繰り返しリクエスト・チャットアプリ |
+| **1時間** | 基本価格 × **2.0** | 基本価格 × 0.1 | 長時間エージェント・夜間バッチ・Routines |
+
+**1時間キャッシュが有利な条件：**
+- エージェントのサブタスクが5分以上かかる
+- ユーザー応答に5分以上かかりうる長い会話
+- Extended Thinkingセッションが5分を超える
+
+---
+
+## コスト計算
+
+### 例：100万トークンのシステムプロンプトを100回リクエスト
+
+**キャッシュなし（Opus 4.7の場合）:**
+```
+100万トークン × $5.00/MTok × 100回 = $500
+```
+
+**1時間キャッシュあり:**
+```
+書き込み: 100万トークン × $5.00 × 2.0 = $10（初回のみ）
+読み取り: 100万トークン × $5.00 × 0.1 × 99回 = $49.5
+合計: $59.5（88%削減）
+```
+
+---
+
+## 基本的な使い方
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# システムプロンプトに1時間キャッシュを適用
+response = client.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=1024,
+    system=[
+        {
+            "type": "text",
+            "text": "あなたは優秀なソフトウェアエンジニアアシスタントです。"
+                    "以下のコードベース全体を参照して質問に答えてください：\n\n"
+                    + large_codebase_content,
+            "cache_control": {"type": "ephemeral"}  # 1時間キャッシュ
+        }
+    ],
+    messages=[{"role": "user", "content": "このバグを修正する方法を教えてください"}]
+)
+
+# キャッシュヒット状況を確認
+print(response.usage.cache_creation_input_tokens)  # 初回: キャッシュ書き込みトークン数
+print(response.usage.cache_read_input_tokens)       # 2回目以降: キャッシュ読み取りトークン数
+```
+
+---
+
+## キャッシュヒット率を上げる設計パターン
+
+### 原則：固定部分を先頭・可変部分を末尾
+
+```python
+# ❌ キャッシュが効かない設計（ユーザー入力が先頭）
+system = f"ユーザー名: {user_name}\n\n{large_static_content}"
+
+# ✅ キャッシュが効く設計（固定部分を先頭）
+system = [
+    {
+        "type": "text",
+        "text": large_static_content,          # キャッシュ対象
+        "cache_control": {"type": "ephemeral"}
+    },
+    {
+        "type": "text",
+        "text": f"ユーザー名: {user_name}"     # 可変部分は後ろ（キャッシュ対象外）
+    }
+]
+```
+
+### ツール定義もキャッシュに含める
+
+```python
+# 多数のツール定義がある場合はキャッシュが特に効果的
+tools = [
+    # ... 大量のツール定義 ...
+]
+
+# toolsにもcache_controlを適用（最後のツールに付ける）
+tools[-1]["cache_control"] = {"type": "ephemeral"}
+```
+
+---
+
+## Extended Thinking との組み合わせ
+
+思考ブロック（thinkingブロック）もキャッシュの対象になります。長時間エージェントセッションで同じコンテキストを継続して使う場合に効果的です。
+
+```python
+response = client.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=16000,
+    thinking={"type": "enabled", "budget_tokens": 10000},
+    system=[
+        {
+            "type": "text",
+            "text": large_system_prompt,
+            "cache_control": {"type": "ephemeral"}  # 1時間キャッシュ
+        }
+    ],
+    messages=conversation_history,  # 思考ブロックを含む会話履歴もキャッシュされる
+)
+```
+
+---
+
+## 自動最長一致プレフィックス（2025年1月15日〜）
+
+従来は「どのトークンをキャッシュするか」を手動で管理する必要がありましたが、2025年1月15日の更新で**自動的に最長一致プレフィックスからキャッシュを読み取る**仕組みに変更されました。
+
+プロンプトの先頭が前回のリクエストと一致していれば、`cache_control` を書かなくてもキャッシュが機能します（ただし明示指定推奨）。
+
+---
+
+## 参考リンク
+
+- [Prompt Caching Documentation | Anthropic](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
+- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)
+- [Claude Code 1時間キャッシュガイド](/knowledge/ai-tools/claude-code/prompt-caching-1h/)
