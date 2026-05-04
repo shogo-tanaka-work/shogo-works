@@ -1,0 +1,156 @@
+---
+title: "Claude Search Results & Citations API完全解説：自前RAGに引用付きレスポンスを実装する"
+description: "2025年8月GA化のSearch Results/Citations APIを解説。search_resultブロックの使い方、カスタムRAGパイプラインへの引用追加、Citationsが生成される仕組みを網羅。"
+category: "ai-tools"
+subcategory: "claude"
+tags: ["Claude", "Citations", "RAG", "API", "検索", "引用"]
+sortOrder: 10
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- ツールの戻り値に `search_result` ブロックを使うと、Claudeが**自動で引用符を付与**する
+- 自前RAGパイプラインでも「どの文書のどの箇所に基づいているか」が明示できる
+- 2025年8月8日 GA（betaヘッダー不要）
+
+---
+
+## 概要
+
+**Search Results & Citations API** は、カスタムRAGパイプラインに引用機能を追加するAPIです。
+
+従来、自前のRAG（Retrieval-Augmented Generation）では「どの文書から回答を生成したか」をClaudeに明示させるには複雑なプロンプト設計が必要でした。Search Resultsブロックを使うと、**ツールの戻り値を `search_result` 型で返すだけで引用を自動生成**します。
+
+---
+
+## search_result ブロックの構造
+
+```python
+# ツールの戻り値（tool_resultのcontent）にsearch_resultを使う
+tool_result = {
+    "type": "tool_result",
+    "tool_use_id": "tool_use_abc123",
+    "content": [
+        {
+            "type": "search_result",
+            "source": "https://example.com/docs/feature-x",
+            "title": "Feature X ドキュメント",
+            "content": "Feature X は2025年9月にリリースされました。"
+                       "主な特徴は高速処理と低コストです。",
+            "citations": {"enabled": True}
+        },
+        {
+            "type": "search_result",
+            "source": "https://example.com/blog/release-notes",
+            "title": "リリースノート 2025-09",
+            "content": "v2.0のリリースにより処理速度が3倍になりました。",
+            "citations": {"enabled": True}
+        }
+    ]
+}
+```
+
+---
+
+## 完全な実装例
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+# RAGパイプライン: 検索ツールを定義
+tools = [
+    {
+        "name": "search_knowledge_base",
+        "description": "社内ナレッジベースを検索します",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"}
+            },
+            "required": ["query"]
+        }
+    }
+]
+
+# ステップ1: Claudeがsearch_knowledge_baseを呼び出す
+response = client.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=2048,
+    tools=tools,
+    messages=[{"role": "user", "content": "Feature Xの料金体系を教えてください"}]
+)
+
+# ステップ2: 検索結果をsearch_resultブロックで返す
+search_results = do_actual_search(response.content[-1].input["query"])
+
+messages = [
+    {"role": "user", "content": "Feature Xの料金体系を教えてください"},
+    {"role": "assistant", "content": response.content},
+    {
+        "role": "user",
+        "content": [
+            {
+                "type": "tool_result",
+                "tool_use_id": response.content[-1].id,
+                "content": [
+                    {
+                        "type": "search_result",
+                        "source": result["url"],
+                        "title": result["title"],
+                        "content": result["text"],
+                        "citations": {"enabled": True}
+                    }
+                    for result in search_results
+                ]
+            }
+        ]
+    }
+]
+
+# ステップ3: 引用付きで最終回答を生成
+final_response = client.messages.create(
+    model="claude-opus-4-7",
+    max_tokens=2048,
+    tools=tools,
+    messages=messages,
+)
+```
+
+---
+
+## 引用付きレスポンスの例
+
+Search Resultsブロックを使うと、Claudeは以下のように引用を付けて回答します：
+
+```
+Feature X の料金体系は以下の通りです：
+
+- 基本プランは月額$10から利用可能です [Feature X ドキュメント]
+- 2025年9月のv2.0リリースで処理速度が3倍になり、
+  コストパフォーマンスが向上しました [リリースノート 2025-09]
+
+詳細はドキュメントをご参照ください。
+```
+
+---
+
+## Citations との違い
+
+| 機能 | 用途 | 入力形式 |
+|---|---|---|
+| **Search Results** | ツール経由のRAG結果に引用を付ける | tool_result内のsearch_resultブロック |
+| **Citations API** | ドキュメントブロックから直接引用を生成 | documents + enable_citationsフラグ |
+
+どちらも「どのソースに基づいて回答したか」を明示しますが、RAGシステムにはSearch Results、固定ドキュメントにはCitations APIが向いています。
+
+---
+
+## 参考リンク
+
+- [Search Results Documentation | Anthropic](https://platform.claude.com/docs/en/build-with-claude/search-results)
+- [Citations API Documentation | Anthropic](https://claude.com/blog/introducing-citations-api)
+- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)
