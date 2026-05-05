@@ -1,0 +1,108 @@
+---
+import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
+import { getCollection, render } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Badge from "@/components/ui/Badge.astro";
+import StatusBadge from "@/components/ai-news/StatusBadge.astro";
+import { getAiNewsSlug, getPublishedAiNews } from "@/utils/aiNews";
+
+export const getStaticPaths = (async () => {
+  const entries = await getCollection("aiNews");
+  return getPublishedAiNews(entries).map((entry) => ({
+    params: {
+      tool: entry.data.tool,
+      slug: getAiNewsSlug(entry.id),
+    },
+    props: { entry },
+  }));
+}) satisfies GetStaticPaths;
+
+type Props = InferGetStaticPropsType<typeof getStaticPaths>;
+
+const { entry } = Astro.props as Props;
+const { Content } = await render(entry);
+
+const formattedDate = entry.data.date.toLocaleDateString("ja-JP", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+---
+
+<BaseLayout
+  title={`${entry.data.title} | AI News | shogoworks`}
+  description={entry.data.summary}
+  ogType="article"
+>
+  <article class="py-20 px-4">
+    <div class="max-w-3xl mx-auto">
+      <div class="mb-8">
+        <a
+          href={`/ai-news/${entry.data.tool}`}
+          class="text-sm text-teal-600 hover:text-teal-700 transition-colors"
+        >
+          ← {entry.data.toolLabel} のニュースへ戻る
+        </a>
+      </div>
+
+      <header class="mb-10">
+        <div class="flex items-center gap-2 flex-wrap mb-4">
+          <Badge variant="teal">{entry.data.toolLabel}</Badge>
+          <StatusBadge status={entry.data.status} />
+          <time
+            class="text-sm text-muted-foreground"
+            datetime={entry.data.date.toISOString()}
+          >
+            {formattedDate}
+          </time>
+        </div>
+
+        <h1 class="text-3xl md:text-4xl font-bold text-foreground leading-tight">
+          {entry.data.title}
+        </h1>
+        <p class="mt-4 text-lg text-muted-foreground">{entry.data.summary}</p>
+      </header>
+
+      <div class="knowledge-prose">
+        <Content />
+      </div>
+
+      <footer class="mt-12 pt-8 border-t border-border">
+        <div class="flex flex-wrap gap-2 mb-6">
+          {entry.data.tags.map((tag) => <Badge variant="default">{tag}</Badge>)}
+        </div>
+
+        {
+          entry.data.relatedKnowledge.length > 0 && (
+            <div class="mb-6">
+              <h2 class="text-base font-semibold text-foreground mb-2">
+                関連Knowledge
+              </h2>
+              <ul class="space-y-2">
+                {entry.data.relatedKnowledge.map((href) => (
+                  <li>
+                    <a
+                      href={href}
+                      class="text-teal-600 hover:text-teal-700 transition-colors"
+                    >
+                      {href}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        }
+
+        <a
+          href={entry.data.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="inline-flex text-teal-600 hover:text-teal-700 transition-colors"
+        >
+          公式ソースを確認する ↗
+        </a>
+      </footer>
+    </div>
+  </article>
+</BaseLayout>

@@ -120,3 +120,26 @@ export interface ExternalArticle {
   platform: ArticlePlatform;
   url: string;
 }
+
+export type AiNewsTool =
+  | "chatgpt-openai"
+  | "claude"
+  | "claude-code"
+  | "gemini"
+  | "github-copilot"
+  | "n8n"
+  | "runway";
+
+export type AiNewsStatus = "captured" | "candidate" | "promoted";
+
+export interface AiNewsToolMeta {
+  slug: AiNewsTool;
+  label: string;
+  description: string;
+}
+
+export interface AiNewsStatusMeta {
+  status: AiNewsStatus;
+  label: string;
+  description: string;
+}

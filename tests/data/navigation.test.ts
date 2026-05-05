@@ -16,8 +16,8 @@ describe("navigation データ", () => {
     }
   });
 
-  it("6つのナビ項目が定義されていること", () => {
-    expect(navItems).toHaveLength(6);
+  it("7つのナビ項目が定義されていること", () => {
+    expect(navItems).toHaveLength(7);
   });
 
   it("Knowledgeリンクが含まれていること", () => {
@@ -25,6 +25,14 @@ describe("navigation データ", () => {
     expect(knowledge).toEqual({
       label: "Knowledge",
       href: "/knowledge",
+    });
+  });
+
+  it("AI Newsリンクが含まれていること", () => {
+    const aiNews = navItems.find((item) => item.label === "AI News");
+    expect(aiNews).toEqual({
+      label: "AI News",
+      href: "/ai-news",
     });
   });
 });
