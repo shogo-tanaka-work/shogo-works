@@ -1,0 +1,44 @@
+---
+import Badge from "@/components/ui/Badge.astro";
+import { aiNewsTools } from "@/data/aiNews";
+import type { AiNewsTool } from "@/types";
+
+interface Props {
+  counts: Record<AiNewsTool, number>;
+  currentTool?: AiNewsTool;
+}
+
+const { counts, currentTool } = Astro.props;
+const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
+---
+
+<nav class="flex flex-wrap gap-2" aria-label="AI news tools">
+  <a
+    href="/ai-news"
+    class:list={[
+      "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
+      currentTool === undefined
+        ? "border-teal-500/30 bg-teal-50 text-teal-700"
+        : "border-border text-muted-foreground hover:border-teal-500/40 hover:text-foreground",
+    ]}
+  >
+    All
+    <Badge variant="default">{total}</Badge>
+  </a>
+  {
+    aiNewsTools.map((tool) => (
+      <a
+        href={`/ai-news/${tool.slug}`}
+        class:list={[
+          "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm transition-colors",
+          currentTool === tool.slug
+            ? "border-teal-500/30 bg-teal-50 text-teal-700"
+            : "border-border text-muted-foreground hover:border-teal-500/40 hover:text-foreground",
+        ]}
+      >
+        {tool.label}
+        <Badge variant="default">{counts[tool.slug]}</Badge>
+      </a>
+    ))
+  }
+</nav>

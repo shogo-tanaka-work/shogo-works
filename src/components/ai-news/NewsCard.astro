@@ -1,0 +1,78 @@
+---
+import Card from "@/components/ui/Card.astro";
+import Badge from "@/components/ui/Badge.astro";
+import StatusBadge from "@/components/ai-news/StatusBadge.astro";
+import type { AiNewsStatus } from "@/types";
+
+interface Props {
+  title: string;
+  toolLabel: string;
+  date: Date;
+  summary: string;
+  tags: string[];
+  status: AiNewsStatus;
+  href: string;
+  sourceUrl: string;
+}
+
+const {
+  title,
+  toolLabel,
+  date,
+  summary,
+  tags,
+  status,
+  href,
+  sourceUrl,
+} = Astro.props;
+
+const formattedDate = date.toLocaleDateString("ja-JP", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
+const displayTags = tags.slice(0, 3);
+---
+
+<Card hover class="h-full rounded-2xl">
+  <article class="flex h-full flex-col gap-4">
+    <div class="flex items-center gap-2 flex-wrap">
+      <Badge variant="teal">{toolLabel}</Badge>
+      <StatusBadge status={status} />
+      <time class="text-xs text-muted-foreground" datetime={date.toISOString()}>
+        {formattedDate}
+      </time>
+    </div>
+
+    <div class="flex-1">
+      <h3 class="text-lg font-semibold text-foreground line-clamp-2">
+        <a href={href} class="hover:text-teal-600 transition-colors">{title}</a>
+      </h3>
+      <p class="mt-2 text-sm text-muted-foreground line-clamp-3">{summary}</p>
+    </div>
+
+    {
+      displayTags.length > 0 && (
+        <div class="flex gap-1.5 flex-wrap">
+          {displayTags.map((tag) => (
+            <Badge variant="default">{tag}</Badge>
+          ))}
+        </div>
+      )
+    }
+
+    <div class="flex items-center gap-4 text-sm">
+      <a href={href} class="text-teal-600 hover:text-teal-700 transition-colors">
+        概要を見る →
+      </a>
+      <a
+        href={sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="text-muted-foreground hover:text-foreground transition-colors"
+      >
+        公式リンク ↗
+      </a>
+    </div>
+  </article>
+</Card>

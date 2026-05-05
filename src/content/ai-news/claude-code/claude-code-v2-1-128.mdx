@@ -1,0 +1,26 @@
+---
+title: "Claude Code v2.1.128"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-04
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.128"
+summary: "MCP、プラグイン、SDK、Bash実行、Remote Control、ターミナル表示など、実務運用に関わる改善と修正がまとまったリリース。"
+impact: "MCP診断、プラグイン配布、worktree運用、並列ツール実行の安定化に影響。"
+tags: ["claude-code", "mcp", "plugin", "sdk"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/overview"
+  - "/knowledge/ai-tools/claude-code/mcp"
+  - "/knowledge/ai-tools/claude-code/skills"
+draft: false
+---
+
+## 何が変わったか
+
+`/mcp`で接続サーバーのツール数や0ツール状態を確認しやすくなり、`.zip`形式のプラグインアーカイブも`--plugin-dir`で扱えるようになりました。
+
+worktree作成、MCPツール結果、巨大stdin、長いURL、並列shell tool callなど、実務で詰まりやすい失敗ケースにも修正が入っています。
+
+## 教材化メモ
+
+Claude Codeの実務教材では、MCPサーバー診断、チーム配布用プラグイン、worktree運用、並列ツール実行時の安定性を扱う回に接続しやすい更新です。
