@@ -1,0 +1,82 @@
+---
+import type { GetStaticPaths } from "astro";
+import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import NewsCard from "@/components/ai-news/NewsCard.astro";
+import ToolFilter from "@/components/ai-news/ToolFilter.astro";
+import { aiNewsTools } from "@/data/aiNews";
+import {
+  getAiNewsByTool,
+  getAiNewsSlug,
+  getAiNewsToolCount,
+} from "@/utils/aiNews";
+import type { AiNewsToolMeta } from "@/types";
+
+export const getStaticPaths: GetStaticPaths = async () => {
+  return aiNewsTools.map((tool) => ({
+    params: { tool: tool.slug },
+    props: { tool },
+  }));
+};
+
+interface Props {
+  tool: AiNewsToolMeta;
+}
+
+const { tool } = Astro.props;
+const entries = await getCollection("aiNews");
+const news = getAiNewsByTool(entries, tool.slug);
+const counts = getAiNewsToolCount(entries);
+---
+
+<BaseLayout
+  title={`${tool.label} | AI News | shogoworks`}
+  description={tool.description}
+>
+  <section class="py-20 px-4">
+    <div class="max-w-5xl mx-auto">
+      <div class="mb-8">
+        <a
+          href="/ai-news"
+          class="text-sm text-teal-600 hover:text-teal-700 transition-colors"
+        >
+          ← AI News に戻る
+        </a>
+      </div>
+
+      <SectionHeader title={tool.label} subtitle={tool.description} />
+
+      <div class="mb-8 animate-on-scroll">
+        <ToolFilter counts={counts} currentTool={tool.slug} />
+      </div>
+
+      {
+        news.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {news.map((entry, i) => (
+              <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                <NewsCard
+                  title={entry.data.title}
+                  toolLabel={entry.data.toolLabel}
+                  date={entry.data.date}
+                  summary={entry.data.summary}
+                  tags={entry.data.tags}
+                  status={entry.data.status}
+                  href={`/ai-news/${entry.data.tool}/${getAiNewsSlug(entry.id)}`}
+                  sourceUrl={entry.data.sourceUrl}
+                />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-16 animate-on-scroll">
+            <p class="text-muted-foreground text-lg">
+              このツールにはまだ公開中のニュースがありません。
+            </p>
+          </div>
+        )
+      }
+    </div>
+  </section>
+</BaseLayout>

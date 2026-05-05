@@ -1,0 +1,21 @@
+---
+title: "n8n 2.18.7"
+tool: "n8n"
+toolLabel: "n8n"
+date: 2026-05-04
+sourceUrl: "https://github.com/n8n-io/n8n/releases/tag/n8n%402.18.7"
+summary: "webhook test execution pathでredactionに必要なuserIdが渡されるようになった、コアのバグ修正リリース。"
+impact: "Webhookテスト実行時の秘匿・マスキング処理の一貫性に影響。"
+tags: ["n8n", "webhook", "redaction"]
+status: "captured"
+relatedKnowledge: []
+draft: false
+---
+
+## 何が変わったか
+
+Webhookのテスト実行経路でも、redaction処理がユーザー文脈を受け取れるようになりました。機能追加というより、テスト実行時の安全性と整合性を高めるパッチです。
+
+## 教材化メモ
+
+n8nのWebhook教材や運用教材で、テスト実行時も本番相当の秘匿処理が重要になる例として補足できます。

@@ -11,3 +11,4 @@ export {
 } from "./teaching";
 export { stats } from "./stats";
 export { categories, externalArticles } from "./knowledge";
+export { aiNewsStatuses, aiNewsTools } from "./aiNews";

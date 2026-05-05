@@ -1,0 +1,20 @@
+---
+import Badge from "@/components/ui/Badge.astro";
+import { getAiNewsStatusMeta } from "@/utils/aiNews";
+import type { AiNewsStatus } from "@/types";
+
+interface Props {
+  status: AiNewsStatus;
+}
+
+const { status } = Astro.props;
+const meta = getAiNewsStatusMeta(status);
+
+const variants: Record<AiNewsStatus, "default" | "blue" | "emerald"> = {
+  captured: "default",
+  candidate: "blue",
+  promoted: "emerald",
+};
+---
+
+<Badge variant={variants[status]}>{meta.label}</Badge>

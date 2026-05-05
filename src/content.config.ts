@@ -26,4 +26,29 @@ const knowledge = defineCollection({
   }),
 });
 
-export const collections = { knowledge };
+const aiNews = defineCollection({
+  loader: glob({ pattern: "**/*.mdx", base: "./src/content/ai-news" }),
+  schema: z.object({
+    title: z.string(),
+    tool: z.enum([
+      "chatgpt-openai",
+      "claude",
+      "claude-code",
+      "gemini",
+      "github-copilot",
+      "n8n",
+      "runway",
+    ]),
+    toolLabel: z.string(),
+    date: z.coerce.date(),
+    sourceUrl: z.string().url(),
+    summary: z.string(),
+    impact: z.string().optional(),
+    tags: z.array(z.string()).default([]),
+    status: z.enum(["captured", "candidate", "promoted"]).default("captured"),
+    relatedKnowledge: z.array(z.string()).default([]),
+    draft: z.boolean().default(false),
+  }),
+});
+
+export const collections = { knowledge, aiNews };
