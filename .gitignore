@@ -36,3 +36,6 @@ npm-debug.log*
 # Other hosting
 .vercel
 .netlify
+
+.codex-tmp
+docs/research
