@@ -1,0 +1,125 @@
+---
+title: "Gemini Deep Research実践ガイド：社内PDFとWebを組み合わせた本格リサーチ術"
+description: "Gemini Deep Researchの実践的な使い方を解説。ファイルアップロード対応（PDF・画像）、Google Driveリンク連携、Canvas統合でのDocsエクスポート、100以上のソースを自動分析する設定を網羅。"
+category: "ai-tools"
+subcategory: "gemini"
+tags: ["Gemini", "Deep Research", "リサーチ", "Canvas", "PDF"]
+sortOrder: 7
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **PDFや画像を直接アップロード**し、公開Web情報と社内資料を組み合わせてリサーチ
+- **Google Driveリンク**でドライブのドキュメントを直接参照
+- 生成したレポートを**Canvas**に取り込んで編集 → **Google Docs**にエクスポート
+- 100以上のソースを自動分析・引用付きでレポート生成
+
+---
+
+## 概要
+
+**Gemini Deep Research** は、テーマを入力するとGeminiが自律的に複数の情報源を検索・分析し、包括的なリサーチレポートを生成する機能です。
+
+Google I/O 2025（2025年5月）で大幅機能拡張が発表され、以降**ファイルアップロード**と**Canvas統合**が追加されました。公開情報だけでなく**社内資料と組み合わせた**リサーチが可能になった点が最大の変化です。
+
+---
+
+## 基本的な使い方
+
+1. [gemini.google.com](https://gemini.google.com) を開く
+2. 「Deep Research」アイコンをクリック
+3. リサーチテーマを入力
+4. 必要に応じてファイルをアップロード（後述）
+5. 「リサーチを開始」→ 数分でレポートが生成
+
+---
+
+## ファイルアップロードとGoogle Drive連携
+
+### PDFや画像のアップロード
+
+```
+例：競合分析リサーチ
+
+添付ファイル:
+- 自社の製品仕様書.pdf
+- 過去の競合分析メモ.pdf
+- 競合他社のパンフレット（画像）
+
+リサーチテーマ:
+「2025年のプロジェクト管理ツール市場における競合ポジションを分析し、
+自社製品の差別化ポイントと課題を明確にしてください」
+```
+
+### Google Driveリンクの貼り付け
+
+ドライブのファイルURLを貼り付けるだけで参照できます：
+
+```
+リサーチテーマ:
+「以下の社内戦略文書を踏まえて、2026年の市場参入計画を分析してください:
+[Google Driveのリンク]
+```
+
+---
+
+## Canvas統合でのワークフロー
+
+Deep Researchで生成したレポートをCanvasに取り込んで編集できます。
+
+```
+Deep Research
+    ↓ レポート生成
+「Canvasで開く」ボタン
+    ↓
+Canvas（Gemini内のドキュメントエディタ）で
+    - 構成を変更
+    - 不要なセクションを削除
+    - 追加の補足を入力
+    ↓
+「Google Docsにエクスポート」
+    ↓
+チーム共有・コメント
+```
+
+---
+
+## 効果的なリサーチテーマの書き方
+
+| 悪い例 | 良い例 |
+|---|---|
+| 「AIについて調べて」 | 「2025年の生成AI市場における企業向けサービスの価格帯と競合状況を分析してください」 |
+| 「競合を調べて」 | 「Notionと比較して、Confluenceが中小企業向けに強化した機能を、2025年のリリースノートをもとにまとめてください」 |
+| 「市場調査して」 | 「添付のPDF（自社サービス概要）をもとに、類似サービス3社との差別化要因と参入市場の未充足ニーズを分析してください」 |
+
+---
+
+## 利用条件
+
+| プラン | 利用可否 | モデル |
+|---|---|---|
+| Gemini 無料 | △（制限あり） | Gemini 2.5 Flash |
+| Gemini Advanced | ✅ | Gemini 2.5 Pro |
+| Google One AI Premium | ✅ | Gemini 2.5 Pro |
+| Workspace Gemini アドオン | ✅ | Gemini 2.5 Pro |
+
+---
+
+## NotebookLMとの使い分け
+
+| 項目 | Deep Research | NotebookLM |
+|---|---|---|
+| 情報収集 | Webを自律的に検索 | アップロードした資料のみ |
+| 出力 | 包括的なレポート | Q&A・要約・音声 |
+| 向いているケース | 未知テーマの調査・競合分析 | 既存資料の深掘り・学習 |
+| 組み合わせ方 | Deep ResearchレポートをNotebookLMにインポート | ← |
+
+---
+
+## 参考リンク
+
+- [Deep Research Updates at Google I/O 2025 | Google Workspace](https://workspaceupdates.googleblog.com/2025/05/deep-research-updates-gemini-io-2025.html)
+- [Gemini API Deep Research Documentation | ai.google.dev](https://ai.google.dev/gemini-api/docs/deep-research)
+- [Gemini Deep Research | gemini.google.com](https://gemini.google.com)

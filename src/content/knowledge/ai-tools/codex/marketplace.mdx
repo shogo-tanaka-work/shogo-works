@@ -1,0 +1,158 @@
+---
+title: "Codex Marketplace完全ガイド：GitHubからプラグインをインストールする新エコシステム"
+description: "2026年4月15日（v0.121.0）追加のCodex Marketplace機能を解説。marketplace.jsonの構造・codex marketplace addコマンド・90以上の公開プラグイン・codex-plugin-ccによるClaude Code連携まで網羅。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "OpenAI", "Marketplace", "プラグイン", "MCP"]
+sortOrder: 8
+createdAt: 2026-04-18
+author: "田中省伍"
+---
+
+## TL;DR
+
+- v0.121.0 で `codex marketplace add` コマンドが追加
+- GitHub・git URL・ローカルディレクトリからプラグインをインストール可能
+- 2026年4月16日時点で **90以上のプラグイン** が公開済み
+- OpenAI 公式の `codex-plugin-cc` で Claude Code との連携が可能
+
+---
+
+## 概要
+
+**Codex Marketplace** は、2026年4月15日にリリースされた v0.121.0 で追加されたプラグインエコシステムです。コミュニティや企業が作成したプラグインを `codex marketplace add` コマンドで追加できます。
+
+「Codex for (almost) everything」（4/16）の発表で公開された90以上のプラグインには、Atlassian Rovo・CircleCI・GitLab Issues・Microsoft Suite・Life Sciences ツール等が含まれます。
+
+---
+
+## 基本的な使い方
+
+### プラグインの追加
+
+```bash
+# GitHub のマーケットプレイスを追加
+/plugin marketplace add openai/codex-plugin-cc
+
+# git URL で追加
+/plugin marketplace add https://github.com/your-org/your-plugin.git
+
+# ローカルディレクトリから追加
+/plugin marketplace add ./plugins/my-plugin
+```
+
+### プラグインのインストール
+
+```bash
+# プラグインをインストール
+/plugin install codex@openai-codex
+
+# インストール済みプラグインを表示
+/plugin list
+
+# リロード（設定変更後）
+/reload-plugins
+```
+
+---
+
+## marketplace.json の構造
+
+チーム・組織向けのプライベートマーケットプレイスを作成する場合は `marketplace.json` を定義します。
+
+```json
+{
+  "name": "my-team-marketplace",
+  "interface": { "displayName": "My Team Plugins" },
+  "plugins": [
+    {
+      "name": "my-plugin",
+      "source": {
+        "source": "local",
+        "path": "./plugins/my-plugin"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}
+```
+
+### 配置場所
+
+| スコープ | パス |
+|---|---|
+| リポジトリ（チーム共有） | `$REPO_ROOT/.agents/plugins/marketplace.json` |
+| 個人（ホームディレクトリ） | `~/.agents/plugins/marketplace.json` |
+
+---
+
+## 主要公開プラグイン
+
+| カテゴリ | プラグイン例 |
+|---|---|
+| CI/CD | CircleCI・GitHub Actions・GitLab CI |
+| プロジェクト管理 | Atlassian Rovo・Linear・Jira |
+| コードレビュー | CodeRabbit・Review Dog |
+| Microsoft Suite | Teams・SharePoint・Azure DevOps |
+| Life Sciences | Genomics・タンパク質構造解析 |
+| Claude Code 連携 | codex-plugin-cc（OpenAI公式） |
+
+---
+
+## codex-plugin-cc：Claude Code × Codex 連携
+
+OpenAI が公式提供する Claude Code 向けプラグインです。Claude Code のセッション内から Codex にタスクを委譲できます。
+
+### インストール
+
+```bash
+/plugin marketplace add openai/codex-plugin-cc
+/plugin install codex@openai-codex
+/reload-plugins
+/codex:setup
+```
+
+### 主要コマンド
+
+```bash
+# 未コミット変更のコードレビュー
+/codex:review
+
+# mainブランチとの比較レビュー
+/codex:review --base main
+
+# 設計の問題点を対抗的に指摘（バックグラウンド実行）
+/codex:adversarial-review --background
+
+# バグ調査をCodexに委譲
+/codex:rescue investigate why tests fail
+
+# バックグラウンドタスクの確認・結果取得
+/codex:status
+/codex:result
+/codex:cancel
+```
+
+### 使い分けの考え方
+
+Claude Code（Anthropic）と Codex（OpenAI）は競合ツールですが、得意領域が異なります。
+
+| 局面 | 推奨ツール |
+|---|---|
+| 複雑な設計相談・アーキテクチャ判断 | Claude Code |
+| 量産系コードレビュー・CI/CD自動化 | Codex |
+| ペアプロ的なインタラクティブ作業 | Claude Code |
+| バックグラウンドでの並列処理 | Codex |
+
+---
+
+## 参考リンク
+
+- [Build plugins – Codex | OpenAI Developers](https://developers.openai.com/codex/plugins/build)
+- [Codex for almost everything | OpenAI](https://openai.com/index/codex-for-almost-everything/)
+- [openai/codex-plugin-cc | GitHub](https://github.com/openai/codex-plugin-cc)
+- [Releases v0.121.0 | openai/codex](https://github.com/openai/codex/releases/tag/rust-v0.121.0)
