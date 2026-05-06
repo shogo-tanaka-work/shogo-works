@@ -153,6 +153,19 @@ message = client.beta.messages.create(
 
 ---
 
+## 業務エージェント化の考え方
+
+Skillsは単体でも使えますが、実務ではConnectorsやSubagentsと組み合わせることで、より業務フローに近いエージェントを設計できます。
+
+業務フローへ落とし込むときは、次の設計思想を押さえる方が重要です。
+
+- 反復業務はSkillsに落とし込む
+- 業務データはConnectorsで統制された形で渡す
+- 比較・検証・レビューはSubagentsに分担させる
+- 最終成果物は人間が確認・承認してから使う
+
+---
+
 ## 参考リンク
 
 - [Agent Skills Documentation | Anthropic](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/overview)
