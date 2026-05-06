@@ -61,6 +61,15 @@ const formattedDate = entry.data.date.toLocaleDateString("ja-JP", {
           {entry.data.title}
         </h1>
         <p class="mt-4 text-lg text-muted-foreground">{entry.data.summary}</p>
+
+        <a
+          href={entry.data.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-md border border-teal-600 text-teal-700 hover:bg-teal-50 transition-colors text-sm font-medium"
+        >
+          ニュース原文を読む ↗
+        </a>
       </header>
 
       <div class="knowledge-prose">
