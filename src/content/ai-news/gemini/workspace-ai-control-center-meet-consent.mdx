@@ -1,0 +1,34 @@
+---
+title: "Gemini for WorkspaceにAI control centerとMeet同意管理"
+tool: "gemini"
+toolLabel: "Gemini"
+date: 2026-05-05
+sourceUrl: "https://workspaceupdates.googleblog.com/2026/05/securely-manage-AI-and-agent-access-to-Workspace-data-with-the-AI-control-center.html"
+summary: "Google WorkspaceのAdmin consoleにAI control centerが追加され、AIとエージェントのWorkspaceデータアクセス管理を確認しやすくなった。MeetではGeminiメモ、録画、文字起こしの明示同意管理も追加されている。"
+impact: "Gemini for Workspaceを組織導入する際の管理、監査、同意取得、データアクセス設計に影響。"
+tags: ["gemini", "google-workspace", "admin-console", "ai-governance", "google-meet"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/gemini/workspace-features"
+draft: false
+---
+
+## 何が変わったか
+
+Google WorkspaceのAdmin consoleに、AI control centerが追加されました。管理者が、GeminiやAIエージェントによるWorkspaceデータアクセス、関連設定、利用状況を確認しやすくするための管理画面です。
+
+あわせてGoogle Meetでは、Take Notes with Gemini、録画、文字起こしを開始する前に、参加者の明示的な同意を求める管理設定も追加されています。
+
+## 影響
+
+Gemini for Workspaceの導入は、便利機能の有効化だけでなく、誰がAIを使えるか、どの業務データへアクセスできるか、会議参加者の同意をどう取るかまで含めて設計する必要があります。
+
+特にEnterprise環境では、AI利用状況、分類ラベル、trust rules、data protection rulesなどと組み合わせて確認する導線が重要になります。
+
+## 教材化メモ
+
+Knowledgeへ独立した「管理・ガバナンス入門」を新設するより、まずはAIニュースとして掲載します。
+
+恒久教材へ反映するなら、既存のGemini Workspace機能ページに、管理者が見るべき項目としてAI control centerとMeet同意管理を数行追記する程度が適切です。
+
+参考: [Require explicit consent for Take Notes with Gemini, recordings, and transcripts in Google Meet](https://workspaceupdates.googleblog.com/2026/04/require-explicit-consent-for-take-notes-with-Gemini-recordings-and-transcripts-in-Google-Meet.html)

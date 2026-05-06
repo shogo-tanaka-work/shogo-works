@@ -1,0 +1,36 @@
+---
+title: "GPT-5.5 InstantがChatGPTの新デフォルトモデルに"
+tool: "chatgpt-openai"
+toolLabel: "ChatGPT / OpenAI"
+date: 2026-05-05
+sourceUrl: "https://openai.com/index/gpt-5-5-instant/"
+summary: "OpenAIがGPT-5.5 Instantを発表し、ChatGPTのデフォルトモデルとして展開した。事実性、画像理解、STEM、検索判断、パーソナライズが改善されている。"
+impact: "ChatGPTの普段使い、社内手順、モデル選定、memory sourcesを含むパーソナライズ管理の説明に影響。"
+tags: ["chatgpt", "openai", "gpt-5-5-instant", "personalization", "model-update"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/chatgpt/overview"
+draft: false
+---
+
+## 何が変わったか
+
+OpenAIは2026年5月5日、GPT-5.5 InstantをChatGPTの新しいデフォルトモデルとして発表しました。
+
+GPT-5.3 Instantと比べて、事実性、画像アップロードの読み取り、STEM系の回答、Web検索を使うべき場面の判断、応答の簡潔さが改善されています。Plus / ProのWebユーザー向けには、過去チャット、ファイル、接続済みGmailなどを使ったパーソナライズも強化されています。
+
+同日にSystem Cardも公開され、GPT-5.5 Instantの安全性評価や高リスク領域での扱いが説明されています。
+
+## 影響
+
+ChatGPTを「とりあえずデフォルトで使う」場面の前提が変わります。社内マニュアルや教材でGPT-5.3 Instantを前提にしている箇所は、順次GPT-5.5 Instant前提へ書き換えが必要です。
+
+実務では性能改善以上に、パーソナライズの扱いが重要になります。回答に過去チャットや保存済みメモリが反映される場面が増えるため、古い前提が混ざっていないかをmemory sourcesで参照元から確認する運用もセットで説明したほうが安全です。
+
+## 教材化メモ
+
+Knowledgeへ直接独立記事を作るより、まずはAIニュースとして掲載するのが自然です。
+
+恒久教材へ反映するなら、ChatGPT概要、モデル一覧、料金・トークン、パーソナライズ設定、メモリ確認手順など、既存ページの前提が古くなる箇所だけを最小限更新します。
+
+参考: [GPT-5.5 Instant System Card](https://openai.com/index/gpt-5-5-instant-system-card/)
