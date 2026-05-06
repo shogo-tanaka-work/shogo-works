@@ -51,4 +51,14 @@ const aiNews = defineCollection({
   }),
 });
 
-export const collections = { knowledge, aiNews };
+const aiNewsNotes = defineCollection({
+  loader: glob({ pattern: "**/*.mdx", base: "./src/content/ai-news-notes" }),
+  schema: z.object({
+    title: z.string(),
+    noteFor: z.string(),
+    date: z.coerce.date(),
+    tags: z.array(z.string()).default([]),
+  }),
+});
+
+export const collections = { knowledge, aiNews, aiNewsNotes };
