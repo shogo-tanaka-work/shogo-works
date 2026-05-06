@@ -13,14 +13,45 @@ relatedKnowledge:
 draft: false
 ---
 
+## 要約
+
+Anthropicは2026年5月5日、金融サービス向けの業務エージェントテンプレートを公式ブログで公開しました。これは単なるプロンプト集ではなく、ClaudeのSkills（業務手順の定義）、Connectors（業務データへの接続）、Subagents（比較・レビュー・検証担当）を組み合わせて、複数ステップの業務フローを再現できるパッケージです。
+
+提供形態が3系統に分かれているのが今回の特徴です。Claude Cowork（チーム向けUI）と Claude Code ではプラグインとして、API主体のClaude Managed Agents ではcookbookとしてそのまま動かせます。Pitch builder、Meeting preparer、Earnings reviewer、Month-end closer、KYC screener、Valuation reviewerなど、フロント業務からバックオフィスまで網羅されています。
+
+業界特化エージェントの「設計のお手本」として、金融以外の業界でも転用しやすい構成になっています。
+
 ## 何が変わったか
 
-Anthropicは2026年5月5日、金融サービス向けのエージェントテンプレートを公開しました。
+- Anthropicが金融サービス向けエージェントテンプレート集を公開
+- 提供形態は3つ
+  - Claude Cowork: pluginとして導入
+  - Claude Code: pluginとして導入
+  - Claude Managed Agents: cookbookとして利用
+- 構成要素はSkills + Connectors + Subagentsの組み合わせ
+- 公開テンプレートの例
+  - Pitch builder: 提案資料作成
+  - Meeting preparer: 商談準備
+  - Earnings reviewer: 決算レビュー
+  - Month-end closer: 月次決算
+  - KYC screener: 顧客確認
+  - Valuation reviewer: バリュエーションレビュー
 
-これらはClaude CoworkとClaude Codeではpluginとして、Claude Managed Agentsではcookbookとして利用できる構成です。業務手順を定義するSkills、業務データへ接続するConnectors、比較やレビューを担当するSubagentsを組み合わせる形になっています。
+## 業務インパクト（一般企業向け）
 
-## 影響
+金融業界以外でも、「専門業務に特化したAIエージェントをどう設計するか」のリファレンスとして価値があります。特に、社内でAI活用が「個別チャットでの質問」レベルにとどまっている企業にとって、業務フローを丸ごとエージェント化するときの構成パターンが具体例で見られるのは大きいです。
 
-Pitch builder、Meeting preparer、Earnings reviewer、Month-end closer、KYC screener、Valuation reviewerなど、金融業務に近い反復作業をエージェント化する参考になります。
+押さえるべき設計思想は、「Skills単体で完結させない」点です。業務手順（Skills）、データ接続（Connectors）、検証担当（Subagents）を分離することで、誰がどの業務範囲をAIに任せ、どこを人間がレビューするかの責任分界が引きやすくなります。経理・法務・コンプラ部門が関わる業務では、この分離が監査ログ・承認フローの設計とも噛み合います。
 
-ただし、汎用的なClaude Agent Skills教材へ長く書き込むより、業界特化エージェントのニュースとして扱うほうが自然です。Knowledge側には「Skills単体ではなく、ConnectorsやSubagentsと組み合わせて業務フローを作る」という設計思想だけを残せば十分です。
+経理部門ではMonth-end closer、営業部門ではPitch builder、法務・コンプラ部門ではKYC screenerなど、自社業務に近いテンプレートを叩き台にする使い方が現実的です。
+
+## 副業・個人活用視点
+
+個人で副業エージェントを設計したい人にとっては、業界特化エージェントの「型」を学べる教材として優秀です。テンプレを丸ごと使うより、構造を読み解いて自分の業務に転用する方が価値が出ます。
+
+- リサーチ系副業: Earnings reviewer / Valuation reviewerの構造は、企業分析・競合分析の自動化に応用可能
+- 営業代行・LP制作: Pitch builder / Meeting preparerは、商談前の事前準備パッケージとしてクライアントに納品できる
+- 経理・税務系副業: Month-end closerは、フリーランス向け月次締めワークフローのベースに使える
+- KYC screenerの設計: 「条件チェック → 例外検知 → 人間レビュー依頼」というフローは、契約書チェック・申請書チェックの代行業務にそのまま転用しやすい
+
+このテンプレ群は、「AIに丸投げで完成」ではなく「リサーチ→下書き→比較→レビュー→承認」を分けて設計しているのがポイントで、この設計パターン自体が副業のサービス化にそのまま使えます。
