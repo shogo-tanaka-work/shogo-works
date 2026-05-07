@@ -1,0 +1,54 @@
+---
+title: "n8n 2.19.4、webhook hooksとSnowflake Nodeなどを修正"
+tool: "n8n"
+toolLabel: "n8n"
+date: 2026-05-06
+sourceUrl: "https://github.com/n8n-io/n8n/releases/tag/n8n%402.19.4"
+summary: "n8n 2.19.4では、webhook modeのcontext establishment hooks、simple-git更新後のGIT_SSH_COMMAND、Snowflake NodeのInsert / Updateなどが修正された。同日に2.19.3と1.123.39も公開されている。"
+impact: "webhook workflow、git連携、Snowflake連携、Python Code node、AI Builder draft workflowを使う運用者は更新確認の価値がある。"
+tags: ["n8n", "workflow-automation", "webhook", "snowflake", "release-note"]
+status: "captured"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+n8n 2.19.4が公開されました。今回の中心はbug fixで、webhook mode、git連携、Snowflake Nodeまわりの修正が含まれます。
+
+同じ対象期間内に、n8n 2.19.3と1.123.39も公開されています。細かいリリースが続いているため、運用中の環境では該当機能を使っているか確認したほうがよさそうです。
+
+## 何が変わったか
+
+n8n 2.19.4では、主に次の修正が入っています。
+
+- webhook modeでcontext establishment hooksをサポート
+- simple-git更新後も `GIT_SSH_COMMAND` を使えるように修正
+- Snowflake NodeのInsert / Updateが動かない問題を修正
+- Quick Connect offerのdisclaimerを動的化
+
+直前の2.19.3では、AI Builder draft workflowsの一覧表示、Python Code nodeの標準ライブラリ呼び出し復旧、localFile sourceのpath validationなどが修正されています。
+
+1.x系の1.123.39では、外部Secrets provider更新のtimeout追加と、workflow import CLIでインポート時にworkflowを有効化するflagが追加されています。
+
+## 業務インパクト
+
+今回のn8n更新は、派手な新機能というより運用安定性の改善です。
+
+特に影響がありそうなのは次の利用者です。
+
+- webhook workflowを多用している
+- git連携やSSH設定を使っている
+- Snowflake NodeでInsert / Updateを使っている
+- Python Code nodeを使っている
+- AI Builderのdraft workflowを運用している
+- CLIでworkflowをインポートしている
+
+該当する場合は、リリースノートを確認し、検証環境で更新確認をしてから本番反映するのが安全です。
+
+## 教材化視点
+
+単独教材にするほど大きな変更ではありませんが、n8nの運用教材には反映できます。
+
+特に、workflowをCLIでデプロイする手順、外部Secrets管理、Snowflake連携、webhook設計の章では、該当バージョン以降を前提にすると説明しやすくなります。
+

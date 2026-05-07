@@ -1,0 +1,53 @@
+---
+title: "Claude Codeの利用上限が拡大、SpaceX compute契約も発表"
+tool: "claude"
+toolLabel: "Claude"
+date: 2026-05-06
+sourceUrl: "https://www.anthropic.com/news/higher-limits-spacex"
+summary: "AnthropicがSpaceXのColossus 1を使うcompute契約と、Claude Code / Claude APIの利用上限引き上げを発表。Claude Codeは有料プランの5時間レート制限が2倍になり、ProとMaxではピーク時間帯の制限低下が撤廃される。"
+impact: "Claude Codeを長時間の開発・検証セッションで使いやすくなり、API利用企業もOpusモデルの高負荷ワークロードを設計しやすくなる。"
+tags: ["claude", "claude-code", "api", "rate-limit", "spacex"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/daily-operations"
+  - "/knowledge/ai-tools/claude/overview"
+draft: false
+---
+
+## 要約
+
+Anthropicが、Claude CodeとClaude APIの利用上限引き上げを発表しました。背景には、SpaceXのColossus 1データセンターの計算資源を利用する新しいcompute契約があります。
+
+今回の変更で、Claude CodeはPro、Max、Team、シートベースEnterpriseプランの5時間あたりのレート制限が2倍になります。また、ProとMaxではピーク時間帯の制限低下が撤廃されます。Claude OpusモデルのAPIレート制限も引き上げられます。
+
+Claude Codeを日常的に使う開発者にとっては、かなり実務寄りのアップデートです。
+
+## 何が変わったか
+
+- Claude Codeの5時間レート制限が有料プランで2倍に
+- Pro / Maxのピーク時間帯の制限低下を撤廃
+- Claude OpusモデルのAPIレート制限を引き上げ
+- SpaceXのColossus 1から300MW超、22万以上のNVIDIA GPU相当の追加capacityを確保
+- 追加capacityはClaude Pro / Maxの体験改善にも直接使われる
+
+## 業務インパクト
+
+Claude Codeの一番の変化は、長めの開発セッションを組みやすくなることです。
+
+これまでは、実装、テスト、修正、レビューまで1つの流れで走らせたいときに、途中で利用制限が気になりやすい場面がありました。5時間枠が広がることで、まとまった機能追加やリファクタリング、CI修正のような作業を任せやすくなります。
+
+API側でも、Opusモデルを使う分析、レビュー、長文処理、エージェント処理の上限に余裕が出ます。高負荷ワークロードを持つ企業は、キュー設計やfallback設計を見直すタイミングです。
+
+## 副業・個人活用視点
+
+Claude Codeを副業開発で使っている人には、かなりありがたい変更です。平日夜や休日にまとめて作業する場合、途中で止まる不安が減ります。
+
+ただし、上限が増えたからといって雑に長時間走らせるより、作業単位を明確にしたほうが成果は安定します。
+
+- 1セッションで何を完了させるかを決める
+- 実装と検証をセットで依頼する
+- 途中で差分を確認する
+- 大きい変更は小さいPR単位に分ける
+
+教材としては、「Claude Codeで半日開発を回す実践ワークフロー」に展開しやすいニュースです。利用上限の拡大により、実務に近い長めの演習を組みやすくなりました。
+

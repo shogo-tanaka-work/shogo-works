@@ -1,0 +1,54 @@
+---
+title: "GitHub Copilot CLIで企業管理pluginsがpublic preview"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-05-06
+sourceUrl: "https://github.blog/changelog/2026-05-06-enterprise-managed-plugins-in-github-copilot-cli-are-now-in-public-preview/"
+summary: "GitHub Copilot CLIで、Enterprise管理者がplugins、custom agents、skills、hooks、MCP設定を標準配布できるenterprise-managed pluginsがpublic previewになった。"
+impact: "AIコーディング環境を個人設定から組織標準へ移し、オンボーディング、ガバナンス、MCP運用を統一しやすくなる。"
+tags: ["github-copilot", "copilot-cli", "plugins", "mcp", "enterprise"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/harness-engineering/agents-md-design"
+  - "/knowledge/harness-engineering/mcp-server-strategy"
+draft: false
+---
+
+## 要約
+
+GitHub Copilot CLIで、Enterprise管理者がpluginsを管理・配布できる機能がpublic previewになりました。
+
+企業は `.github-private/.github/copilot/settings.json` にplugin marketplaceや自動インストール対象を定義し、Copilot Business / EnterpriseユーザーのCLIへ標準設定を配布できます。
+
+これは、AIコーディング環境を個人の手元設定から、組織で管理する標準環境へ進めるアップデートです。
+
+## 何が変わったか
+
+- Enterprise管理者がCopilot CLI向けpluginsを構成・配布可能に
+- pluginsはcustom agents、skills、hooks、MCP設定などを含められる
+- ユーザー認証時に指定pluginsを自動インストール可能
+- `.github-private` repositoryで企業標準の設定を管理
+- Enterprise settingsのAI controlsから有効状態を確認可能
+
+## 業務インパクト
+
+AIコーディング支援は、個人が好きな設定で使う段階から、チームで同じ基準を共有する段階に入っています。
+
+たとえば、セキュリティレビュー用agent、社内ライブラリ参照用MCP、PRテンプレートに合わせたhooks、プロジェクト共通のskillsを、全開発者に配布できます。新しく入ったメンバーが、ローカル設定を手で作らなくても、企業標準のCopilot CLI環境を使い始められます。
+
+一方で、管理する側は責任も増えます。どのMCPに何を読ませるのか、hooksで何を強制するのか、pluginsの更新を誰が見るのかを決める必要があります。
+
+## 教材化視点
+
+このニュースは、AI開発基盤の教材にかなり向いています。
+
+個人向けの「Copilot CLIの使い方」ではなく、次のような組織運用テーマへ広げられます。
+
+- チーム共通agentの設計
+- MCPサーバーの許可範囲
+- hooksで守る品質基準
+- pluginsの配布と更新管理
+- `.github-private` を使ったAI開発環境の標準化
+
+AIコーディングの本番運用では、ツールの使い方だけでなく、配布・権限・監査まで含めて設計する必要があります。
+
