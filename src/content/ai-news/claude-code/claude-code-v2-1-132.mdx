@@ -1,0 +1,55 @@
+---
+title: "Claude Code v2.1.132はターミナルとMCPの安定性改善"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-06
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.132"
+summary: "Claude Code v2.1.132では、ターミナルUI、resume、paste、MCP、hooks、Bedrock / Vertex利用などにまたがる修正が入った。長時間セッションやMCP連携を使う開発者向けの安定性改善が中心。"
+impact: "Claude Codeを日常運用するチームでは、セッション復旧、MCP接続、ターミナル操作まわりのトラブルが減る可能性がある。"
+tags: ["claude-code", "mcp", "terminal", "hooks", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/daily-operations"
+  - "/knowledge/ai-tools/claude-code/mcp"
+  - "/knowledge/ai-tools/claude-code/hooks"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.132が公開されました。今回は派手な新機能というより、毎日使う人ほど効く安定性改善が多いリリースです。
+
+特に目立つのは、ターミナルUI、resume、paste、MCP、hooks、Bedrock / Vertexまわりの修正です。長時間セッション、IDE統合、MCPサーバー連携を使っている人は、早めに更新してよさそうです。
+
+## 何が変わったか
+
+- `CLAUDE_CODE_SESSION_ID` をBash tool subprocess環境でも参照可能に
+- fullscreen rendererを無効化する `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` を追加
+- 外部SIGINT時のgraceful shutdownを修正
+- SSH切断やterminal close時の例外を修正
+- `--resume` の文字列破損系エラーを修正
+- paste、slash command、IME、scroll wheel、keyboard操作まわりを改善
+- MCPサーバーのstdout異常出力によるメモリ肥大を修正
+- MCPのtools/list失敗時に状態を分かりやすく表示
+- Bedrock / Vertex利用時の一部400エラーを修正
+
+## 業務インパクト
+
+Claude Codeをチームで使うと、機能そのものより「安定して復帰できるか」「MCPが壊れたときに何が起きているか分かるか」が重要になります。
+
+今回のリリースは、その運用面にかなり効きます。たとえば、長時間セッション中にterminalが落ちた、IDEからstopした、MCPサーバーが変なstdoutを出した、pasteが壊れた、といった地味だけど痛い問題が改善されています。
+
+また、`CLAUDE_CODE_SESSION_ID` をsubprocessから扱えるようになったことで、hooksやログ集約でセッション単位の追跡がしやすくなります。チーム運用では、この種のメタ情報が後から効いてきます。
+
+## 教材化視点
+
+Claude Code教材では、次の章に反映しやすいアップデートです。
+
+- 長時間セッションの復旧
+- MCP接続トラブルの切り分け
+- hooksでセッションIDを使ったログ管理
+- fullscreen表示とターミナルscrollbackの使い分け
+- pasteやIMEまわりのトラブル対処
+
+新機能紹介というより、「Claude Codeを壊れにくく運用する」教材に向いています。実務でAIエージェントを使うなら、こういう足回りの理解がかなり大事です。
+
