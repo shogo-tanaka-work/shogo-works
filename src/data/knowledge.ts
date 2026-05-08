@@ -53,6 +53,13 @@ export const categories: CategoryMeta[] = [
       "AIエージェントの実行環境・ツール連携・ワークフロー制御の設計手法",
     icon: "settings",
   },
+  {
+    slug: "ai-governance",
+    label: "AI Governance",
+    description:
+      "生成AI導入におけるリスク管理・法的論点・組織統制の設計手法",
+    icon: "shield",
+  },
 ];
 
 export const subcategories: Partial<
