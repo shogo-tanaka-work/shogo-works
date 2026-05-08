@@ -97,6 +97,26 @@ export const subcategories: Partial<
         "Anthropicの汎用AIアシスタント（claude.ai）。Claude 4.6系、Artifacts、Skills、Projects",
     },
   ],
+  "web-development": [
+    {
+      slug: "supabase",
+      label: "Supabase",
+      description:
+        "Postgres ベースのオープンソース BaaS。Database / Auth / Storage / Realtime / Edge Functions / RLS",
+    },
+    {
+      slug: "vercel",
+      label: "Vercel",
+      description:
+        "AI Cloud としてのデプロイプラットフォーム。Frameworks / Functions / Edge / WAF / AI Gateway / Sandbox",
+    },
+    {
+      slug: "gas",
+      label: "Google Apps Script",
+      description:
+        "Google Workspace 連携のサーバーレス JavaScript 実行環境。Spreadsheet / Gmail / Calendar の自動化",
+    },
+  ],
 };
 
 // 外部プラットフォームに公開した記事
