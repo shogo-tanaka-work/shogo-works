@@ -34,3 +34,7 @@ npm run preview   # ビルド済みサイトのプレビュー
 ## 詳細ルール
 詳細は .claude/rules/ を参照すること。
 スタック固有のルールはプロジェクト開始時に rules/ に追加すること。
+
+## AIニュース運用
+- AIニュースの調査・公開では `.claude/skills/daily-ai-update-monitor/` と `.claude/skills/ai-news-publisher/` の手順に従うこと。
+- AIニュース記事を作る場合は、記事本体、教材化メモ、日次リサーチログの3点セットを完了条件として確認すること。
