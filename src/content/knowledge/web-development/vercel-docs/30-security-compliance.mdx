@@ -1,0 +1,64 @@
+---
+title: "セキュリティ・コンプライアンス — SOC 2 / ISO 27001 / HIPAA / GDPR の取得状況とプラン別対応範囲"
+description: "Vercel が取得しているコンプライアンス認証（SOC 2 Type II / ISO 27001 / ISO 27017・27018 / HIPAA BAA / GDPR・DPA / PCI DSS 関与範囲）と、プラン別の対応差を整理。Trust Center の使い方、Conformance Rule、OIDC Federation までカバーする。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 30
+---
+
+## この章の要点
+
+Vercel のセキュリティとコンプライアンスは、プラットフォームが取得した認証群と、利用者が責任を負うアプリケーション層の対策を分けて理解することが出発点である。Vercel 自身は SOC 2 Type 2、ISO 27001:2022、PCI DSS v4.0（SAQ-D / SAQ-A）、EU-U.S. Data Privacy Framework、TISAX AL2 を保有し、GDPR と HIPAA については処理者・ビジネスアソシエイトとして適切な契約締結を支援する立場をとる。一方で WAF ルールの設計、ヘッダー設定、シークレットの取り扱いなどは利用者側の責任に残る。本章では認証一覧とプラン依存の差分、Trust Center を介した証跡入手フロー、Conformance や OIDC Federation を使った運用の前提条件を整理する。
+
+## Vercel のセキュリティとコンプライアンスとは
+
+Vercel は AWS を主要インフラとしたマネージドプラットフォームであり、責任分界は共有責任モデルとして文書化されている。ネットワーク境界・データセンター運用・暗号化基盤・認証取得はプラットフォーム側の責務であり、デプロイされたアプリケーションのコード品質、入力検証、セキュリティヘッダー設計、シークレット管理は利用者の責務として残る。データは保存時に AES-256 で暗号化され、転送時は HTTPS/TLS 1.3 で保護される。
+
+Trust Center（[security.vercel.com](https://security.vercel.com/)）は、認証書・ペネトレーションテスト結果サマリ・サブプロセッサーリスト・セキュリティポリシーを集約した公式の証跡ポータルである。NDA 同意のもとで一部書類のダウンロードが可能となり、調達プロセスでのセキュリティレビューに利用できる。GDPR 文脈における処理者責任は [DPA](https://vercel.com/legal/dpa) に明文化されており、Pro 以上の契約に同意した時点で法的拘束力を持つ。
+
+HIPAA については、Vercel はビジネスアソシエイトとして PHI を扱う技術的・組織的セーフガードを提供する。ただし BAA の締結条件、署名可能なプラン、Secure Compute との組み合わせなど、Pro と Enterprise で運用上の差が大きいため、ヘルスケア系ワークロードでは契約段階での確認が不可欠である。
+
+## 何が解説されているか
+
+各認証・規格と Vercel の取得状況、ならびにプラン依存の整理は次の表のとおりである。Hobby プランは個人・非商用利用が前提であり、契約書ベースの DPA や BAA の締結を必要とする商用ワークロードでは Pro 以上が事実上の前提となる。
+
+| 規格・枠組み | Vercel の状況 | プラン依存と備考 |
+| --- | --- | --- |
+| SOC 2 Type 2 | Security・Confidentiality・Availability で取得済み | 全顧客が Trust Center 経由でレポート入手可。NDA 同意が前提 |
+| ISO/IEC 27001:2022 | 認証取得済み（Schellman 発行） | プラン非依存。証明書は外部レジストリで公開 |
+| PCI DSS v4.0 | サービスプロバイダ向け SAQ-D AOC、加盟店向け SAQ-A AOC を保有 | iframe 分離による責任マトリクス前提。プラン非依存 |
+| GDPR / UK GDPR | DPA を提供。SCC・UK Addendum を採用 | DPA は Pro / Enterprise 契約に紐づく |
+| EU-U.S. Data Privacy Framework | 認証済み（米国向け越境移転の根拠） | プラン非依存 |
+| HIPAA | ビジネスアソシエイトとして対応 | BAA は Pro でセルフサービス有償アドオン、Enterprise は契約条項として締結。修正は Enterprise のみ可 |
+| TISAX AL2 | 自動車サプライチェーン向けに取得済み | ENX ポータル経由で参加企業に開示 |
+| CCPA など米国州法 | プライバシーポリシーで対応 | データ主体権利の処理プロセスを公開 |
+
+ISO 27017・ISO 27018 は Vercel の公式ドキュメントには明記されておらず、現時点で公開されている認証群は ISO 27001:2022 を中心とする構成である。クラウドサービス固有の追加認証を要件として求められる場合は、AWS のリージョン認証と Vercel の SOC 2・ISO 27001 を組み合わせて補完する整理が現実的である。
+
+Conformance は Enterprise プラン限定の機能であり、`NEXTJS_MISSING_SECURITY_HEADERS` などのビルトインルールが Next.js アプリケーションのセキュリティヘッダー欠落を検出する。これは CSP・X-Frame-Options・Strict-Transport-Security などの設定漏れを CI と開発環境で検知する仕組みであり、ガバナンス対象のリポジトリで違反のマージを未然に防ぐ位置付けにある。
+
+## 使い方
+
+Trust Center を起点とする証跡入手フローは次の三段構成である。第一に [security.vercel.com](https://security.vercel.com/) にアクセスし、組織情報と用途を入力して NDA に同意する。第二に SOC 2 レポート、ISO 27001 証明書、PCI DSS AOC、Responsibility Matrix などの該当ドキュメントを選択する。第三にダウンロードリンクが発行され、調達担当者と共有できる。NDA 同意の有効期間内であれば再ダウンロードも可能である。
+
+HIPAA BAA の有効化は、Pro チームではセルフサービス有償アドオンとして提供される。プランダッシュボードからアドオンを購入し、Vercel サポートに連絡して BAA 条項の確認と発効を行う流れになる。Enterprise の場合は契約交渉の中で BAA を組み込み、必要に応じて条項修正にも対応できる。いずれの場合も、PHI を扱う関数は Secure Compute（Enterprise 限定）で隔離環境とプライベートネットワーク上に配置することが推奨される。
+
+DPA の締結は Pro 以上のプラン契約と同時に自動的に発効する設計であり、追加の署名作業は不要である。サブプロセッサーリストは Trust Center 上で更新され、新規追加時には事前通知とともに 5 日以内の異議申立期間が設けられる。Conformance を使う場合は Enterprise プランで `@vercel-private/conformance` を導入し、`vercel-conformance.config.ts` で対象ルールを宣言してから CI に組み込む。OIDC Federation は Project Settings の Security 項目から有効化し、`@vercel/functions` の `awsCredentialsProvider` などで短寿命 JWT を消費する形で AWS・Azure・Firebase・Salesforce などへ federate する。
+
+## 注意点・セキュリティ観点
+
+Hobby プランでは商用契約に必要な DPA・BAA の締結や Conformance、Secure Compute、監査ログの長期保持などが利用できない。商用ワークロードでこれらを要件とする場合は、Pro または Enterprise への移行が前提となる。Pro と Enterprise の間でも、BAA 条項の修正可否、Secure Compute による隔離 VPC、専用送信元 IP、SSO・SAML、監査ログ保持期間などの面で差があり、規制業種では Enterprise が必要になることが多い。
+
+データレジデンシーは Vercel Functions の実行リージョンを利用者が選択できる一方で、ビルドアーティファクトや一部の制御プレーンは米国を中心に処理される。EU データを EU 内部のみで処理する厳格な要件には完全には合致しないため、SCC・UK Addendum・DPF 認証の組合せでカバーする整理になる。サブプロセッサーリストは Trust Center 上で随時更新され、AWS 以外にも複数の SaaS が含まれるため、定期的な棚卸しを利用者側でも行う必要がある。
+
+OIDC Federation を導入する際は、長寿命の環境変数シークレットを廃止することが本来の目的であり、移行が中途半端な状態のまま運用するとシークレット管理が二重化して攻撃面が増える点に注意が必要である。Team Issuer Mode を有効化すれば、トークン発行体をチーム単位の URL に分離でき、ゼロトラスト前提のロール設計に適合する。サインドコミット（GPG/SSH 署名）はプラットフォーム側で強制されないため、ガバナンス要件として残す場合は GitHub・GitLab 側のブランチプロテクション、および Conformance による補完が現実解となる。
+
+## 一次ソース（原文）
+
+- Vercel security overview — https://vercel.com/docs/security
+- Security & Compliance Measures — https://vercel.com/docs/security/compliance
+- Trust Center — https://security.vercel.com/
+- Data Processing Addendum — https://vercel.com/legal/dpa
+- HIPAA BAAs are now available to Pro teams — https://vercel.com/changelog/hipaa-baas-are-now-available-to-pro-teams
+- OpenID Connect Federation now generally available — https://vercel.com/changelog/openid-connect-federation-now-generally-available
+- Introduction to Conformance — https://vercel.com/docs/conformance

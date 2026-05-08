@@ -1,0 +1,201 @@
+---
+title: "ISR & Image Optimization — キャッシュと画像配信を Vercel 任せにする"
+description: "Incremental Static Regeneration（ISR）と Image Optimization を中心に、Cache-Control ヘッダ・CDN Cache・Runtime Cache API・Vary / stale-if-error / Request Collapsing といったキャッシュ周辺機能を体系的に整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 23
+---
+
+## この章の要点
+
+- Vercel の ISR は「静的の速さ × サーバーレンダリングの柔軟さ」を stale-while-revalidate パターンで両立させる仕組みである。時間ベース revalidation（`revalidate` 秒数）と On-Demand revalidation（`revalidatePath` / `revalidateTag` の API 呼び出し）の二本立てで、どちらもバックグラウンドで再生成し、訪問者には常にキャッシュ済みの応答を即座に返す。再生成中の失敗は 30 秒の TTL でリトライされ、その間は古いコンテンツが配信され続ける。
+- ISR キャッシュは Function リージョンに併置された **耐久ストレージ** に 31 日間保持され、各リージョンの CDN レイヤとは別レイヤで管理される。グローバルパージは 300ms 以内に完了し、HTML とデータペイロードがアトミックに更新される。デプロイごとに ISR キャッシュは独立しており、ロールバックしても以前のキャッシュは保持される。
+- Image Optimization は `next/image` などフレームワークの `Image` コンポーネントを通して配信され、リクエストごとに WebP / AVIF へ変換し、サイズ別 (`w`) と品質 (`q`) の組み合わせで CDN にキャッシュされる。課金単位は **image transformations**（変換実行回数）と **image cache reads / writes** の三軸であり、ローカル画像は最大 31 日、リモート画像は upstream の `Cache-Control: max-age` または `minimumCacheTTL`（既定 3600 秒）の長い方が TTL になる。
+- Cache-Control 系ヘッダは `Vercel-CDN-Cache-Control` > `CDN-Cache-Control` > `Cache-Control` の優先順で適用される。ブラウザ・他社 CDN・Vercel CDN を別々に制御したい場合に使い分ける。`s-maxage` は Vercel が消費するため最終応答ヘッダには現れない。
+- 2026 年に追加された機能群（Runtime Cache API / `Vary` 完全対応 / `stale-if-error` 対応 / Request Collapsing）により、「Functions の中で個別データをキャッシュする」「ユーザー属性ごとに別キャッシュを返す」「オリジン障害時に古い応答で耐える」「同時アクセス時のオリジン保護」を Vercel 標準機能だけで実現できるようになっている。
+- Image Optimization は万能ではない。10 KB 未満のアイコン・SVG・GIF・頻繁に差し替わる画像は `unoptimized` プロップで除外しないと、変換コストばかりが嵩む。`Vary` も同様で、毎ヘッダ追加するごとにキャッシュエントリ数が指数的に増える点を理解しておく。
+
+## Vercel の ISR と Image Optimization とは
+
+ISR（Incremental Static Regeneration）は、ビルド時に生成された静的ページを起点として、デプロイ後も「時間経過」または「明示的な API 呼び出し」をきっかけにページを再生成する仕組みである。訪問者はキャッシュ済み応答を CDN から即座に受け取り、その裏側で Vercel が Function を呼び出して新しい HTML を生成し、再びキャッシュへ書き戻す。Next.js（App / Pages 両方）、SvelteKit、Nuxt、Astro、Gatsby（DSG）が公式対応しており、Build Output API を直接叩く形でも実装できる。Vercel CDN の上に乗せた場合は、リージョン横断のグローバルパージ、リクエスト合流（Request Collapsing）、キャッシュシールディング、即時ロールバックが自動で付いてくる。
+
+Image Optimization は、`next/image` などの `Image` コンポーネントが要求する `/_next/image?url=...&w=...&q=...`（Next.js）または `/_vercel/image?...`（Nuxt / Astro 等）のリクエストを Vercel が受け取り、ソース画像を取得・リサイズ・WebP / AVIF への変換を行い、その結果を CDN にキャッシュして返す機能である。同じソース URL でも `w`（幅）と `q`（品質）と `Accept` ヘッダの組み合わせごとに別エントリとしてキャッシュされ、`HIT` / `MISS` / `STALE` の 3 状態で動く。`MISS` と `STALE` のときは変換が実行され、image transformation として課金される。
+
+両者は「Vercel CDN レイヤの上に独自のキャッシュ層を持つ機能」という共通点を持つが、レイヤとしては独立している。ISR キャッシュは Function リージョンに置かれる耐久ストレージ、Image Optimization のキャッシュは CDN 上のリージョン別ストレージである。さらに Functions の中で個別データを保持したい場合は Runtime Cache（旧 Data Cache 系の後継）が別途用意されている。「ページ単位（ISR）／画像単位（Image Optimization）／データ単位（Runtime Cache）／応答単位（Cache-Control）」と、キャッシュレイヤを目的別に重ねていける構造になっている。
+
+## 何が解説されているか
+
+公式 docs を読み解くと、ISR と Image Optimization の周辺はキャッシュ階層・revalidation 手段・画像形式と課金、という 3 つの軸で整理できる。
+
+### Vercel におけるキャッシュ階層
+
+| レイヤ | 主な対象 | 制御手段 | 特徴 |
+| --- | --- | --- | --- |
+| Browser Cache | 静的アセット・HTML | `Cache-Control: max-age` / `immutable` | フレームワークが content-hash 付きアセットに自動付与する。 |
+| Vercel CDN（Edge） | HTML / API 応答 / 画像 | `s-maxage` / `CDN-Cache-Control` / `Vercel-CDN-Cache-Control` | リージョン別。`Vary` でキー分割可。リージョンごとに独立。 |
+| ISR Cache（耐久ストレージ） | フレームワーク経由の静的化ページ | `revalidate` 秒数 / On-Demand API | Function リージョン併置。31 日保持、デプロイ単位で独立。 |
+| Image Optimization Cache | 変換済み画像 | `next.config.ts` の `minimumCacheTTL` / upstream `Cache-Control` | リージョンキャッシュ + グローバル共有キャッシュ。31 日（ローカル画像）。 |
+| Runtime Cache | Functions 内の任意データ | `getCache()` の `cache.get` / `cache.set`（TTL とタグ） | リージョン内一時キャッシュ。Functions / Middleware / Builds で共有。 |
+
+Browser → CDN → ISR / Image / Runtime → オリジン、という順番でリクエストが沈んでいくと捉えると見通しが良い。`Cache-Control` の優先順位は `Vercel-CDN-Cache-Control` > `CDN-Cache-Control` > `Cache-Control` で、Vercel が消費したヘッダ（`s-maxage`、`stale-while-revalidate`、`stale-if-error`、`Vercel-CDN-Cache-Control`）はクライアントには到達しない。
+
+### ISR の revalidation トリガー
+
+| トリガー | 仕組み | 代表的な API | 用途 |
+| --- | --- | --- | --- |
+| 時間ベース | 設定秒数を経過した次のリクエストでバックグラウンド再生成 | Next.js App Router: `export const revalidate = 60`<br/>Pages Router: `getStaticProps` の `revalidate` 戻り値 | ニュース・商品在庫など「数分〜数時間で陳腐化する」コンテンツ |
+| On-Demand（パス） | API 呼び出しで該当パスのキャッシュを破棄 | `revalidatePath('/blog/[slug]')` | CMS の publish イベント、商品マスタ更新 |
+| On-Demand（タグ） | タグでまとめて破棄 | `revalidateTag('product')` | 関連ページ群の一括更新 |
+| 失敗時 | revalidation 失敗で stale を維持し 30 秒 TTL でリトライ | （自動） | 一時的な DB 障害・上流 API エラーへの耐性 |
+
+revalidation の対象は **同一ドメイン・同一デプロイ** に限定される。`example.com/page` の On-Demand は `sub.example.com/page` には波及しない。新しい機能として追加された **Request Collapsing** は ISR の cache miss 時に同一パスへの並行リクエストを 1 リージョン 1 invocation に集約してくれるため、人気記事の TTL 切れ直後にトラフィックが集中してもオリジンが保護される。
+
+### Image Optimization の対応形式と課金
+
+| 項目 | 内容 | 補足 |
+| --- | --- | --- |
+| 出力形式 | WebP / AVIF（`Accept` ヘッダで自動選択） | 古いブラウザには元形式で配信される。 |
+| クエリパラメータ | `url` / `w`（幅）/ `q`（品質 1-100） | `Accept` も含めてキャッシュキーを構成する。 |
+| キャッシュキー | Project ID + クエリ + `Accept` + ローカルは content hash / リモートは絶対 URL | デプロイをまたいで保持される。 |
+| TTL（ローカル画像） | 最大 31 日 | 同名で内容差し替え + 再デプロイで実質的に更新される。 |
+| TTL（リモート画像） | upstream `Cache-Control: max-age` と `minimumCacheTTL`（既定 3600 秒）の長い方 | `next.config.ts` で TTL を短くも長くもできる。 |
+| 課金単位 | image transformations / image cache reads / image cache writes | `MISS` と `STALE` で transformation + write、グローバルキャッシュ HIT で read が発生する。 |
+| 推奨外ケース | 10 KB 未満アイコン、SVG、GIF、頻繁更新画像 | `unoptimized` プロップで除外する。 |
+
+## 使い方
+
+最小構成として Next.js App Router で時間ベース ISR と On-Demand revalidation、`<Image>` 表示、Cache-Control の手動設定、Runtime Cache の利用例をまとめて示す。
+
+```ts
+// app/blog/[slug]/page.tsx
+// 時間ベース ISR: 60 秒経過後の最初のアクセスで背景再生成
+export const revalidate = 60;
+
+import Image from 'next/image';
+import { notFound } from 'next/navigation';
+
+type Params = { slug: string };
+
+export default async function BlogPost({ params }: { params: Promise<Params> }) {
+  const { slug } = await params;
+  const post = await fetchPost(slug);
+  if (!post) notFound();
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      {/* Image Optimization: w/q とフォーマット変換が CDN にキャッシュされる */}
+      <Image
+        src={post.heroUrl}
+        alt={post.title}
+        width={1200}
+        height={630}
+        priority
+      />
+      <div dangerouslySetInnerHTML={{ __html: post.html }} />
+    </article>
+  );
+}
+
+async function fetchPost(slug: string) {
+  const res = await fetch(`https://cms.example.com/posts/${slug}`, {
+    // タグを打っておくと revalidateTag('post') でまとめてパージできる
+    next: { tags: ['post', `post:${slug}`] },
+  });
+  if (!res.ok) return null;
+  return (await res.json()) as { title: string; html: string; heroUrl: string };
+}
+```
+
+CMS の publish webhook で On-Demand revalidation を呼ぶ Route Handler は次のようになる。
+
+```ts
+// app/api/revalidate/route.ts
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { NextResponse, type NextRequest } from 'next/server';
+
+export async function POST(request: NextRequest) {
+  const secret = request.headers.get('x-revalidate-secret');
+  if (secret !== process.env.REVALIDATE_SECRET) {
+    return NextResponse.json({ ok: false }, { status: 401 });
+  }
+
+  const { slug } = (await request.json()) as { slug?: string };
+  if (slug) {
+    // 個別パス
+    revalidatePath(`/blog/${slug}`);
+    // 関連一覧をタグ単位で更新
+    revalidateTag(`post:${slug}`);
+  } else {
+    revalidateTag('post');
+  }
+  return NextResponse.json({ ok: true, revalidatedAt: Date.now() });
+}
+```
+
+ISR を使えないタイプの API Route や、外部に依存する一覧 API には Cache-Control ヘッダで CDN キャッシュを直接効かせる。`Vary` を併用すると国別・言語別に別キャッシュを持てる。
+
+```ts
+// app/api/popular/route.ts
+import { NextResponse } from 'next/server';
+
+export async function GET(request: Request) {
+  const country = request.headers.get('x-vercel-ip-country') ?? 'unknown';
+  const data = await fetchPopular(country);
+
+  return NextResponse.json(data, {
+    headers: {
+      // ブラウザは 60 秒、Vercel CDN は 1 時間、他 CDN は 60 秒
+      'Cache-Control': 'public, max-age=60',
+      'CDN-Cache-Control': 'public, max-age=60',
+      'Vercel-CDN-Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=600, stale-if-error=86400',
+      Vary: 'X-Vercel-IP-Country',
+    },
+  });
+}
+```
+
+Functions の中で個別データを再利用したい場合は Runtime Cache を使う。`getCache()` で取得したインスタンスに対し TTL とタグを付けて `set` する形になる。
+
+```ts
+// lib/exchange-rate.ts
+import { getCache } from '@vercel/functions';
+
+export async function getJpyRate(): Promise<number> {
+  const cache = getCache();
+  const cached = await cache.get<number>('jpy-rate');
+  if (cached) return cached;
+
+  const res = await fetch('https://api.example.com/fx/JPY', { cache: 'no-store' });
+  const { rate } = (await res.json()) as { rate: number };
+
+  // 同一リージョン内で 1 時間共有、'fx' タグで一括無効化できる
+  await cache.set('jpy-rate', rate, { ttl: 3600, tags: ['fx'] });
+  return rate;
+}
+```
+
+レイヤの選択指針はシンプルである。**HTML 全体をキャッシュしたいなら ISR**、**個別データをキャッシュしたいなら Runtime Cache**、**API 応答単位なら Cache-Control**、**画像なら Image Optimization** という対応関係で設計する。
+
+## 注意点・セキュリティ観点
+
+ISR と Image Optimization は便利だが、キャッシュ層を増やすほど「いつ・どこに・誰宛の」古い応答が残るかの管理が複雑になる。設計段階で抑えるべき罠を挙げておく。
+
+- **ISR の stale 期間中に古い情報が出続ける前提で設計する**。時間ベース ISR は `revalidate` 秒数を超えた最初のアクセスで再生成を開始するが、その回のリクエストには古いキャッシュが返る。再生成中の failure は 30 秒 TTL でリトライされるため、上流 DB が落ちると最大 30 秒間は次のリトライが行われず、その間は古い応答が出続ける。価格やキャンペーン終了時刻のような「古いと事故になる」値は ISR ではなく SSR + 短い `s-maxage` か Runtime Cache の TTL を短く取る構成にする。On-Demand revalidation のエンドポイントには必ずシークレット検証を入れること（誤った publish や悪意のあるアクセスで全パスがパージされると、オリジン負荷が一気に跳ねる）。
+- **`Vary` の誤用でキャッシュが膨張する**。`Vary: User-Agent` のような濃度の高いヘッダを指定すると、ブラウザ × バージョン × OS の組み合わせで別キャッシュエントリが作られ、ヒット率が壊滅的に下がる。指定すべきは `X-Vercel-IP-Country` や `Accept-Language` のような「実際にコンテンツを切り替える軸」だけで、複数指定すると組み合わせ爆発が起きる。`Vary: *` は Vercel CDN 上では `Cache-Control: private` と等価に扱われ、CDN キャッシュは無効化される。
+- **Image Optimization の transformations が課金を押し上げる**。`MISS` と `STALE` の両方で transformation が発生する。リモート画像の upstream が短い `max-age` を返している場合、`minimumCacheTTL` を明示的に伸ばさないと頻繁に再変換される。ロゴや SVG、10 KB 未満のアイコンは `unoptimized` で外し、サイトマップで生成するサムネイルは `w` の選択肢を絞る（Next.js の `images.deviceSizes` / `imageSizes` を見直す）ことで transformation 数を抑えられる。`remotePatterns` を緩く書くと外部の任意 URL を変換できてしまうため、`hostname` だけでなく `pathname` までスコープを切るのが安全である。
+- **Request Collapsing と認証情報の混入リスク**。Request Collapsing は ISR の cache miss 時に同一パスへの並行リクエストを 1 invocation に合流させる。合流後の応答はそのままキャッシュされるため、もし Function 内でリクエストヘッダや Cookie を見て応答を切り替えていると、最初のリクエスト由来の個別情報が他ユーザーに配られる事故が起きる。ISR・CDN キャッシュ対象のルートでは「個別 Cookie / 個別ヘッダで応答を変えない」を原則にし、ユーザーごとに異なる応答が必要な場合は SSR + `private` か、`Vary` で明示的にキー分割する。`set-cookie` を含む応答や `Authorization` を伴うリクエストはそもそも CDN にキャッシュされない（cacheable response criteria を満たさない）点も改めて押さえておく。
+- **`stale-if-error` の前提条件**。`stale-if-error` は 2026 年 2 月 13 日から Vercel CDN が正式対応した。500 系 / ネットワーク障害 / DNS エラーが発生した場合に、指定秒数の間は古いキャッシュを返し続ける動作をする。ただし「`stale-if-error` の指定があり、かつそのエラーがオリジン到達後に出ている」ことが条件で、cacheable な応答が一度もキャッシュに入っていなければ救済はできない。リリース直後やキャッシュ未ウォーム状態の障害には効かない点は理解しておく。なお、ISR のデフォルト挙動（30 秒 TTL での stale 維持）と `stale-if-error` は別レイヤの話であり、ISR は CDN キャッシュ層の `stale-if-error` を設定しなくてもフレームワーク側で stale を保持する。
+- **デプロイをまたいだキャッシュの扱い**。ISR キャッシュはデプロイごとに独立しており、新デプロイは前デプロイのキャッシュを引き継がない。「デプロイ直後は ISR が空 → cache miss が増える」現象は仕様であり、Request Collapsing でオリジン保護はされるが、ピーク時間直前のデプロイは避けるか、重要パスは事前にウォームアップ（fetch 一覧を回す）する設計にする。Image Optimization のキャッシュは逆にデプロイをまたいで残るため、ロゴを差し替えても URL を変えなければ古い変換結果が出続ける。意図的に差し替える際は manual purge か content hash 付きファイル名へのリネームで対応する。
+- **`Cache-Control` 単独指定での落とし穴**。`Cache-Control: s-maxage=...` だけを設定すると、Vercel CDN は `s-maxage` を消費して最終ヘッダから取り除き、ブラウザには `max-age=0` 相当の応答が届く。「ブラウザでも一定時間キャッシュさせたい」場合は `max-age` を併記するか、`CDN-Cache-Control` と `Cache-Control` を別値で設定する。`Vercel-CDN-Cache-Control` を使えば他社 CDN とブラウザに別ポリシーを流せる。優先順位は **Vercel-CDN-Cache-Control > CDN-Cache-Control > Cache-Control** で、Function 応答のヘッダは `vercel.json` / `next.config.js` のヘッダ設定より優先される。
+
+## 一次ソース（原文）
+
+- Incremental Static Regeneration (ISR) — https://vercel.com/docs/incremental-static-regeneration
+- Image Optimization with Vercel — https://vercel.com/docs/image-optimization
+- Cache-Control headers — https://vercel.com/docs/caching/cache-control-headers
+- Vercel CDN Cache — https://vercel.com/docs/caching/cdn-cache
+- Introducing the Runtime Cache API — https://vercel.com/changelog/introducing-the-runtime-cache-api
+- Serve personalized content faster with Vary support — https://vercel.com/changelog/serve-personalized-content-faster-with-vary-support
+- Request collapsing for ISR cache misses — https://vercel.com/changelog/request-collapsing-for-isr-cache-misses
+- stale-if-error Cache-Control header is now supported — https://vercel.com/changelog/stale-if-error-cache-control-header-is-now-supported

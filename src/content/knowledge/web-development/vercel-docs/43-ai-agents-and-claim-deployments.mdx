@@ -1,0 +1,176 @@
+---
+title: "AI Agents & Claim Deployments — エージェントが安全にデプロイ・実行する境界設計"
+description: "Vercel Agent / Agent Resources / Claim Deployments を解説。AI エージェントが Vercel 上にデプロイした成果物を「人間が引き取る」モデル、Agent-friendly API、Flags の Agent 最適化、Slack Agents・Filesystem Agents の実装パターンを整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 43
+---
+
+## この章の要点
+
+- Vercel における「AI Agents」は二系統ある。一つは Vercel 自身が提供する **Vercel Agent**（PR レビュー / 異常検知の運用エージェント）、もう一つは利用者が AI SDK で組む **アプリケーション側のエージェント**。本章は両方を扱う
+- **Claim Deployments** は「エージェントが先にデプロイし、人間が後から引き取る」ための仕組み。AI が生成した成果物の所有権・課金主体を、エンドユーザーの Vercel アカウントへ移譲できる
+- **Agent Resources**（`llms-full.txt` / Markdown Access / Vercel MCP / Skills.sh / CLI Workflows）は、エージェントが Vercel を「読み・操作する」ための公開インターフェース群
+- **Flags は Agent 最適化済み**：CLI から `vercel flags create` で発行でき、Copy-to-Prompt で AI に貼り付けやすい指示文を返す。Flags SDK Skill によって自然言語からの生成も可能
+- セキュリティの肝は「Claim 前のデプロイの帰属」「エージェントに渡す API キー / Token のスコープ」「Flags の Read/Write 境界」「外部 API 呼び出しの認証戦略」の 4 点。OIDC Federation を活用して短期トークン化できる箇所はそちらに寄せる
+
+## Vercel Agent と Claim Deployments とは
+
+「Vercel Agent」と「Claim Deployments」は別プロダクトだが、AI 時代の Vercel を理解する上で対になる。
+
+### Vercel Agent（運用側のエージェント）
+
+Vercel Agent は「The intelligence layer for shipping on Vercel」と位置付けられた、Vercel 自身が運用するインテリジェンスレイヤーである。主な機能は次の三点。
+
+- **AI コードレビュー**：PR の差分をアプリ全体のコンテキストで分析し、セキュリティ・パフォーマンスの指摘と修正案を提示する。提案はサンドボックスで検証してから提出される
+- **異常検知と調査**：トラフィックや関数実行のスパイクごとに「正常な変動か / 障害か」を判別し、スタック特性に合わせた root cause 分析を返す。アラート疲れの低減を狙う
+- **追跡可能性**：提案内容・節約時間・改善内容を記録し、生産性向上をデータで可視化する
+
+Pro 以上のプランで全 PR が対象になり、シート制限はない。あくまで「Vercel 上のワークフローに組み込まれた運用支援エージェント」であり、利用者が AI SDK で書くアプリ内エージェントとは別物である点に注意する。
+
+### Claim Deployments（エージェント生成物の引き取りモデル）
+
+Claim Deployments は、AI エージェントや外部サービスが Vercel に作成したデプロイを、エンドユーザーが自分のアカウントに引き取るための機能。`https://vercel.com/claim-deployment?code=xxx&returnUrl=...` 形式の URL を経由して、プロジェクトの所有権を別の Vercel アカウント（チーム）に転送する。
+
+「同じユーザーが所有する 2 つのチーム間で移す」ケースは [Project Transfer flow](https://vercel.com/docs/projects/transferring-projects#starting-a-transfer) を使う。Claim Deployments は **所有者が異なる** ケース、特に v0 や AI ビルダーが代理デプロイした成果物をユーザー本人に渡す用途で使う。
+
+転送時に、Marketplace パートナー由来のリソース（**Neon / Supabase / Prisma**）も同時に転送される。それ以外のプロバイダのリソースは現状非対応で、別途引き取り手段を用意する必要がある。
+
+### AI SDK / v0 との関係
+
+利用者がアプリ内に組み込むエージェントは、Vercel AI SDK の `generateText` / `tool` / `stopWhen` といったプリミティブを使って書く。Vercel Agent / Claim Deployments / Agent Resources は、この「アプリ内エージェント」が動作する基盤を整える役割を担う。v0 のような AI ビルダーは、生成したコードを一旦 v0 のチームでデプロイし、Claim Deployments URL でユーザーに渡すことで「ユーザーアカウント側で課金・運用される」状態に切り替える。
+
+## 何が解説されているか
+
+公式ドキュメントは AI Agent 関連を以下の構成で展開している。本章はこのうち「公開・転送・実装パターン」のレイヤーを統合的に扱う。
+
+### Agent Resources の構成
+
+`/docs/agent-resources` 配下では、エージェントが Vercel を読み書きするための入口がまとめられている。
+
+| リソース | 用途 | URL / コマンド |
+| --- | --- | --- |
+| `llms-full.txt` | Vercel ドキュメント全文の機械可読版。LLM に Vercel の文脈を一括投入する | `https://vercel.com/docs/llms-full.txt` |
+| Markdown Access | 任意のドキュメントページに `.md` を付けて取得。「Copy as Markdown」ボタンも提供 | 各ページに `.md` 拡張子 |
+| Vercel MCP server | プロジェクト・デプロイ・ドメイン操作とドキュメント検索を MCP 経由で公開 | `/docs/agent-resources/vercel-mcp` |
+| Coding Agents 接続 | Claude Code / Codex / Cline / Roo Code を AI Gateway 経由で接続 | `/docs/ai-gateway/coding-agents` |
+| Skills.sh | 18+ の AI エージェント対応の再利用可能スキル配布ディレクトリ | `npx skills add <owner/repo>` |
+| CLI Workflows | 「500 エラー調査」「ロールバック」など、CLI コマンド列で完結するワークフロー集 | `/docs/agent-resources/workflows` |
+
+「ドキュメントそのものを API として配る」「CLI コマンドの組み合わせ手順をワークフローとして公開する」という発想で、エージェント側がプロンプトに貼り付けるだけで Vercel を扱えるようになっている。
+
+### Claim Deployments のフロー（要約）
+
+公式に記載された AI 生成デプロイの典型フローを、表で整理する。
+
+| ステップ | 主体 | 操作 |
+| --- | --- | --- |
+| 1. ファイルアップロード | エージェント | `POST /files` で素材を投入 |
+| 2. デプロイ作成 | エージェント | Vercel CLI もしくは `POST /deployments` で作成 |
+| 3. 転送リクエスト発行 | エージェント | `POST /projects/:idOrName/transfer-request` → 24 時間有効な `code` を取得 |
+| 4. Claim URL 生成 | エージェント | `https://vercel.com/claim-deployment?code=xxx&returnUrl=...` をユーザーに渡す |
+| 5. ユーザーが引き取る | エンドユーザー | Claim ページで自分のチームを選択して Transfer |
+| 6. 転送完了 | Vercel | 内部的に `PUT /projects/transfer-request/:code` 相当が走り、所有権移譲 |
+
+`returnUrl` を指定すれば、引き取り完了後に元のアプリへ戻せる。Claim URL を使う限り、ステップ 6 を呼び出す必要はない。
+
+### Academy の代表パターン
+
+Academy で公開されているエージェント実装パターンのうち、構造把握に有用な三つを挙げる。
+
+- **Filesystem Agents**：ドメインデータをファイルツリーとして構成し、エージェントに bash アクセスを与えて「コードナビゲーションと同じ要領で読ませる」パターン。プロンプト詰め込みやベクトル検索に頼らず、必要なときに必要なファイルだけ読む構造で、トークン量を抑えながら実行経路の可観測性を保つ。`Vercel Sandbox` + `AI SDK` の `ToolLoopAgent` + `AI Gateway` 経由 Anthropic Claude + Zod の組み合わせで構築される
+- **Slack Agents（AI Tools and Functions）**：Slack 上のメッセージに反応するエージェントを AI SDK の `tool()` + Zod で組む。`experimental_context` でチャネル・タイムスタンプ・ボット ID を渡し、`getActiveTools` でスレッド/メンションなど文脈ごとに使えるツールを切り替える。エラーハンドリング（重複リアクション・無効絵文字・権限不足）はツール側で握りつぶさず明示的に扱う
+- **Agent-friendly APIs**：API 設計を「エージェントがドキュメントを読んで叩く」前提にする。エンドポイントは粒度を小さく分け（feedback / filter / detail / summary）、クエリパラメータでフィルタを許容し、`llms.txt` 標準に従って機能開示する。さらに「ドキュメント自体をライブエンドポイントとして配信」して、エージェントが常に最新仕様を取得できる状態を保つ
+
+## 使い方
+
+### AI SDK で最小エージェントを書く
+
+`generateText` + `tool()` + `stopWhen: stepCountIs(N)` の三点で「ツール呼び出しを含むループ」が組める。サーバ側ハンドラの最小例は次の通り。
+
+```typescript
+import { generateText, tool, stepCountIs } from 'ai';
+import { z } from 'zod';
+
+export async function POST(request: Request) {
+  const { prompt } = await request.json();
+
+  const result = await generateText({
+    model: 'openai/gpt-5',
+    prompt,
+    stopWhen: stepCountIs(5),
+    tools: {
+      weather: tool({
+        description: 'Get weather for a location',
+        inputSchema: z.object({
+          location: z.string(),
+        }),
+        execute: async ({ location }) => ({
+          location,
+          temperature: 72,
+        }),
+      }),
+    },
+  });
+
+  return Response.json({ finalAnswer: result.text });
+}
+```
+
+要点は **ツール `description` の質**。ここが「いつ・どう使うか」をモデルに教える唯一の入口で、プロンプトを増やすより `description` を磨く方が精度に効く。`stopWhen` でステップ上限を必ず明示し、無限ループの請求事故を防ぐ。
+
+### Flags の Agent 最適化を活用する
+
+Flags は CLI と Skill から扱えるようになっており、エージェントとの相性が良い。
+
+- **CLI 操作**：`vercel flags create my-flag` でダッシュボードを開かずに発行できる。CI からの作成・更新も同様
+- **Copy-to-Prompt**：詳細ページに「コピペすればそのままエージェントに渡せる指示文」が用意されている。SDK 導入と手動定義の二経路に対応
+- **Flags SDK Skill**：`npx skills add vercel/flags` でスキル投入後、自然言語プロンプトからフラグの生成・管理が可能。サーバサイド評価のためレンダリング揺れや機微情報の流出を避けられる
+
+エージェントに「Flag を作って分岐させる」操作を任せる場合、**書き込み可能な Token を渡す**ことになるため、後述のスコープ管理と監査が必須になる。
+
+### Claim Deployments URL を発行する
+
+エージェント側で `POST /projects/:idOrName/transfer-request` を呼ぶと `code` が返る。これを以下の形式に組み立ててユーザーへ渡す。
+
+```text
+https://vercel.com/claim-deployment?code=xxx&returnUrl=https://your-app.example.com/claimed
+```
+
+ユーザーは Claim ページで自身のチームを選んで Transfer を押すだけで、プロジェクトと（対応プロバイダの）リソースが一括で自分側に移る。`code` の有効期限は 24 時間で、引き取りまでの猶予を実装上で考慮する（期限切れ時は再発行のフローを用意する）。
+
+template と demo は [`vercel/claim-deployments-demo`](https://github.com/vercel/claim-deployments-demo) で公開されている。
+
+### Slack Agent の Function 構成
+
+Slack Agents パターンでは、ツールを `/tools/index.ts` に集約し、`respond-to-message.ts` から import する。重要なのは次の三点。
+
+1. **`experimental_context`** でチャネル・タイムスタンプ・ボット ID を流す。ツール側はここからしか副作用先を取らないため、テストでモックしやすい
+2. **`getActiveTools`** で文脈に応じてツールを出し入れする。スレッド外でリアクションツールを露出させない、など
+3. **相関 ID をミドルウェアで採番**してログに含める。AI SDK のツール実行が分散ログ上で追跡できるようにする
+
+## 注意点・セキュリティ観点
+
+エージェントを Vercel と組み合わせる際、特に詰まりやすいセキュリティ論点を絞って整理する。
+
+- **Claim 前のデプロイは「エージェント運営側」の所有物**：Claim 完了までは課金・帯域・WAF 例外などすべてエージェント側のチームに紐づく。v0 のようなビルダーを使うとき「無料枠の中で生成しているように見えても、運用が長引くとビルダー側のチームに請求が集中する」点を押さえる。商用提供する場合は **生成直後に Claim を強制** するフローにする
+- **エージェントに渡す API Key / Vercel Token のスコープ最小化**：`vercel flags create` を任せるなら Flags の Read/Write、Sandbox 経由の API 叩きには対象 API のみ、と分割する。Personal Access Token を渡すと事実上「全権キー」になるので避ける。可能な箇所は OIDC Federation で短期トークンに置き換える（[33 章 Deployment Protection & RBAC](./33-deployment-protection-and-rbac) も参照）
+- **Flags の Read / Write 境界**：エージェントに Write 権限を与えると、本番の機能露出を勝手に切り替えられる。**書き込みは Preview / Staging 限定**にして、Production への反映は人間の承認ステップを挟むのが安全。Flags SDK のサーバサイド評価を使うことで、フラグ値そのものをクライアントに露出させずに済む
+- **Memory / Tools の Audit**：エージェントが保持する会話履歴・ツール呼び出し履歴は、機微情報を抱えやすい。Drains で外部 SIEM に転送し、保管期間とマスキングを統一する。サンドボックス（Vercel Sandbox 等）を経由させ、エージェントの実行ログが「どのファイルを読んだか」まで残るようにすると、Filesystem Agents 系の実行経路も追跡できる
+- **AI が外部 API を呼ぶときの認証戦略**：長寿命の API Key をエージェントに保持させない。OIDC Federation で **デプロイ単位の短期トークン**を発行し、AWS / GCP / Snowflake 等の外部リソースに Federated 認証で繋ぐ構成にする。長寿命キーが必要な外部サービス（多くの SaaS）は、サーバ側で握ってツール呼び出しのみエージェントに公開する形にする
+- **`experimental_context` への秘匿情報注入**：Slack Agents 等で `experimental_context` を使うとき、ここに API Key を直接入れない。コンテキストはログに乗りやすいため、ID とスコープのみ載せ、Key は環境変数からツール側で解決する
+- **Claim Deployments の Phishing 耐性**：Claim URL は所有権移譲そのものを引き起こすので、第三者が偽の Claim URL を踏ませる攻撃が成立し得る。`returnUrl` の検証、UI 上での「移管元」表示、ユーザーへの事前通知メールを必ず組み合わせる
+
+## 一次ソース（原文）
+
+- [Vercel Agent](https://vercel.com/agent)
+- [Agent Resources](https://vercel.com/docs/agent-resources)
+- [Claim Deployments](https://vercel.com/docs/deployments/claim-deployments)
+- [How to build AI agents with Vercel and the AI SDK](https://vercel.com/kb/guide/how-to-build-ai-agents-with-vercel-and-the-ai-sdk)
+- [Copy visual context to agents（Changelog）](https://vercel.com/changelog/copy-visual-context-to-agents)
+- [Copy-to-prompt instructions for Flags（Changelog）](https://vercel.com/changelog/copy-to-prompt-instructions-now-available-for-flags)
+- [Vercel Flags are now optimized for agents（Changelog）](https://vercel.com/changelog/vercel-flags-are-now-optimized-for-agents)
+- [Filesystem Agents（Academy）](https://vercel.com/academy/filesystem-agents)
+- [Slack Agents — AI Tools and Functions（Academy）](https://vercel.com/academy/slack-agents/ai-tools-and-functions)
+- [Agent-friendly APIs（Academy）](https://vercel.com/academy/agent-friendly-apis)
+- [claim-deployments-demo（GitHub）](https://github.com/vercel/claim-deployments-demo)

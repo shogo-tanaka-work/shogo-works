@@ -1,0 +1,142 @@
+---
+title: "安全に使える領域マップ — Vercel の機能 × 安全度 × プラン依存マトリクス"
+description: "本シリーズ第 3 部（30〜34 章）の内容を、機能 × 安全度 × プラン依存の三軸マトリクスとして統合する章。本番採用ラインの判断、プランダウングレード時に失う保護、Hobby で許容できる領域までを一望する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 35
+---
+
+## この章の要点
+
+- Vercel のセキュリティ機能は「自動で常時オン」「明示的に有効化」「Enterprise 限定」の三層に分かれており、プラン選定がそのまま安全度の上限を決める
+- 本番運用に最低限必要な保護（DDoS Mitigation / WAF Managed Rules / Deployment Protection / 2FA）は Pro 以上で揃う。Hobby は学習・プロトタイプ専用と位置付けるべき
+- Enterprise でしか使えない機能（Trusted IPs / Access Groups / Conformance / Secure Compute / SAML SSO）は組織契約・コンプライアンス要件があるかどうかで採否が決まる
+- 「Preview URL の漏洩」と「Service Token の漏洩」が事故の二大導線であり、プランによらず先に塞ぐ
+- 本章のマトリクスは 2026-05-08 時点のもの。Vercel のセキュリティ機能はリリース頻度が高いため、本番採用前には必ず公式 [Pricing](https://vercel.com/pricing) と [Security 概要](https://vercel.com/docs/security) で再確認する
+
+## このマップの読み方
+
+本シリーズ第 3 部の各章（30 コンプライアンス / 31 WAF / 32 Bot Management & BotID / 33 Deployment Protection & RBAC / 34 DDoS & Network）で扱った機能を、横軸に「Hobby / Pro / Enterprise」、縦軸に機能カテゴリ、セルに「常時オン / 設定で有効化 / 利用不可」を置いて一覧化する。さらに、各機能の「安全度（必須 / 推奨 / オプション）」を併記して、本番採用判断の優先順位を見えるようにしてある。
+
+詳細な動作・設定手順は各章本文を参照する設計で、本章は「全体像と取りこぼしチェック」のための地図として機能する。
+
+## 自動で常時オンの保護（プランによらず効く層）
+
+ここに並ぶ機能はプラン契約と同時に有効になり、ユーザー側の設定なしでも防御が走る。本番環境であってもここを「有効化」する作業は発生しない。
+
+| 機能 | 説明 | 安全度 |
+| --- | --- | --- |
+| Platform DDoS Mitigation | L3/L4 の自動軽減。Vercel Firewall と統合して L7 攻撃も最大 40 倍高速で軽減 | 必須 |
+| HTTP/2 Rapid Reset 対策 | 2023 年の CVE-2023-44487 への恒久対応 | 必須 |
+| TLS（最新前提） | DHE 暗号スイートは 2026-06-30 廃止。TLS 1.2 以上を強制 | 必須 |
+| 自動 HTTPS（Let's Encrypt） | カスタムドメイン含めデフォルトで TLS 化 | 必須 |
+| 基本的な Bot Management（AI Bots Managed Ruleset の参照） | クローラ判別の前提となるルールセット。設定で Allow / Deny を切り替え | 推奨 |
+
+「自動で守られている」と「ユーザー側で設定する必要がない」は同義ではない。たとえば Bot Management の Managed Ruleset は参照可能でも、AI Bots を実際に Deny するかどうかはアプリ側のポリシー判断であり、デフォルトで全社 Deny にはならない。
+
+## プランごとの主要機能マトリクス
+
+「○ = 利用可能 / △ = 制限付き / × = 利用不可」で表記する。詳細条件は脚注で補う。
+
+### コンプライアンス / 監査
+
+| 機能 | Hobby | Pro | Enterprise | 安全度 |
+| --- | --- | --- | --- | --- |
+| SOC 2 Type II / ISO 27001:2022 / PCI DSS v4 取得 | ○（プラットフォーム全体） | ○ | ○ | 必須（取得状況確認） |
+| HIPAA BAA | × | △（セルフサービス契約） | ○（修正可） | 推奨 |
+| GDPR DPA 締結 | × | ○（Pro 以上で自動発効） | ○ | 必須（EU 顧客がいる場合） |
+| Conformance Rule（Next.js 等のセキュリティ規約検証） | × | × | ○ | オプション |
+| Audit Log | × | △ | ○ | 推奨（Enterprise 要件で必須） |
+
+### Deployment Protection / RBAC
+
+| 機能 | Hobby | Pro | Enterprise | 安全度 |
+| --- | --- | --- | --- | --- |
+| Vercel Authentication（Preview ログイン必須化） | △（Hobby は手動有効化が一部制限） | ○ | ○ | 必須（Preview 漏洩対策） |
+| Password Protection | × | ○ | ○ | 推奨 |
+| Trusted IPs（Preview/Production への IP 制限） | × | × | ○ | オプション |
+| RBAC ロール（Owner / Member / Developer / Viewer 等） | △（Hobby は単独アカウント） | ○ | ○（Custom Role） | 必須 |
+| Access Groups（複数リポジトリ横断のアクセス制御） | × | × | ○ | 推奨 |
+| Verified Commits 必須化（署名コミットのみデプロイ） | × | ○ | ○ | 推奨 |
+| 2FA（個人 / Team 強制） | ○（個人） | ○（Team 強制可） | ○（SSO で代替可） | 必須 |
+| SAML SSO | × | × | ○ | 必須（Enterprise 要件） |
+| OIDC Federation（Vercel→外部 IdP の Federated 認証） | × | ○ | ○ | 推奨 |
+| API Token のスコープ最小化 | ○ | ○ | ○ | 必須 |
+
+### Vercel Firewall / WAF
+
+| 機能 | Hobby | Pro | Enterprise | 安全度 |
+| --- | --- | --- | --- | --- |
+| Managed Ruleset（自動更新） | △ | ○ | ○ | 必須 |
+| Custom WAF Rules（ビルダー / OR・AND） | × | ○ | ○ | 推奨 |
+| Rate Limit ルール | × | ○ | ○ | 推奨 |
+| IP Blocking（CIDR） | × | ○ | ○ | 推奨 |
+| Firewall REST API / Terraform Provider | × | ○ | ○ | オプション（IaC 化したい場合は必須） |
+| Proactive Protection（SAMLStorm / Middleware CVE 等） | △ | ○ | ○ | 必須（Vercel 側自動配信） |
+| Firewall Analytics | △ | ○ | ○ | 推奨 |
+
+### Bot Management & BotID
+
+| 機能 | Hobby | Pro | Enterprise | 安全度 |
+| --- | --- | --- | --- | --- |
+| Bot Protection（基本 Bot 判定） | × | ○ | ○ | 推奨 |
+| AI Bots Managed Ruleset（GPTBot / ClaudeBot 等） | × | ○ | ○ | 推奨（コンテンツ事業は必須） |
+| Verified Bots（Googlebot 等の誤ブロック回避） | × | ○ | ○ | 必須（SEO 影響あり） |
+| BotID Basic（invisible CAPTCHA） | × | ○ | ○ | 推奨 |
+| BotID Deep Analysis | × | △（追加課金） | ○ | オプション |
+| BotID Local Development Bypass | ○ | ○ | ○ | 必須（開発体験） |
+
+### Network 保護
+
+| 機能 | Hobby | Pro | Enterprise | 安全度 |
+| --- | --- | --- | --- | --- |
+| Static IPs（外部 DB allowlist 用） | × | △（追加） | ○ | オプション（接続先要件依存） |
+| Trusted IPs | × | × | ○ | オプション |
+| Vercel Secure Compute（VPC ピアリング） | × | × | ○ | オプション（金融・医療要件） |
+
+## 本番採用前のチェックリスト
+
+各章の「注意点・セキュリティ観点」を統合した、プラン横断の最低限チェックリスト。Pro / Enterprise 利用前提でまとめている。
+
+1. **Preview の漏洩対策**：Vercel Authentication もしくは Password Protection を全 Preview に有効化。Shareable Link は期限管理して棚卸し
+2. **API Token の最小化**：Personal Access Token は使い捨てに、Integration には API Scope の限定を強制
+3. **2FA 強制**：Team 設定で 2FA 必須化。SSO がある場合は Bypass 経路の有無を確認
+4. **WAF Managed + Custom Rules**：Managed Ruleset を有効化し、`/api/login` 等の認証エンドポイントには Rate Limit を必ず追加
+5. **AI Bots ポリシー**：コンテンツ事業ならコンテンツ盗用懸念に応じて GPTBot / ClaudeBot を Deny / Log 切り替え
+6. **Spend Management**：DDoS / 不正利用での請求事故を抑えるため、Spend Management のしきい値を必ず設定（既定で本番停止）
+7. **Verified Commits**：本番ブランチのデプロイは GPG/SSH 署名コミットのみに制限
+8. **Audit Log の保存先**：Enterprise なら Drains で外部 SIEM（Datadog / Splunk 等）へ転送し、保管期間を統一
+9. **環境変数のスコープ**：Production Only に固定すべきシークレット（Stripe / OpenAI 等）が Preview に流出していないか確認
+10. **Trusted IPs / Static IPs の必要性判定**：外部 DB / 内部 API への接続元制限が必要なら Enterprise 検討
+
+## プラン選定の判断軸
+
+ここまでのマトリクスを踏まえ、プラン選定の典型的な判断軸を整理する。
+
+- **Hobby のまま運用してよいケース**：個人ブログ・学習用途・社内ツール（認証は別レイヤで担保）。本番顧客向けサービスでは推奨しない
+- **Pro が最低ラインになるケース**：B to C / B to B SaaS、コンテンツ事業、Stripe 等の決済を扱うサービス、複数人開発、Preview 公開を伴う制作会社業務
+- **Enterprise が必要になるケース**：金融・医療・公共・エンタープライズ顧客向け SaaS（HIPAA BAA 修正可・SAML SSO・Audit Log 長期保管・Conformance Rule・Trusted IPs / Secure Compute のいずれかが必須要件）
+- **二段運用も選択肢**：表向きは Pro で動かしつつ、Enterprise 級要件のある特定プロジェクトのみ Team を分けて Enterprise に上げる構成も実務では多い
+
+## 注意点・運用上の落とし穴
+
+- **プランダウングレード時に失う保護**：Pro→Hobby に落とすと WAF Custom Rules / Password Protection / Bot Management 等が一気に無効化される。ダウングレード前に必ず棚卸し
+- **Marketplace パートナー側の責任境界**：Vercel が WAF を通しても、外部統合（Neon / Upstash / Stripe 等）側のセキュリティはパートナー責任。Vercel の SOC 2 取得が外部 DB の暗号化を保証するわけではない
+- **AI Bots 全 Deny の副作用**：コンテンツ事業で AI 検索エンジン（Perplexity / Bing Copilot 等）からの流入を期待する場合、`AI Bots Managed Ruleset` を全面 Deny にすると流入が消える。Deny / Challenge / Log を URL パターンで切り分ける
+- **Edge Middleware 経由の認証実装の脆弱性**：Middleware で認証ヘッダを書き換える実装は、Vercel が過去にプロアクティブ保護した CVE の対象になり得る。Middleware は薄く、認証検証は Function 側で
+- **Service Token の漏洩経路**：CI/CD・Marketplace 統合・個人アカウントの三経路で漏洩しやすい。OIDC Federation で短期トークン化できる箇所はそちらに寄せる
+- **Conformance Rule は Enterprise 限定**：Next.js のセキュリティヘッダ漏れを CI で止めたい場合、Pro では別途 ESLint / `next-safe` 等で代替する必要がある
+
+## 一次ソース（原文）
+
+- [Vercel Security 概要](https://vercel.com/docs/security)
+- [Vercel Pricing](https://vercel.com/pricing)
+- [Production Checklist](https://vercel.com/docs/production-checklist)
+- [Vercel Compliance](https://vercel.com/docs/compliance)
+- [Vercel Firewall / WAF](https://vercel.com/docs/vercel-firewall/vercel-waf)
+- [Bot Management](https://vercel.com/docs/bot-management)
+- [BotID](https://vercel.com/docs/botid)
+- [Deployment Protection](https://vercel.com/docs/deployment-protection)
+- [RBAC](https://vercel.com/docs/rbac)
+- [Platform DDoS Mitigation](https://vercel.com/docs/security/ddos-mitigation)
+- [Vercel Trust Center](https://vercel.com/security)

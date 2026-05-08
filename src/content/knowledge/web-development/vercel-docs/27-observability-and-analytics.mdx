@@ -1,0 +1,101 @@
+---
+title: "Observability & Analytics — Logs / Metrics / Traces / Web Analytics / Speed Insights を一望する"
+description: "Vercel Observability Suite（Runtime Logs / Metrics / Notebooks / OpenTelemetry Drains）と Web Analytics・Speed Insights を体系化。Observability Plus の 30 日ログ保持や HTML 要素アトリビューションなど近年の機能追加までカバーする。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 27
+---
+
+## この章の要点
+
+Vercel の可観測性は、運用データを扱う Observability Suite と、ユーザー行動・体験を扱う Analytics 系の二系統で構成される。前者は Runtime Logs / Metrics / Traces / Notebooks / Drains を通じて、リクエストや関数実行の挙動を捕捉する。後者は Web Analytics と Speed Insights からなり、プライバシー配慮型の集計とコアウェブバイタル計測を担う。本章ではそれぞれの守備範囲、プラン別の制限、典型的な導入コードと運用上の注意点を整理する。
+
+## Vercel の Observability と Analytics とは
+
+Observability はアプリケーションの内部状態を観測するための基盤である。Vercel は Edge Requests・Function Invocations・External API Requests・Routing Middleware Invocations・AI Gateway Requests の各イベントを自動収集し、Observability タブから時系列で可視化する。Pro と Enterprise では Observability Plus への有料アップグレードでより長い保持期間と詳細メトリクスが解放される設計である。
+
+Analytics は訪問者属性・ページビュー・カスタムイベントを匿名のまま集計するプライバシー配慮型のプロダクトであり、Cookie を発行しない方針で設計されている。Speed Insights は Core Web Vitals（LCP・CLS・INP・FCP など）を Real Experience Score として可視化し、Real User Monitoring の役割を担う。両者はクライアント側に `@vercel/analytics` と `@vercel/speed-insights` を組み込むことで実時間データを集める仕組みである。
+
+これら三系統は独立しているが、Drains を介して外部 SaaS に統合することで一つの観測パイプラインとして運用できる。OpenTelemetry を採用すれば、Vercel が出力するログに `traceId` と `spanId` が自動付与され、Datadog や Dash0 などとの相関分析が成立する。
+
+## 何が解説されているか
+
+Observability Suite と Analytics 系の機能は次の対応関係で整理できる。プラン依存と保持期間の組み合わせがコスト設計の中心となるため、まず制約を把握しておく必要がある。
+
+| 機能 | 役割 | 主な対象データ | プラン依存 |
+| --- | --- | --- | --- |
+| Runtime Logs | デプロイ単位の関数・ミドルウェア・リクエストログ検索 | stdout / stderr / リクエストメタデータ | Hobby/Pro は 3 日保持、Observability Plus で 30 日保持 |
+| Metrics（Observability タブ） | Function・Edge Request・External API などの集計 | エラー率・レイテンシ・呼び出し回数 | 全プランで利用可、Plus で粒度・保持拡張 |
+| Notebooks | クエリ集をチームで共有 | 保存済みクエリ群 | Observability Plus 限定 |
+| Drains（Logs / Traces / Speed Insights / Analytics） | 観測データを外部へ転送 | OTLP/HTTP・JSON・NDJSON | Pro 以上、従量課金 |
+| Web Analytics | 訪問数・経路・カスタムイベント | ページビュー・イベント | Hobby は無料枠、Pro 以上で拡張 |
+| Speed Insights | Core Web Vitals の RUM 計測 | LCP・CLS・INP・FCP・FID・TTFB | Hobby は無料枠、Pro 以上で拡張 |
+
+Runtime Logs の保持期間はデフォルトで 3 日であり、Observability Plus を有効化したチームに限り 30 日へ延長される（2025 年 8 月公開）。同時に同時クエリ可能な範囲は連続 14 日分に制限される点にも留意したい。Notebooks は 2025 年 6 月から Observability Plus に追加された機能で、複数クエリをひとつの分析シートとして保存・共有できる。Metrics 検索は 2025 年 8 月の改善で `TTFB` などの略称検索とキーボードナビゲーションに対応した。
+
+Drains は 2025 年以降、Logs に加えて Traces・Speed Insights・Analytics の四種を扱う統合パイプラインへ拡張された。Traces は OTLP/HTTP のみ対応で、gRPC は未サポートである。料金は Pro 以上で、データ種別を問わず 1 単位 0.50 ドルの従量課金となっている。
+
+## 使い方
+
+`@vercel/analytics` と `@vercel/speed-insights` は npm から導入し、フレームワーク固有のコンポーネントを root layout に埋め込むだけで稼働する。Next.js App Router での最小構成は次のとおりである。
+
+```tsx
+// app/layout.tsx
+import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ja">
+      <body>
+        {children}
+        <Analytics />
+        <SpeedInsights />
+      </body>
+    </html>
+  );
+}
+```
+
+URL に機微情報が含まれる経路では、`beforeSend` で送信前にイベントを書き換える。返り値が `null` のときその計測は破棄される。下記は `secret` クエリパラメータを除去したうえで `/private` 配下を完全に無視する例である。
+
+```tsx
+<Analytics
+  beforeSend={(event) => {
+    if (event.url.includes('/private')) return null;
+    const url = new URL(event.url);
+    url.searchParams.delete('secret');
+    return { ...event, url: url.toString() };
+  }}
+/>
+```
+
+Drains は Team Settings の Drains から登録する。OpenTelemetry を Datadog や Honeycomb に流す場合は、Trace Drain として OTLP/HTTP エンドポイントとカスタムヘッダ（API キー）を設定し、サンプリング率を環境ごとに分けて管理する。具体的には本番 100 ％・プレビュー 10 ％などの比率で Sampling Rules を上から評価させる構成が現実的である。Tracing が有効ならログには `traceId` と `spanId` が自動付与されるため、Datadog 側でログとトレースの相互ジャンプが成立する。
+
+Notebooks は Observability タブから「Save query」して名前付きシートに集約する運用となる。デフォルトは作成者のみが閲覧でき、必要に応じてチームへ公開する。SLO 違反時のランブックや、リリース直後のチェックリストとして共有するのが定石である。
+
+## 注意点・セキュリティ観点
+
+Runtime Logs のデフォルト保持は 3 日と短く、インシデント分析を後追いで実施するには Observability Plus か Drains 経由の長期ストレージが必須である。30 日保持は Plus 限定機能であり、Hobby と素の Pro では同等の運用ができない点を見積もりに織り込む。
+
+Web Analytics は URL とクエリ文字列を素のまま送信する仕様のため、`beforeSend` での Redacting Sensitive Data 設定を初期実装に含めるべきである。とくに認証トークン・注文 ID・メールアドレスがクエリに混在する SaaS では、デプロイ前に必ず除去ルールをコードレビューで担保する。`localStorage` キーを用いた opt-out 機構の用意も、各国のプライバシー法令対応として推奨される。
+
+Speed Insights の HTML element attribution は、INP・CLS・LCP・FID のボトルネック要素そのものを Vercel ダッシュボードに表示する。便利な反面、内部用テンプレートのクラス名や DOM 構造が外部関係者に見える形で記録されるため、ダッシュボード閲覧権限の境界を明確にすべきである。
+
+Drains は Pro 以上の従量課金で、サンプリングを設定しないと 100 ％の転送になりログ量に比例して費用が膨らむ。サンプリングルールは上から順に評価され、どのルールにも一致しないリクエストは破棄される挙動のため、「全件破棄事故」を避けるためにフォールバックルールを最後に置く設計が安全である。また 80 ％超の配送失敗あるいは直近 1 時間で 50 件以上の失敗が発生すると Vercel から警告メールが届くため、受信側エンドポイントの可用性監視も並行して用意する。`@vercel/analytics` と `@vercel/speed-insights` は v2 で動的エンドポイント探索を採用しており、広告ブロッカーによる遮断が起きにくくなっているが、CSP の `connect-src` に Vercel ドメインを許可する更新を忘れないよう注意する。
+
+## 一次ソース（原文）
+
+- https://vercel.com/docs/observability
+- https://vercel.com/docs/analytics/quickstart
+- https://vercel.com/docs/analytics/redacting-sensitive-data
+- https://vercel.com/docs/speed-insights
+- https://vercel.com/docs/logs
+- https://vercel.com/docs/drains
+- https://vercel.com/docs/drains/using-drains
+- https://vercel.com/changelog/30-day-runtime-log-retention-now-available-in-observability-plus
+- https://vercel.com/changelog/improved-metrics-search-in-observability-plus
+- https://vercel.com/changelog/create-and-share-queries-with-notebooks-in-vercel-observability
+- https://vercel.com/changelog/correlate-logs-and-traces-with-opentelemetry-in-vercel-log-drains
+- https://vercel.com/changelog/html-element-attribution-in-speed-insights
+- https://vercel.com/changelog/improved-data-collection-for-web-analytics-and-speed-insights-with-resilient

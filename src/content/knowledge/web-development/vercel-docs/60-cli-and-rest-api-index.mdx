@@ -1,0 +1,117 @@
+---
+title: "CLI・REST API 目次 — Vercel CLI / REST API / SDK の俯瞰と本シリーズへの参照"
+description: "Vercel CLI（vercel コマンド）、REST API、Build Output API、SDK reference を俯瞰し、本シリーズの各機能章への対応関係を整理する。CLI Contract と REST API Errors の使い方、認証スコープの最小化までカバーする。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 60
+---
+
+## この章の要点
+
+- Vercel をプログラマブルに操作する経路は大きく 3 系統である。`vercel` コマンドを叩く **CLI**、HTTP で叩く **REST API**、TypeScript から呼ぶ **SDK** であり、いずれも同じ管理対象（Deployment / Project / Domain / Env / Logs / Drains / Integrations 等）を異なる粒度で扱う
+- フレームワーク作者向けには別レイヤとして **Build Output API** が存在する。これは「`.vercel/output` ディレクトリの仕様」であり、通常のアプリ開発で直接触ることはほぼない
+- 本シリーズはリファレンスを公式に委譲する設計を取っている。本章は **「どの命令系統がどの章に対応するか」** の目次として機能し、CLI 表・REST API ドメイン表から該当章へ飛べるようにしている
+- 認証は CLI なら `vercel login`、REST API ならダッシュボードで発行する **Personal Access Token**、CI なら **OIDC Federation** を使うのが推奨経路である。トークンの権限は最小スコープに絞る
+- レート制限・互換性保証・エラー仕様などの「運用上の注意」は CLI Contract と REST API リファレンスに集約されている。日々の運用ではこの 2 つを定点観測する
+
+## Vercel CLI と REST API とは
+
+Vercel CLI は `vercel` コマンドとして提供される公式 CLI である。`vercel deploy` でデプロイ、`vercel dev` でローカルエミュレーション、`vercel env pull` で環境変数の取得、`vercel logs` でランタイムログ閲覧と、Dashboard でできる操作の大半をターミナルから実行できる。npm / pnpm / yarn / bun でグローバルもしくはプロジェクトに導入する。
+
+REST API は Vercel プラットフォームを HTTP 経由で操作するためのインターフェースである。Bearer トークンによる認証で、Deployments / Projects / Domains / Logs / Drains / Webhooks / Integrations などのドメイン別エンドポイントが提供される。CLI も内部的にはこの REST API を叩いており、CLI の機能は REST API の上位ラッパーとして位置付けられる。
+
+SDK は REST API を TypeScript から呼ぶための公式クライアントである。`@vercel/sdk` として提供され、ドメイン別にメソッドが整理されている。Build Output API はこれらとは別軸の仕様で、Next.js / Nuxt / SvelteKit などのフレームワークが Vercel 向けにビルド成果物を出力する際の **ファイルシステム規約** を定める。アプリ開発者ではなくフレームワーク作者向けの API である。
+
+## 何が解説されているか
+
+主要 CLI コマンドと本シリーズ章の対応は以下である。CLI のリファレンス全文は [vercel.com/docs/cli](https://vercel.com/docs/cli) に集約されているため、本シリーズでは個別コマンドの網羅は行わない。
+
+| CLI コマンド | 役割 | 対応する本シリーズ章 |
+| --- | --- | --- |
+| `vercel deploy` / `vercel` | プロジェクトのデプロイ（既定コマンド） | `24-deployments-and-environments` |
+| `vercel dev` | ローカルでデプロイ環境を再現 | `20-frameworks-and-builds` |
+| `vercel build` | ローカル / CI でのビルド | `20-frameworks-and-builds` |
+| `vercel link` | ローカルディレクトリと Project の紐付け | `24-deployments-and-environments` |
+| `vercel pull` | 環境変数・プロジェクト設定をローカルへ取得 | `24-deployments-and-environments` |
+| `vercel env` | 環境変数の追加 / 更新 / 削除 / 取得 | `24-deployments-and-environments` |
+| `vercel logs` / `vercel inspect --logs` | デプロイのランタイムログ閲覧 | `27-observability-and-analytics` |
+| `vercel inspect` | デプロイのメタ情報取得 | `24-deployments-and-environments` |
+| `vercel domains` / `vercel dns` / `vercel certs` | ドメイン・DNS・証明書の管理 | `25-domains-and-delivery-network` |
+| `vercel rollback` / `vercel promote` / `vercel rolling-release` | リリース戦略の操作 | `24-deployments-and-environments` |
+| `vercel activity` | チームのアクティビティイベント検索 | `27-observability-and-analytics` |
+| `vercel metrics` | Observability メトリクスの問い合わせ | `27-observability-and-analytics` |
+| `vercel cache` | CDN / Data キャッシュの操作 | `23-isr-and-image-optimization` |
+| `vercel flags` | Feature Flags の管理 | `24-deployments-and-environments` |
+| `vercel integration` / `vercel install` | Marketplace 連携の管理 | `26-storage-and-marketplace` |
+| `vercel blob` | Vercel Blob ストレージ操作 | `26-storage-and-marketplace` |
+| `vercel mcp` | MCP クライアント設定 | `42-mcp-and-sandbox` |
+| `vercel webhooks` | Webhooks の管理（beta） | `27-observability-and-analytics` |
+| `vercel api` | 任意の REST API エンドポイントを叩く（beta） | 本章 |
+
+REST API の主要ドメインも、本シリーズの章と概ね一対一で対応している。エンドポイントの完全な仕様は OpenAPI スペック（[openapi.vercel.sh](https://openapi.vercel.sh/)）が機械可読で提供されているため、コード生成や Agent 連携が必要な場合はそちらを参照する。
+
+| REST API ドメイン | 主な操作 | 対応する本シリーズ章 |
+| --- | --- | --- |
+| Deployments | デプロイ作成・取得・キャンセル・削除 | `24-deployments-and-environments` |
+| Projects | プロジェクト・環境変数・ドメインの CRUD | `24-deployments-and-environments` |
+| Domains / DNS / Certs | ドメイン・DNS レコード・証明書 | `25-domains-and-delivery-network` |
+| Logs / Log Drains | デプロイログ取得・ログドレイン管理 | `27-observability-and-analytics` |
+| Webhooks | Webhooks の登録・配信 | `27-observability-and-analytics` |
+| Integrations | Marketplace 連携の構成・リソース | `26-storage-and-marketplace` |
+| Secure Compute | 専用ネットワーク作成・接続 | `30-security-compliance` / `34-ddos-and-network` |
+| Edge Config | Edge Config の読み書き | `22-routing-middleware-and-edge` |
+| Teams / Access Groups | チーム・権限管理 | `33-deployment-protection-and-rbac` |
+
+Build Output API は通常のアプリ開発者は意識しなくてよい。Next.js / Nuxt / SvelteKit など主要フレームワークは内部でこの仕様に沿って `.vercel/output` を生成しており、開発者は `vercel deploy` を叩くだけで Functions / ISR / Image Optimization 等の機能が自動的に有効化される。フレームワーク自体を作る、もしくは既存フレームワークから外れた成果物を Vercel に載せたい場合に限り、この API の仕様を直接読む必要が出てくる。
+
+## 使い方
+
+CLI の最短経路は「インストール → ログイン → Project リンク → 環境変数取得」の 4 ステップである。新規プロジェクトをローカルで動かすところまで、おおむねこの順で進める。
+
+```bash filename="terminal"
+# 1. インストール（pnpm の例）
+pnpm i -g vercel
+
+# 2. ログイン（ブラウザ経由 / GitHub OAuth も可）
+vercel login
+
+# 3. ローカルディレクトリと Project をリンク
+vercel link
+
+# 4. 本番環境変数を .env.local として取得
+vercel pull --environment=production
+```
+
+REST API は Personal Access Token を発行し、`Authorization: Bearer <token>` ヘッダで HTTP リクエストを送る形が基本である。最小例として、自分のユーザー情報を取得するエンドポイントを叩くと以下のようになる。
+
+```bash filename="terminal"
+curl -H "Authorization: Bearer $VERCEL_TOKEN" \
+  https://api.vercel.com/v2/user
+```
+
+CLI から REST API を直接叩きたい場合は `vercel api` コマンド（beta）が用意されており、CLI のログインセッションをそのまま流用できる。たとえば `vercel api /v9/projects -X POST -F name=my-project` のように使う。
+
+CLI Contract は「CLI の出力フォーマットや終了コードに対する互換性保証」を整理したドキュメントである。CI スクリプトで CLI の出力をパースする、終了コードで分岐する、といった自動化を組む前にこのドキュメントに目を通し、保証範囲外の挙動に依存していないかを確認する。`vercel contract` コマンド自体は契約コミット情報の表示用で、CLI Contract ドキュメントとは別物である点に注意する。
+
+## 注意点・セキュリティ観点
+
+REST API には公式に「レート制限とエラーフォーマット」が定義されている。`429 Too Many Requests` が返ったらリトライ間隔を広げる、`401` ならトークン期限切れ・スコープ不足を疑う、`403` なら Team / Project の権限を確認する、という基本動作を CI スクリプト側に組み込む。エラー詳細は各エンドポイントのリファレンスと OpenAPI スペックに記載されている。
+
+CLI のアクティビティログは `vercel activity` で参照できるようになっており、誰がいつ何をしたかをコマンドラインから追跡できる。監査要件がある場合は、Dashboard の Activity Log と CLI の出力を併用し、必要に応じて CSV / JSON で別ストレージへ保管する設計にする。
+
+Personal Access Token は **最小スコープで発行する** 原則を徹底する。チーム単位 / プロジェクト単位でスコープを絞れるため、CI 用途なら本番デプロイに必要なプロジェクトのみに限定する。CI 環境では `VERCEL_TOKEN` を環境変数で渡す方が、`--token` フラグでコマンドライン引数に乗せるよりも安全である。後者はプロセスリスト・ログから漏洩する可能性がある。
+
+長期トークンの直接発行を避けたい場合は **OIDC Federation** を使い、GitHub Actions などの CI ランナーから短命トークンを動的に取得する構成が望ましい。これによりシークレットの保管と失効が不要になる。なお Build Output API はあくまでフレームワーク作者向けの仕様であり、通常のアプリ開発者はこの仕様を直接書く必要はない。アプリ側のセキュリティ対策（環境変数の取り扱い・WAF・Deployment Protection）は、本シリーズ `30-security-compliance` 以降の章で個別に扱う。
+
+## 一次ソース（原文）
+
+- [Vercel CLI Overview](https://vercel.com/docs/cli)
+- [vercel contract](https://vercel.com/docs/cli/contract)
+- [REST API Overview](https://vercel.com/docs/rest-api)
+- [Build Output API](https://vercel.com/docs/build-output-api)
+- [Activity Log now available in Vercel CLI](https://vercel.com/changelog/activity-log-now-available-in-vercel-cli)
+- [Improved CLI experience when linking and creating environment variables](https://vercel.com/changelog/improved-cli-experience-when-linking-and-creating-environment-variables)
+- [Secure Compute: Create a secure compute network](https://vercel.com/docs/rest-api/sdk/connect/create-a-secure-compute-network)
+- [Integrations: Retrieve an integration configuration](https://vercel.com/docs/rest-api/sdk/integrations/retrieve-an-integration-configuration)
+- [Logs: Get logs for a deployment](https://vercel.com/docs/rest-api/sdk/logs/get-logs-for-a-deployment)
+- [Drains: Retrieve a list of all drains](https://vercel.com/docs/rest-api/drains/retrieve-a-list-of-all-drains)

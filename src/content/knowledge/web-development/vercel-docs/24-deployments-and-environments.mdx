@@ -1,0 +1,84 @@
+---
+title: "Deployments & Environments — Preview / Production / Rolling Release / Skew Protection の使い分け"
+description: "Vercel の Environments（Preview / Production / Custom）、Rolling Releases、Instant Rollback、Skew Protection、Spend Management 等のデプロイ運用機能を体系化。Git push ごとに発行される unique URL の使いどころと、本番安全運用のための前提を整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 24
+---
+
+## この章の要点
+
+Vercel のデプロイメントは Local / Preview / Production の三層を基本としつつ、Pro 以上で Custom Environments を加えて本番手前のワークフローを拡張できる構造である。Git push ごとに不変の unique URL が払い出され、Preview 用と Production 用で URL の意味と昇格の経路が分かれている。本番のリスクは Rolling Releases による段階配信、Instant Rollback による即時切り戻し、Skew Protection によるクライアントとサーバの版整合、Spend Management による暴走時の本番停止という四つの仕組みで分担される。これらは独立した機能ではなく、相互に前提を持ち合う運用セットであるため、章全体で関係性を把握しておくことが重要である。
+
+## Vercel の Deployments と Environments とは
+
+Vercel は Local Development、Preview、Production の三つを既定の Environment として提供しており、それぞれ責務が明確に分離されている。Local はローカル開発機での実装と検証、Preview は本番ドメインに影響を与えないステージング相当の検証、Production はエンドユーザに供される本番という関係である。Pro と Enterprise では Custom Environments を作成でき、staging や QA など長期保持されるプリプロダクション用途を独立した環境として扱える。
+
+Git push と unique URL の関係は 2021 年に整理されており、Git push と Vercel CLI 実行のたびに新しい unique URL と不変のデプロイメントが発行される仕様である。同一コードでもデプロイメントが再利用されないため、履歴の追跡と切り戻しの基点が常に明確になる。Preview ではコミット単位のコミット URL とブランチ単位のブランチ URL が併存し、Production では本番ドメインが昇格時に新デプロイメントへ向き直る。
+
+Rolling Releases と Instant Rollback は本番昇格に対して逆方向の安全機構として対応している。Rolling Releases は新版を一部トラフィックから段階的に流す前進方向の安全策であり、Instant Rollback は問題発覚時に過去の本番デプロイメントへ即時で戻す後退方向の安全策である。Rolling Releases の中断手段の一つが Instant Rollback でもあるため、両者は同じ本番運用パイプラインの中で連携して使われる。
+
+## 何が解説されているか
+
+Environment の種類別に責務とプラン依存、URL の払い出され方を整理すると次のようになる。Custom Environments のプラン上限と CLI 連携の挙動は、ステージング設計の前提として押さえておく価値がある。
+
+| 環境 | 主な責務 | プラン依存 | 環境変数スコープ | URL 形式 |
+| --- | --- | --- | --- | --- |
+| Local Development | ローカルでの実装と検証 | 全プラン | `vercel env pull` で `.env.local` に取得 | ローカルホスト |
+| Preview | 本番に影響を与えない検証と PR レビュー | 全プラン | Preview スコープの環境変数 | コミット URL とブランチ URL の二系統 |
+| Production | エンドユーザ向け本番配信 | 全プラン | Production スコープの環境変数 | 本番ドメイン |
+| Custom Environments | staging / QA など長期保持の前段環境 | Pro は 1 環境 / Enterprise は 12 環境 | 環境ごとに独立 | Branch Tracking とドメイン割り当てが可能 |
+
+本番運用に関わる三つの機能は、責任範囲が重なりつつも担う層が異なる。Rolling Releases はトラフィック分配、Instant Rollback はデプロイメントの選択、Skew Protection はクライアントとサーバのコード整合という階層を分担する。
+
+| 機能 | 主に守る層 | 発火タイミング | 主な操作対象 |
+| --- | --- | --- | --- |
+| Rolling Releases | 本番昇格時のトラフィック層 | 新規本番昇格の起点 | ステージごとの配信比率 |
+| Instant Rollback | 本番デプロイメント選択 | 障害検知後の切り戻し | 過去の Production aliased デプロイメント |
+| Skew Protection | クライアントとサーバの版整合 | デプロイ更新中のセッション | ハッシュ化バンドルや Server Actions のポストバック |
+
+## 使い方
+
+Custom Environment はダッシュボードの Environments 設定から作成でき、名前に加えて Branch Tracking、ドメインの割り当て、既存環境からの環境変数のインポートを指定できる。CLI からは次のように環境を指定して扱う形である。
+
+```bash
+vercel deploy --target=staging
+vercel pull --environment=staging
+vercel env add MY_KEY staging
+```
+
+Git からのデプロイ自動化を環境ごとに制御したい場合は、`vercel.json` の `git.deploymentEnabled` キーで対象ブランチの自動デプロイの可否を切り替える。たとえば次のように記述すると、`main` のみ自動デプロイされ、それ以外のブランチでは自動デプロイが抑止される。
+
+```json
+{
+  "git": {
+    "deploymentEnabled": {
+      "main": true,
+      "develop": false
+    }
+  }
+}
+```
+
+Rolling Releases はプロジェクト設定の Build & Deployment 配下で有効化し、配信比率を持つ複数のステージを定義する。各ステージは前段より大きな比率である必要があり、最終ステージは必ず 100% になる。多くのプロジェクトは「最初のフラクショナルステージ + 最終 100%」という二段構成で運用されるが、より細かい段階配信も設定可能である。0% ステージは通常配信からは除外され、`vcrrForceCanary=true` クエリでのみ到達できる特殊枠として扱われる。
+
+Spend Management はメーター使用量に対して 50% / 75% / 100% のしきい値で Web、メール、SMS、Webhook の通知を発火し、設定額に達した時点で本番プロジェクトを既定で一時停止する。Hobby は無料枠到達で自動停止する仕様のため、Spend Management の設定対象は有料プランの本番運用が中心となる。
+
+## 注意点・セキュリティ観点
+
+Skew Protection は新規プロジェクトでは既定で有効になっているが、既存プロジェクトは自動では有効化されないため明示的な切り替えが必要である。保護はハッシュ化バンドルのファイル名やサーバアクションのポストバックなど、クライアントとサーバの版が一致していることを前提とする経路を守るものであり、独自に固定 URL を組み立てるクライアント実装やキャッシュ層を挟む構成では効果が減衰する点に注意したい。Rolling Releases を使う場合は Skew Protection の併用が公式に推奨されており、両機能を片方だけ有効にする運用は不整合の温床になる。
+
+Preview や unique URL は便利な反面、何の保護もないまま運用すると本番相当のコードが第三者に閲覧される懸念がある。Preview には Deployment Protection によるアクセス制御を組み合わせ、unique URL についてはクロール抑止を意識して `noindex` 系の応答や検索エンジン向けのインデックス制御を設計しておく必要がある。Rolling Releases の 0% ステージは検索クローラからは隔離されるが、`vcrrForceCanary=true` を任意のユーザが付与できる仕様であるため、秘匿性のある機能を 0% ステージに置くべきではない。
+
+Spend Management の既定挙動は本番デプロイの一時停止であるため、急なバズや想定外のトラフィックで意図せず本番が止まる可能性がある。事業上の停止許容度に応じてしきい値と Webhook の動作を設計し、停止後の再開フローを Runbook に明記しておくことが望ましい。Custom Environments は環境ごとに環境変数とドメインを持つため、新規環境を作成した際に本番用の値が誤ってインポートされていないか、権限を持つメンバーが想定外に閲覧できる状態になっていないかを定期的に点検する必要がある。
+
+## 一次ソース（原文）
+
+- https://vercel.com/docs/deployments/environments
+- https://vercel.com/docs/rolling-releases
+- https://vercel.com/docs/instant-rollback
+- https://vercel.com/docs/deployments/claim-deployments
+- https://vercel.com/changelog/revert-and-pin-deployments-with-instant-rollback
+- https://vercel.com/changelog/every-push-now-receives-a-unique-url
+- https://vercel.com/changelog/skew-protection-is-now-enabled-by-default-for-new-projects
+- https://vercel.com/changelog/spend-management-now-pauses-production-deployments-by-default

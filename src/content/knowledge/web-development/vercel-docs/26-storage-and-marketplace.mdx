@@ -1,0 +1,99 @@
+---
+title: "Storage & Marketplace — Vercel Blob・Edge Config と Marketplace パートナー統合"
+description: "Vercel が自社で提供する Storage（Vercel Blob・Edge Config）と、Marketplace 経由で統合される外部プロバイダ（Neon / Upstash / Convex / Clerk / Stripe / Groq 等）を体系化。Native Integration の課金統合モデルとデータ層の選び方を整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 26
+---
+
+## この章の要点
+
+Vercel は 2024 年に自社 Storage（Postgres / KV）を Marketplace パートナー製品に置き換えた。現在 Vercel が自社で継続提供する Storage は「Vercel Blob」と「Edge Config」の二本柱に収斂しており、これら以外のデータ層は Marketplace 上の Native Integration として統合する設計に切り替わっている。Native Integration は Vercel Dashboard からプロビジョニング・課金・環境変数注入を一括で行える方式であり、外部アカウントを別途作らずに利用できる点が従来の Connectable Account と異なる。本章では自社 Storage の使いどころと、主要な Marketplace パートナー（Neon / Upstash / Convex / Clerk / Stripe / Groq 等）の役割分担を整理する。
+
+## Vercel の Storage と Marketplace とは
+
+Vercel における Storage は、いまや「自社で運用するもの」と「Marketplace 経由で外部プロバイダに委ねるもの」の二層構造である。自社で残されたのは、エッジ配信されるバイナリストア「Vercel Blob」と、低レイテンシな読み出し専用の構成データストア「Edge Config」の二つに整理されている。Postgres / KV / Redis といった汎用データベースは、自社で抱え込むより専門事業者に任せたほうが品質と価格競争力で勝てるという判断から、Upstash や Neon などの Marketplace パートナーに引き渡された。
+
+Marketplace の中核は Native Integration である。Vercel ドキュメントによれば Native Integration は「third-parties Vercel has partnered with との two-way connection」を提供し、Vercel Dashboard から直接サブスクリプションを購入し、課金を Vercel アカウントに統合できる。プロバイダ側のアカウント作成が不要で、環境変数も自動注入されるため、開発者は接続用クレデンシャルを手で扱わずに済む。これに対して Connectable Account は従来型の OAuth 連携で、既に保有しているプロバイダ側アカウントに紐付ける方式である。
+
+なぜ Vercel が Postgres / KV を Marketplace 化したかを言語化すると、Vercel 自身は「Frontend Cloud」としてのフレームワーク／配信／ビルド体験に集中し、データベースの SLA とコスト構造は専門ベンダーに委ねるという戦略判断である。Upstash の changelog にも「This partnership replaces the previous Vercel KV offering」と明記されており、ゼロダウンタイム移行で旧 Vercel KV ユーザーがそのまま Upstash に引き継がれた事実がこの方針転換を象徴している。
+
+## 何が解説されているか
+
+自社 Storage は、用途とアクセスパターンが大きく異なる二種類に絞られている。下表は対応関係をまとめたものである。
+
+| 製品 | 役割 | 主なユースケース | 代表的な制約 |
+| --- | --- | --- | --- |
+| Vercel Blob | オブジェクトストレージ | 画像・動画・ユーザーアップロード・ビルド成果物 | パブリック／プライベートのアクセス制御、Multipart で 5TB まで |
+| Edge Config | 超低レイテンシな読み出し専用 KV | フィーチャーフラグ・A/B テスト割り当て・リダイレクトテーブル・ブロックリスト | 書き込みは管理操作扱い、JSON schema による検証が可能 |
+
+Marketplace 主要パートナーは以下のように整理できる。AI 推論・DB・認証・決済まで、アプリの非機能要件をほぼ Marketplace 経由で揃えられる構成になっている。
+
+| カテゴリ | 代表パートナー | 提供内容 | 参加時期 |
+| --- | --- | --- | --- |
+| データベース | Neon / Convex / Railway | Postgres / リアルタイムバックエンド / Postgres・Redis・MySQL | Convex は 2025-11-24、Railway は 2022-02-03 |
+| KV / キャッシュ / キュー | Upstash | KV / Vector / QStash（旧 Vercel KV の後継） | 2024-10-22 |
+| 認証 | Clerk | ホスト型認証・セッション・ロール・課金 | 2025-07-14 |
+| AI 推論 | Groq / fal / DeepInfra | 高速推論・画像生成・OSS モデル推論、プリペイド対応 | 2025-03-18 |
+| 決済 | Stripe | 本番決済キーの自動環境変数化、sandbox／production 切替 | 2026-03-05 GA |
+
+## 使い方
+
+Vercel Blob は `@vercel/blob` SDK 経由で扱う。Storage タブで Blob ストアを作成すると `BLOB_READ_WRITE_TOKEN` が自動でプロジェクトに設定され、ローカルでは `vercel env pull` で取得する。最小例は以下の通りである。
+
+```ts
+import { put, list, del } from '@vercel/blob';
+
+// アップロード（Public アクセス）
+const blob = await put('avatars/user-1.png', file, {
+  access: 'public',
+});
+
+// 一覧取得
+const { blobs } = await list({ prefix: 'avatars/' });
+
+// 削除
+await del(blob.url);
+```
+
+5TB 級の大容量ファイルを扱う場合は `put` / `upload` に `multipart: true` を渡す。SDK が自動でチャンク分割・並列アップロード・失敗時リトライまで面倒を見るため、巨大ファイルでもメモリ消費を抑えられる。
+
+Edge Config は読み出し専用の KV として `@vercel/edge-config` で参照する。ミドルウェアでのフィーチャーフラグ判定が代表的な用途である。
+
+```ts
+import { get } from '@vercel/edge-config';
+
+export async function middleware() {
+  const flag = await get<boolean>('newCheckout');
+  // ...
+}
+```
+
+JSON Schema 保護を有効化するには、Storage タブで対象 Edge Config を開き Schema トグルを ON にしてスキーマを貼り付ける。以後はダッシュボードや API からの書き込み時にリアルタイム検証が走り、想定外のキー追加や型不一致を未然に弾ける。
+
+Marketplace 統合の流れは Upstash Redis を例にとると次のようになる。Vercel Dashboard の Storage タブから Marketplace を開き、Upstash を選んでプランを購入する。Native Integration なので Upstash 側のアカウント作成は不要で、購入と同時に Vercel プロジェクトに `UPSTASH_REDIS_REST_URL` などの環境変数が注入される。CI からスクリプト的に追加する場合は `vercel integration add` コマンドが使える。
+
+## 注意点・セキュリティ観点
+
+Vercel Blob のアクセス制御は `access: 'public'` を指定すると推測困難な URL でインターネットに公開される設計である。署名付き URL や私的配信が必要な場合は Private Blob を選び、サーバ側で署名を発行する構成にする必要がある。「Public にしたつもりはないがリンクが漏れたら見える」点は誤解しやすいので明示的に認識しておくべきである。
+
+Multipart アップロードの 5TB 上限は技術的な天井であり、実際の課金は転送量とストレージ量の従量課金になる。ユーザーアップロードを無制限に受け入れる UI を作ると課金事故に直結するため、アプリ側で容量上限・MIME 検証・レートリミットを必ず実装する。
+
+Edge Config は読み出しが極めて速い反面、書き込みは管理操作として扱われ整合性モデルがエッジ伝播に依存する。「書いた直後に全リージョンで一致する」前提のロジックを書くと事故になりやすく、フィーチャーフラグや構成値といった「すぐ反映されなくても致命的でない」用途に絞るのが安全である。JSON Schema 保護は事故防止に有効なので、本番 Edge Config では原則有効化したい。
+
+Marketplace パートナー統合では、責任境界が明確に分かれる点に注意したい。サービス停止やデータ消失の一次責任はパートナー側にあり、Vercel は課金とプロビジョニングのハブを担うのみである。SLA・バックアップ方針・データ所在国はパートナーごとに異なるため、本番採用時には個別に確認する必要がある。Native Integration が自動注入する認証情報も、ロールアウト時のローテーションや、プレビュー環境とプロダクション環境での分離を Vercel の Environment Variables 機能側で運用設計しておくべきである。Stripe のように本番キーを直接環境変数として配るタイプの統合では、誰がプロダクション環境変数を読めるかというチーム権限設計が実質的なセキュリティ境界になる。
+
+## 一次ソース（原文）
+
+- https://vercel.com/docs/integrations
+- https://vercel.com/docs/vercel-blob/using-blob-sdk
+- https://vercel.com/kb/storage
+- https://vercel.com/changelog/upstash-joins-the-vercel-marketplace
+- https://vercel.com/changelog/convex-joins-the-vercel-marketplace
+- https://vercel.com/changelog/clerk-joins-the-vercel-marketplace
+- https://vercel.com/changelog/groq-fal-and-deepinfra-join-the-vercel-marketplace
+- https://vercel.com/changelog/railway-integration-postgres-redis-mysql
+- https://vercel.com/changelog/stripe-is-now-generally-available-on-the-marketplace-and-v0
+- https://vercel.com/changelog/5tb-file-transfers-with-vercel-blob-multipart-uploads
+- https://vercel.com/changelog/view-upload-and-delete-blob-files-in-the-dashboard
+- https://vercel.com/changelog/protect-your-edge-config-with-a-json-schema
