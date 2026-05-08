@@ -1,0 +1,261 @@
+---
+title: "Supabase Auth のセキュリティ — MFA / SSO / セッション管理を堅く運用する"
+description: "Supabase Auth を本番運用するためのセキュリティ要点。MFA、SSO（SAML）、JWT・PKCE、リフレッシュトークン、セッション失効、レート制限、CAPTCHA、漏洩監視を整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 32
+---
+
+## この章の要点
+
+- Supabase Auth は GoTrue ベースで JWT を発行し、`anon key` は公開前提で運用される。一方 `service_role` と JWT secret は厳重管理が必須である。
+- MFA は TOTP / Phone（SMS）の 2 方式に対応し、JWT の `aal` クレームで AAL1（パスワード等）と AAL2（第二要素）を区別する。RLS と組み合わせれば DB レイヤーで強制できる。
+- SAML SSO は Pro プラン以上で利用可能で、Supabase CLI（v1.46.4 以降）から IdP メタデータを登録する。
+- セッションはアクセストークン（JWT）＋ リフレッシュトークンで構成され、リフレッシュトークンは 10 秒の許容窓を持つ単回使用方式（rotation）である。誤用検知時はセッション全体が失効する。
+- 本番運用ではブラウザ単独の Implicit flow ではなく PKCE flow と `@supabase/ssr` を組み合わせ、HttpOnly Cookie でセッションを保持する構成が標準である。
+- Leaked password protection（HIBP 連携）、CAPTCHA（hCaptcha / Turnstile）、Auth Hooks によるカスタムクレーム挿入が、攻撃面を狭める実用的な追加レイヤーとなる。
+
+## Supabase Auth セキュリティの全体像
+
+Supabase Auth は OSS の GoTrue をマネージドで動かす実装であり、ユーザー認証後に JWT（アクセストークン）と長寿命のリフレッシュトークンを発行する。クライアントは JWT を `Authorization: Bearer ...` で API（PostgREST、Realtime、Storage、Edge Functions）に渡し、PostgreSQL 側では JWT の claims を Row Level Security（RLS）の判定材料に使う。
+
+セキュリティ設計上の重要な前提は次のとおりである。
+
+- `anon key` は公開して構わない鍵で、その権限制御は RLS が担う。
+- `service_role` キーは全 RLS をバイパスする強権鍵であり、サーバー側のみで保持する。クライアントへの埋め込みは禁忌である。
+- 認証フローはクライアント完結の Implicit flow と、認可コード＋検証子（code verifier）を交換する PKCE flow の 2 方式があり、SSR を伴う本番アプリは PKCE flow を選ぶのが既定である。
+- リフレッシュトークンは rotation（単回使用）であり、不正利用が検知されればセッションは失効する。
+- SSO（SAML）は有料プランで提供される。MFA・Auth Hooks の一部もプランにより制限がある。
+
+## 何が解説されているか
+
+公式ドキュメントの該当章は、Auth のセキュリティ機能を以下のテーマで分割して扱う。
+
+- **Multi-Factor Authentication（MFA）**: TOTP / Phone の 2 ファクター、AAL の概念、RLS による AAL2 強制。
+- **Enterprise SSO（SAML）**: Supabase CLI 経由の IdP 登録、EntityID / ACS URL、属性マッピング。
+- **Sessions**: セッションのライフサイクル、Refresh Token Rotation、サインアウトのスコープ、time-boxed / inactivity / single-session タイムアウト。
+- **PKCE flow / Implicit flow**: 両者の違い、code verifier、SSR 対応。
+- **Password Security**: 強度ポリシー、HIBP 連携の Leaked Password Protection。
+- **Rate Limits**: メール、OTP、検証、トークンリフレッシュ、MFA、匿名サインインの各バケット。
+- **CAPTCHA**: hCaptcha / Cloudflare Turnstile の導入。
+- **Auth Hooks**: Before User Created、Custom Access Token、Send SMS / Email、MFA / Password Verification Attempt。
+- **Server-Side Auth**: `@supabase/ssr` を用いた Cookie ベースのセッション保持。
+
+## 使い方
+
+### MFA を有効化する
+
+ダッシュボードの Authentication > Providers で TOTP / Phone を有効化したうえで、クライアントから enroll → challenge → verify の順に呼び出す。
+
+```ts
+// 1. enroll: TOTP factor を作成し、QR コードを表示
+const { data: enroll, error } = await supabase.auth.mfa.enroll({
+  factorType: 'totp',
+  friendlyName: 'Authenticator App',
+})
+// enroll.totp.qr_code を <img src=... /> として表示する
+
+// 2. challenge: ユーザーが認証アプリのコードを入力する直前に発行
+const { data: challenge } = await supabase.auth.mfa.challenge({
+  factorId: enroll!.id,
+})
+
+// 3. verify: ユーザー入力コードで検証し、AAL を aal2 に引き上げる
+const { data: verify, error: verifyError } = await supabase.auth.mfa.verify({
+  factorId: enroll!.id,
+  challengeId: challenge!.id,
+  code: userInputCode,
+})
+```
+
+現在の AAL は `supabase.auth.mfa.getAuthenticatorAssuranceLevel()` で取得できる。RLS では JWT の `aal` クレームを参照して、機微テーブルへ AAL2 を強制する。
+
+```sql
+create policy "require aal2 for billing"
+  on public.billing_accounts
+  for all
+  to authenticated
+  using ((auth.jwt() ->> 'aal') = 'aal2');
+```
+
+`unenroll` は AAL を即座には下げない点に注意が必要である。即時反映するには `supabase.auth.refreshSession()` を呼ぶ。
+
+### SSO（SAML）を設定する
+
+Pro プラン以上で SAML 2.0 を有効にし、Supabase CLI で IdP を登録する。
+
+```bash
+# IdP メタデータ URL から登録
+supabase sso add --type saml \
+  --project-ref <project-ref> \
+  --metadata-url 'https://idp.example.com/saml/metadata' \
+  --domains example.com
+
+# 一覧と詳細
+supabase sso list --project-ref <project-ref>
+supabase sso show <provider-id> --project-ref <project-ref>
+```
+
+IdP 側に登録する Supabase の SP メタデータは次のとおりである。
+
+| 項目 | 値 |
+| --- | --- |
+| EntityID | `https://<project>.supabase.co/auth/v1/sso/saml/metadata` |
+| ACS URL | `https://<project>.supabase.co/auth/v1/sso/saml/acs` |
+| NameID Format | `emailAddress` または `persistent` |
+
+属性マッピングは JSON で定義し、IdP の属性名から Supabase ユーザーの claims にマッピングする。
+
+### Refresh Token Rotation の挙動を理解する
+
+セッションは単回使用のリフレッシュトークンで rotate する。SSR や同時並行リクエストの事故を吸収するため、同一トークンの使用は約 10 秒の窓だけ許容される。窓の外で再使用が観測されると、当該セッションのリフレッシュトークン群は revoke され、`auth.sessions` から削除される。サーバー側で同じセッションを共有する場合は、トークン交換を直列化するか `@supabase/ssr` のヘルパーに委ねる。
+
+### セッションを失効させる
+
+サインアウトはスコープを指定できる。
+
+```ts
+// 現在のセッションのみ
+await supabase.auth.signOut({ scope: 'local' })
+
+// 同一ユーザーの全セッション
+await supabase.auth.signOut({ scope: 'global' })
+
+// このデバイス以外のセッション
+await supabase.auth.signOut({ scope: 'others' })
+```
+
+管理操作からの強制失効は service_role キーで `auth.admin.signOut(jwt)` を呼ぶ。タイムアウト（time-boxed / inactivity / single-session）は Pro 以上で設定でき、強制はトークンリフレッシュ時に判定される。実効的なタイムアウトは「設定値 + JWT 有効期間」となる点を運用で見込む。
+
+### パスワードポリシーと漏洩監視
+
+ダッシュボードの Authentication > Policies で次を設定する。
+
+- 最小長（推奨 8 文字以上）
+- 文字種の混在（数字・大小英字・記号）
+- Leaked Password Protection の有効化（Pro 以上、HIBP API と連携）
+
+ポリシー強化後も既存ユーザーは現行パスワードでログイン可能だが、変更時には `WeakPasswordError` が返るため、UI 側で再設定動線を用意する。
+
+### Rate Limit と CAPTCHA
+
+レート制限はトークンバケット方式（容量 30 リクエスト/バケット）で、超過時は HTTP 429 を返す。
+
+- 検証（`/verify`）、トークンリフレッシュ（`/token`）、MFA チャレンジ（`/factors/:id/*`）、匿名サインアップは IP ベースで非カスタマイズ。
+- メール送信、OTP 発行はプロジェクト全体・ユーザー単位で調整可能。カスタム SMTP を設定するとメール送信上限を引き上げられる。
+
+CAPTCHA は hCaptcha / Cloudflare Turnstile に対応する。ダッシュボードの Bot and Abuse Protection でプロバイダと Secret Key を登録し、フロントから `captchaToken` を渡す。
+
+```tsx
+import HCaptcha from '@hcaptcha/react-hcaptcha'
+
+function SignUpForm() {
+  const captchaRef = useRef<HCaptcha>(null)
+  const [token, setToken] = useState<string | null>(null)
+
+  const onSubmit = async () => {
+    if (!token) return
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { captchaToken: token },
+    })
+    captchaRef.current?.resetCaptcha()
+    setToken(null)
+  }
+
+  return <HCaptcha ref={captchaRef} sitekey={SITEKEY} onVerify={setToken} />
+}
+```
+
+### Auth Hooks でカスタム JWT クレームを挿入する
+
+組織 ID やロールを JWT に埋め込みたい場合、Custom Access Token Hook を使う。
+
+```sql
+create or replace function public.custom_access_token_hook(event jsonb)
+returns jsonb
+language plpgsql
+as $$
+declare
+  claims jsonb;
+  org_id uuid;
+begin
+  select organization_id into org_id
+  from public.memberships
+  where user_id = (event ->> 'user_id')::uuid
+  limit 1;
+
+  claims := event -> 'claims';
+  claims := jsonb_set(claims, '{app_metadata,org_id}', to_jsonb(org_id));
+
+  return jsonb_set(event, '{claims}', claims);
+end;
+$$;
+
+grant execute on function public.custom_access_token_hook to supabase_auth_admin;
+```
+
+ローカルでは `config.toml` で hook を有効化する。
+
+```toml
+[auth.hook.custom_access_token]
+enabled = true
+uri = "pg-functions://postgres/public/custom_access_token_hook"
+```
+
+このほか Before User Created、Send SMS / Email、MFA / Password Verification Attempt があり、後者 2 つは Teams / Enterprise プラン限定である。
+
+### Server-Side Auth（@supabase/ssr）
+
+Next.js などの SSR 環境では、セッションを localStorage ではなく Cookie に保持する。`@supabase/ssr` はサーバー / クライアント双方で同一セッションを参照できるよう、Cookie の読み書きを抽象化する。
+
+```ts
+// utils/supabase/server.ts (Next.js App Router)
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export function createClient() {
+  const cookieStore = cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (list) =>
+          list.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options),
+          ),
+      },
+    },
+  )
+}
+```
+
+`@supabase/ssr` は現時点で beta 扱いであり、API が破壊的に変わる可能性がある旨が公式に明記されている。
+
+## 注意点・セキュリティ観点
+
+- **anon key と service_role の取り違え**: `anon key` は公開前提だが、`service_role` キーをクライアントに置けば RLS は意味を失う。サーバー側のみ環境変数で扱い、Edge Functions では `Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')` 経由で参照する。
+- **JWT secret の取り扱い**: 自前で JWT を検証する場合に必要だが、これが漏れると任意の JWT を偽造できる。ローテーション手順を運用に組み込む。
+- **SMS の SIM swap リスクと費用**: Phone MFA は SIM スワップ攻撃や SMS 配信コストの問題がある。可能な限り TOTP を主、SMS を補助とする方針を推奨する。
+- **メール到達性**: 組み込み SMTP は本番運用に耐える容量・到達率を保証しない。カスタム SMTP（Postmark、Resend、SES など）を必ず設定する。
+- **OAuth state パラメータ・セッション fixation**: 公式クライアントは `state` と PKCE を自動で扱うが、独自フローを書く場合は `state` の検証と `code_verifier` のサーバー側保持を必ず行う。
+- **Email Confirmation を無効化する罠**: 開発時の利便性で確認メールを無効化したまま本番に出すと、未検証メールでアカウントを乗っ取られる入口になる。本番設定は別環境として明確に分離する。
+- **Implicit flow と PKCE flow の選択**: URL fragment にトークンを乗せる Implicit flow はサーバーがトークンを参照できないため、SSR / Cookie ベース構成では PKCE flow を選択する。code verifier は開始したのと同一ブラウザ・端末でのみ交換できる点も把握しておく。
+- **RLS と AAL の併用**: MFA を有効にしても RLS で `aal = 'aal2'` を要求しなければ、AAL1 のアクセストークンで機微データに到達できる。MFA は「強制経路」を RLS で閉じて初めて意味を持つ。
+- **レート制限の前提**: IP ベースの制限は CDN や逆プロキシ越しだと回避されやすい。CAPTCHA や Auth Hooks で追加の防御層を重ねる。
+
+## 一次ソース（原文）
+
+- Multi-Factor Authentication: https://supabase.com/docs/guides/auth/auth-mfa
+- Enterprise SSO (SAML): https://supabase.com/docs/guides/auth/sso/auth-sso-saml
+- Sessions: https://supabase.com/docs/guides/auth/sessions
+- PKCE flow: https://supabase.com/docs/guides/auth/sessions/pkce-flow
+- Implicit flow: https://supabase.com/docs/guides/auth/sessions/implicit-flow
+- Password Security: https://supabase.com/docs/guides/auth/password-security
+- Rate Limits: https://supabase.com/docs/guides/auth/rate-limits
+- CAPTCHA: https://supabase.com/docs/guides/auth/auth-captcha
+- Auth Hooks: https://supabase.com/docs/guides/auth/auth-hooks
+- Server-Side Auth: https://supabase.com/docs/guides/auth/server-side

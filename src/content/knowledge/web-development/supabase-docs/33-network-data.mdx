@@ -1,0 +1,190 @@
+---
+title: "Supabase のネットワーク・データ保護 — Network Restrictions・PITR・暗号化・監査ログ"
+description: "Supabase で本番運用するためのネットワーク制限、SSL Enforcement、PITR、自動バックアップ、データ暗号化、Vault、Audit Logs、IP Allowlist の使い分けを整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 33
+---
+
+## この章の要点
+
+- Supabase は SOC 2 Type 2 を取得済みのマネージドサービスであり、TLS、保管時暗号化、毎日バックアップなどを既定で提供する。本章で扱うのは、ユーザー側で「追加で有効化する」レイヤである。
+- 本番投入時は最低限、Row Level Security（RLS）を全テーブルに適用したうえで、SSL Enforcement と Network Restrictions を有効化し、PITR を有料プランで設定する構成が標準である。
+- ネットワーク制限は Postgres 直接接続と Supavisor Pooler の双方に適用されるが、PostgREST・Storage・Auth など HTTPS API 層には現時点で適用されない。責任分界点を理解したうえで構成する必要がある。
+- シークレットは環境変数だけに頼らず、Supabase Vault（pg_sodium ベースの Transparent Column Encryption）で DB 内に暗号化保存する選択肢がある。
+- Free プランでは PITR・Read Replicas・SSO・Read-Only ロールなど多くが利用不可であるため、本番は Pro 以上、組織統制が要るなら Team / Enterprise を選ぶ。
+
+## ネットワーク・データ保護の全体像
+
+Supabase におけるデータ保護は、大きく「Supabase 側が標準提供する層」と「ユーザーが有効化・運用する層」に分かれる。
+
+Supabase 側が担保する層は、TLS 通信、保管時暗号化（disk encryption）、毎日の自動バックアップ、グローバルなインフラ監視、SOC 2 Type 2 で監査される内部統制である。これらはプラン契約と同時に有効になっており、ユーザーが個別に設定する必要はない。
+
+一方でユーザー側が能動的に強化する層には、次のものがある。
+
+1. **Network Restrictions**（IP/CIDR ベースのアクセス制限）
+2. **SSL Enforcement**（非 SSL 接続の拒否）
+3. **PITR（Point-in-Time Recovery）アドオン**
+4. **Read Replicas**（地理冗長・読み取り分散）
+5. **Vault**（DB 内シークレットの列暗号化）
+6. **Access Control**（Org / Project ロール、SSO、MFA）
+7. **IPv4 アドオン**（IPv6 非対応環境向けの専用 IPv4）
+
+これらの多くはプラン依存である。Free では基本的なバックアップと TLS のみ、Pro で Network Restrictions・SSL Enforcement・PITR が解禁、Team / Enterprise で Read-Only ロールやプロジェクトスコープ権限、SOC 2 レポート取得などが追加される。本章ではこれらの機能と「Supabase が責任を持つ範囲／ユーザーが守る範囲」の境界を整理する。
+
+## 何が解説されているか
+
+公式ドキュメントの Platform / Database / Security セクションに分散している以下の機能を、本章では一つの「ネットワーク・データ保護」パッケージとして扱う。
+
+- **Network Restrictions**: Postgres と Supavisor Pooler への接続元 IP を CIDR で制限する機能。
+- **SSL Enforcement**: Postgres / Supavisor への非 SSL 接続を拒否する機能。Dashboard・Management API・CLI から有効化できる。
+- **Backups**: 全プランに毎日の自動バックアップ。Pro=7 日、Team=14 日、Enterprise=最大 30 日のリテンション。
+- **Point-in-Time Recovery (PITR)**: Pro 以上の有料アドオン。WAL を 2 分間隔でアーカイブし、最悪 RPO 2 分の秒単位リストアを実現する。Small compute add-on 以上が前提。
+- **Vault**: pg_sodium ベースの Transparent Column Encryption。`vault.create_secret()` などの SQL 関数でシークレットを保存し、`vault.decrypted_secrets` ビューで復号アクセスする。
+- **Encryption at rest**: ディスクレベルで暗号化済み。バックアップとレプリケーションストリームも暗号化が保たれる。
+- **Audit Logs**: 組織・プロジェクト操作の監査ログ。Team / Enterprise プランで参照可能（公式ドキュメントは構造変更が頻繁なため、最新仕様はダッシュボードで確認すること）。
+- **Access Control**: Owner / Administrator / Developer / Read-Only の 4 ロール。Read-Only は Team / Enterprise 限定。SAML SSO・MFA との連携も含む。
+- **Read Replicas**: プライマリと同期される読み取り専用 DB。SELECT のみ可能で、Auth/Storage/Realtime はレプリカ経由で利用不可。
+- **IPv4 アドオン**: 既定で IPv6 を使う直接接続に対し、専用 IPv4 を割り当てるアドオン。Pooler（Transaction/Session 双方）は元々 IPv4 で動作する。
+
+## 使い方
+
+### Network Restrictions の CIDR 設定
+
+Network Restrictions は次の 3 経路で設定できる。
+
+- **Dashboard**: Database Settings の Network Restrictions ページで CIDR を追加する。
+- **Management API**: `PUT /v1/projects/{ref}/network-restrictions/apply` 相当に対し、`db_allowed_cidrs` を配列で送信する。
+- **CLI**: Supabase CLI 1.22.0 以降で `supabase network-restrictions --project-ref <ref> update --db-allow-cidr <cidr>` を実行する。
+
+CIDR は IPv4 / IPv6 の双方を受け付け、`192.168.0.1/24` や `2001:db8:3333:4444:5555:6666:7777:8888/64` の形式で指定する。クライアント環境が IPv6 で名前解決する場合は IPv4・IPv6 両方の CIDR を登録する必要がある（IPv4 アドオンを購入しているケースを除く）。
+
+設定後の制限は **Postgres 直接接続と Supavisor Pooler の両方** に適用される一方、PostgREST、Storage API、Auth API などの HTTPS エンドポイントには現時点で適用されない点に注意する。Edge Functions から DB への直接接続は常にブロックされるため、Edge Functions からは `supabase-js` クライアントを経由する。
+
+### SSL Enforcement の有効化と client 側影響
+
+SSL Enforcement は Dashboard の Database Settings → SSL Configuration から「Enforce SSL on incoming connections」をオンにするだけで有効化できる。Management API では `PUT /v1/projects/{ref}/ssl-enforcement` に `{"database": true}` を送り、CLI では `supabase ssl-enforcement --project-ref <ref> update --enable-db-ssl-enforcement` を使う。
+
+有効化時には fast database reboot が走る。小規模プロジェクトでは数秒、大規模では数分のダウンタイムが発生し、Postgres と Supavisor の接続のみ影響する（HTTP API は無停止）。
+
+クライアント側では SSL を必ず利用する設定にする。最も厳密な検証を行うには、Dashboard から Supabase の CA 証明書（`prod-ca-2021.crt`）をダウンロードし、
+
+```bash
+cat prod-ca-2021.crt >> ~/.postgres/root.crt
+```
+
+のように信頼ストアへ追加し、接続時に `sslmode=verify-full` を指定する。
+
+### Backups（毎日 + ダウンロード）
+
+毎日の自動バックアップは全プランで実行されるが、リテンションは Pro=7 日、Team=14 日、Enterprise=最大 30 日と異なる。Free プランには日次バックアップの保持がないため、`supabase db dump` などで定期的にエクスポートしておく必要がある。
+
+Postgres 15.8.1.079 以降のプロジェクトは物理バックアップが採用されており、PITR を無効化したあとに直接ダウンロードすることはできない。手元にダンプを残したい場合は、Supabase CLI または `pg_dump` で論理バックアップを別途取得する。
+
+なお、カスタムロールのパスワードや Storage オブジェクトは日次 DB バックアップに含まれない点も覚えておく。
+
+### PITR の設定と復旧手順
+
+PITR（Point-in-Time Recovery）は Pro / Team / Enterprise 向けの有料アドオンである。Small 以上の compute アドオンが前提で、有効化すると WAL ファイルが約 2 分間隔でアーカイブされ、最悪 RPO は 2 分となる。
+
+復旧手順の概要は次のとおり。
+
+1. Dashboard の Project Settings → Database → Backups → Point in Time から、復旧したいタイムスタンプを選択する。
+2. システムは直近の物理バックアップをリストアし、その上に指定タイムスタンプまで WAL を再生する。
+3. リストア中はプロジェクトがダウンタイムに入り、所要時間は DB サイズに比例する。
+
+PITR バックアップは region 内ストレージに格納されるため、リージョン全体の障害に備える場合は別リージョンに **Read Replicas** を構成する設計が必要になる。
+
+### Vault でシークレットを暗号化保存
+
+Supabase Vault は pg_sodium ベースの Transparent Column Encryption を提供する Postgres 拡張で、API キーや Webhook シークレットなどを DB 内に暗号化保存できる。暗号化キーは DB と同じディスクではなく Supabase 側のセキュアバックエンドに保管されるため、ディスクが物理流出してもキーが揃わなければ復号できない。
+
+代表的な操作。
+
+```sql
+-- 作成
+select vault.create_secret('sk_live_xxx', 'stripe_secret', 'Stripe live key');
+
+-- 参照（復号ビュー）
+select decrypted_secret
+from vault.decrypted_secrets
+where name = 'stripe_secret';
+
+-- 更新
+select vault.update_secret(
+  '00000000-0000-0000-0000-000000000000'::uuid,
+  'sk_live_yyy',
+  'stripe_secret',
+  'Stripe live key (rotated)'
+);
+```
+
+`vault.decrypted_secrets` は復号値を返すため、このビューに対する権限は厳格に絞る。`anon` / `authenticated` ロールから参照できないよう、`revoke` で明示的に外しておくこと。
+
+### Audit Logs（Pro 以上）の確認方法
+
+組織やプロジェクトの操作（メンバー招待、プラン変更、プロジェクト作成・転送、シークレット参照など）は Audit Logs に記録される。Team / Enterprise プランでは Dashboard 上から検索・フィルタが可能で、SOC 2 Type 2 レポート上の証跡として活用できる。リテンションや UI は更新が頻繁なため、最新仕様は Dashboard の Organization Settings → Audit Logs と Pricing ページで確認する。
+
+DB レイヤの監査が必要な場合は、別途 `pgaudit` 等の利用や、Postgres の `log_statement` 設定変更（Enterprise の SLA 範囲内で要相談）を組み合わせる。
+
+## 注意点・セキュリティ観点
+
+### プラン依存の機能差を前提に設計する
+
+本章で扱った機能の多くはプランで分かれている。代表的な対応関係は次のとおり。
+
+| 機能 | Free | Pro | Team | Enterprise |
+| --- | --- | --- | --- | --- |
+| 毎日バックアップ | なし（手動） | 7 日保持 | 14 日保持 | 最大 30 日 |
+| PITR | × | アドオン | アドオン | アドオン |
+| Network Restrictions | × | ○ | ○ | ○ |
+| SSL Enforcement | × | ○ | ○ | ○ |
+| Read Replicas | × | ○ | ○ | ○ |
+| Read-Only ロール | × | × | ○ | ○ |
+| プロジェクトスコープ権限 | × | × | ○ | ○ |
+| SOC 2 Type 2 レポート | × | × | ○ | ○ |
+
+Free で PoC を作っているうちはこれらが効かないことを織り込み、本番昇格時に Pro 以上へ切り替えるロードマップを最初に決めておくとよい。
+
+### Network Restrictions は HTTP API には効かない
+
+Network Restrictions は Postgres と Supavisor を保護する機能であり、PostgREST・Storage・Auth・Realtime などの HTTPS API には現時点で適用されない。クライアントから直接叩かれるこれらの API 層は、**RLS と JWT クレーム**によって守るのが基本である。「IP で締めたから RLS は緩くしてよい」という判断にはならない。
+
+### バックアップは region 内、災害時は Read Replica が必要
+
+毎日バックアップと PITR の WAL は、プロジェクトと同じリージョン内に保管される。したがって region 全体に及ぶ障害に対しては、別リージョンへの Read Replica 配置や、外部ストレージへの定期 `pg_dump` エクスポートを別建てで構成する必要がある。Read Replicas は非同期レプリケーションのためレプリケーションラグが存在し、SELECT のみ可能で Auth / Storage / Realtime は経由できない点も忘れない。
+
+### Vault の鍵運用と参照権限
+
+Vault の暗号化キーは Supabase 側で管理され、ユーザーが直接ローテートする UI は提供されていない（鍵管理は Supabase の責任範囲）。一方で `vault.decrypted_secrets` ビューに対する SQL レベルの権限はユーザーの責任であり、ここを公開ロールに付与すると平文が露出する。Vault は「DB 管理者ロールが扱う運用シークレット置き場」と位置づけ、エンドユーザー資格情報の保管には使わない方針が安全である。
+
+### Audit Logs のリテンションと用途
+
+Audit Logs は無制限に蓄積されるわけではなく、プランごとにリテンション制限がある。長期の証跡保管が要件なら、定期的にエクスポートして自社の SIEM（Datadog、Splunk、Elastic など）に転送する設計を併用する。
+
+### 責任分界（Shared Responsibility）
+
+Supabase が担保するのは、インフラ層の暗号化、TLS、SOC 2 Type 2 統制、毎日バックアップ、サービス可用性であり、これは「Supabase 製品の境界内」に限定される。SOC 2 の対象も同じ範囲である。
+
+ユーザーが守る側に残るのは、
+
+- 全テーブルへの RLS と Policy の適切な設計
+- Auth の OTP 期限短縮・カスタム SMTP・MFA・パスワードポリシー
+- Network Restrictions / SSL Enforcement の有効化判断
+- Vault と環境変数の使い分け、シークレットローテーション
+- 組織への複数 Owner 設定（単一障害点回避）と Audit Logs のレビュー
+- 定期的な手動 dump と外部リージョンへの保管
+
+である。「マネージドだから安全」ではなく、「Supabase が下半分を持ってくれるので、上半分の RLS と Auth 設計に集中できる」と捉えるのが実態に近い。
+
+## 一次ソース（原文）
+
+- [Network Restrictions](https://supabase.com/docs/guides/platform/network-restrictions)
+- [SSL Enforcement](https://supabase.com/docs/guides/platform/ssl-enforcement)
+- [Backups](https://supabase.com/docs/guides/platform/backups)
+- [Going into Prod（本番チェックリスト）](https://supabase.com/docs/guides/platform/going-into-prod)
+- [Database Vault](https://supabase.com/docs/guides/database/vault)
+- [Read Replicas](https://supabase.com/docs/guides/platform/read-replicas)
+- [Access Control](https://supabase.com/docs/guides/platform/access-control)
+- [IPv4 Address Add-on](https://supabase.com/docs/guides/platform/ipv4-address)
+- [SOC 2 Compliance](https://supabase.com/docs/guides/security/soc-2-compliance)

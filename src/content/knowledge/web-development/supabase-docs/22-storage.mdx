@@ -1,0 +1,237 @@
+---
+title: "Supabase Storage — ファイル保管・配信・画像変換を理解する"
+description: "Supabase Storage が提供するバケット・オブジェクト管理、CDN 配信、画像変換、アクセスポリシーを実例つきで解説する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 22
+---
+
+## この章の要点
+
+- Supabase Storage は S3 互換のオブジェクトストレージであり、Postgres の RLS と統合されたアクセス制御、285 都市以上のグローバル CDN 配信を標準で備えている。
+- バケットは Public と Private の二種類があり、用途に応じてアクセスモデルとキャッシュ効率が変わる。
+- 6MB 未満は標準アップロード、それ以上は TUS プロトコルによる Resumable Upload が推奨される。
+- 画像変換（リサイズ・WebP 自動変換）は Pro プラン以上の有料機能であり、コスト試算が欠かせない。
+- 署名付き URL、Public URL、ダウンロード API、S3 互換 API という複数の取り出し口を、機密度と負荷特性で使い分けるのが基本戦略となる。
+
+## Supabase の Storage とは
+
+Supabase Storage は、画像・動画・ドキュメントなどの非構造化データをファイル単位で保管するオブジェクトストレージである。AWS S3 互換のプロトコルを話せるため、既存の S3 クライアント（aws-cli、boto3、tus-js-client 等）から差し替えなしで利用できる点が大きな特徴である。
+
+最大の差別化要素は、Postgres と密に統合された権限モデルにある。アップロードされたファイルのメタデータは `storage.objects` テーブルに記録され、このテーブルに対する Row Level Security（RLS）ポリシーがそのままファイルアクセス制御として作用する。アプリケーションのユーザー情報（`auth.uid()`、JWT クレーム）と直接照合できるため、「ログインユーザーごとに自分のフォルダだけ読み書き可能」といったロジックを SQL のポリシー一行で表現できる。
+
+加えて、配信レイヤーにはグローバル CDN が組み込まれている。バケットが Public であればキャッシュヒット率が高く、世界中から低レイテンシで配信されるため、アプリケーション側で別途 CloudFront や Cloudflare を構成する必要はない。中・小規模のサービスであれば、これ一つでファイル保管から配信まで完結する設計になっている。
+
+バケットには用途別に三種類存在する。汎用的な「Files buckets」、Apache Iceberg 等のテーブル形式に対応した「Analytics buckets」、AI/ML のベクトル埋め込み専用の「Vector buckets」である。本章では最も一般的な Files buckets を中心に扱う。
+
+## 何が解説されているか
+
+公式ドキュメントの Storage セクションは、ファイル管理ワークフローを縦断的にカバーしている。主要トピックは以下の通りである。
+
+- **Buckets** — Public / Private の違い、命名、アップロード制限（MIME タイプ・サイズ）、作成方法（ダッシュボード / SQL / SDK）。
+- **Objects** — オブジェクトのメタデータ管理、フォルダ構造、所有者（owner_id）の取り扱い。
+- **Uploads** — 6MB 未満を対象とした Standard Upload と、TUS プロトコルに基づく Resumable Upload の二系統。
+- **Serving / Downloads** — Public URL、Signed URL、強制ダウンロード（`?download` パラメータ）の使い分け。
+- **Image Transformations** — 1〜2500px のリサイズ、quality・format 指定、WebP 自動変換、imgproxy ベースのセルフホスト。
+- **Access Control** — `storage.objects` への RLS ポリシー、`storage.foldername()` ヘルパー、JWT クレームベースの動的ポリシー。
+- **CDN** — Smart CDN の仕組み、`cf-cache-status` ヘッダーによるキャッシュ状態の確認、Public/Private バケットによるヒット率の違い。
+- **S3 Compatibility** — AWS Signature V4 認証、対応エンドポイント一覧、サポートされない機能（Versioning、SSE-C、Object Lock 等）。
+
+## 使い方
+
+### バケット作成（Public / Private）
+
+Private バケットがデフォルトで、すべての操作（アップロード・ダウンロード・削除・移動）に RLS ポリシーまたは署名付き URL が必要となる。Public バケットは「ダウンロードのみ誰でもアクセス可」という挙動で、その他の操作（アップロード・削除等）は依然として認可が必要である。
+
+ダッシュボード、SQL、SDK のいずれからでも作成できる。SDK の例は次のとおりである。
+
+```ts
+// Public バケット（プロフィール画像など）
+const { data, error } = await supabase.storage.createBucket('avatars', {
+  public: true,
+  allowedMimeTypes: ['image/*'],
+  fileSizeLimit: '1MB',
+})
+
+// Private バケット（請求書などの機密ファイル）
+await supabase.storage.createBucket('invoices', {
+  public: false,
+})
+```
+
+`allowedMimeTypes` と `fileSizeLimit` をバケット定義時に指定しておくと、要件に合わないアップロードはサーバー側で 400 エラーとして拒否される。クライアント側のバリデーションに頼らず守れるため、必ず設定しておきたい。
+
+SQL から作る場合は `storage.buckets` テーブルへの INSERT で済む。
+
+```sql
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true);
+```
+
+### アップロード・ダウンロード（標準）
+
+6MB 未満のファイルは `multipart/form-data` を用いた標準アップロードで十分である。
+
+```ts
+// アップロード
+const { data, error } = await supabase.storage
+  .from('avatars')
+  .upload(`public/${userId}.png`, file, {
+    contentType: 'image/png',
+    upsert: false, // 既存ファイルを上書きしたい場合は true
+  })
+
+// ダウンロード（Blob として取得）
+const { data: blob } = await supabase.storage
+  .from('avatars')
+  .download(`public/${userId}.png`)
+```
+
+`upsert: false`（デフォルト）の場合、同一パスに同時アップロードが発生すると最初の一件のみ成功し、それ以外は 400 を返す。先勝ちで上書きを許容したい場合は `upsert: true` を指定する。
+
+### 署名付き URL の生成と用途
+
+Private バケットのファイルを一時的に外部に公開する場合は、署名付き URL を生成する。期限を秒単位で指定できるため、メールに添付する請求書 PDF や、限定配信動画の URL に向く。
+
+```ts
+const { data } = await supabase.storage
+  .from('invoices')
+  .createSignedUrl('2026/05/INV-0001.pdf', 60 * 60) // 1 時間有効
+```
+
+ダウンロード時にブラウザでファイル保存ダイアログを出させたい場合は、`download` オプションでファイル名を指定する。
+
+```ts
+await supabase.storage.from('avatars').download('avatar.png', {
+  download: 'profile-photo.png',
+})
+```
+
+Public バケットの場合は署名は不要で、`getPublicUrl()` で取得した URL をそのまま `<img src>` 等に埋め込める。
+
+```ts
+const { data } = supabase.storage.from('avatars').getPublicUrl('public/hero.jpg')
+// data.publicUrl: https://<project>.supabase.co/storage/v1/object/public/avatars/public/hero.jpg
+```
+
+### Image Transformation（リサイズ・format 変換）
+
+画像変換はクエリパラメータで宣言的に指定する。`getPublicUrl` / `createSignedUrl` / `download` のいずれにも `transform` オプションを渡せる。
+
+```ts
+const { data } = supabase.storage.from('avatars').getPublicUrl('public/hero.jpg', {
+  transform: {
+    width: 480,
+    height: 480,
+    resize: 'cover', // 'cover' | 'contain' | 'fill'
+    quality: 80,     // 20〜100、デフォルト 80
+    format: 'origin' // 'origin' を指定すると WebP 自動変換が無効化される
+  },
+})
+```
+
+`width` / `height` は 1〜2500 ピクセルの範囲で指定できる。サポートブラウザに対しては WebP が自動配信され、転送量と表示速度の双方を最適化できる。
+
+なお Image Transformation は Pro プラン以上の有料機能である。Pro / Team プランでは「オリジン画像 1,000 枚あたり月 100 transformation」が含まれ、超過分は従量課金となる。動的にあらゆるサイズを生成する設計だと一気にコストが膨らむため、用途別に数パターンに絞るのが安全である。
+
+### Resumable Upload（TUS プロトコル）の使いどころ
+
+6MB を超えるファイル、不安定なネットワーク、進捗バー表示が必要なケースでは TUS プロトコルによる Resumable Upload を選ぶ。チャンクサイズは 6MB 固定で、生成されたアップロード URL は最大 24 時間有効である。
+
+JS では `tus-js-client` を直接使うか、Uppy 経由で扱うのが一般的である。
+
+```ts
+import * as tus from 'tus-js-client'
+
+const upload = new tus.Upload(file, {
+  endpoint: `https://<project>.storage.supabase.co/storage/v1/upload/resumable`,
+  retryDelays: [0, 3000, 5000, 10000, 20000],
+  headers: {
+    authorization: `Bearer ${session.access_token}`,
+    'x-upsert': 'true',
+  },
+  uploadDataDuringCreation: true,
+  metadata: {
+    bucketName: 'videos',
+    objectName: 'lecture-01.mp4',
+    contentType: 'video/mp4',
+  },
+  chunkSize: 6 * 1024 * 1024,
+  onProgress: (sent, total) => console.log(`${((sent / total) * 100).toFixed(1)} %`),
+})
+
+upload.start()
+```
+
+大容量ファイルを扱う場合は、標準 API ではなく `https://<project>.storage.supabase.co` の専用ホスト名を使うとパフォーマンスが向上する。
+
+### RLS によるバケット単位・パス単位のアクセス制御
+
+`storage.objects` に対するポリシーで、ファイル単位の権限を定義する。代表的な三パターンを示す。
+
+**1. 認証済みユーザーのみが特定バケットにアップロードできる**
+
+```sql
+create policy "authenticated_can_upload_avatars"
+on storage.objects for insert
+to authenticated
+with check (bucket_id = 'avatars');
+```
+
+**2. ユーザーが自分の UID と一致するフォルダにのみ書き込めるようにする**
+
+`storage.foldername(name)` はパスを `/` で分解した配列を返すヘルパーである。
+
+```sql
+create policy "user_can_write_to_own_folder"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'user-uploads'
+  and (storage.foldername(name))[1] = (select auth.jwt()->>'sub')
+);
+```
+
+**3. アップロードしたユーザー本人のみが読める**
+
+```sql
+create policy "owner_can_read"
+on storage.objects for select
+to authenticated
+using (
+  bucket_id = 'invoices'
+  and (select auth.jwt()->>'sub') = owner_id
+);
+```
+
+ポリシーは `select` / `insert` / `update` / `delete` の操作ごとに分けて書くのが基本である。Service Role キーは RLS をバイパスするため、サーバーサイドのバッチ処理や管理 API でのみ使用し、クライアントには絶対に露出させてはならない。
+
+## 注意点・セキュリティ観点
+
+**Public bucket の罠** — Public は「ダウンロード時のみ匿名アクセス可」を意味する。アップロードは依然として RLS で制御されているが、誤ってユーザーが任意のパスに書き込めるポリシーを書くと、第三者から不正なコンテンツを置かれて CDN 経由で配信される事故が起こり得る。Public バケットほど、書き込み系ポリシーの精査を厳しく行う必要がある。
+
+**無料枠と帯域制限** — 無料プランでは保管容量・転送量ともに上限が低めに設定されている。動画配信や高解像度画像の大量配信を想定するなら、早期に Pro プランへ移行する前提でコスト試算を行うべきである。CDN は便利だが、転送量はそのまま課金対象として積み上がる。
+
+**Image Transformation は有料機能** — 前述の通り Pro プラン以上が必要であり、変換回数も従量で増える。レスポンシブ画像のように `srcset` で多数のサイズを動的生成する設計だと、想定の数倍のコストになりがちである。あらかじめ「sm / md / lg」など三〜五段階に固定し、初回アクセス時に CDN にキャッシュさせる運用が現実的である。
+
+**署名付き URL の有効期限** — 期限を長く設定するほど、URL が漏洩した際の被害範囲が広がる。原則として「業務遂行に必要な最短時間」（例: メール添付なら 7 日、画面表示なら 1 時間）にとどめ、長期共有が必要な場合はアプリケーション側でユーザー認証を経由する設計に切り替える。
+
+**Resumable Upload のセッション管理** — TUS のアップロード URL は 24 時間で失効する。長時間のレジューム（例: 翌日への持ち越し）は不可であり、その場合はクライアント側で再度新規アップロードを開始するロジックが必要である。チャンクサイズは 6MB 固定なので、これに合わせてサーバー側の処理タイムアウト設定を調整する。
+
+**S3 互換 API の制約** — Versioning、Object Lock、Lifecycle Policy、SSE-C、ACL、タグ付けなどはサポートされていない。S3 から移行してくる場合、これらの機能に依存した設計は Postgres のテーブルや Edge Function で代替実装するか、要件自体を見直す必要がある。削除はリカバリ不可なので、論理削除や保管期間管理はアプリケーションレイヤーで担保する。
+
+**コスト最適化** — Public バケットは CDN ヒット率が高く、転送コストが下がりやすい。Private バケットは認可がユーザー単位で評価されるためヒット率が落ちる。「公開しても問題ない素材」と「機密素材」を別バケットに明確に分離するだけで、配信コストとレイテンシの双方が改善する。`cf-cache-status` ヘッダーを定期的に確認し、HIT 率が想定より低い場合はキャッシュ制御ヘッダーやバケット設計を見直すとよい。
+
+## 一次ソース（原文）
+
+- Supabase Docs: Storage — https://supabase.com/docs/guides/storage
+- Supabase Docs: Storage Quickstart — https://supabase.com/docs/guides/storage/quickstart
+- Supabase Docs: Buckets Fundamentals — https://supabase.com/docs/guides/storage/buckets/fundamentals
+- Supabase Docs: Creating Buckets — https://supabase.com/docs/guides/storage/buckets/creating-buckets
+- Supabase Docs: Standard Uploads — https://supabase.com/docs/guides/storage/uploads/standard-uploads
+- Supabase Docs: Resumable Uploads — https://supabase.com/docs/guides/storage/uploads/resumable-uploads
+- Supabase Docs: Serving / Downloads — https://supabase.com/docs/guides/storage/serving/downloads
+- Supabase Docs: Image Transformations — https://supabase.com/docs/guides/storage/serving/image-transformations
+- Supabase Docs: Access Control — https://supabase.com/docs/guides/storage/security/access-control
+- Supabase Docs: CDN Fundamentals — https://supabase.com/docs/guides/storage/cdn/fundamentals
+- Supabase Docs: S3 Compatibility — https://supabase.com/docs/guides/storage/s3/compatibility

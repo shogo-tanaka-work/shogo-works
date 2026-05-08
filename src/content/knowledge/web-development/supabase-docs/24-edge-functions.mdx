@@ -1,0 +1,256 @@
+---
+title: "Supabase Edge Functions — Deno ベースのサーバーレス関数を実務で使う"
+description: "Supabase Edge Functions の Deno ランタイム、ローカル開発・デプロイ、シークレット管理、Background Tasks、AI モデル呼び出し、Webhooks、スケジューリングまで実用観点で整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 24
+---
+
+## この章の要点
+
+- Supabase Edge Functions は Deno ランタイムをベースとした、グローバルエッジで動作する TypeScript ファーストのサーバーレス関数である。
+- `supabase functions new` で雛形を作成し、`supabase functions serve` でローカル開発、`supabase functions deploy` で本番デプロイという最短経路が CLI に揃っている。
+- Database / Storage / Auth と同一プロジェクト内で連携でき、`SUPABASE_URL` などのデフォルトシークレットが自動で注入される。
+- `EdgeRuntime.waitUntil` によるバックグラウンドタスク、Hono によるルーティング、`Supabase.ai.Session` による推論、`pg_cron` + `pg_net` によるスケジュール実行など、実務で必要な機能が一通り揃っている。
+- CPU 2s / メモリ 256MB / Wall clock 150〜400s といった制限値があり、Service Role Key の扱いと JWT 検証の有無は設計時に必ず決めておく必要がある。
+
+## Supabase の Edge Functions とは
+
+Supabase Edge Functions は「Globally distributed TypeScript functions」と公式に定義されており、ユーザーに近いエッジロケーションで実行されるサーバーサイド関数である。ランタイムには Deno が採用されており、その理由として公式ドキュメントは以下を挙げている。
+
+- オープンソースであること
+- ポータブルでありローカルや自己ホスト環境でも動作すること
+- TypeScript ファーストかつ WASM をサポートすること
+
+リクエストは「エッジゲートウェイでルーティング → 認証・ポリシー適用 → エッジランタイムで実行 → レスポンス返却」という流れで処理される。Postgres、Storage、Auth API へ同一プロジェクト内から直接アクセスでき、ダッシュボードからログを監視できる点も特徴である。
+
+想定ユースケースとしては、低レイテンシーが求められる HTTP エンドポイント、Webhook 受信、Open Graph 画像生成、AI 推論、メール送信、チャットボットなどが挙げられている。
+
+## 何が解説されているか
+
+公式ドキュメントの Functions セクションでは、以下のトピックが順を追って整理されている。
+
+- **Quickstart**: `supabase init` から `supabase functions deploy` までの最短経路。
+- **Local Development**: Deno CLI / VSCode 拡張のセットアップ、`supabase functions serve` によるホットリロード。
+- **Deploy**: 個別デプロイ・一括デプロイ、`config.toml` での `verify_jwt` 設定、CI/CD 連携。
+- **Secrets Management**: `Deno.env.get` での参照、`supabase secrets set` による本番反映。
+- **Logging**: ダッシュボードでの Invocations / Logs ビュー、`console.log` のサイズ制限。
+- **Background Tasks**: `EdgeRuntime.waitUntil` による非同期処理の継続。
+- **Routing**: Hono による `basePath` 前提のルーティング設計。
+- **AI Models**: `Supabase.ai.Session` での埋め込み生成・テキスト生成。
+- **Scheduled Functions**: `pg_cron` + `pg_net` + Vault による定期実行。
+- **Limits**: CPU・メモリ・Wall clock・ログ・シークレットサイズの上限値。
+
+## 使い方
+
+### 1. 関数雛形の作成
+
+```bash
+supabase init
+supabase functions new hello-world
+```
+
+`supabase/functions/hello-world/index.ts` に Deno ベースの雛形が生成される。デフォルトでは JSON ペイロードを受け取り、グリーティングメッセージを返す最小構成である。
+
+### 2. Deno + Hono による API 実装
+
+複数エンドポイントを一つの関数にまとめる場合は Hono を使う。Edge Functions では「パスを関数名でプレフィックスする必要がある」ため、`basePath` の指定が必須である。
+
+```ts
+// supabase/functions/tasks/index.ts
+import { Hono } from 'jsr:@hono/hono'
+
+const functionName = 'tasks'
+const app = new Hono().basePath(`/${functionName}`)
+
+app.get('/:id', (c) => {
+  const id = c.req.param('id')
+  return c.json({ id, status: 'ok' })
+})
+
+app.patch('/:id', async (c) => {
+  const id = c.req.param('id')
+  const body = await c.req.json()
+  return c.json({ id, updated: body })
+})
+
+app.delete('/:id', (c) => {
+  const id = c.req.param('id')
+  return c.json({ id, deleted: true })
+})
+
+Deno.serve(app.fetch)
+```
+
+複数アクションを 1 つの関数にまとめることで、コールドスタートを抑えながらウォームインスタンスを維持しやすくなる。
+
+### 3. ローカル開発
+
+```bash
+supabase start
+supabase functions serve hello-world --env-file .env.local
+```
+
+関数は `http://localhost:54321/functions/v1/[function-name]` で起動する。ファイル保存でホットリロードされ、`console.log` の出力はターミナルに直接表示される。
+
+### 4. シークレット注入
+
+ローカルでは `supabase/functions/.env` または `--env-file` で渡したファイルが自動ロードされる。本番には CLI 経由で反映する。
+
+```bash
+supabase secrets set --env-file .env
+# または個別設定
+supabase secrets set OPENAI_API_KEY=sk-xxxx
+```
+
+関数側からは Deno 標準の API で参照する。
+
+```ts
+const apiKey = Deno.env.get('OPENAI_API_KEY')
+```
+
+`SUPABASE_URL` / `SUPABASE_DB_URL` / API キー類はデフォルトで注入される。シークレット更新後は再デプロイ不要で即時反映される。
+
+### 5. デプロイ
+
+```bash
+supabase login
+supabase link --project-ref <PROJECT_ID>
+supabase functions deploy hello-world
+```
+
+引数なしの `supabase functions deploy` で全関数を一括デプロイできる。JWT 検証や import map などの挙動は `supabase/config.toml` で関数単位に固定する。
+
+```toml
+[functions.hello-world]
+verify_jwt = false
+```
+
+デプロイ後は `https://<PROJECT_ID>.supabase.co/functions/v1/hello-world` から呼び出せる。
+
+### 6. Service Role を使った Database 呼び出し
+
+サーバー側でしか使えない Service Role Key を `Deno.env.get` で取得し、`supabase-js` を経由して RLS をバイパスして処理する。
+
+```ts
+import { createClient } from 'jsr:@supabase/supabase-js@2'
+
+Deno.serve(async (req) => {
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+  )
+
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, total')
+    .limit(10)
+
+  if (error) return new Response(error.message, { status: 500 })
+  return Response.json(data)
+})
+```
+
+Service Role Key はブラウザに絶対に出さないという原則を守る。
+
+### 7. Background Task（EdgeRuntime.waitUntil）
+
+レスポンスを返した後にも処理を継続したい場合は `EdgeRuntime.waitUntil` を使う。リクエストハンドラはブロックされず、Promise が解決するまで関数インスタンスが維持される。
+
+```ts
+async function sendAnalytics(payload: unknown) {
+  try {
+    await fetch('https://example.com/collect', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  } catch (err) {
+    console.error('analytics failed', err)
+  }
+}
+
+Deno.serve(async (req) => {
+  const body = await req.json()
+  EdgeRuntime.waitUntil(sendAnalytics(body))
+  return new Response('accepted', { status: 202 })
+})
+
+addEventListener('beforeunload', (ev) => {
+  console.log('function shutting down', ev)
+})
+```
+
+ローカル検証では `supabase/config.toml` の `[edge_runtime]` で `policy = "per_worker"` を指定し、バックグラウンドタスク完了前にワーカーが落ちないようにする。
+
+### 8. スケジュール実行（pg_cron + Edge Function）
+
+`pg_cron` で SQL を定期実行し、`pg_net` で Edge Function へ HTTP POST する。認証情報は Supabase Vault に保存する。
+
+```sql
+-- 認証情報を Vault に保存
+select vault.create_secret('https://<project-ref>.supabase.co', 'project_url');
+select vault.create_secret('<SUPABASE_PUBLISHABLE_KEY>', 'publishable_key');
+
+-- 毎分 Edge Function を呼び出す
+select cron.schedule(
+  'invoke-nightly-job',
+  '* * * * *',
+  $$
+  select net.http_post(
+    url := (select decrypted_secret from vault.decrypted_secrets where name = 'project_url') || '/functions/v1/nightly-job',
+    headers := jsonb_build_object(
+      'Authorization',
+      'Bearer ' || (select decrypted_secret from vault.decrypted_secrets where name = 'publishable_key'),
+      'Content-Type', 'application/json'
+    ),
+    body := '{}'::jsonb
+  );
+  $$
+);
+```
+
+### 9. AI モデル呼び出し
+
+`Supabase.ai.Session` を使うと、外部 API なしで埋め込み生成や軽量推論が可能である。`gte-small` は英語テキスト専用である点に注意する。
+
+```ts
+const model = new Supabase.ai.Session('gte-small')
+
+Deno.serve(async (req: Request) => {
+  const params = new URL(req.url).searchParams
+  const input = params.get('input') ?? ''
+  const output = await model.run(input, { mean_pool: true, normalize: true })
+  return new Response(JSON.stringify(output), {
+    headers: {
+      'Content-Type': 'application/json',
+      Connection: 'keep-alive',
+    },
+  })
+})
+```
+
+## 注意点・セキュリティ観点
+
+- **実行時間・リソース制限**: 1 リクエストあたりの CPU 時間は 2s、メモリは 256MB が上限である。Wall clock は無料プラン 150s、有料プラン 400s で、リクエストアイドルタイムアウトは 150s（504 Gateway Timeout を返す）である。重い処理は Background Tasks やキュー越しのワーカーへ分離する。
+- **関数サイズとログ制限**: バンドル後の関数サイズは 20MB、シークレットは 48 KiB、ログは 1 メッセージ 10,000 文字・10 秒間に 100 イベントまでという制限がある。大きな依存はバンドルから除外する設計にする。
+- **コールドスタート**: 関数を分割しすぎると初回呼び出しのレイテンシが悪化する。Hono などで複数アクションを 1 関数に集約することで、ウォームインスタンスを共有しやすくなる。
+- **Service Role Key の扱い**: Secret keys は「NEVER be used in a browser」と明記されている。クライアントには publishable key、サーバー側関数では Service Role Key と用途を厳密に分ける。
+- **JWT 検証 on/off**: `verify_jwt = false` を設定すると外部 Webhook を受けやすくなる反面、誰でも呼べる公開エンドポイントになる。Webhook 受信用関数では署名検証を必ず自前で実装する。
+- **CORS**: ブラウザから直接呼ぶ場合、`OPTIONS` を含む CORS ヘッダーを関数側で明示的に返す必要がある。共有処理は `supabase/functions/_shared` に切り出して使い回すのが定石である。
+- **ローカルと本番の挙動差**: ローカルは `.env` 自動ロード・単一ワーカーで動作するため、Background Tasks の挙動は `policy = "per_worker"` の設定有無で変わる。シークレットはローカルファイルと本番（`supabase secrets set`）の二重管理になる点に注意する。
+- **Deno と Node.js の差異**: モジュール解決は `npm:` / `jsr:` / URL import で、`package.json` は使わない。`process.env` ではなく `Deno.env.get` を使い、Node 専用 API（`fs`、`net` など）は基本的に避ける。
+- **ログの落とし穴**: `JSON.stringify(req.headers)` は空オブジェクトになる。`Object.fromEntries(req.headers)` で変換してからログ出力する。
+
+## 一次ソース（原文）
+
+- Edge Functions 概要: https://supabase.com/docs/guides/functions
+- Quickstart: https://supabase.com/docs/guides/functions/quickstart
+- Local Development: https://supabase.com/docs/guides/functions/development-environment
+- Deploy: https://supabase.com/docs/guides/functions/deploy
+- Secrets Management: https://supabase.com/docs/guides/functions/secrets
+- Logging: https://supabase.com/docs/guides/functions/logging
+- Background Tasks: https://supabase.com/docs/guides/functions/background-tasks
+- Routing: https://supabase.com/docs/guides/functions/routing
+- AI Models: https://supabase.com/docs/guides/functions/ai-models
+- Scheduled Functions: https://supabase.com/docs/guides/functions/schedule-functions
+- Limits: https://supabase.com/docs/guides/functions/limits

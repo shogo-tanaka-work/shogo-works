@@ -1,0 +1,226 @@
+---
+title: "Supabase 安全に使える領域マップ — 機能 × 安全度 × 注意点"
+description: "Supabase の各機能を「標準で安全 / 要設定 / プラン依存 / 避けるべき」の 4 段階で分類し、エンタープライズ採用判断・プロダクト適用判断に使える俯瞰マップとして整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 34
+---
+
+## この章の要点
+
+- Supabase の各機能を「標準で安全」「要設定で安全」「プラン依存」「避けるべきパターン」の 4 段階で評価する
+- 本シリーズで一番先に読むべきリファレンス章。判断軸として何度も戻ってくる前提で書いてある
+- コンプライアンス（SOC 2 / ISO 27001 / HIPAA / PCI DSS / GDPR）取得済を前提とし、その上で **自社実装側で守る範囲** を可視化する
+- 「Free/Pro/Team/Enterprise」プランで解放される機能を採用判断軸として明示
+- マトリクスは 2026-05-08 時点の公式ドキュメントを基にする。アップデート頻度が高いので、本番採用前は必ず一次ソース URL で再確認すること
+
+## なぜこのマップが必要か
+
+Supabase は「すぐ動く」のと「本番で安全に運用できる」の間にギャップがある。anon key を公開して動くデモが書けるのは、裏で Row Level Security が機能しているからで、RLS の設計を間違えれば一発でデータ流出する。
+
+クラウド側で SOC 2 / ISO 27001 を取得していても、それは Supabase 自身の運用に対する認証で、自社アプリのデータが安全に保たれることを保証するわけではない。**責任分界線をプロダクト設計の最初で明確にしないと、後から取り返しがつかない**。
+
+このマップは、各機能の安全度評価を 1 ページで俯瞰できる形にしたもの。各セルの詳細は本シリーズの該当章を参照してほしい。
+
+## 安全度の 4 段階定義
+
+| 段階 | 意味 |
+|---|---|
+| 🟢 標準で安全 | デフォルト設定で本番運用に耐える。設定漏れリスクが低い |
+| 🟡 要設定 | 適切に設定すれば安全。設定漏れがそのまま脆弱性になる |
+| 🔵 プラン依存 | 機能自体が有料プランで解放される。Free/Pro では使えないか機能制限あり |
+| 🔴 避けるべき | 設計や運用上、避けるべきパターン |
+
+## 機能別マトリクス
+
+### Database（Postgres コア）
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| データの暗号化（保存時） | 🟢 | AES-256、Supabase 側で標準提供 |
+| TLS 通信 | 🟢 | デフォルト有効 |
+| SSL Enforcement（接続強制） | 🟡 | 設定 ON にしないと non-SSL 接続が許可される |
+| Row Level Security | 🟡 | テーブルごとに ENABLE 必須。ポリシーがないと全拒否（= 安全） |
+| Connection Pooling（Supavisor） | 🟢 | デフォルト推奨経路。Transaction mode の制約あり |
+| 直接接続（5432） | 🟡 | Network Restrictions でアクセス元を絞ること |
+| Backup（毎日自動） | 🟢 | Free 含め全プランで提供 |
+| PITR（Point-in-Time Recovery） | 🔵 | Pro 以上の有料アドオン |
+| Read Replicas | 🔵 | Team 以上 |
+| 拡張機能（pg_cron / pgvector / pgmq 等） | 🟢 | 公式サポート拡張のみ有効化可 |
+| 任意の C 拡張をロード | 🔴 | 不可。マネージド環境の制約 |
+
+### Auth
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| Email/Password | 🟡 | Email Confirmation を有効にすること、パスワードポリシー設定必須 |
+| OAuth Social Login | 🟢 | 各プロバイダの client_id/secret 管理に注意 |
+| Magic Link | 🟡 | Email 到達性とリンク有効期限の設計 |
+| MFA（TOTP / WebAuthn） | 🟢 | 有効化してアプリ側で AAL2 を要求するのが本筋 |
+| SSO（SAML） | 🔵 | Team / Enterprise プラン |
+| Phone（SMS）OTP | 🟡 | SIM swap リスクと SMS コストを評価 |
+| Refresh Token Rotation | 🟢 | デフォルト有効 |
+| PKCE Flow | 🟢 | SPA / モバイルでは PKCE 必須（Implicit より安全） |
+| anon key の公開 | 🟢 | 前提として安全。RLS が機能している限り |
+| service_role key | 🔴 | 絶対にクライアントに置かない。サーバーサイドのみ |
+| Auth Hooks（Custom JWT Claims） | 🟡 | ポリシーロジックを JWT 側に寄せられるが SQL の脆弱性に注意 |
+| Leaked Password Protection | 🟡 | 有効化推奨（HaveIBeenPwned 連携） |
+| Rate Limit / CAPTCHA | 🟡 | デフォルトで一定の保護はあるが、要件に合わせて調整 |
+
+### Storage
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| Public bucket | 🔴 | 安易に Public にすると全ファイル公開。基本は Private + 署名付き URL |
+| Private bucket + RLS | 🟡 | `storage.objects` テーブルへの RLS ポリシー設計必須 |
+| 署名付き URL | 🟢 | 有効期限を必ず短くする |
+| Image Transformations | 🔵 | Pro 以上の有料機能 |
+| Resumable Upload（TUS） | 🟢 | 大容量ファイル向け、認証込みで使える |
+| S3 互換 API | 🟢 | サードパーティクライアントから利用可 |
+| CDN 配信 | 🟢 | 標準で組み込み |
+
+### Realtime
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| Postgres Changes | 🟡 | publication 設定 + Realtime Authorization で channel access を制御 |
+| Broadcast | 🟡 | Private channel + RLS-style 認可が必須。Public channel は誰でも join 可 |
+| Presence | 🟡 | クライアントが申告する状態のため信頼境界に注意 |
+| 同時接続数 | 🔵 | Free は制限厳しめ、Team 以上で大幅緩和 |
+
+### Edge Functions
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| Deno ランタイム | 🟢 | サンドボックス、TLS 標準 |
+| シークレット管理 | 🟢 | `supabase secrets set` で環境変数注入 |
+| JWT 検証（verify_jwt: true） | 🟢 | デフォルト有効。Anon 用エンドポイントは明示的に false |
+| service_role 経由の DB 操作 | 🟡 | 検証済み入力のみ受け付ける設計 |
+| グローバル CDN 実行 | 🟢 | 標準 |
+| Cold Start | 🟡 | レスポンス時間要件があるなら計測必須 |
+| CPU / Memory / Wall clock 制限 | 🔵 | プランによる |
+
+### Data API（REST / GraphQL）
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| RLS が ON のテーブル | 🟢 | API 経由でも RLS が効く |
+| RLS が OFF のテーブル | 🔴 | anon でも丸見え。API 公開前に必ず RLS ON |
+| Custom Schema を expose | 🟡 | exposed schemas 設定漏れに注意 |
+| GraphQL（pg_graphql） | 🟡 | 同上、RLS が前提 |
+| OpenAPI 自動ドキュメント | 🟢 | 開発用途で有用 |
+
+### AI & Vectors
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| pgvector 拡張 | 🟢 | 標準で利用可 |
+| HNSW / IVFFlat インデックス | 🟢 | 行数とメモリ要件に応じて選択 |
+| 埋め込みデータの RLS | 🟡 | vector 列も通常列と同様に RLS で守ること |
+| Hybrid Search | 🟡 | tsvector 側のメンテに注意 |
+| Automatic Embeddings | 🟡 | Webhook + Edge Functions の連携。エラー時のリトライ設計が必要 |
+
+### Cron / Queues
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| pg_cron | 🟡 | UTC 固定、誤った schedule の暴走に注意 |
+| pgmq（Queue） | 🟡 | visibility timeout の設計、メッセージサイズ上限 |
+| Edge Function を pg_net で呼び出し | 🟡 | Service Role キーの取り扱いに注意 |
+
+## ネットワーク・運用観点のマトリクス
+
+| 項目 | 安全度 | 注意点 |
+|---|---|---|
+| Network Restrictions（IP allowlist） | 🔵 | Pro 以上。Pooler / 直接接続両方を考慮 |
+| SSL Enforcement | 🟡 | 設定 ON 必須 |
+| Audit Logs | 🔵 | Team / Enterprise。リテンション制限あり |
+| Data Residency（リージョン選択） | 🟡 | プロジェクト作成時に決める。後から変更不可 |
+| Point-in-Time Recovery | 🔵 | Pro 以上アドオン |
+| Read Replicas | 🔵 | Team 以上 |
+| IPv4 専用アドレス | 🔵 | 有料アドオン |
+| Vault（暗号化キー保存） | 🟢 | pg_sodium ベース、key rotation の制約あり |
+
+## コンプライアンス対応マトリクス（2026-05-08 時点）
+
+| 認証 / 規制 | 状況 | 適用範囲 |
+|---|---|---|
+| SOC 2 Type II | ✅ 取得済 | Cloud プラットフォーム全体 |
+| ISO/IEC 27001:2022 | ✅ 取得済 | Cloud プラットフォーム全体 |
+| HIPAA | ✅ 対応可 | Team / Enterprise プランで BAA 締結 |
+| PCI DSS | ✅ 対応可 | 該当プロジェクト要件下で |
+| GDPR | ✅ DPA 提供 | EU 顧客向け |
+
+詳細は `30-security-compliance.mdx` を参照。
+
+## プラン別解放機能サマリー
+
+| 機能 | Free | Pro | Team | Enterprise |
+|---|---|---|---|---|
+| Daily Backup | ✅ | ✅ | ✅ | ✅ |
+| PITR | ❌ | アドオン | アドオン | ✅ |
+| Read Replicas | ❌ | ❌ | ✅ | ✅ |
+| Network Restrictions | ❌ | ✅ | ✅ | ✅ |
+| SSL Enforcement | ✅ | ✅ | ✅ | ✅ |
+| SSO（SAML） | ❌ | ❌ | ✅ | ✅ |
+| HIPAA BAA | ❌ | ❌ | ✅ | ✅ |
+| Audit Logs | ❌ | 制限付 | ✅ | ✅ |
+| Image Transformations | ❌ | ✅ | ✅ | ✅ |
+| Custom Domains | ❌ | ✅ | ✅ | ✅ |
+
+※ 厳密なプラン仕様は変動するので、本番採用前に必ず [Pricing ページ](https://supabase.com/pricing) で再確認すること。
+
+## 採用判断のチェックリスト
+
+プロダクトで Supabase を採用する前に、以下を確認するとよい。
+
+### 必須（最低限の安全性）
+
+- [ ] すべての公開テーブルで RLS を ENABLE しているか
+- [ ] anon key と service_role key の役割を分離しているか
+- [ ] service_role key がクライアント側コードに混入していないか
+- [ ] Email Confirmation を有効にしているか
+- [ ] Storage バケットを Public にしていないか（必要な場合のみ Public）
+- [ ] SSL Enforcement を ON にしているか
+
+### 強く推奨
+
+- [ ] MFA を有効化し、敏感操作で AAL2 を要求しているか
+- [ ] Leaked Password Protection を有効にしているか
+- [ ] Vault でアプリ側のシークレットを管理しているか
+- [ ] バックアップとリストア手順を一度試したか
+- [ ] Realtime を使う場合、Private channel + 認可を設定したか
+
+### 規模・要件に応じて
+
+- [ ] PITR を有効化（金融・医療・履歴重視のサービス）
+- [ ] Network Restrictions で接続元を絞り込み
+- [ ] Read Replicas で読み込み負荷を分散
+- [ ] SSO（SAML）で社内認証統合
+- [ ] HIPAA BAA を締結（医療データ扱う場合）
+- [ ] Audit Logs 監視体制を整備
+
+### 避けるべき
+
+- [ ] RLS なしで anon に公開するパターン
+- [ ] service_role key をクライアント JS に置く
+- [ ] Public bucket に機密ファイル
+- [ ] サポートされていない C 拡張の依存
+- [ ] Implicit flow（PKCE 使用すべき）
+
+## 一次ソース（原文）
+
+各セルの根拠は本シリーズの該当章で詳述している。
+
+- 第 30 章：[コンプライアンス](./30-security-compliance) — SOC 2 / ISO 27001 / HIPAA 等の取得状況
+- 第 31 章：[RLS 深掘り](./31-rls-deep-dive) — RLS の設計パターンと落とし穴
+- 第 32 章：[認証セキュリティ](./32-auth-security) — MFA / SSO / セッション管理
+- 第 33 章：[ネットワーク・データ保護](./33-network-data) — Network Restrictions / PITR / Vault
+
+公式ソース：
+
+- [Supabase Security トップ](https://supabase.com/security)
+- [Trust Center](https://trust.supabase.com/)
+- [Pricing](https://supabase.com/pricing)
+- [Shared Responsibility Model](https://supabase.com/docs/guides/security/shared-responsibility-model)
+- [Going into Production チェックリスト](https://supabase.com/docs/guides/platform/going-into-prod)

@@ -1,0 +1,215 @@
+---
+title: "Supabase AI & Vectors — pgvector で RAG・類似検索を実装する"
+description: "Supabase が提供する pgvector ベースの埋め込み・類似検索基盤、RAG 構築、HNSW/IVFFlat インデックス、自動埋め込み生成、AI モデル統合の要点を整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 26
+---
+
+## この章の要点
+
+- Supabase の AI & Vectors は、PostgreSQL 拡張 `pgvector` をそのままベクトルデータベースとして利用する構成である。専用のベクトル DB（Pinecone, Weaviate など）を別立てしなくても、既存の Postgres に埋め込みカラムを足すだけで RAG・類似検索を実装できる。
+- ベクトルカラム（`vector(N)`）に対し、HNSW か IVFFlat のインデックスを張ることで近似最近傍探索が高速化する。一般的には HNSW が推奨で、IVFFlat はデータが安定した後に作成する種類のインデックスである。
+- Hybrid Search（全文検索の `tsvector` + ベクトル検索 + RRF）、Automatic Embeddings（pgmq + pg_cron + Edge Functions による非同期埋め込み生成）、Edge Functions からの OpenAI / Hugging Face 連携など、Postgres の機能とサーバーレス層を組み合わせて RAG パイプライン全体が完結する。
+- 本番運用ではベクトル次元・行数・クエリ量に応じた Compute Add-on の選定と、`m` / `ef_construction` / `ef_search` / `lists` といったインデックスパラメータの調整、ウォームアップクエリによるキャッシュ温めが鍵となる。
+
+## Supabase の AI & Vectors とは
+
+Supabase は「最良のベクトルデータベースは、すでに自分が持っているデータベースである」というスタンスを取り、PostgreSQL と `pgvector` 拡張を中核に据えた AI アプリ開発スタックを提供している。アプリケーションのリレーショナルデータと埋め込みベクトルを同じ Postgres に同居させられるため、RLS・トランザクション・JOIN・全文検索といった既存資産をそのまま RAG に流用できるのが最大の特徴である。
+
+提供範囲は次のとおりである。
+
+- ベクトルの保存・インデックス・検索（`pgvector`）
+- 埋め込み生成のための Edge Functions ランタイム（OpenAI / Hugging Face / オープンソースモデル）
+- セマンティック検索・キーワード検索・Hybrid Search
+- 非構造データ向けの Python クライアント `vecs`
+- LangChain / LlamaIndex / OpenAI / Hugging Face などの主要 AI プロバイダーとの連携サンプル
+
+## 何が解説されているか
+
+公式 `Build in a weekend, scale to millions` 配下の AI ガイドは、おおむね次のテーマで構成されている。
+
+- **Quickstarts**：Hello World、ChatGPT プラグイン、Hugging Face 推論、画像検索などの最小サンプル。
+- **Vector Columns**：`vector(N)` カラムの作り方、insert、距離演算子（`<->` / `<#>` / `<=>`）。
+- **Vector Indexes**：HNSW と IVFFlat の比較。一般論としては HNSW が推奨される。
+- **HNSW Indexes / IVFFlat Indexes**：それぞれの構文・パラメータ・適用条件。
+- **Choosing Compute Add-on**：埋め込み次元・行数・QPS に応じた Compute サイズの選び方。
+- **Going to Production**：本番運用におけるインデックス選定、パラメータ調整、ウォームアップ戦略。
+- **Hybrid Search**：全文検索とベクトル検索の組み合わせ、RRF（Reciprocal Ranked Fusion）。
+- **Automatic Embeddings**：`pgmq` + `pg_cron` + Edge Functions による非同期埋め込みパイプライン。
+- **AI Models with Edge Functions**：Edge Functions 上で推論・埋め込みを行うパターン。
+- **Examples**：OpenAI 連携、Hugging Face 連携、RAG with Permissions（RLS との組み合わせ）など。
+
+## 使い方
+
+### 1. pgvector の有効化
+
+Supabase Dashboard の「Database → Extensions」から `vector` を有効化する。SQL でも有効化できる。
+
+```sql
+create extension if not exists vector with schema extensions;
+```
+
+### 2. ベクトルカラムを持つテーブル定義
+
+埋め込みモデルの出力次元（OpenAI `text-embedding-3-small` なら 1536、`all-MiniLM-L6-v2` なら 384 など）に揃える。
+
+```sql
+create table documents (
+  id          bigserial primary key,
+  title       text not null,
+  body        text not null,
+  embedding   extensions.vector(384)
+);
+```
+
+### 3. 埋め込みデータの挿入
+
+事前に生成した埋め込み配列を JS クライアントから挿入する例である。
+
+```ts
+const embedding = Array.from(output.data); // number[]
+
+const { data, error } = await supabase
+  .from('documents')
+  .insert({ title, body, embedding });
+```
+
+### 4. インデックス作成（HNSW）
+
+HNSW はテーブル作成直後に張っても安全で、データ追加・更新に対して堅牢である。距離演算子に応じて opclass を切り替える。
+
+```sql
+-- コサイン距離
+create index on documents using hnsw (embedding vector_cosine_ops);
+
+-- 内積（正規化済みベクトルなら最速）
+create index on documents using hnsw (embedding vector_ip_ops);
+
+-- ユークリッド距離（L2）
+create index on documents using hnsw (embedding vector_l2_ops);
+```
+
+`m`（各ノードの双方向リンク数、目安 12〜48）、`ef_construction`（構築時の探索幅、品質に効く）、`ef_search`（検索時の探索幅、精度と速度のトレードオフ）を `with (...)` や `set` で調整できる。pgvector 0.7.0 以降は `vector` で最大 2,000 次元、`halfvec` で最大 4,000 次元までインデックス化できる。
+
+### 5. インデックス作成（IVFFlat）
+
+IVFFlat はデータが十分に蓄積されてから作成するのが推奨される。`lists`（クラスタ数）と検索時の `ivfflat.probes` を調整する。
+
+```sql
+create index on documents using ivfflat (embedding vector_cosine_ops)
+  with (lists = 100);
+
+-- 検索時
+set ivfflat.probes = 10;
+```
+
+`lists` を増やすとクエリは速くなるが、再現率（recall）は下がる傾向がある。
+
+### 6. 類似検索クエリ
+
+距離演算子の選択がそのままインデックス利用条件にもなるため、テーブル設計時の opclass と一致させる。
+
+```sql
+-- コサイン距離で近い順に上位 5 件
+select id, title, 1 - (embedding <=> $1) as similarity
+from documents
+order by embedding <=> $1
+limit 5;
+```
+
+| 演算子 | 距離 |
+| --- | --- |
+| `<=>` | コサイン距離 |
+| `<#>` | 負の内積（小さい方が「近い」） |
+| `<->` | ユークリッド距離（L2） |
+
+### 7. Hybrid Search（全文検索 + ベクトル検索）
+
+`tsvector` と `vector` を同居させ、それぞれの結果を RRF で融合する。
+
+```sql
+alter table documents
+  add column fts tsvector
+  generated always as (to_tsvector('simple', body)) stored;
+
+create index on documents using gin (fts);
+create index on documents using hnsw (embedding vector_cosine_ops);
+```
+
+RRF のスコアは `1 / (k + rank)`（既定 `k = 50`）で計算し、キーワード側ランクとベクトル側ランクを足し合わせて並べ替える。これにより、明示的な単語一致と意味的な近さの両方を活かした検索ができる。
+
+### 8. Edge Functions から OpenAI で埋め込みを生成
+
+Edge Function で OpenAI Embeddings API を叩き、結果をそのまま Supabase に保存するパターンである。
+
+```ts
+// supabase/functions/embed/index.ts
+import OpenAI from 'npm:openai';
+import { createClient } from 'jsr:@supabase/supabase-js@2';
+
+const openai = new OpenAI({ apiKey: Deno.env.get('OPENAI_API_KEY')! });
+const supabase = createClient(
+  Deno.env.get('SUPABASE_URL')!,
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+);
+
+Deno.serve(async (req) => {
+  const { id, content } = await req.json();
+
+  const { data } = await openai.embeddings.create({
+    model: 'text-embedding-3-small',
+    input: content,
+  });
+
+  const embedding = data[0].embedding;
+
+  const { error } = await supabase
+    .from('documents')
+    .update({ embedding })
+    .eq('id', id);
+
+  if (error) return new Response(error.message, { status: 500 });
+  return new Response('ok');
+});
+```
+
+### 9. Automatic Embeddings（自動埋め込み生成）
+
+content の挿入・更新を検知して非同期に埋め込みを再生成するパイプラインを、Postgres と Edge Functions だけで組める。
+
+必要な拡張は `vector` / `pgmq` / `pg_net` / `pg_cron` / `hstore` の 5 つである。
+
+1. `pgmq` でキュー `embedding_jobs` を作成する。
+2. content テーブルに insert / update トリガーを張り、`util.queue_embeddings()` でジョブを enqueue する（特定列の更新時のみ発火させると無駄打ちが減る）。
+3. Edge Function `embed` が、キューからバッチ取り出し → OpenAI で埋め込み生成 → DB 反映を行う。
+4. `pg_cron` で `util.process_embeddings()` を 10 秒間隔などで実行し、Edge Function を起動する。
+5. プロジェクト URL とサービスロールキーは Vault に保存して呼び出す。
+
+`pgmq` の visibility timeout により失敗ジョブは自動的にリトライされるため、OpenAI 側の一時的な失敗にも耐える設計になる。
+
+## 注意点・セキュリティ観点
+
+- **インデックスの選び方**：HNSW は挿入・更新が頻発するワークロードでも安定し、テーブル作成直後でも安全に作れる。IVFFlat は十分なデータ件数が貯まってから作るべきで、データ分布が変わったら再構築が必要である。一般論としては HNSW を選び、特殊な事情がある場合のみ IVFFlat を検討する。
+- **次元の固定**：`vector(N)` は宣言時に次元を固定する。途中でモデルを変えて次元が変わる場合はカラム追加かテーブル分離が必要である。pgvector 0.7.0 以降は `vector` 最大 2,000 次元、`halfvec` 最大 4,000 次元までがインデックス対象になる。
+- **メモリ消費**：HNSW はグラフ構造をメモリに載せて性能を出すため、行数・次元数が増えると RAM を多く要求する。Compute Add-on のサイズ選定は、埋め込みの次元数（384 / 960 / 1536 など）が最重要のパラメータになる。
+- **`ef_search` / `probes` の調整**：HNSW は `ef_search`、IVFFlat は `ivfflat.probes` を上げるほど再現率が上がる代わりに遅くなる。SLA に合わせて両者のバランスを取る必要がある。
+- **WHERE 句のフィルタ**：HNSW は `WHERE` 句があってもインデックスをバイパスはしないが、選択的なフィルタを掛けると候補数が足りずに結果が少なくなることがある。テナント分離などのフィルタはインデックスのカバレッジと合わせて設計する。
+- **本番投入前のウォームアップ**：本番リリース直前に数千〜数万件のクエリを流してキャッシュを温めると、初動のレイテンシが安定する。公式も 10,000〜50,000 件規模のウォームアップを推奨している。
+- **RLS とベクトル列**：埋め込みは元コンテンツの情報を保持しているため、テナント別・ユーザー別アクセス制御を行う場合はベクトル列にも必ず RLS を適用する。RAG with Permissions のサンプルが参考になる。
+- **コスト**：大規模なベクトル検索は Compute Add-on（RAM 増強）が必要になりやすい。準備段階は余裕を持った Compute で計測し、安定運用フェーズでスケールダウンする運用が現実的である。
+- **pgvector のバージョン依存**：演算子・インデックス機能は `pgvector` のバージョンによって差がある（例：`halfvec`、`sparsevec`、各 opclass の有無）。Supabase 側のバージョンを確認したうえで構文を選定する。
+
+## 一次ソース（原文）
+
+- [AI & Vectors](https://supabase.com/docs/guides/ai)
+- [Hello World Quickstart](https://supabase.com/docs/guides/ai/quickstarts/hello-world)
+- [Vector Columns](https://supabase.com/docs/guides/ai/vector-columns)
+- [Vector Indexes](https://supabase.com/docs/guides/ai/vector-indexes)
+- [HNSW Indexes](https://supabase.com/docs/guides/ai/vector-indexes/hnsw-indexes)
+- [IVFFlat Indexes](https://supabase.com/docs/guides/ai/vector-indexes/ivf-indexes)
+- [Choosing Compute Add-on](https://supabase.com/docs/guides/ai/choosing-compute-addon)
+- [Going to Production](https://supabase.com/docs/guides/ai/going-to-prod)
+- [Hybrid Search](https://supabase.com/docs/guides/ai/hybrid-search)
+- [Automatic Embeddings](https://supabase.com/docs/guides/ai/automatic-embeddings)
+- [Examples: OpenAI](https://supabase.com/docs/guides/ai/examples/openai)
