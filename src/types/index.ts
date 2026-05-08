@@ -92,7 +92,8 @@ export type KnowledgeCategory =
   | "career"
   | "prompt-engineering"
   | "context-engineering"
-  | "harness-engineering";
+  | "harness-engineering"
+  | "ai-governance";
 
 export interface CategoryMeta {
   slug: KnowledgeCategory;
