@@ -1,0 +1,181 @@
+---
+title: "Supabase Launch Week 直近ダイジェスト — 何が出てきたかを時系列で押さえる"
+description: "Supabase が定期開催する Launch Week の直近 2〜3 年分の主要発表を時系列・カテゴリ別（Database / Auth / Storage / Realtime / Edge Functions / AI / Platform）に整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 40
+---
+
+## この章の要点
+
+直近の Launch Week（2023 年末〜2025 年）を振り返ると、Supabase の投資先は **AI 基盤・開発者体験・プラットフォーム化** の 3 軸に集中している。pgvector まわりの拡張（Automatic Embeddings、Vector Buckets）と MCP Server による AI エージェント連携は 2024〜2025 年を通じて継続的に強化された。開発者体験では Branching・Declarative Schemas・Postgres Language Server など「ローカル開発〜本番反映」のワークフロー全体が整備されつつある。プラットフォーム化の観点では Read Replicas・Dedicated Poolers・High Performance Disks・Compute 拡張など本番スケールへの対応が着実に追加されている。Auth では Third-party Auth（Clerk / Auth0 / Cognito / Firebase）の統合が進み、既存 Auth 基盤との共存パスが広がった。
+
+## Launch Week とは
+
+Supabase は年に複数回（概ね年 2〜3 回）**Launch Week** と呼ぶ発表イベントを開催する。1 週間（月〜金）の毎日午前 8 時 PT（太平洋時間）に新機能・新サービスを 1〜複数件ずつ公開し、公式ブログに詳細記事を掲載する形式をとる。期間中は並行して **Hackathon** も開催され、コミュニティのプロジェクトが集まる。全発表は週末に「Top 10 Launches」としてまとめ記事が公開される。
+
+イベント番号は通し番号（LWX、LW12〜）で管理されているが、2024 年 4 月には **GA Week**（General Availability 宣言）として特別版が開催された。2025 年以降は Launch Week 14（2025 年 3〜4 月）・Launch Week 15（2025 年 7 月）・December Launch（2025 年 12 月）が確認されている。
+
+## 直近の Launch Week 一覧（時系列）
+
+| 回 | 開催時期 | テーマ・特記 | 主要発表（抜粋） |
+|---|---|---|---|
+| **LWX** | 2023-12-11〜15 | 10 回目記念・Hackathon | Read Replicas、Supavisor 1.0、Branching（Preview）、Auth Hooks・Leaked Password Protection、Edge Functions Node/npm 対応、pg_graphql UDF サポート |
+| **GA Week** | 2024-04-15〜19 | General Availability 宣言 | GA 移行、Branching Public Beta、Index Advisor、Anonymous Sign-In、AI/ML in Edge Functions（Llama3/Mistral）、Security/Performance Advisor、Oriole チーム買収 |
+| **LW12** | 2024-08-12〜16 | | postgres.new（database.build）、Postgres Wrappers with Wasm、Third-party Auth（Auth0/Cognito/Firebase）、Phone MFA（SMS/WhatsApp）、Realtime Broadcast/Presence Authorization、Log Drains、Python 公式サポート |
+| **LW13** | 2024-12-02〜06 | Mega Launch Week（20 社以上同時開催） | Supabase Cron、Supabase Queues、AI Assistant v2、Edge Functions（WebSocket・Background Tasks・Ephemeral Storage）、CLI v2（Config as Code）、High Performance Disks（最大 60 TB・100x 耐久性）、Oriole Beta 7 |
+| **LW14** | 2025-03-31〜04-04 | AI Builder 連携強化 | Supabase MCP Server、Automatic Embeddings、Realtime Broadcast from Database、Declarative Schemas、Data API → Nearest Read Replica ルーティング、Edge Functions Dashboard デプロイ + Deno 2.1、Postgres Language Server、Dedicated Poolers、Clerk Third-party Auth |
+| **LW15** | 2025-07-14〜18 | | New API Keys + JWT Signing Keys（非対称暗号）、Analytics Buckets（Apache Iceberg）、OpenTelemetry サポート、Edge Functions 97% 高速化 + Persistent Storage、Storage 500 GB Upload・格安 Egress、Branching 2.0（GitHub 不要）、Supabase UI Platform Kit、Stripe-to-Postgres Sync Library |
+| **Dec 2025** | 2025-12 | | Supabase ETL、Vector Buckets、OAuth2 プロバイダー（Sign in with Your App）、Auth Templates、AWS Marketplace 対応、Metrics API |
+
+> 注：LW11 は公式サイトで番号の記録が見当たらず（要追記）。GA Week は正式な LW 番号を持たない特別版として扱う。
+
+## カテゴリ別ハイライト
+
+### Database
+
+| 機能 | 発表時期 | 概要 |
+|---|---|---|
+| Read Replicas | LWX (2023-12) | 読み取り専用レプリカ。レイテンシ低減・プライマリ負荷分散 |
+| Data API → Nearest Read Replica | LW14 (2025-04) | PostgREST リクエストを最近傍 Read Replica へ自動ルーティング |
+| High Performance Disks | LW13 (2024-12) | 最大 60 TB、100x 耐久性向上、IOPS 拡張オプション |
+| Declarative Schemas | LW14 (2025-04) | `.sql` ファイルをスキーマ定義の単一ソースとして管理 |
+| Postgres Language Server | LW14 (2025-04) | LSP 実装（補完・型チェック・Lint）、VSCode 拡張 + npm パッケージ |
+| Supabase Cron | LW13 (2024-12) | Postgres ネイティブの定期タスクモジュール |
+| Supabase Queues | LW13 (2024-12) | Postgres ネイティブの耐久性メッセージキュー |
+| Oriole ストレージエンジン | GA Week (2024-04) + LW13 | 高速 Postgres ストレージエンジン。Beta 7 で性能ベンチマーク公開 |
+| Analytics Buckets（Apache Iceberg） | LW15 (2025-07) | 分析ワークロード向け Storage Bucket。Iceberg Wrapper でクエリ可能 |
+
+### Auth
+
+| 機能 | 発表時期 | 概要 |
+|---|---|---|
+| Anonymous Sign-In | GA Week (2024-04) | 未登録ユーザーの一時アカウント作成 |
+| Third-party Auth（Auth0/Cognito/Firebase） | LW12 (2024-08) | 外部 IdP をそのまま Supabase と連携（移行不要） |
+| Phone MFA（SMS/WhatsApp） | LW12 (2024-08) | 多要素認証の SMS・WhatsApp チャネル対応 |
+| Auth Hooks | LWX (2023-12) | 認証フローのカスタマイズ Hook |
+| Leaked Password Protection | LWX (2023-12) | Have I Been Pwned 統合でリークパスワードをブロック |
+| Identity Linking / Session Control | LWX (2023-12) | 複数 IdP のアカウント統合、セッション管理強化 |
+| Clerk Third-party Auth | LW14 (2025-04) | Clerk を Supabase Third-party Auth として接続 |
+| JWT Signing Keys（非対称暗号） | LW15 (2025-07) | EC / RSA による非対称 JWT 署名。プロジェクトごとに公開鍵管理 |
+| OAuth2 プロバイダー | Dec 2025 (2025-12) | 自社アプリを OAuth2 プロバイダーとして設定（Sign in with Your App） |
+
+### Storage
+
+| 機能 | 発表時期 | 概要 |
+|---|---|---|
+| 500 GB Upload サポート | LW15 (2025-07) | 単一ファイル最大 500 GB のアップロード |
+| Cached Egress 3x 値下げ | LW15 (2025-07) | キャッシュ Egress を $0.03/GB へ削減・Egress 枠を 2 倍 |
+| Persistent File Storage（Edge Functions） | LW15 (2025-07) | Edge Functions から S3 互換バケットをマウント |
+| Resumable Uploads | （要追記） | チャンク分割アップロード対応 |
+| Vector Buckets | Dec 2025 (2025-12) | AI 向け特化バケット。セマンティック検索・パーソナライゼーション用途 |
+| Image Transformations | （要追記） | オンザフライ画像変換 |
+
+### Realtime
+
+| 機能 | 発表時期 | 概要 |
+|---|---|---|
+| Broadcast & Presence Authorization | LW12 (2024-08) | RLS ポリシーでチャンネルへのアクセスを制御 |
+| Broadcast from Database | LW14 (2025-04) | DB トリガーから直接 Realtime Broadcast を送信。ペイロードの柔軟な制御が可能 |
+| Realtime Replay（alpha） | 2025-11 | イベントの再生機能（アルファ） |
+
+### Edge Functions
+
+| 機能 | 発表時期 | 概要 |
+|---|---|---|
+| Node / npm 互換 | LWX (2023-12) | npm モジュールを Edge Functions で直接インポート可能 |
+| Background Tasks / WebSockets / Ephemeral Storage | LW13 (2024-12) | レスポンス返却後も継続する非同期処理、WS 対応、一時ファイルストレージ |
+| CLI v2 Config as Code | LW13 (2024-12) | GitHub Actions などで設定をコード管理 |
+| Dashboard デプロイ + Deno 2.1 | LW14 (2025-04) | Dashboard から直接 Edge Functions を作成・編集・デプロイ |
+| 97% Boot 高速化 + Persistent Storage | LW15 (2025-07) | Deno 2 ベースで大幅高速化。S3 互換バケットを永続ストレージとしてマウント |
+
+### AI
+
+| 機能 | 発表時期 | 概要 |
+|---|---|---|
+| AI/ML in Edge Functions | GA Week (2024-04) | Llama3・Mistral など LLM をコールドスタートなしで実行 |
+| postgres.new / database.build v2 | LW12 (2024-08) / LW13 (2024-12) | ブラウザ内 Postgres + AI アシスタント。カスタム LLM・共同編集・pglite デプロイ対応 |
+| vec2pg | LW12 (2024-08) | Pinecone・Qdrant からのベクトルデータ移行 CLI |
+| AI Assistant v2 | LW13 (2024-12) | Dashboard AI 拡張。Postgres 関数から DB 全体作成まで対応 |
+| Automatic Embeddings | LW14 (2025-04) | DB トリガー + `pgmq` + `pg_cron` + `pg_net` でベクトル生成パイプラインを SQL 内完結 |
+| Supabase MCP Server | LW14 (2025-04) | Claude・Cursor 等の AI ツールから Supabase を操作（プロジェクト作成・SQL 実行等） |
+| Analytics Buckets with Iceberg | LW15 (2025-07) | 分析ワークロード向けバケット + Iceberg Wrapper（Private Alpha） |
+| OpenTelemetry サポート | LW15 (2025-07) | ログ・メトリクス・トレースを OTel 互換ツールへ送信 |
+| Supabase ETL | Dec 2025 (2025-12) | Postgres → 分析ツールへのワンクリック ETL |
+
+### Platform
+
+| 機能 | 発表時期 | 概要 |
+|---|---|---|
+| Supavisor 1.0 | LWX (2023-12) | Elixir ベースのクラウドネイティブ接続プーラー。全プロジェクトで pgbouncer を置換 |
+| Supabase Branching（Preview → Public Beta → 2.0） | LWX〜LW15 | PR ごとの独立 DB 環境。2.0 で GitHub 不要・Dashboard 完結のブランチ管理 |
+| Index / Security / Performance Advisor | GA Week (2024-04) | Dashboard 内でインデックス・セキュリティ・クエリ最適化の推奨を提示 |
+| Log Drains | LW12 (2024-08) | Datadog・Grafana Loki・Sentry 等への外部ログ転送 |
+| Dedicated Poolers | LW14 (2025-04) | pgBouncer が DB と同じロケーションで稼働。有料プラン向け |
+| Branching 2.0 | LW15 (2025-07) | Git 連携なしで Dashboard・CLI・Management API からブランチ作成・マージ可能 |
+| Supabase UI Library / Platform Kit | LW14 / LW15 | shadcn/ui ベースの公式コンポーネント。Auth・Storage・Realtime 連携済み |
+| Multigres Operator（OSS） | 2026-04 | Kubernetes オペレーター。ゼロダウンタイムアップグレード・pgBackRest PITR・OTel トレース |
+| OpenAPI デフォルト非公開 | 2026-04 | 新規プロジェクトで public スキーマが Data API / GraphQL API に非公開（デフォルト変更） |
+| AWS Marketplace 対応 | Dec 2025 (2025-12) | AWS Marketplace から Supabase を購入・利用可能 |
+
+## 採用判断への影響
+
+**コンプライアンス対応の進展**
+
+- **SOC 2 Type 2** は 2023 年 5 月 22 日付で取得済み（発表：2023-08-11）。年次監査を継続している。
+- **HIPAA** も同時に対応完了。有料 Add-on を有効化し BAA を締結することで PHI（保護医療情報）を扱える。以前は医療系 SaaS での採用が難しかったが、2023 年以降は選択肢に入れやすくなった。
+- ISO/IEC 27001:2022 は 2026 年に取得（May 2026 Developer Update で発表）。
+
+**Branching が本番ワークフローで使えるレベルに**
+
+- LWX（2023-12）でプレビュー → GA Week（2024-04）でパブリックベータ → LW15（2025-07）で **Branching 2.0**（GitHub 不要）と段階的に進化。CI/CD 連携が必須だったフェーズを経て、現在はダッシュボード単体で「PR 的なレビュー→マージ」が完結する。
+
+**AI ワークロードのバックエンドとして Supabase が選ばれやすくなった**
+
+- pgvector・Automatic Embeddings・Vector Buckets・MCP Server の組み合わせにより、「Supabase だけでベクトル検索 RAG を完結させる」構成が現実的になった。LW14 で Supabase が公式に「AI Builder のデフォルトバックエンドになる」と宣言しており、今後も強化が続くと見られる。
+
+**サードパーティ Auth の統合パスが充実**
+
+- Auth0・Cognito・Firebase・Clerk を既存のまま使いながら Supabase の DB・Storage・Realtime だけを採用する構成が公式にサポートされた（LW12〜LW14）。「Auth は移行できないが Supabase の他機能は使いたい」ケースへの回答が明確になった。
+
+**スケール対応の強化**
+
+- Read Replicas（LWX）・High Performance Disks（LW13）・Dedicated Poolers（LW14）・Analytics Buckets（LW15）と、エンタープライズ規模のワークロードに対応する機能が毎回追加されている。2025 年 10 月に Series E で $5B 評価額（Accel・Peak XV 主導）を達成しており、資金面での継続的な開発基盤も確認できる。
+
+## 一次ソース（原文）
+
+以下のリンクはすべて本稿作成時（2026-05-08）に確認した公式記事である。
+
+**Launch Week ダイジェスト**
+
+- [Blog | Launch week タグ一覧](https://supabase.com/blog/tags/launch-week)
+- [Top 10 Launches of LWX（2023-12）](https://supabase.com/blog/launch-week-x-best-launches)
+- [Top 10 Launches of Launch Week 12（2024-08）](https://supabase.com/blog/launch-week-12-top-10)
+- [Top 10 Launches of Launch Week 13（2024-12）](https://supabase.com/blog/launch-week-13-top-10)
+- [Top 10 Launches of Launch Week 14（2025-04）](https://supabase.com/blog/launch-week-14-top-10)
+- [Top 10 Launches of Launch Week 15（2025-07）](https://supabase.com/blog/launch-week-15-top-10)
+- [Supabase GA（General Availability）](https://supabase.com/ga)
+
+**個別発表記事**
+
+- [Automatic Embeddings in Postgres（LW14）](https://supabase.com/blog/automatic-embeddings)
+- [Realtime Broadcast from Database（LW14）](https://supabase.com/blog/realtime-broadcast-from-database)
+- [Declarative Schemas（LW14）](https://supabase.com/blog/declarative-schemas)
+- [Supabase MCP Server（LW14）](https://supabase.com/blog/mcp-server)
+- [Edge Functions: Dashboard Deploy + Deno 2.1（LW14）](https://supabase.com/blog/supabase-edge-functions-deploy-dashboard-deno-2-1)
+- [Postgres Language Server（LW14）](https://supabase.com/blog/postgres-language-server)
+- [Branching 2.0（LW15）](https://supabase.com/blog/branching-2-0)
+- [JWT Signing Keys（LW15）](https://supabase.com/blog/jwt-signing-keys)
+- [Analytics Buckets with Iceberg（LW15）](https://supabase.com/blog/analytics-buckets)
+- [Persistent Storage + 97% Faster Edge Functions（LW15）](https://supabase.com/blog/persistent-storage-for-faster-edge-functions)
+- [Storage 500 GB Uploads & Cheaper Egress（LW15）](https://supabase.com/blog/storage-500gb-uploads-cheaper-egress-pricing)
+- [New Observability Features（LW15）](https://supabase.com/blog/new-observability-features-in-supabase)
+- [OAuth2 Provider（Dec 2025）](https://supabase.com/blog/oauth2-provider)
+- [Supabase is now HIPAA and SOC2 Type 2 compliant](https://supabase.com/blog/supabase-soc2-hipaa)
+
+**月次アップデート・その他**
+
+- [Supabase Wrapped 2025](https://supabase.com/wrapped)
+- [Developer Update - March 2026](https://github.com/orgs/supabase/discussions/43465)
+- [Developer Update - April 2026](https://supabase.com/changelog/44713-developer-update-april-2026)
+- [Changelog](https://supabase.com/changelog)

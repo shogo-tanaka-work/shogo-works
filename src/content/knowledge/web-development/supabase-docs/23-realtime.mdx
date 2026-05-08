@@ -1,0 +1,205 @@
+---
+title: "Supabase Realtime — Postgres Changes・Broadcast・Presence の使い分け"
+description: "Supabase Realtime が提供する 3 つの機能（Postgres Changes / Broadcast / Presence）の違いと使い分け、Channels API、認可、スケールに関する実務知見を整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 23
+---
+
+## この章の要点
+
+- Supabase Realtime は Phoenix Channels をベースとした WebSocket サーバーであり、グローバルに分散した Elixir クラスタで稼働する。
+- 提供されるモードは **Postgres Changes**（DB 変更の購読）、**Broadcast**（クライアント間メッセージング）、**Presence**（接続ユーザー状態の共有）の 3 種類である。
+- スケールが必要な場面では Postgres Changes ではなく、Postgres トリガー経由の Broadcast を採用するのが公式推奨である。
+- Private channels は `realtime.messages` への RLS ポリシーで認可を制御する。クライアント側では `private: true` の指定が必須である。
+- Free プランでは同時接続 200、毎秒メッセージ 100 という制約がある。プランごとに上限が定義されているため事前に把握する必要がある。
+
+## Supabase の Realtime とは
+
+Supabase Realtime は、クライアント間でリアルタイムにメッセージを送受信するためのサービスである。実体としてはグローバルに分散された Elixir クラスタで動作しており、Phoenix Channels と Erlang VM の軽量プロセスモデルにより、数百万規模の同時接続を捌ける設計である。
+
+クライアントは WebSocket 経由でクラスタ内の任意のノードに接続し、**チャネル（Channel）** と呼ばれる論理的な通信路に参加する。チャネルはトピック名と公開／非公開フラグによって識別される。
+
+提供されるモードは次の 3 種類である。
+
+| モード | 役割 | 典型的な用途 |
+| --- | --- | --- |
+| Postgres Changes | Postgres の論理レプリケーションを購読し、INSERT/UPDATE/DELETE をリアルタイム配信する | データ同期、シンプルなライブビュー |
+| Broadcast | クライアント間で低遅延にメッセージを送り合う | チャット、カーソル位置共有、ゲームイベント |
+| Presence | 接続中ユーザーの状態を全クライアントに同期する | オンライン一覧、共同編集の参加者表示 |
+
+Postgres Changes はサーバー側で論理レプリケーションスロットを保持し、WAL レコードをサブスクリプション ID 付きでクライアントへ配信する。Broadcast と Presence は基本的に Postgres を介さず、Phoenix Channels の PubSub 上で動作する。
+
+## 何が解説されているか
+
+公式ドキュメントの Realtime セクションは以下のページで構成されている。
+
+- **Concepts**：Channels、トピック、イベント、ペイロード、公開／非公開チャネルの定義。
+- **Architecture**：Elixir クラスタ、Phoenix Channels、論理レプリケーションの仕組み。
+- **Postgres Changes**：DB 変更の購読方法、publication 設定、フィルタ。
+- **Broadcast**：クライアント間メッセージング、REST API・クライアントライブラリ・データベース経由の 3 通りの送信方法。
+- **Presence**：sync / join / leave イベントによる状態同期。
+- **Authorization**：`realtime.messages` テーブルの RLS による認可制御。
+- **Subscribing to Database Changes**：Broadcast vs Postgres Changes の使い分けガイド。
+- **Quotas**：プランごとの同時接続、毎秒メッセージ、チャネル参加レートの上限。
+
+## 使い方
+
+### Channels API の基本
+
+Channel はクライアント側で `supabase.channel(topic)` により生成し、`.on(...)` でリスナーを登録した後 `.subscribe()` で接続を開始する。解除には `unsubscribe()` を呼ぶ。
+
+```ts
+const channel = supabase.channel('room-1')
+  .on('broadcast', { event: 'msg' }, (payload) => console.log(payload))
+  .subscribe((status) => {
+    if (status === 'SUBSCRIBED') console.log('joined')
+  })
+
+// 終了時
+await channel.unsubscribe()
+```
+
+### Postgres Changes：DB 変更のフック
+
+該当テーブルを `supabase_realtime` publication に追加する必要がある。
+
+```sql
+alter publication supabase_realtime add table todos;
+```
+
+クライアント側で INSERT/UPDATE/DELETE を購読する。
+
+```ts
+const channel = supabase
+  .channel('table-db-changes')
+  .on(
+    'postgres_changes',
+    { event: '*', schema: 'public', table: 'todos' },
+    (payload) => console.log(payload),
+  )
+  .subscribe()
+```
+
+`event` には `INSERT`・`UPDATE`・`DELETE`・`*` が指定できる。`filter` には `eq` / `neq` / `lt` / `lte` / `gt` / `gte` / `in` が利用可能である。
+
+```ts
+.on(
+  'postgres_changes',
+  { event: 'INSERT', schema: 'public', table: 'todos', filter: 'user_id=eq.42' },
+  (payload) => console.log(payload),
+)
+```
+
+### Broadcast：低遅延メッセージング
+
+チャットやカーソル共有のような、永続化が不要な瞬時の伝搬に用いる。
+
+```ts
+const channel = supabase.channel('chat-room')
+  .on('broadcast', { event: 'shout' }, ({ payload }) => {
+    console.log('received', payload)
+  })
+  .subscribe()
+
+await channel.send({
+  type: 'broadcast',
+  event: 'shout',
+  payload: { message: 'Hi' },
+})
+```
+
+デフォルトでは送信者自身は自分のメッセージを受け取らない。受け取りたい場合は `config.broadcast.self: true` を指定する。データベース経由で Broadcast を送る場合は次の SQL を用いる。
+
+```sql
+select realtime.send(
+  jsonb_build_object('hello', 'world'),
+  'event',
+  'topic',
+  false  -- private flag
+);
+```
+
+データベース経由で送信されたメッセージは `realtime.messages` に蓄積され、3 日後に自動削除される。Private channel では `since` タイムスタンプを指定することで Broadcast Replay も可能である。
+
+### Presence：オンラインユーザー一覧
+
+接続クライアントごとに小さな状態（presence payload）を共有し、参加者全員でその統合ビューを保持する。
+
+```ts
+const room = supabase.channel('room_01', {
+  config: { presence: { key: 'user-123' } },
+})
+
+room
+  .on('presence', { event: 'sync' }, () => {
+    console.log('state', room.presenceState())
+  })
+  .on('presence', { event: 'join' }, ({ newPresences }) => {
+    console.log('join', newPresences)
+  })
+  .on('presence', { event: 'leave' }, ({ leftPresences }) => {
+    console.log('leave', leftPresences)
+  })
+  .subscribe(async (status) => {
+    if (status !== 'SUBSCRIBED') return
+    await room.track({ user: 'user-123', online_at: new Date().toISOString() })
+  })
+```
+
+`presence.key` を指定しない場合、サーバー側で UUIDv1 が自動採番される。同一ユーザーがマルチタブで接続するケースを考慮し、ユーザー単位で集約したいときはキーを明示するのが定石である。
+
+### Realtime Authorization（RLS で channel access を制御）
+
+Private channel を使うには次の 2 ステップが必要である。
+
+1. `realtime.messages` テーブルに対する RLS ポリシーを作成する。
+2. クライアント側で `private: true` を指定する。
+
+```sql
+-- 例：チームメンバーのみが特定 topic を購読・送信できる
+create policy "team members can read"
+on realtime.messages
+for select
+to authenticated
+using (
+  exists (
+    select 1 from team_members
+    where user_id = auth.uid()
+      and team_id::text = (realtime.topic())
+  )
+);
+```
+
+```ts
+const channel = supabase.channel('team-42', {
+  config: { private: true },
+})
+```
+
+ポリシー評価には Auth JWT のユーザー情報、リクエストヘッダー、接続先トピックが用いられる。評価結果は接続中キャッシュされ、新しい JWT を `setAuth()` で送るタイミングで再計算される。JWT 有効期限を短くする運用が推奨されている。
+
+ダッシュボードの Realtime Settings で「Allow public access」を無効化することで、デフォルトを Private 運用に寄せられる。
+
+## 注意点・セキュリティ観点
+
+- **publication 設定の漏れ**：Postgres Changes はテーブルが `supabase_realtime` publication に追加されていなければ何も流れない。新規テーブル追加時の運用フローに組み込む必要がある。
+- **Postgres Changes はスケールしにくい**：公式は本番でのスケーラビリティを重視する場合、Postgres トリガーから `realtime.send()` を呼ぶ Broadcast 方式を推奨している。Postgres Changes は単一の論理レプリケーションスロットを共有するため、購読数とテーブル数が増えるとレイテンシ・スループットの双方に影響する。
+- **無料プランの同時接続・スループット制限**：Free プランは同時接続 200、毎秒 100 メッセージ、毎秒 100 チャネル参加が上限である。Pro は 500、Pro（cap 解除）以降は 2,500 〜 10,000 規模となる。上限超過時は `too_many_channels` / `too_many_connections` / `too_many_joins` のエラーがログ・WebSocket 経由で返る。
+- **Broadcast ペイロード上限**：1 メッセージあたり 256 KB。Postgres Changes のペイロードは全プラン共通で 1,024 KB が上限である。
+- **Broadcast は永続化されない**：クライアント間で送信される Broadcast はデフォルトでは保存されない。データベース経由 Broadcast のみ `realtime.messages` に書き込まれ、3 日後に削除される。確実な配信が必要な場合は `ack: true` で受信確認を取るか、別途ストレージへ書き込む設計にする。
+- **Presence の状態反映遅延**：sync / join / leave は WebSocket 切断検知に依存するため、ネットワーク断のクライアントが leave イベントを発するまでに数秒〜数十秒のラグが生じる場合がある。アプリ側で「最終アクティブ時刻」を併用して UX を補強するとよい。
+- **Private channel の設定漏れ**：`private: true` を指定し忘れると、RLS ポリシーが評価されず公開チャネル扱いになる。クライアントの Channel 生成箇所はラッパー関数に集約し、デフォルトで `private: true` を付与する設計が安全である。
+- **JWT 失効とキャッシュ**：認可結果は接続中にキャッシュされる。権限剥奪を即時反映したい場合、サーバー側でセッションを切るか、短い JWT 有効期限と `setAuth()` の再呼び出しを組み合わせる。
+
+## 一次ソース（原文）
+
+- [Realtime（概要）](https://supabase.com/docs/guides/realtime)
+- [Realtime Concepts](https://supabase.com/docs/guides/realtime/concepts)
+- [Realtime Architecture](https://supabase.com/docs/guides/realtime/architecture)
+- [Postgres Changes](https://supabase.com/docs/guides/realtime/postgres-changes)
+- [Broadcast](https://supabase.com/docs/guides/realtime/broadcast)
+- [Presence](https://supabase.com/docs/guides/realtime/presence)
+- [Realtime Authorization](https://supabase.com/docs/guides/realtime/authorization)
+- [Quotas](https://supabase.com/docs/guides/realtime/quotas)
+- [Subscribing to Database Changes](https://supabase.com/docs/guides/realtime/subscribing-to-database-changes)

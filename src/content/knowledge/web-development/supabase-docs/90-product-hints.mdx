@@ -1,0 +1,173 @@
+---
+title: "Supabase 採用判断とプロダクト改善ヒント — 各章から抽出した実装アイデア集"
+description: "本シリーズ全章を通して見えてきた「Supabase をプロダクトでどう使うか」「既存プロダクトの改善にどう活かすか」のヒントを横串で整理する実務向けまとめ。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 90
+---
+
+## この章の要点
+
+- 本シリーズの各章末で気づいた「実プロダクトでの適用候補」を横串で集めた章
+- 採用判断・既存プロダクト改善・byTech 講座教材化の 3 つの観点で整理する
+- すべての項目に対応する詳細章へのポインタを残してある
+- AI 駆動開発との相性が良い領域・避けるべき領域を明示する
+
+## 採用判断のヒント
+
+### 「とりあえず Supabase」が成立するケース
+
+Supabase は **Postgres + Auth + Storage + Realtime + Edge Functions が一式揃った BaaS** なので、以下のケースでは初手で選んで損しない。
+
+- 個人開発・小規模 SaaS のバックエンド
+- byTech 受講生がはじめてのフルスタック開発で触る環境
+- AI / RAG プロトタイプ（pgvector が標準）
+- 内部ツール・社内アプリのバックエンド
+- Firebase からの移行を検討している既存プロダクト
+
+これらでは「Postgres を別途立てる + 認証ライブラリを選ぶ + Storage を S3 と統合する」工数が消えるメリットが大きい。
+
+### Supabase が向かないケース
+
+逆に、以下では別の選択肢を検討する価値がある。
+
+- マルチクラウド前提で、特定 BaaS 依存を避けたい場合（Self-hosted は可能だが運用コストが Supabase 利用料を上回りやすい）
+- リレーショナルでない巨大なドキュメントストアが中心のワークロード（DynamoDB / MongoDB の方が向く）
+- リアルタイム要件が極めて厳しいゲーム・配信系（Phoenix Channels より低レベルが必要なケース）
+- 完全にオンプレ縛りの法人案件（Self-hosted で Kubernetes 運用ができるなら可）
+
+### プラン選定の考え方
+
+| 規模・要件 | 推奨プラン | 主な解放機能 |
+|---|---|---|
+| 学習・PoC | Free | 基本機能。DB サイズ 0.5GB |
+| 個人開発・小規模商用 | Pro | Network Restrictions、PITR アドオン、Image Transformations |
+| 組織内本番運用 | Team | SSO、HIPAA BAA、Audit Logs、Read Replicas |
+| エンタープライズ | Enterprise | カスタム SLA、専任サポート |
+
+詳細は第 34 章「[安全に使える領域マップ](./34-safe-zones-map)」のプラン別機能表を参照。
+
+## プロダクト改善ヒント（既存プロダクト向け）
+
+本シリーズ各章を読み返したときに「あ、これ自社プロダクトに使えるかも」と感じた項目を列挙する。
+
+### Database（第 20 章）
+
+- **Index Advisor をダッシュボードから定期的に確認する**：欠損インデックスが原因のスローダウンを早期発見できる（第 41 章 Changelog 参照）
+- **Connection Pooling（Supavisor）の Transaction mode 制約を再確認する**：prepared statement や advisory lock を使っているコードがあれば Session mode に切り替える
+- **PostgREST 自動リトライ**：v14 以降は SDK 経由のクエリが一時的なネットワークエラーを自動リトライする。アプリ側のリトライロジックと重複していないか棚卸し
+
+### Auth（第 21 章 / 第 32 章）
+
+- **MFA を有効化し、敏感操作で AAL2 を要求する**：RLS ポリシーで `as restrictive` を使った 2 段階認証強制パターンが組める
+- **Leaked Password Protection をオンにする**：HaveIBeenPwned 連携で漏洩済みパスワードを拒否
+- **Auth Hooks で Custom JWT Claims**：tenant_id・role を JWT に埋め込めば RLS ポリシーが簡潔になる
+- **Third-party Auth（Auth0/Clerk/Cognito/Firebase）**：Auth は既存のままで Supabase の他機能だけ使える構成が公式サポートされている。Auth 移行を阻害要因にする必要はない
+
+### Storage（第 22 章）
+
+- **Public bucket を Private + 署名付き URL に切り替える**：機密度が高いファイルに Public bucket を使っていないか棚卸し
+- **Image Transformations を活用する**：CDN 配信と組み合わせれば、サムネイル生成バッチ処理を撤去できる可能性がある（Pro 以上）
+- **Resumable Upload（TUS）**：大容量ファイル（動画・データセット）を扱うアプリで途中再開を実装
+
+### Realtime（第 23 章）
+
+- **Broadcast from Database（LW14）**：DB トリガーから直接 Broadcast を投げる構成が可能になった。アプリ層を経由しないリアルタイム通知が組める
+- **Private channel + Authorization の徹底**：Public channel を使っているチャンネルがあれば認可ポリシーを設計し直す
+- **Presence は heartbeat 仕様を理解した上で使う**：切断検知のラグがあるので、ビジネス上クリティカルな状態管理には使わない
+
+### Edge Functions（第 24 章）
+
+- **Background Tasks（EdgeRuntime.waitUntil）**：レスポンスを返した後に重い処理を継続できる。メール送信・ログ集計・LLM 呼び出しのバックエンドに最適
+- **Persistent Storage（LW15）**：S3 互換バケットを Edge Functions からマウント可能。一時ファイル + S3 アップロードのコードを置き換えられる
+- **Deno 2.1 と npm 互換**：これまで「npm パッケージが使えないから採用見送り」していたケースを再評価する価値がある
+- **AI Models 直接呼び出し**：`Supabase.ai.Session` で埋め込み生成が Edge Function 内で完結する。OpenAI 課金を抑えたい局面で検討
+
+### Data API（第 25 章）
+
+- **`supabase gen types typescript` を CI に組み込む**：DB スキーマと型定義の乖離を防ぐ
+- **Custom Schema を expose**：ビジネスロジック用のスキーマを分けると、`public` を `auth` と同じ感覚で隔離できる
+- **デフォルト非公開化（2026-10-30 以降）**：新規テーブルが自動的に API 公開されなくなる。これに備えて意図的な expose 設定を見直す
+
+### AI & Vectors（第 26 章）
+
+- **pgvector + Hybrid Search**：別途ベクトル DB（Pinecone / Qdrant）を使っているプロダクトは、Supabase 一本化で運用コストを下げられる可能性
+- **Automatic Embeddings**：DB トリガー + pgmq + pg_cron + pg_net でベクトル生成パイプラインを SQL 内完結。バックエンドコードの量が減る
+- **HNSW vs IVFFlat の選択**：行数とメモリ予算で判断。本番投入前に第 26 章のガイドを再確認
+
+### Cron / Queues（第 27 章）
+
+- **pg_cron で外部 cron サービスを廃止**：GitHub Actions cron や AWS EventBridge を使っているスケジュール処理を Supabase 内に集約できる
+- **pgmq で Redis / SQS 置き換え**：軽量なキュー用途なら別サービスを立てる必要がない
+- **DLQ パターン**：失敗メッセージを別キューへ移すパターンが pgmq でも組める
+
+### セキュリティ（第 30〜34 章）
+
+- **Going into Production チェックリスト**：本番投入前に Network Restrictions / SSL Enforcement / RLS / バックアップ手順を一巡確認する習慣をつける
+- **PITR の有効化判断**：金融・医療・履歴重視のサービスでは Pro アドオンを契約する
+- **Vault でシークレット管理**：Edge Functions の secrets と組み合わせて、ハードコード防止
+- **Read Replicas でスケール**：Team 以上なら Data API のレプリカルーティングと組み合わせて読み取り負荷を分散
+
+## byTech 教材化のヒント
+
+本シリーズを byTech 講座へ展開する際の構成案。
+
+### 入門コース（バイブコーダー向け、3〜4 時間）
+
+1. 第 10 章「全体像」で BaaS の概念を導入
+2. 第 20 章「Database」で SQL Editor + Table 作成を体験
+3. 第 21 章「Auth」で OAuth サインインを実装
+4. 第 22 章「Storage」で画像アップロードを実装
+5. 第 31 章「RLS 深掘り」でセキュリティの基礎
+
+### 実務コース（エンジニア向け、6〜8 時間）
+
+1. 入門コースの内容を圧縮
+2. 第 24 章「Edge Functions」+ 第 26 章「AI & Vectors」で RAG アプリ
+3. 第 25 章「Data API」+ 型生成 + RLS で型安全な CRUD
+4. 第 33 章「ネットワーク・データ保護」で本番運用の準備
+5. 第 40〜41 章「アップデート」で継続的キャッチアップの方法論
+
+### 採用判断コース（マネージャー向け、2 時間）
+
+1. 第 30 章「コンプライアンス」と第 34 章「安全に使える領域マップ」で採用判断
+2. 第 90 章（本章）でプロダクト改善ヒント
+3. ケーススタディ：自社プロダクトでの適用候補出し
+
+## AI 駆動開発との相性
+
+### 相性が良い領域
+
+- **MCP Server 経由の操作**：Supabase MCP（LW14）で Claude / Cursor から SQL 実行・プロジェクト作成が可能。AI エージェントによるバックエンド構築と相性が良い
+- **型生成 + 型推論**：`supabase gen types` の出力を Claude に食わせると、型安全な SDK 呼び出しコードを書かせやすい
+- **Declarative Schemas**：`.sql` ファイルでスキーマを宣言すると、AI に差分を出させてレビューする運用が組める
+- **ダッシュボードの AI Assistant v2**：DB 全体を AI に作らせることが現実的になっている
+
+### AI 駆動でも人間が判断すべき領域
+
+- RLS ポリシーの設計（漏れがそのまま脆弱性になる）
+- Network Restrictions / SSL Enforcement などのセキュリティ初期設定
+- プラン選定とコスト試算
+- バックアップ・PITR の運用ルール
+
+## 一次ソース（横串）
+
+各ヒントの根拠は本シリーズの該当章に詳述してある。
+
+- [全体像（第 10 章）](./10-overview-landscape)
+- [Database（第 20 章）](./20-database)
+- [Auth（第 21 章）](./21-auth)
+- [Storage（第 22 章）](./22-storage)
+- [Realtime（第 23 章）](./23-realtime)
+- [Edge Functions（第 24 章）](./24-edge-functions)
+- [Data API（第 25 章）](./25-data-api)
+- [AI & Vectors（第 26 章）](./26-ai-vectors)
+- [Cron & Queues（第 27 章）](./27-cron-queues)
+- [コンプライアンス（第 30 章）](./30-security-compliance)
+- [RLS 深掘り（第 31 章）](./31-rls-deep-dive)
+- [認証セキュリティ（第 32 章）](./32-auth-security)
+- [ネットワーク・データ保護（第 33 章）](./33-network-data)
+- [安全に使える領域マップ（第 34 章）](./34-safe-zones-map)
+- [Launch Week ダイジェスト（第 40 章）](./40-launch-weeks)
+- [Changelog ダイジェスト（第 41 章）](./41-changelog-digest)
+- [SDK・CLI 目次（第 50 章）](./50-sdk-and-cli-index)
