@@ -16,8 +16,12 @@ describe("navigation データ", () => {
     }
   });
 
-  it("7つのナビ項目が定義されていること", () => {
-    expect(navItems).toHaveLength(7);
+  it("6つのナビ項目が定義されていること", () => {
+    expect(navItems).toHaveLength(6);
+  });
+
+  it("Contactリンクは Navbar の常設ボタンに集約するためナビ項目には含めないこと", () => {
+    expect(navItems.find((item) => item.href === "/contact")).toBeUndefined();
   });
 
   it("Knowledgeリンクが含まれていること", () => {
