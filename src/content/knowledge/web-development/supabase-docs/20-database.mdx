@@ -1,0 +1,225 @@
+---
+title: "Supabase Database — Postgres ベースのデータベース機能を理解する"
+description: "Supabase の Database が提供する Postgres ベースの機能を体系的に解説する。テーブル設計、Extensions、Functions、Triggers、Indexes、コネクションプーリング、マイグレーションまで、実務で必要な要点を押さえる。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 20
+---
+
+## この章の要点
+
+- Supabase の Database は「マネージド Postgres そのもの」であり、独自方言ではなく素の SQL で操作する
+- テーブル定義から API 自動生成（PostgREST）、Realtime、Auth、Storage まで、すべてが Postgres スキーマの上に乗る
+- Extensions（pgvector、pg_cron、pg_net など）でベクトル検索やジョブ実行まで DB 内で完結できる
+- 接続は Direct / Session Pooler / Transaction Pooler の三択で、用途別に使い分ける
+- スキーマ変更は Dashboard の手作業ではなく、Supabase CLI のマイグレーションで管理するのが原則
+
+## Supabase の Database とは
+
+Supabase の Database は、専用 Postgres インスタンスをプロジェクトごとに 1 台割り当てる構成である。Firebase の Firestore のような独自 NoSQL ではなく、業界標準の Postgres そのものをコアに据えている。これにより、`psql` で直接接続して `create table` を流すだけでアプリケーションのスキーマが完成し、その瞬間から PostgREST が REST API を、PostgREST + GraphQL 拡張が GraphQL API を、`supabase-js` から型安全なクライアント呼び出しを、それぞれ自動で利用可能にする。
+
+設計思想として重要なのは「全部 SQL で完結する」という割り切りである。アクセス制御は Row Level Security（RLS）で、リアルタイム購読は論理レプリケーションで、ジョブ実行は `pg_cron` で、ベクトル検索は `pgvector` で、すべて Postgres 内に閉じる。アプリケーション層に Mongoose や Prisma のような ORM を必須としない代わりに、SQL とスキーマ設計の知識が成果物の質を直接決める。
+
+公式ドキュメントは Supabase を「シンプル性を重視しつつ Postgres レベルのアクセス権を提供するフルマネージドサービス」と表現している。ダッシュボードはスプレッドシート風のテーブルビュー、リレーション可視化、SQL エディタ、Extensions のワンクリック有効化を備え、初学者から DBA レベルまで同じ DB を扱えるよう設計されている。
+
+裏側の重要事実として、Supabase が「自動生成」と呼んでいる API はすべて Postgres の情報スキーマ（`information_schema`）を読み取って動いている。つまり「テーブルにコメントを書く」「外部キーを正しく張る」「型を正確に指定する」といった素朴な作業がそのまま API ドキュメントと型定義の品質に跳ね返る。
+
+## 何が解説されているか（公式 Database セクションの俯瞰）
+
+公式 `/docs/guides/database` 配下の主要トピックを以下に整理する。
+
+| トピック | 概要 |
+| --- | --- |
+| Overview | プロジェクトに付属する Postgres と Dashboard 機能の総覧 |
+| Tables | テーブル作成、主キー、外部キー、データ型 |
+| Functions | `plpgsql` による DB 内関数定義 |
+| Triggers | INSERT/UPDATE/DELETE をフックする自動処理 |
+| Extensions | 50 以上のプリインストール済み拡張機能 |
+| Indexes | B-Tree を中心とした索引設計 |
+| Full Text Search | `tsvector` / `tsquery` による全文検索 |
+| Connecting to Postgres | Direct / Session / Transaction の 3 接続方式 |
+| Connection Management | Supavisor のプール容量設定と監視 |
+| Migrations | Supabase CLI によるスキーマ管理 |
+| Backups | 日次バックアップと PITR |
+| Replication | Read Replica と論理レプリケーション |
+
+## 使い方
+
+### テーブルの作り方（3 ルート）
+
+テーブル作成には 3 つの経路がある。どれを選ぶかでチーム開発の質が変わる。
+
+1. **Dashboard の Table Editor**：GUI で新規作成。プロトタイピング向け
+2. **SQL Editor**：ダッシュボード内で SQL を直接実行。スニペット保存も可能
+3. **Migration ファイル**：`supabase/migrations/` 配下に SQL を置き、CLI で適用。本番運用ではこれが原則
+
+最小構成のテーブル例を示す。
+
+```sql
+create table movies (
+  id bigint generated always as identity primary key,
+  name text not null,
+  description text,
+  category_id bigint references categories(id),
+  created_at timestamp with time zone default now()
+);
+```
+
+主キーは `generated always as identity` か `uuid` 型が推奨される。外部キーは `references` で明示し、これにより PostgREST が自動でリレーションを認識し、`select=*,categories(*)` のようなネスト取得が可能になる。
+
+### Extensions の使い方
+
+Extensions はダッシュボードの Database → Extensions、または SQL で有効化する。`extensions` スキーマへ入れるのが慣例である。
+
+```sql
+-- ベクトル検索
+create extension if not exists vector with schema extensions;
+
+-- 定期ジョブ
+create extension if not exists pg_cron with schema extensions;
+
+-- DB から外部 HTTP 呼び出し
+create extension if not exists pg_net with schema extensions;
+```
+
+代表例：
+- **pgvector**：`vector(1536)` 型と類似度演算子（`<=>`、`<->`、`<#>`）。RAG の埋め込み保存と検索の標準
+- **pg_cron**：`select cron.schedule('nightly', '0 3 * * *', $$ delete from logs where created_at < now() - interval '30 days' $$);` のように DB 内 cron が組める
+- **pg_net**：トリガから外部 API へ非同期 HTTP リクエストを発行できる
+
+### Functions と Triggers のコード例
+
+DB 内関数は `plpgsql` で書く。集約処理やビジネスロジックを DB に寄せたいときに使う。
+
+```sql
+create or replace function add_planet(name text)
+returns bigint
+language plpgsql
+as $$
+declare
+  new_row bigint;
+begin
+  insert into planets(name) values (add_planet.name)
+  returning id into new_row;
+  return new_row;
+end;
+$$;
+```
+
+トリガは「テーブルイベントをフックして関数を起動する」仕組みである。BEFORE / AFTER の発火タイミングを選べる。`updated_at` 自動更新の典型例：
+
+```sql
+create or replace function set_updated_at()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger trg_movies_updated_at
+before update on movies
+for each row execute function set_updated_at();
+```
+
+注意点として、`security definer` を付けた関数は呼び出し元の権限を超えて動くため、必ず `set search_path = ''` を付与してスキーマ偽装攻撃を防ぐ。
+
+### Connection Pooling と直接接続の使い分け
+
+接続経路は 3 つある。間違えると本番でコネクション枯渇を起こす。
+
+| 方式 | ポート | 用途 | 制約 |
+| --- | --- | --- | --- |
+| Direct connection | 5432 | VM・常駐コンテナなど永続バックエンド | デフォルト IPv6（IPv4 はアドオン） |
+| Session pooler | 5432（プロキシ） | IPv4 が必要な永続バックエンド | プーラー経由のオーバーヘッド |
+| Transaction pooler（Supavisor） | 6543 | サーバーレス・Edge Functions | プリペアドステートメント非対応 |
+
+判断基準はシンプルで、Vercel / Cloudflare Workers / AWS Lambda のように「リクエストごとに接続を張って捨てる」環境は Transaction pooler（6543）、Fly.io や ECS のように常駐するなら Direct を選ぶ。
+
+プール容量の目安は、PostgREST を多用するプロジェクトでは「DB 最大接続数の 40% 以下」、それ以外では「80% まで」を Supavisor に割り当てる。残り枠は Auth・Realtime・Storage・ダッシュボード接続のために空けておく。
+
+### マイグレーションの基本
+
+Dashboard で直接スキーマを変更すると履歴が残らずチーム開発が破綻するため、CLI でマイグレーションを管理する。
+
+```bash
+# プロジェクト初期化
+supabase init
+
+# ローカル Postgres 起動（Docker）
+supabase start
+
+# マイグレーションファイル新規作成
+supabase migration new add_movies_table
+
+# ローカルでスキーマを試す
+supabase db reset
+
+# Dashboard 上の差分を取り込む
+supabase db diff -f sync_dashboard_changes
+
+# リモートへ適用
+supabase db push
+```
+
+原則として「小さな変更でもマイグレーションファイル経由で管理する」。同期がずれた場合は `supabase migration list` で状態確認、`supabase db pull` で取り込み、`supabase migration repair` で履歴テーブルを修正する。
+
+### Indexing の基本
+
+インデックスはクエリを速くする代わりに、書き込みコストとストレージを増やす。Postgres のデフォルトは B-Tree で、等価検索・範囲検索・ソートに効く。
+
+```sql
+-- 通常の B-Tree
+create index idx_movies_category on movies (category_id);
+
+-- 大規模テーブル向け：ロックを取らずに作成
+create index concurrently idx_movies_created_at on movies (created_at desc);
+
+-- 部分インデックス：条件を絞ってサイズを抑える
+create index idx_active_users on users (last_login)
+where deleted_at is null;
+```
+
+全文検索を多用するなら、生成カラム + GIN インデックスがテンプレートである。
+
+```sql
+alter table books add column fts tsvector
+  generated always as (to_tsvector('english', title || ' ' || description)) stored;
+
+create index books_fts on books using gin (fts);
+
+select * from books
+where fts @@ websearch_to_tsquery('english', '"deep learning" -outdated');
+```
+
+検索クエリ生成には `to_tsquery`（演算子明示）、`plainto_tsquery`（AND 自動）、`phraseto_tsquery`（フレーズ）、`websearch_to_tsquery`（Google 風記法）の 4 種類があり、ユーザー入力には `websearch_to_tsquery` が安全である。
+
+## 注意点・セキュリティ観点
+
+RLS（Row Level Security）は本ドキュメントでは別章で深掘りするため、ここでは前提として「公開 API キー（anon）でアクセスされる前提でテーブルごとに必ず RLS を有効化する」とだけ押さえておく。Database 観点では以下が重要である。
+
+- **service_role と anon の権限差**：`service_role` キーは RLS をバイパスする。フロントに絶対に出さず、サーバーサイド専用に閉じる
+- **Transaction pooler の制約**：プリペアドステートメント非対応。Prisma など一部 ORM はデフォルトで使うため、接続文字列に `?pgbouncer=true&connection_limit=1` 等の調整が必要
+- **無料プランのリソース制限**：共有 CPU・メモリで、長時間のバッチや重いインデックス再構築は厳しい。本番は最低でも Pro 以上を選ぶ
+- **PITR は有料**：Free / Pro 標準は日次バックアップのみ。Pro は 7 日、Team は 14 日、Enterprise は 30 日の保持期間。PITR はアドオンで RPO 約 2 分（PITR を有効にすると日次バックアップは取られなくなる）
+- **リージョン選択の影響**：DB と Edge Functions、フロントの CDN リージョンが離れるとレイテンシが跳ねる。プロジェクト作成時のリージョンは後から変更しづらいので最初に決め切る
+- **拡張機能の更新**：Extensions の版上げはインフラ設定からのアップグレードまたはサーバー再起動が必要。本番では計画的に行う
+- **Replication の現状**：Supabase ETL（BigQuery 連携）は private alpha 段階。汎用には PostgreSQL の論理レプリケーションを外部ツールで組むのが現実解
+
+## 一次ソース（原文）
+
+- https://supabase.com/docs/guides/database/overview
+- https://supabase.com/docs/guides/database/tables
+- https://supabase.com/docs/guides/database/functions
+- https://supabase.com/docs/guides/database/postgres/triggers
+- https://supabase.com/docs/guides/database/extensions
+- https://supabase.com/docs/guides/database/postgres/indexes
+- https://supabase.com/docs/guides/database/full-text-search
+- https://supabase.com/docs/guides/database/connecting-to-postgres
+- https://supabase.com/docs/guides/database/connection-management
+- https://supabase.com/docs/guides/deployment/database-migrations
+- https://supabase.com/docs/guides/platform/backups
+- https://supabase.com/docs/guides/database/replication
+- https://supabase.com/docs/guides/local-development/cli/getting-started

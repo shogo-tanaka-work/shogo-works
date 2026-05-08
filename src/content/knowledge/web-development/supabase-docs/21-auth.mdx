@@ -1,0 +1,233 @@
+---
+title: "Supabase Auth — 認証・認可の全体像を押さえる"
+description: "Supabase Auth が提供する認証方式（Email/Password、Magic Link、OAuth、SMS、Phone、SSO、MFA）と、JWT・セッション・Row Level Security との連携をまとめて理解する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 21
+---
+
+## この章の要点
+
+- Supabase Auth は GoTrue をフォークした認証サービスであり、Postgres の `auth` スキーマと一体で動作する。
+- 認証方式は Email/Password、Magic Link、OTP、OAuth、Phone（SMS/WhatsApp）、SSO、MFA を網羅する。
+- 認可は JWT と Row Level Security（RLS）の組み合わせで実現し、`auth.uid()` などのヘルパ関数で行単位アクセス制御を行う。
+- セッションはアクセストークン（短命 JWT）とリフレッシュトークン（一回限り使用可能）の二段構成である。
+- SSR 構成では `@supabase/ssr` を用い、トークンを Cookie に格納して PKCE フローを採用するのが基本である。
+- `anon key` と `service_role key` の取り扱い、Email Confirmation 強制、Rate Limit、SMS コストなど運用上の注意点が複数存在する。
+
+## Supabase の Auth とは
+
+Supabase Auth は、認証（ユーザーが本人であることの確認）と認可（リソースへのアクセス制御）を一体で提供するマネージドサービスである。実体は OSS の GoTrue をフォークした Auth API サーバーで、Kong API ゲートウェイ経由で提供され、ユーザー情報は Supabase プロジェクト内 Postgres の `auth` スキーマに保存される。`auth` スキーマは自動生成 REST API には公開されず、外部から直接読み書きすることはできない。
+
+Auth サービスの責務は、JWT の発行・検証・更新、ソーシャルログインや SSO の仲介、メール／SMS 送信のオーケストレーションである。発行された JWT は PostgREST、Realtime、Storage、Edge Functions など Supabase の全コンポーネントが共通の認可情報として参照し、Postgres の RLS ポリシーまで貫通する。つまり Supabase の Auth は単独サービスではなく、Postgres の `authenticated` / `anon` ロールと一体運用される前提で設計されている。
+
+課金は Monthly Active Users（MAU）ベースであり、Third-Party MAU、SSO MAU、Advanced MFA は別アドオンとなる。
+
+## 何が解説されているか（公式 Auth セクションの俯瞰）
+
+公式ドキュメントの Auth セクションは、以下のトピックを横断的に扱っている。
+
+- 認証方式
+  - Email/Password（パスワード認証）
+  - Magic Link / Email OTP
+  - Phone Login（SMS、WhatsApp）
+  - Social Login（Google、GitHub、Apple、Azure など多数のプロバイダ）
+  - SSO（SAML 2.0、有料プラン）
+  - 匿名認証（Anonymous Sign-in）
+- 多要素認証
+  - TOTP（App Authenticator）
+  - Phone factor
+- セッションとトークン
+  - JWT 構造、`access_token` / `refresh_token`、PKCE フロー
+  - セッション管理（タイムアウト、単一セッション強制）
+- サーバーサイド統合
+  - Next.js / SvelteKit / Remix 向け `@supabase/ssr` パッケージ
+  - Cookie ベースのセッション保存
+- 拡張機能
+  - Auth Hooks（Before User Created、Custom Access Token、Send Email/SMS、MFA/Password Verification Attempt）
+  - Email Templates のカスタマイズ
+- 認可
+  - Row Level Security 連携（`auth.uid()`、`auth.jwt()`）
+
+## 使い方
+
+### Email/Password サインアップ・サインイン
+
+最も基本的な認証方式である。`signUp` 実行時に `emailRedirectTo` を渡すと、メール確認後のリダイレクト先を指定できる。指定 URL は事前にダッシュボードの Redirect URLs に登録しておく必要がある。
+
+```ts
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  'https://<project-ref>.supabase.co',
+  '<publishable-anon-key>'
+)
+
+// サインアップ
+const { data, error } = await supabase.auth.signUp({
+  email: 'user@example.com',
+  password: 'example-password',
+  options: {
+    emailRedirectTo: 'https://example.com/welcome',
+  },
+})
+
+// サインイン
+const { data: signInData, error: signInError } =
+  await supabase.auth.signInWithPassword({
+    email: 'user@example.com',
+    password: 'example-password',
+  })
+```
+
+Email Confirmation を有効化している場合、`signUp` 直後はセッションが返らず、ユーザーがメール内リンクをクリックして初めてセッションが確立する点に注意する。
+
+### OAuth プロバイダ（Google を例に）
+
+Google ログインを有効化するには、Google Cloud Console で OAuth クライアントを作成し、Supabase ダッシュボードの Authentication → Providers → Google に Client ID / Secret を登録する。リダイレクト URL は `https://<project-ref>.supabase.co/auth/v1/callback` を Google 側にも登録する。
+
+クライアント側では `signInWithOAuth` を呼び出すだけでブラウザが認可エンドポイントへ遷移する。
+
+```ts
+const { data, error } = await supabase.auth.signInWithOAuth({
+  provider: 'google',
+  options: {
+    redirectTo: 'https://example.com/auth/callback',
+    scopes: 'email profile',
+  },
+})
+```
+
+コールバック URL では、PKCE フロー使用時に `?code=...` クエリを受け取り、`supabase.auth.exchangeCodeForSession(code)` でセッションへ交換する。
+
+### Magic Link のフロー
+
+Magic Link はパスワードレス認証で、ユーザーがメール内のワンタイムリンクをクリックするとセッションが確立する。`signInWithOtp` で送信し、`shouldCreateUser: false` を指定すれば未登録ユーザーの自動作成を抑止できる。
+
+```ts
+const { data, error } = await supabase.auth.signInWithOtp({
+  email: 'user@example.com',
+  options: {
+    shouldCreateUser: false,
+    emailRedirectTo: 'https://example.com/welcome',
+  },
+})
+```
+
+フローは「メール送信 → ユーザーがリンククリック → リダイレクト先で `exchangeCodeForSession` → セッション確立」の 4 ステップである。コードを直接検証する場合は `verifyOtp({ type: 'magiclink', token, email })` を使う。
+
+### MFA（TOTP）の有効化と検証
+
+MFA は「Enroll → Challenge → Verify」の三段階で実装する。Enroll で QR コードを生成しユーザーの認証アプリに登録、Challenge でチャレンジ ID を生成、Verify でユーザー入力の TOTP コードを検証する。
+
+```ts
+// 1. Enroll：認証アプリに登録するための QR を取得
+const { data: enroll, error: enrollErr } =
+  await supabase.auth.mfa.enroll({ factorType: 'totp' })
+// enroll.totp.qr_code を画面表示しユーザーに登録させる
+
+// 2. Challenge：検証セッションを開始
+const { data: challenge, error: challengeErr } =
+  await supabase.auth.mfa.challenge({ factorId: enroll.id })
+
+// 3. Verify：ユーザーが入力した 6 桁コードを検証
+const { data: verify, error: verifyErr } =
+  await supabase.auth.mfa.verify({
+    factorId: enroll.id,
+    challengeId: challenge.id,
+    code: '123456',
+  })
+
+// 登録済 factor の一覧
+const { data: factors } = await supabase.auth.mfa.listFactors()
+
+// 解除
+await supabase.auth.mfa.unenroll({ factorId: enroll.id })
+```
+
+Phone factor を用いる場合は `factorType: 'phone'` で enroll し、SMS で届いたコードを verify に渡す。Advanced MFA（Phone factor の本番運用）は有料プランの対象である（要追記：詳細プラン条件）。
+
+### セッションの取得と更新（auth state listener）
+
+クライアント SDK は内部でアクセストークンの自動更新を行うが、UI 側では `onAuthStateChange` でセッション変化を購読するのが定石である。
+
+```ts
+// 現在のセッションを取得
+const { data: { session } } = await supabase.auth.getSession()
+
+// 認証状態の変化を購読
+const { data: subscription } = supabase.auth.onAuthStateChange(
+  (event, session) => {
+    // event: 'INITIAL_SESSION' | 'SIGNED_IN' | 'SIGNED_OUT'
+    //        | 'TOKEN_REFRESHED' | 'USER_UPDATED' | 'PASSWORD_RECOVERY'
+    console.log(event, session?.user?.id)
+  }
+)
+
+// アンマウント時に購読解除
+subscription.subscription.unsubscribe()
+```
+
+セッションは `auth.sessions` テーブルに保存され、アクセストークンは 5 分〜1 時間程度の短命 JWT、リフレッシュトークンは「一回限り使用可能」（使用するたびに新しいペアに交換される）である。デフォルトではセッション期限は無制限で、ユーザーは複数端末で同時ログインできる。プロジェクト設定で Inactivity Timeout、Max Lifetime、Single Session per User の制約を加えられる。
+
+### サーバーサイドでのセッション扱い（Next.js 等の SSR）
+
+SSR 環境ではトークンを `localStorage` ではなく Cookie に保存し、サーバー・クライアント双方からアクセス可能にする必要がある。Supabase は専用パッケージ `@supabase/ssr` を提供している。
+
+```ts
+// utils/supabase/server.ts（Next.js App Router）
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
+
+export function createClient() {
+  const cookieStore = cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options)
+          )
+        },
+      },
+    }
+  )
+}
+
+// Server Component で利用
+const supabase = createClient()
+const { data: { user } } = await supabase.auth.getUser()
+```
+
+Middleware ではリクエスト到達時にトークンの自動更新を仕掛け、Cookie を書き戻す。SSR 構成では Implicit フローではなく PKCE フローを選ぶこと、`getUser()` を使ってサーバー側で改めてユーザー検証することが推奨される（`getSession()` はクッキー値をそのまま返すだけで検証しないため信頼境界では使わない）。
+
+## 注意点・セキュリティ観点
+
+- **API キーの使い分け**：`anon` キー（または publishable key）はクライアントに埋め込んで良いが、`service_role` キーは RLS をバイパスするためサーバーのみで使い、絶対にブラウザへ露出させない。
+- **JWT Secret のローテーション**：ダッシュボードから JWT secret をローテーションすると既存のすべてのトークンが即時無効化される。漏洩疑義時の最終手段として把握しておく。
+- **Email Confirmation の強制**：本番環境では必ず有効化する。無効のまま運用すると、任意のメールアドレスでアカウントを作成され、なりすましやスパムの温床になる。
+- **Rate Limit**：OTP / Magic Link / Sign-up などには `auth.rate_limits` の制限が掛かっている。デフォルト値で十分に攻撃緩和になるが、UI 側でも連打防止を実装する。
+- **SMS コスト**：Phone Auth は MessageBird / Twilio / Vonage / TextLocal 等の外部プロバイダを介しており、1 OTP ごとに従量課金が発生する。攻撃者による SMS 送信スパム（SMS pumping）のコスト爆発に備え、レート制限と国制限を必ず設定する。
+- **SSO は有料プラン**：SAML SSO は Pro 以上の有料アドオンであり、SSO MAU ベースの追加課金が発生する。
+- **PKCE フローの重要性**：SSR・モバイル・SPA いずれでも PKCE を選ぶ。Implicit flow はトークンが URL フラグメントに乗りログ漏洩のリスクがあるため、新規実装では避ける。
+- **トークン漏洩時の対応**：`supabase.auth.signOut({ scope: 'global' })` で全セッションを失効できる。リフレッシュトークンの再利用検出（同じリフレッシュトークンが二度使われた場合）でセッションは自動失効するが、漏洩が判明した時点で能動的に全失効を実行する。
+- **`auth.uid()` の null 取り扱い**：未認証時 `auth.uid()` は `null` を返す。RLS ポリシーは `auth.uid() IS NOT NULL AND auth.uid() = user_id` のように明示的に null チェックを入れ、暗黙の真偽値評価に頼らない。
+- **`raw_user_meta_data` はユーザー編集可能**：権限フラグなど信頼性が必要な情報は `raw_app_meta_data`（サーバーのみが書き換え可能）に格納する。
+- **Auth Hooks のセキュリティ**：HTTP Hook を使う場合は `webhook-id` / `webhook-timestamp` / `webhook-signature` の署名検証を必ず実装する。Postgres Function Hook は外部にトラフィックが出ない代わりに、`supabase_auth_admin` ロールへの権限付与が必要。
+
+## 一次ソース（原文）
+
+- Auth 概要：https://supabase.com/docs/guides/auth
+- Auth Architecture：https://supabase.com/docs/guides/auth/architecture
+- Passwords：https://supabase.com/docs/guides/auth/passwords
+- Magic Link：https://supabase.com/docs/guides/auth/auth-magic-link
+- Social Login：https://supabase.com/docs/guides/auth/social-login
+- Phone Login：https://supabase.com/docs/guides/auth/phone-login
+- MFA：https://supabase.com/docs/guides/auth/auth-mfa
+- Sessions：https://supabase.com/docs/guides/auth/sessions
+- Server-Side Auth：https://supabase.com/docs/guides/auth/server-side
+- Row Level Security：https://supabase.com/docs/guides/auth/row-level-security
+- Auth Hooks：https://supabase.com/docs/guides/auth/auth-hooks

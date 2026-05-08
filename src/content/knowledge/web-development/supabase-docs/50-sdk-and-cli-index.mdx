@@ -1,0 +1,145 @@
+---
+title: "Supabase SDK・CLI・Management API 目次 — 何がどこに書いてあるかの地図"
+description: "Supabase の各種 SDK（JavaScript / Python / Flutter / Swift / Kotlin / C#）と CLI・Management API のリファレンスをカテゴリ別に俯瞰する目次章。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 50
+---
+
+## この章の要点
+
+Supabase のリファレンスは SDK・CLI・Management API を合わせて 1,400 ページを超える。全部を読むのは現実的ではないため、本章では「どこに何が書いてあるか」だけを地図として示す。覚えておきたい構造は次の三層である。
+
+- **SDK**（supabase-js / supabase-py / supabase-flutter / supabase-swift / supabase-kt / supabase-csharp）は、Auth・Database・Storage・Realtime・Edge Functions という同じ機能群を各言語で薄くラップしたもの。メソッド名・引数体系もほぼ揃っており、JavaScript SDK のドキュメントが一次レファレンスとして最も成熟している。
+- **CLI**（`supabase` コマンド）はローカル開発・マイグレーション・型生成・Edge Functions デプロイの中核ツールで、開発フロー全体を回す。
+- **Management API** は Supabase プラットフォーム自体を管理する HTTP API。プロジェクト作成・組織管理・SSO 設定など、IaC やマルチプロジェクト運用で使う。
+
+アプリケーションコードからデータを触るのは SDK、ローカル開発と CI/CD は CLI、プロジェクトそのものを動的に扱うのは Management API、と切り分けておけば迷わない。
+
+## SDK 一覧と特徴
+
+### supabase-js（JavaScript / TypeScript）
+
+最も成熟した一次リファレンス。Web・Node.js・Deno・React Native・Edge Runtime まで動くアイソモルフィック設計で、他言語 SDK の API 命名もこれに揃っている。
+
+- **主要モジュール**: `auth`（サインイン・MFA・OAuth・SSO・Web3・Passkey・Admin）／ `from('table').select()/insert()/update()/upsert()/delete()`／ `rpc()`（PostgreSQL 関数呼び出し）／ `storage.from('bucket')`（アップロード・署名 URL・vector / analytics バケット）／ `channel()`（Realtime の購読・Broadcast・Presence）／ `functions.invoke()`（Edge Functions 呼び出し）
+- **特に注意すべき点**: フィルタ演算子（`eq` / `lt` / `gt` / `like` / `ilike` / `in` / `contains` / `range*`）は他言語 SDK でも同名で実装される。型生成（`supabase gen types typescript`）と組み合わせると `Database` 型から `from()` 以降が補完される。
+- **代表コード**:
+
+```ts
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+
+const { data, error } = await supabase
+  .from('posts')
+  .select('id, title, author:profiles(name)')
+  .eq('published', true)
+  .order('created_at', { ascending: false })
+  .limit(20)
+```
+
+- 一次ソース: https://supabase.com/docs/reference/javascript/introduction
+
+### supabase-py（Python）
+
+公式メンテのサーバーサイド SDK。FastAPI / Flask / Django のバックエンドや、データ基盤・バッチ処理から使う想定。
+
+- **主要モジュール**: Database（select / insert / update / upsert / delete とフィルタ・モディファイア）／ Auth（password / OAuth / OTP / SSO / セッション・MFA）／ Auth Admin（招待・ユーザー管理・OAuth クライアント設定）／ Edge Functions（`functions.invoke`）／ Realtime（チャンネル購読・Broadcast・DB 変更購読）／ Storage（バケット・署名 URL・vector / analytics バケット）
+- **特に注意すべき点**: 同期・非同期の二系統クライアント（`create_client` と `create_async_client`）が存在する。リアクティブ性が必要なら async 側を使う。
+- **代表コード**:
+
+```python
+from supabase import create_client
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+res = supabase.table("posts").select("*").eq("published", True).execute()
+```
+
+- 一次ソース: https://supabase.com/docs/reference/python/introduction
+
+### supabase-flutter（Flutter / Dart）
+
+Flutter から使う公式 SDK。非 Flutter な Dart プロジェクト向けには姉妹パッケージ `supabase` が別に存在する。
+
+- **主要モジュール**: Database（CRUD・フィルタ・モディファイア・RPC）／ Auth（password / OAuth / OTP / SSO / Anonymous / Identity Linking / MFA / 再認証）／ Auth Admin／ Edge Functions／ Realtime／ Storage（署名 URL・public URL）
+- **特に注意すべき点**: ディープリンクと OAuth コールバック処理が SDK 側にビルトインされている。モバイル特有の deep link 設定はガイド側を併読する。
+- 一次ソース: https://supabase.com/docs/reference/dart/introduction
+
+### supabase-swift（Swift）
+
+iOS / macOS / watchOS / tvOS / visionOS 向けの公式 SDK。実装は十分に成熟しており、JS SDK と同等の主要機能を備える。
+
+- **主要モジュール**: Database（CRUD・フィルタ）／ Auth（password / OTP / OAuth / SSO・MFA・セッション）／ Auth Admin／ Edge Functions／ Realtime／ Storage
+- **特に注意すべき点**: Swift Concurrency（`async/await`）前提の API で、古い Combine ベースの書き方は推奨されない。
+- 一次ソース: https://supabase.com/docs/reference/swift/introduction
+
+### supabase-kotlin（Kotlin / Multiplatform）
+
+`supabase-community/supabase-kt` で開発される **Kotlin Multiplatform** ライブラリ。コミュニティメンテだが、機能カバレッジは公式 SDK 群と遜色ない。
+
+- **主要モジュール**: Database／ Auth（password / OTP / OAuth / SSO・MFA）／ Auth Admin（招待・factor 管理）／ Edge Functions／ Realtime／ Storage（vector / analytics バケット対応）
+- **特に注意すべき点**: コミュニティライブラリのため、SLA や障害対応は公式サポート対象外。Android・JVM・iOS・JS・Native などのターゲット別モジュール構成は GitHub の README を参照。
+- 一次ソース: https://supabase.com/docs/reference/kotlin/introduction
+
+### supabase-csharp（C#）
+
+コミュニティ製の .NET SDK。公式ライブラリではないが、Supabase ドキュメント上で正式に紹介されている。
+
+- **主要モジュール**: Database（fetch / insert / update / upsert / delete・フィルタ・モディファイア）／ Auth（password / OTP / OAuth）／ Edge Functions／ Realtime／ Storage
+- **特に注意すべき点**: 「現在も開発中」と明記されており、エッジな機能（Web3 / Passkey / vector バケット 等）は他 SDK より遅れる可能性がある。プロダクション利用前に対象 API の実装状況を確認するのが安全。
+- 一次ソース: https://supabase.com/docs/reference/csharp/introduction
+
+## CLI（`supabase` コマンド）
+
+CLI は「ローカル開発・マイグレーション・型生成・関数デプロイ」をひとつに束ねた Supabase の中枢ツール。インストールは Homebrew / Scoop / npm（dev 依存）/ Linux パッケージ / standalone バイナリのいずれか。**npm のグローバルインストールは非対応**な点に注意。
+
+主要コマンド分類は次のとおり。
+
+- **プロジェクト操作**: `supabase init`（ローカルプロジェクト初期化）／ `supabase link`（リモートプロジェクトと紐付け）／ `supabase projects`（一覧・作成・削除）／ `supabase login`（PAT で認証）
+- **ローカル開発**: `supabase start` / `stop` / `status`。Docker（または Podman / Rancher Desktop / OrbStack）上に Postgres・Studio（`http://127.0.0.1:54323`）・Auth・Storage・Edge Runtime・REST/GraphQL を一式立ち上げる。
+- **DB 操作**: `supabase db push` / `pull` / `diff` / `reset` / `dump` と `supabase migration new|list|repair|squash`。マイグレーション SQL は `supabase/migrations/` にタイムスタンプ付きで蓄積される。
+- **型生成**: `supabase gen types typescript --linked` でテーブル・ビューから TypeScript 型を生成。Python など他言語ターゲットも順次拡張中。
+- **Edge Functions**: `supabase functions new` / `serve`（ローカル実行）／ `deploy`（本番反映）／ `secrets set|list|unset`（環境変数管理）。
+- **Storage 補助**: `supabase storage` でバケットへの cp / ls / rm 等が可能。
+- **Branching**: `supabase branches` で Preview Branch を作成し、PR ごとに独立した DB・Edge Functions 環境を試せる。
+- **ログ・モニタリング**: `supabase inspect db`（bloat・lock・slow query などのスナップショット）／ `supabase logs`（要追記：詳細はリファレンス参照）。
+- **Config / SSO / Domains**: `supabase config`（ローカル設定の push）／ `supabase sso` / `supabase domains`（カスタムドメイン）／ `supabase completion`（シェル補完）。
+
+一次ソース:
+
+- リファレンス: https://supabase.com/docs/reference/cli/introduction
+- ローカル開発ガイド: https://supabase.com/docs/guides/local-development/cli/getting-started
+
+## Management API
+
+Management API はプラットフォームそのものを HTTP で操作するためのもの。SDK ではなく **REST + Personal Access Token** でアクセスする。
+
+- **できること（要追記の項目あり）**: プロジェクト作成・削除・設定変更／組織管理（メンバー・課金）／API キー・Secrets 取り扱い／SSO（SAML）プロバイダ設定／Branching 操作／DB 設定・拡張機能／Edge Functions メタ操作／Storage / Auth コンフィグ更新。
+- **認証方法**: ダッシュボードで発行する **Personal Access Token (PAT)** を `Authorization: Bearer <token>` で送る。組織レベルの自動化は SCIM / OAuth アプリ連携も用意されている（詳細は要追記）。
+- **使いどころ**: Terraform / Pulumi 等の **IaC からの Supabase プロビジョニング**、テナントごとに別プロジェクトを切るような **マルチプロジェクト SaaS の自動管理**、社内ツールからの一括設定変更など。アプリケーションのデータ操作には使わない。
+
+> Management API のリファレンス（https://supabase.com/docs/reference/api/introduction）は本章執筆時点で WebFetch のサイズ上限を超えたため、エンドポイント一覧の詳細は **要追記**。OpenAPI スキーマが公開されているので、自動化に使う場合はそちらを起点にするのが速い。
+
+## どれを使うべきか
+
+| 用途 | 推奨ツール |
+|---|---|
+| アプリケーションコードからのデータ操作 | supabase-js / supabase-py 等の SDK |
+| ローカル開発・マイグレーション | CLI（`supabase start` / `db push`） |
+| 型生成 | CLI（`gen types typescript`） |
+| Edge Functions のデプロイ | CLI（`functions deploy`） |
+| プロジェクト・組織の自動管理（IaC） | Management API |
+| AI ツール連携（Claude / Cursor 等） | Supabase MCP Server |
+
+## 一次ソース（原文）
+
+- supabase-js: https://supabase.com/docs/reference/javascript/introduction
+- supabase-py: https://supabase.com/docs/reference/python/introduction
+- supabase-flutter: https://supabase.com/docs/reference/dart/introduction
+- supabase-swift: https://supabase.com/docs/reference/swift/introduction
+- supabase-kotlin: https://supabase.com/docs/reference/kotlin/introduction
+- supabase-csharp: https://supabase.com/docs/reference/csharp/introduction
+- CLI リファレンス: https://supabase.com/docs/reference/cli/introduction
+- Management API リファレンス: https://supabase.com/docs/reference/api/introduction
+- ローカル開発ガイド（CLI 入門）: https://supabase.com/docs/guides/local-development/cli/getting-started
