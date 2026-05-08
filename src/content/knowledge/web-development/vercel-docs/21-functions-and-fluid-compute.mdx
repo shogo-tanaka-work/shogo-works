@@ -1,0 +1,120 @@
+---
+title: "Functions & Fluid Compute — サーバーレスから Active CPU 課金への進化"
+description: "Vercel Functions の基本（Node.js / Python / Edge ランタイム）と、2025 年に新規プロジェクトのデフォルトとなった Fluid Compute（複数リクエスト同時処理・Active CPU 課金）の仕組みを解説。コールドスタート改善・ストリーミング・FastAPI ゼロコンフィグ対応までカバーする。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 21
+---
+
+## この章の要点
+
+- Vercel Functions は、サーバー管理を伴わずに `api/` 配下のコードをデプロイ可能な単位に変換する仕組みであり、Node.js / Python / Bun / Go / Ruby / Rust / Wasm / Edge の各ランタイムをサポートする。
+- Fluid Compute は従来のサーバーレス（1 リクエスト 1 インスタンス）から、1 インスタンスで複数リクエストを同時処理する実行モデルへと舵を切った仕組みであり、2025 年 2 月 4 日に発表され、4 月 23 日以降は新規プロジェクトのデフォルトになっている。
+- 課金は Active CPU・Provisioned Memory・Invocations の三軸で構成され、I/O 待機中は CPU 課金が止まるため、AI 推論・ベクター検索・外部 API 呼び出しといった I/O バウンドな処理で従来比最大 85% のコスト削減が公式に謳われている。
+- 2025 年 6 月 25 日のアップデートにより `maxDuration` のデフォルトが 300 秒に統一され、Pro / Enterprise では最大 800 秒まで延長可能になった。Standard インスタンスは 1 vCPU / 2 GB、Performance は 2 vCPU / 4 GB に引き上げられている。
+- 2024 年 10 月 1 日以降、Node.js 関数のストリーミングがデフォルトで有効になり、2025 年 9 月 25 日には FastAPI のゼロコンフィグデプロイが追加された。Python ランタイムでも Fluid Compute の同時実行が利用できる。
+
+## Vercel Functions と Fluid Compute とは
+
+Vercel Functions は、リクエストごとにサーバーレス関数を起動する従来型の実行基盤である。`api/hello.ts` のようなファイルを置けば、ビルド時にランタイムが該当コードを「Function」と呼ばれるデプロイ単位へ変換し、CDN からトラフィックがルーティングされる。プロジェクトを作成した時点では特別な設定は不要であり、Next.js の Route Handler / API Route や、フレームワーク非依存の `api/` ディレクトリがそのまま関数として扱われる構造になっている。
+
+Fluid Compute は、その上に乗る実行モデルの再設計である。従来のサーバーレスは「1 リクエスト 1 microVM」というモデルを採るため、I/O 待機が長い処理（LLM 呼び出し、データベースクエリ、外部 API 呼び出し）でも CPU を含むインスタンス全体が確保され、コールドスタートも各リクエストで発生していた。Fluid Compute はこれを覆し、同一インスタンス内で複数リクエストを同時処理する「Optimized Concurrency」を採用する。アイドル中の CPU 余力を別のリクエストに割り当てるため、AI 推論など I/O バウンドな処理ほどコスト効率が大きく改善する。
+
+Active CPU 課金は、Fluid Compute と表裏一体の料金モデルである。CPU は「コードが実際に動いている時間」のみ課金され、外部サービスを待っている時間は止まる。一方、Provisioned Memory は最後のリクエストが完了するまで継続課金される。これにより、たとえば 4 秒の Active CPU 時間と 10 秒のインスタンス生存時間という処理は、CPU 4 秒・メモリ 4 GB×10 秒という独立した二軸で集計される。AI ワークロードのように外部 API 呼び出しが大半を占める処理では、Active CPU 課金の節約効果が顕著に効く設計である。
+
+Fluid Compute は 2025 年 2 月 4 日に発表され、同年 4 月 23 日以降は新規プロジェクトでデフォルト有効化されている。既存プロジェクトはダッシュボードの Functions Settings で有効化するか、`vercel.json` に `"fluid": true` を追記することで切り替えられる。
+
+## 何が解説されているか
+
+公式ドキュメントは、Functions のランタイム、Fluid Compute の実行モデル、そして料金体系の三方向から構成される。ランタイムごとに対応機能・特性が異なり、Fluid Compute は Node.js / Python / Edge / Bun / Rust の各ランタイムで利用できる。以下の表は、現時点でサポートされる公式ランタイムの特徴を要約したものである。
+
+| ランタイム | 主な用途 | Fluid Compute 対応 |
+| --- | --- | --- |
+| Node.js | 汎用 Web API、Next.js Route Handler、AI Gateway 連携 | 対応（Optimized Concurrency / Bytecode Caching） |
+| Python | FastAPI / Flask / 機械学習推論 | 対応（Optimized Concurrency） |
+| Bun | TypeScript ネイティブ実行・高速起動 | 対応 |
+| Rust | 高性能・型安全なサーバー処理 | 対応 |
+| Go | 単一 HTTP ハンドラのバイナリ化 | 非対応（従来サーバーレスで動作） |
+| Ruby | 既存 Ruby 資産の API 化 | 非対応 |
+| Wasm | プリコンパイル済 WebAssembly の実行 | 非対応 |
+| Edge | 軽量・グローバル分散・低レイテンシ | 対応（V8 Isolate ベース） |
+
+課金モデルは、従来サーバーレス（Legacy）と Fluid Compute で大きく異なる。下記は両者の比較である。
+
+| 項目 | 従来サーバーレス（Legacy） | Fluid Compute |
+| --- | --- | --- |
+| 同時実行モデル | 1 リクエスト 1 インスタンス | 同一インスタンスで複数リクエストを同時処理 |
+| 課金単位 | GB-Hours（実行時間 × メモリ） | Active CPU + Provisioned Memory + Invocations |
+| I/O 待機中の課金 | CPU・メモリともに継続課金 | CPU は停止、メモリのみ継続課金 |
+| コールドスタート | リクエストごとに発生しやすい | プリウォーム・バイトコードキャッシュで軽減 |
+| 関数のライフサイクル | リクエスト終了で即終了 | `waitUntil` でバックグラウンド処理可能 |
+| デフォルトタイムアウト | プランごとに 60 〜 90 秒 | 全プラン 300 秒（Pro / Enterprise は最大 800 秒） |
+
+リージョン別の料金は、たとえば東京（hnd1）で Active CPU が時間あたり 0.202 ドル、Provisioned Memory が GB-時あたり 0.0167 ドルである。Hobby プランには Active CPU 4 時間・Provisioned Memory 360 GB-時・Invocations 100 万回が含まれ、Pro プランでは超過分がリージョン別単価で従量課金される。
+
+## 使い方
+
+Next.js App Router では、`app/api/hello/route.ts` のような Route Handler が Vercel Function として自動的にデプロイされる。基本形は以下のとおりである。Fluid Compute がデフォルト有効なため、特別な設定なしに同時実行最適化と Active CPU 課金が適用される。
+
+```ts filename="app/api/hello/route.ts"
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const name = searchParams.get("name") ?? "world";
+  return Response.json({ message: `hello, ${name}` });
+}
+```
+
+`runtime` には `nodejs` / `edge` を指定でき、`maxDuration` は秒単位で関数の最大実行時間を上書きする。Hobby は最大 300 秒、Pro / Enterprise は最大 800 秒である。`vercel.json` でも同等の設定が可能であり、関数コード内の指定が最も優先される。フレームワーク非依存の場合は `api/hello.ts` を置いて `export default { fetch(request) { ... } }` 形式で書く方法が公式の推奨である。
+
+Python の FastAPI は 2025 年 9 月 25 日のアップデート以降、`vercel.json` も `api/` ディレクトリも不要なゼロコンフィグデプロイに対応した。プロジェクトルートに `main.py` を置くだけで Vercel が自動検出し、Fluid Compute と Active CPU 課金のもとで動作する。
+
+```python filename="main.py"
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/")
+def root():
+    return {"message": "hello from fastapi"}
+
+@app.get("/items/{item_id}")
+def read_item(item_id: int):
+    return {"item_id": item_id}
+```
+
+バックグラウンド処理は `waitUntil` で記述する。レスポンスを返したあとにログ送信や分析データの永続化を続行できる仕組みであり、Fluid Compute の関数ライフサイクル延長と組み合わせるとユーザー体験を阻害せずに重い後処理を完走させられる。
+
+```ts filename="app/api/log/route.ts"
+import { waitUntil } from "@vercel/functions";
+
+export async function POST(request: Request) {
+  const payload = await request.json();
+  waitUntil(sendToAnalytics(payload));
+  return new Response("ok", { status: 200 });
+}
+```
+
+## 注意点・セキュリティ観点
+
+Fluid Compute は同一インスタンス内で複数リクエストを並行処理する以上、グローバル変数やプロセス内キャッシュにユーザー固有データを保持してはならない。1 リクエスト 1 インスタンスを前提にした既存コードを移行する場合、モジュールスコープに置いた変数が他リクエストに漏れる典型的な事故が起こり得る。リクエスト固有のデータはすべて関数引数（`Request`）か `AsyncLocalStorage` のようなコンテキスト機構で受け渡す必要がある。
+
+`maxDuration` はプラン依存であり、Hobby は 300 秒、Pro / Enterprise は最大 800 秒が上限である。コードや `vercel.json` でプラン上限を超える値を指定するとデプロイが失敗するため、長時間実行が必要な処理は Vercel Sandbox や Cron Jobs、外部キューに切り出す設計が望ましい。ストリーミングは Node.js では 2024 年 10 月 1 日以降デフォルト有効だが、`maxDuration` を超えてストリームし続けることはできない点も併せて押さえる必要がある。
+
+コールドスタートはバイトコードキャッシュとプリウォーム（Production / 有償プラン）で大幅に軽減されたが、ゼロにはならない。`process.env` の値は関数のコールドスタート時にロードされるため、機密情報を遅延ロードする実装は不要であり、むしろ起動時に必須環境変数の存在を検証して早期失敗させる構成が推奨される。Preview デプロイにはバイトコードキャッシュが効かない点にも注意する。
+
+ロールバック時の関数バージョン整合性も論点である。Vercel は不変デプロイモデルを採用しており、Instant Rollback で古いデプロイへ戻すと、その時点でビルドされた関数の中身がそのまま再アクティブ化される。フロントとバックエンドのスキーマがズレた状態でロールバックするとランタイムエラーになるため、Skew Protection を有効化して、デプロイ間のクライアント・サーバー整合性を担保することが望ましい。Fluid Compute では未捕捉例外（`uncaughtException` / `unhandledRejection`）が発生した場合でも他リクエストを巻き添えにせずプロセスを終了させる仕組みが入っているが、エラーログを適切に集約しないと根本原因の特定が遅れる。
+
+## 一次ソース（原文）
+
+- [Vercel Functions](https://vercel.com/docs/functions)
+- [Functions Runtimes](https://vercel.com/docs/functions/runtimes)
+- [Fluid compute pricing](https://vercel.com/docs/functions/usage-and-pricing)
+- [Fluid compute](https://vercel.com/docs/fluid-compute)
+- [Vercel Functions can now run on Fluid compute](https://vercel.com/changelog/vercel-functions-can-now-run-on-fluid-compute)
+- [Higher defaults and limits for Vercel Functions running Fluid compute](https://vercel.com/changelog/higher-defaults-and-limits-for-vercel-functions-running-fluid-compute)
+- [Vercel Functions now have faster and fewer cold starts](https://vercel.com/changelog/vercel-functions-now-have-faster-and-fewer-cold-starts)
+- [Streaming now enabled by default for all Node.js Vercel Functions](https://vercel.com/changelog/streaming-now-enabled-by-default-for-all-node-js-vercel-functions)
+- [Zero-config FastAPI backends](https://vercel.com/changelog/zero-config-fastapi-backends)

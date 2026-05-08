@@ -1,0 +1,91 @@
+---
+title: "DDoS & Network — プラットフォーム DDoS Mitigation・Static IPs・Secure Compute・TLS"
+description: "Vercel が提供するプラットフォーム DDoS Mitigation（自動軽減、最大 40 倍高速化）、HTTP/2 Rapid Reset 対策、Static IPs、Trusted IPs、Vercel Secure Compute、TLS（DHE 廃止）を解説。ネットワーク層の保護と、内部接続の境界制御を整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 34
+---
+
+## この章の要点
+
+Vercel のネットワーク保護は「外向きの攻撃を吸収する DDoS Mitigation」と「内向きの接続を制御する Static IPs / Trusted IPs / Secure Compute」の二層で構成される。前者は全プラン共通でプラットフォーム側が L3・L4・L7 を自動で軽減し、課金対象から外す仕組みである。後者はバックエンドや管理画面への接続経路を IP 単位・ネットワーク単位で固定するための機能群で、Pro 以上または Enterprise 限定のプラン依存が強い領域となる。本章では各機能の守備範囲と、TLS（DHE Cipher Suite 廃止）まで含めたネットワーク前提条件を整理する。
+
+## Vercel の DDoS Mitigation と Network 保護とは
+
+DDoS Mitigation は Vercel Firewall に組み込まれたプラットフォーム機能で、全プランで自動的に有効化される。受信トラフィックを継続的に解析して異常を検知し、悪性とみなしたリクエストはバックエンドに到達する前に遮断する。攻撃中はリソースを動的にスケールさせて吸収するため、利用者側の追加設定は原則不要である。さらに 2024 年 12 月の改善で、ボリューム型攻撃の遮断速度が従来比 40 倍、低速・低頻度型でも 10 倍まで引き上げられた。これは受信トラフィックをインライン・ストリーム処理することで、より早い段階でフィンガープリントを判定する設計に切り替えたためである。
+
+Network 保護はアプリケーションから外部リソースへ接続する経路、および外部からデプロイへアクセスする経路を境界制御するための機能群である。Static IPs は Build と Function の送信元 IP を固定の共有 IP プールに集約し、外部 DB やサードパーティ API 側の allowlist と組み合わせて使う。Trusted IPs は逆方向の制御で、Deployment Protection の一機能として閲覧元 IP を制限する。Secure Compute はさらに踏み込み、専用 IP・専用ネットワーク・VPC ピアリングや VPN 接続まで含めた隔離環境を Enterprise 向けに提供する。
+
+TLS は外部からの接続前提に直結する。Vercel は TLS 1.3 に加えて TLS 1.2 もサポートしているが、`DHE-RSA-AES256-GCM-SHA384` Cipher Suite が 2026 年 6 月 30 日に廃止される予定である。代替として ECDHE 系 4 種と ChaCha20-Poly1305 系 2 種が利用可能で、現行の主要 TLS ライブラリは標準対応している。
+
+## 何が解説されているか
+
+DDoS Mitigation の防御層は OSI モデル上の L3・L4・L7 を網羅し、それぞれ別の対策手段が組み合わされる構造になっている。
+
+| 層 | 主な攻撃例 | Vercel 側の対策 | 利用者の追加対応 |
+| --- | --- | --- | --- |
+| L3 / L4 | SYN Flood、UDP Flood、HTTP/2 Rapid Reset | プラットフォーム自動軽減、インライン TCP 監視で悪性接続を切断 | 原則不要（自動適用） |
+| L7（プロトコル） | HTTP Flood、Slowloris、低速・低頻度型 | Firewall がフィンガープリント判定し challenge / block | Attack Mode、System Bypass Rules |
+| L7（アプリ） | スクレイピング、ログイン総当たり、API 乱用 | Custom Rules、Rate Limiting | WAF Custom Rules、BotID、Middleware Rate Limit |
+
+Network 機能は接続方向と隔離度で整理する。Static IPs と Trusted IPs はアドレス単位、Secure Compute はネットワーク単位の制御である点が分かれ目となる。
+
+| 機能 | 方向 | 提供単位 | プラン |
+| --- | --- | --- | --- |
+| Static IPs | アウトバウンド（Build / Function → 外部） | 共有静的 IP | Pro / Enterprise |
+| Trusted IPs | インバウンド（外部 → Deployment） | IPv4 / CIDR allowlist | Enterprise 限定 |
+| Secure Compute | 双方向 | 専用 IP・専用ネットワーク、VPC ピアリング / VPN | Enterprise |
+| TLS（DHE 廃止） | インバウンド | 接続前提（Cipher Suite） | 全プラン共通、2026-06-30 廃止 |
+
+HTTP/2 Rapid Reset 対策は 2023 年 10 月に対応済みで、利用者側のコード変更は発生しない。Static IPs はプロジェクトまたはチーム設定の Connectivity > Static IPs から有効化でき、Secure Compute と同じ「Connectivity」セクションに統合された UI で管理する。
+
+## 使い方
+
+外部 DB を IP allowlist で守る構成では、Pro チームで Static IPs を有効化し、その IP プールを DB 側で許可する。Supabase や PlanetScale など主要 DB が allowlist 入力に対応しているため、ダッシュボードで取得した IP リストをそのまま貼り付ける運用となる。
+
+```ts
+// app/api/db/route.ts
+// Static IPs 有効化後は Function のアウトバウンドが固定 IP プール経由になる
+import { createClient } from '@/lib/db';
+
+export async function GET() {
+  const db = createClient();
+  const rows = await db.query('select id, name from users limit 10');
+  return Response.json({ rows });
+}
+```
+
+Trusted IPs は Enterprise の Deployment Protection 設定で構成する。Vercel Authentication と併用すると「社内 VPN 経由かつログイン済み」の二重条件を成立させられるため、ステージング環境の保護に向く。設定は IPv4 アドレスまたは CIDR レンジで列挙する。
+
+Secure Compute は VPC ピアリング・サイト間 VPN・専用 IP・専用ビルドリージョンの組合せを Vercel Sales 経由で構成する。典型的なパターンは、本番関数を顧客 AWS VPC とピアリングし、プライベート RDS へ直接続するもの、またはオンプレ DC とサイト間 VPN を張って既存基幹系へ接続するものである。プレビュー環境にも同一の専用 IP が割り当てられるため、レビュー用環境からの本番 DB 検証が安全に行える。
+
+TLS は接続側の前提条件である。Vercel に対して TLS 1.2 で接続している自動化スクリプトや SaaS 連携（決済 Webhook 受信元、監視ボット、社内バッチ等）がある場合、対応 Cipher Suite を以下のいずれかへ更新する。
+
+```bash
+# OpenSSL で確認する例
+openssl s_client -connect example.vercel.app:443 -tls1_2 \
+  -cipher 'ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384'
+```
+
+## 注意点・セキュリティ観点
+
+自動 DDoS Mitigation はあくまで「異常パターン」を判定するため、L7 のアプリケーション層攻撃（正規リクエストに偽装した在庫漁り、スクレイピング、ログイン総当たり）はすり抜ける可能性がある。Firewall の Custom Rules・BotID・Rate Limiting を組み合わせ、必要に応じて Attack Mode を一時投入する運用前提で設計する。Black Friday などの正規スパイクで誤検知が起きた場合は、System Mitigations の一時 Pause が用意されているが、24 時間限定かつ通過した不正トラフィックの利用料は請求対象になるため使用は最小限にとどめる。
+
+HTTP/2 Rapid Reset への対応は完了済みだが、これは Vercel エッジ側の話であり、自前のオリジンを `https://` で別ホスティングしている場合はそちらの対策が別途必要になる。Vercel に閉じない構成では各社の対応状況を個別に確認する。
+
+Static IPs は Pro・Enterprise 限定で、Hobby では取得できない。共有 IP プールであるため Vercel 上の他テナントと IP を共有する点も理解しておく必要がある。完全に独立した IP が必要な場合は Secure Compute（専用 IP）にステップアップする。Secure Compute は隔離度と引き換えにコスト構造が変わり、東西通信量・専用ビルドリージョンの稼働費が加算される。プレビュー環境にも同じネットワーク境界が及ぶため、外部 SaaS のサンドボックスへ接続する経路を別系統で確保するか、Custom Environments で切り替える設計が必要になる。
+
+Trusted IPs は IPv4 と CIDR のみが対象である。社内ネットワークが IPv6 に移行している場合は Vercel Authentication 単体での保護に切り替えるか、固定 IPv4 を吐き出すプロキシを経由する必要がある。
+
+TLS の DHE 廃止は 2026 年 6 月 30 日が期限で、TLS 1.3 利用クライアントには影響しない。影響を受けるのは TLS 1.2 で `DHE-RSA-AES256-GCM-SHA384` のみを許可する古いセキュリティスキャナや組み込み系クライアントが中心である。期限前に `openssl s_client` での疎通確認と、対応 Cipher Suite を含む設定への更新を済ませておく。
+
+## 一次ソース（原文）
+
+- https://vercel.com/docs/security/ddos-mitigation
+- https://vercel.com/docs/vercel-firewall/ddos-mitigation
+- https://vercel.com/changelog/vercel-firewall-now-stops-ddos-attacks-up-to-40x-faster
+- https://vercel.com/changelog/strengthening-vercels-infrastructure-against-http-2-rapid-reset-attacks
+- https://vercel.com/changelog/improve-infrastructure-security-with-vercel-secure-compute
+- https://vercel.com/changelog/static-ips-are-now-available-for-more-secure-connectivity
+- https://vercel.com/changelog/trusted-ips-is-now-generally-available-for-enterprise-customers
+- https://vercel.com/changelog/deprecating-the-dhe-cipher-suite-for-tls-connections

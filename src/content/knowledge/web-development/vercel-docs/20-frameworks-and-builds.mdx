@@ -1,0 +1,138 @@
+---
+title: "Frameworks & Builds — どのフレームワークが第一級か、ビルドはどこまで設定できるか"
+description: "Vercel が公式対応する 35+ の Frameworks（Next.js を筆頭に SvelteKit / Nuxt / Astro / Remix など）の差分、ビルド設定（Build Output API・Build Queues・Configure a Build）、Git 連携、モノレポ（Turborepo）対応、Private Registry までを俯瞰する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 20
+---
+
+## この章の要点
+
+- Vercel は 35 以上のフレームワークを Framework Preset として自動検出し、Build Command・Output Directory・Install Command を設定なしで決定する。Next.js だけが完全な機能セットを使え、他 FW は機能差分が公式マトリクスで明示されている。
+- Build Output API（`.vercel/output`）は FW 中立化のためのファイルシステム仕様であり、SvelteKit / Nuxt / Astro などの公式アダプタはこの仕様に準拠することで Functions・ISR・Routing Middleware・Skew Protection を共通利用している。
+- Build 設定は Project Settings の「Build & Development Settings」と `vercel.json` の二系統で管理する。`vercel.json` 側がコミット可能で再現性が高く、ダッシュボード側はチームの運用都合で残されることが多い。
+- Git 連携は GitHub / GitLab / Bitbucket / Azure DevOps Pipelines を一級サポートし、Production ブランチへの merge で本番デプロイ、それ以外のブランチで Preview デプロイが自動払い出される設計になっている。
+- ビルド並列度はプラン依存で、Hobby は 1 並列、Pro は最大 12 並列、Enterprise はカスタム上限である。On-Demand Concurrent Builds を有効化するとキューイングを実質的に消せる。
+- モノレポは Turborepo / npm・yarn・pnpm・Bun workspaces 前提で「変更のないアプリのビルドをスキップする」機能が Root Directory 設定からトグルで有効化できる。Skew Protection と Turborepo キャッシュは相性が悪く、Next.js では常に cache miss になる既知の制約がある。
+- Private Registry は二系統あり、`@vercel-private` スコープの公式パッケージ用と、ユーザー側の private npm を `NPM_TOKEN` / `NPM_RC` 経由で解決する用途が分かれている。
+
+## Vercel の Frameworks & Builds とは
+
+Vercel における「Framework」と「Build」は、本来は別概念だが運用上は密に結合している。Framework Preset を選んだ瞬間に Build Command・Output Directory・Install Command の既定値が決まり、それらの設定が `.vercel/output` ディレクトリに何を吐き出すかを規定する。プラットフォームはこの出力を解釈して Functions・Static Assets・ISR・Image Optimization の各プリミティブにマッピングする。つまり Vercel におけるビルドとは、コードを成果物に変換する工程ではなく、Vercel プラットフォームが理解できる形式に正規化する工程である。
+
+Next.js が第一級扱いされるのは、Vercel 自身が Next.js の開発元であり、ISR・Streaming SSR・Image Optimization・Skew Protection・Routing Middleware・Native OG Image Generation・Runtime Cache などの機能が Next.js のビルド出力を前提に組まれているためである。公式の機能対応マトリクスを見ると、Runtime Cache は Next.js 専用、Native OG Image は Next.js と Nuxt のみ、Streaming SSR は Nuxt が未対応、ISR は Remix と TanStack Start が未対応、Image Optimization は Remix が未対応といった非対称性がはっきり現れる。フレームワーク選定の段階でこの表を見ずに進めると、後段で「使いたかった機能が動かない」という事故になる。
+
+Build Output API は、この非対称性を緩和するための公式仕様である。フレームワーク作者が `.vercel/output/config.json` と `static/`・`functions/`・`prerender-funcs/` 等のディレクトリ構造を埋めれば、Vercel の機能群を FW 側から呼び出せる。SvelteKit や Nuxt の Vercel アダプタはこの仕様に準拠する形で実装されており、結果として「Next.js 以外でも Functions と ISR と Skew Protection が使える」状態が成立している。フレームワークを使わない素の HTML/JS プロジェクトでも、`.vercel/output` を手で埋めれば同じ機能を享受できる。
+
+Git ベースのビルド・デプロイは Vercel の中核体験である。リポジトリを連携すると、Production ブランチ（既定では `main`、なければ `master`、Bitbucket では production branch 設定、いずれもなければデフォルトブランチ）への push が本番デプロイを起動し、それ以外のブランチへの push が Preview デプロイを起動する。各 deployment は不変で固有 URL を持ち、Pull Request にコメントで Preview URL が貼られる。ビルド時はリポジトリを `git clone --depth=10` で浅くクローンするため、ビルドスクリプト内で深い履歴に依存した処理を書くと壊れる、というのは押さえておく。
+
+## 何が解説されているか
+
+公式 docs の Frameworks & Builds 関連は、Frameworks（一覧と機能差分）、Build Output API、Builds（Configure / Queues / Features / Managing）、Git、Project Configuration、Monorepos の 6 ブロックで構成されている。
+
+| カテゴリ | 代表フレームワーク | Vercel が公開する機能サポート差分の主要ポイント |
+| --- | --- | --- |
+| フルスタック（React 系） | Next.js / Remix / RedwoodJS / TanStack Start | Next.js のみ Runtime Cache 対応。Remix は ISR / Image Optimization / Skew Protection 非対応。TanStack Start は ISR 非対応・Streaming SSR 対応。 |
+| フルスタック（Vue 系） | Nuxt / Gridsome / Saber | Nuxt は Streaming SSR 非対応・Native OG Image 対応。Image Optimization と ISR は対応。 |
+| フルスタック（その他） | SvelteKit / SolidStart / Astro / Hydrogen | SvelteKit と Astro は ISR / Image Optimization / Skew Protection を含む主要機能を網羅。Astro は Multi-runtime 「different routes」のみ非対応。 |
+| 静的サイトジェネレータ | Astro / Hugo / Jekyll / Eleventy / VitePress / Docusaurus / Zola | SSR / ISR は基本 N/A。Static Assets と Edge Routing Rules・Routing Middleware のみ対応。 |
+| ビルドツール / SPA | Vite / Parcel / Brunch / Create React App | SSR / ISR / Image Optimization は N/A。CDN 配信と Middleware のみ。 |
+| Node.js サーバー系 | Express / Fastify / Hono / NestJS / Koa / H3 / Nitro / Elysia | Functions として動かす想定。Vercel Functions のランタイム制約を受ける。 |
+| Python / Go / その他 | FastAPI / Flask / Django / FastHTML / Go | 各言語ランタイムで Functions として動作。Image Optimization 等のフロント機能は対象外。 |
+
+Build 設定領域は次のように整理できる。
+
+| 領域 | 設定対象 | 主な設定方法 |
+| --- | --- | --- |
+| Framework Preset | 自動検出される FW 種別、Build / Install / Output / Dev Command の既定値 | Project Settings → Build & Development Settings、または `vercel.json` の `framework` |
+| Build Command | ビルド時に実行するコマンド | Settings の Override トグル、または `vercel.json` の `buildCommand` |
+| Output Directory | 静的に配信される成果物ディレクトリ | Settings の Override、または `vercel.json` の `outputDirectory` |
+| Install Command | 依存解決コマンド。Corepack で `packageManager` 固定可能 | Settings の Override、または `vercel.json` の `installCommand` |
+| Development Command | `vercel dev` で使うコマンド | Settings の Override、または `vercel.json` の `devCommand`。`$PORT` を必ず引き渡す |
+| Root Directory | リポジトリ内のアプリルート。モノレポでアプリ単位に切る | Settings の Root Directory。`..` で外に出ることは不可 |
+| Ignored Build Step / Skip Unaffected | ビルドを走らせるかどうかの判定 | Settings、または `vercel.json` の `ignoreCommand`。GitHub + workspaces 構成では Skip Unaffected が推奨 |
+| Build Output API | `.vercel/output` の構造仕様 | フレームワーク作者向けの公式仕様。`vercel deploy --prebuilt` で利用 |
+| Build Queues | 並列実行数とキュー制御 | Hobby 1 / Pro 12 / Enterprise カスタム。On-Demand Concurrent Builds で実質キューレス化 |
+| Private Registry | 公式 `@vercel-private` スコープ、およびユーザー側 private npm | `NPM_RC` / `NPM_TOKEN` / `VERCEL_TOKEN` を環境変数で設定 |
+
+## 使い方
+
+最小の `vercel.json` は次の形になる。Framework Preset で自動検出が効いている限り、`buildCommand` や `outputDirectory` を書く必要はない。
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs"
+}
+```
+
+Next.js 以外の FW で Build Command と Output Directory を明示する例は次のようになる。SvelteKit と Astro は公式アダプタが Build Output API に出力するため、`outputDirectory` を `.vercel/output` に固定する点が特徴的である。
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "sveltekit-1",
+  "buildCommand": "vite build",
+  "outputDirectory": ".svelte-kit",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "devCommand": "vite dev --port $PORT"
+}
+```
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "astro",
+  "buildCommand": "astro build",
+  "outputDirectory": "dist",
+  "installCommand": "pnpm install --frozen-lockfile"
+}
+```
+
+モノレポを Turborepo で運用する場合の流れは次の通りである。Vercel ダッシュボードで Turborepo を含むリポジトリを Import すると、Build Command を `turbo run build`、Root Directory を `apps/web` のようなアプリ位置、Ignored Build Step を `npx turbo-ignore --fallback=HEAD^1` に自動設定する。`turbo` は Vercel のビルド環境にグローバルでインストールされているため、アプリ側の依存に追加しなくても呼べる。
+
+```json
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "pipeline": {
+    "build": {
+      "dependsOn": ["^build"],
+      "env": ["NEXT_PUBLIC_API_URL"],
+      "outputs": [".next/**", "!.next/cache/**", ".vercel/output/**"]
+    }
+  },
+  "globalEnv": ["NODE_ENV"],
+  "globalDependencies": ["tsconfig.json"]
+}
+```
+
+Skip Unaffected Projects（GitHub + workspaces 構成のみ）を Settings の Root Directory から有効化すると、変更がないアプリのビルドはコンカレントスロットを消費せず即座にスキップされる。Ignored Build Step は同等の挙動を `ignoreCommand` で実装できるが、こちらはスロットを消費する点が異なる。多数のアプリを抱えるモノレポでは Skip Unaffected が事実上の必須設定になる。
+
+## 注意点・セキュリティ観点
+
+ビルドキューはプラン依存である。Hobby は同時 1 並列のため、複数の PR が走るとキュー待ちが発生する。Pro は 12 並列まで増えるが、これを超えると Concurrency Queue に積まれる。Same Branch Queue では同一ブランチに複数コミットがあると最新コミットだけがビルドされ、間のコミットはスキップされる。これは Production リリース時に「途中のコミットの動作を確認できない」現象として現れる。Enterprise の Urgent On-Demand Concurrency や、On-Demand Concurrent Builds 機能で挙動を上書きできる。
+
+Private Registry まわりは認証経路の違いに注意が要る。Vercel 公式の `@vercel-private` スコープは `https://vercel-private-registry.vercel.sh/registry` を `VERCEL_TOKEN` で叩く構成であり、Project の環境変数に `NPM_RC` と `VERCEL_TOKEN`（Sensitive 推奨）の両方を設定する必要がある。一方ユーザー側の private npm は `NPM_TOKEN` だけで足りる場合と、`.npmrc` 相当を `NPM_RC` で渡す必要がある場合に分かれる。Yarn v2+ は `.npmrc` を読まないため、`.yarnrc.yml` 側に書き直す必要がある点は事故の原因になりやすい。
+
+`.vercelignore` の挙動はローカル CLI 経由の `vercel deploy` のときだけ効く。Git 連携経由のデプロイには影響せず、`.next` `.vercel` `.env.local` `node_modules` などは Vercel 側で常に除外される。`.vercel/output` だけは `vercel deploy --prebuilt` のとき例外的にアップロード対象に含まれる。Build Cache は Output Directory と Vercel 内部キャッシュに分かれており、Turborepo の Remote Cache は前者を team 内で共有する仕組みである。
+
+モノレポでの Skew Protection には既知の制約がある。Next.js + Turborepo の組み合わせでは、Skew Protection が deploy ID をビルド時環境変数として注入するため、ビルドのたびに Turborepo のハッシュが変わり、毎回 cache miss になる。Vercel CDN Cache は通常通り効くため致命傷ではないが、Turborepo の build 高速化を期待していると体感が悪化する。Turborepo 2.4.1 未満では production アセット欠落のバグもあるため、最低限 2.4.1 以上に上げる。
+
+Next.js のバージョンと Vercel 機能の対応関係も意識する。Partial Prerendering は Next.js の experimental 機能で、有効化すると Vercel 側の挙動も変わる。`next/og` と `@vercel/og` は App Router と Pages Router で import パスが分かれる。`next dev` ではなく `vercel dev` を使うのは Vercel platform 機能を手元で試したいときに限る、というのが公式の推奨であり、通常開発は FW のネイティブ dev コマンドを使う方が速い。
+
+Git 連携時のセキュリティでは、Hobby チームは private repo + GitHub org の組み合わせをそもそもデプロイできない、Pro チームでは commit author が Team membership を持つ必要がある、Public repo の fork からの PR は team member の認可が必要、という三点を最初に押さえる。これらは「悪意ある PR がそのまま Preview を立ち上げてシークレットを漏らす」リスクを抑えるための仕様である。
+
+## 一次ソース（原文）
+
+- Frameworks on Vercel — https://vercel.com/docs/frameworks
+- Next.js on Vercel — https://vercel.com/docs/frameworks/nextjs
+- Supported Frameworks on Vercel — https://vercel.com/docs/frameworks/more-frameworks
+- Build Output API — https://vercel.com/docs/build-output-api
+- Build Features for Customizing Deployments — https://vercel.com/docs/builds/build-features
+- Build Queues — https://vercel.com/docs/builds/build-queues
+- Configuring a Build — https://vercel.com/docs/builds/configure-a-build
+- Deploying Git Repositories with Vercel — https://vercel.com/docs/git
+- Project Configuration — https://vercel.com/docs/project-configuration
+- Using Monorepos — https://vercel.com/docs/monorepos
+- Deploying Turborepo to Vercel — https://vercel.com/docs/monorepos/turborepo
+- Working with Vercel's private registry — https://vercel.com/docs/private-registry

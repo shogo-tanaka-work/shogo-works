@@ -1,0 +1,159 @@
+---
+title: "AI Gateway — モデル横断ルーティング・フェイルオーバー・統一課金"
+description: "Vercel AI Gateway は OpenAI / Anthropic / Google / xAI / Groq / Moonshot 等の LLM を単一エンドポイントから扱うルーティング基盤。プロバイダ間フェイルオーバー、Stripe Billing 統合、ZDR、OpenAI 互換エンドポイント、Image Generation までカバーする。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 41
+---
+
+## この章の要点
+
+Vercel AI Gateway は「数百のモデルへ単一の API キーと単一エンドポイントでアクセスする」ためのルーティング層である。OpenAI / Anthropic / Google / xAI / Moonshot / Groq / DeepSeek / Alibaba Qwen / Zhipu GLM / Mistral / Black Forest Labs などのテキスト・画像・動画モデルを `provider/model-id` 形式の文字列で切り替えられる。プロバイダ障害時の自動フェイルオーバー、トークンへのマークアップなしの透明な価格、Stripe Billing 連携による顧客への従量課金転嫁、Zero Data Retention（ZDR）、OpenAI / Anthropic Messages 互換エンドポイントを備え、AI SDK・LangChain・LlamaIndex・Pydantic AI・LiteLLM・Mastra や Open WebUI / LibreChat / Chatbox 等のチャット UI からそのまま利用できる。Beta は 2025-06-25、GA は 2025-08-21。
+
+## AI Gateway とは
+
+AI Gateway は Vercel が提供する LLM 呼び出しの集約レイヤであり、アプリケーションコードと各 AI プロバイダの間に挟まる「モデル抽象化 + ルーティング + 計測 + 課金統合」の単一インターフェースである。エンドポイントは `https://ai-gateway.vercel.sh` の一本に集約され、モデルは `anthropic/claude-opus-4.6` `openai/gpt-5.4` `xai/grok-4.1-fast-non-reasoning` `moonshotai/kimi-k2.5` のようにプロバイダ接頭辞を付けたスラッグで指定する。アプリ側は OpenAI Chat Completions / OpenAI Responses / Anthropic Messages / AI SDK のいずれかの API 形式を選ぶだけで、裏側のプロバイダ接続・キー管理・フェイルオーバー・レート制限・観測を Gateway が肩代わりする。
+
+公式ドキュメントの説明によれば AI Gateway が提供する価値は「One key, hundreds of models」「Unified API」「High reliability（プロバイダ間自動リトライ）」「Embeddings support」「Spend monitoring」「No markup on tokens」の 6 点である。最後の点は重要で、Vercel はトークン単価に上乗せをせず、プロバイダのリスト価格そのままで請求する建付けになっている。これは「Vercel が中間マージンを取るゲートウェイ」ではなく、「Vercel 経由の利用に対して可視化・信頼性・課金統合のメリットだけを足す」というポジショニングを意味する。BYOK（Bring Your Own Key）も同様にマークアップなしでサポートされる。
+
+なぜこの製品が出てきたかを言語化すると、AI アプリ開発の現実が「複数プロバイダを併用しないと価格・レイテンシ・モデル特性のいずれかで負ける」段階に入ったからである。GPT 系・Claude 系・Gemini 系・Grok 系・OSS 系（Llama / Qwen / GLM / Kimi）はそれぞれ得意領域とコスト構造が違い、本番アプリでは推論コストの最適化と障害時のフェイルオーバーが避けて通れない。各プロバイダ SDK を直接統合するとアカウント管理・課金・キー配布・レート制御がプロバイダ数に比例して肥大化する。AI Gateway は「フロントエンドのデプロイ先と同じ Vercel チームの中で、モデル契約・課金・観測を 1 か所に寄せる」ことで、このスケールしない作業を Vercel 側に巻き取る。Marketplace にも近い思想だが、AI 推論については Marketplace の Groq / fal / DeepInfra 連携と並走しつつ、Gateway が「アプリから呼ぶランタイム面」を担う構造になっている。
+
+## 何が解説されているか
+
+対応モデルは 200 を超え、`/ai-gateway/models` のカタログから検索できる。テキスト・マルチモーダル・画像・動画・埋め込みまでカバーする。代表的なものを整理すると以下のとおり。
+
+| カテゴリ | 代表モデル例 |
+| --- | --- |
+| 商用フロンティア（テキスト） | `openai/gpt-5.5` `openai/gpt-5.4` `anthropic/claude-opus-4.7` `anthropic/claude-sonnet-4.6` `google/gemini-3-flash` `google/gemini-3.1-flash-lite` `xai/grok-4.3` |
+| OSS / 中国系（テキスト） | `moonshotai/kimi-k2.6` `deepseek/deepseek-v4-flash` `qwen/qwen3.6-plus` `zhipu/glm-5.1` `minimax/minimax-m2.7` `nvidia/nemotron-3-super-120b-a12b` |
+| 画像生成（マルチモーダル LLM） | `google/gemini-3-pro-image`（Nano Banana Pro） `google/gemini-2.5-flash-image`（Nano Banana） GPT-5 系の `image_generation` ツール経由 |
+| 画像専用モデル | `openai/gpt-image-2` `google/imagen-4.0-ultra-generate-001` `bfl/flux-2-pro` `bfl/flux-kontext-max` `xai/grok-imagine-image-pro` |
+| 埋め込み | OpenAI / Google / Cohere 等の embeddings エンドポイント |
+
+Capabilities 側を整理すると次のとおり。アプリ側のニーズに応じてヘッダや `providerOptions` でオプトインしていく設計である。
+
+| Capability | 概要 | 有効化方法 |
+| --- | --- | --- |
+| 自動フェイルオーバー | 1 プロバイダがエラー / レート超過時に同一モデルの別プロバイダへ自動再試行 | デフォルト有効。`providerOptions.gateway` の `order` / `only` で制御可能 |
+| OpenAI 互換 | `https://ai-gateway.vercel.sh/v1` を baseURL に指定するだけで OpenAI SDK / 互換ツールから利用可 | OpenAI / OpenAI Responses / Anthropic Messages の 3 形式に対応 |
+| Zero Data Retention (ZDR) | プロンプト・出力を保持しない経路に限定。Pro/Enterprise 限定 | Dashboard でチーム全体 ON、または `providerOptions.gateway.zeroDataRetention: true` |
+| Disallow prompt training | プロバイダ側で学習に使われない設定の経路に限定 | ZDR の下位概念。ZDR 有効時は包含 |
+| Stripe Billing 統合 | 入出力トークンのメーターイベントを Stripe の `token-billing-tokens` に発火 | `stripe-customer-id` と `stripe-restricted-access-key` ヘッダ |
+| App Attribution | Vercel 側がアプリを識別し AI Gateway ページで紹介可能に | `http-referer` `x-title` ヘッダ |
+| BYOK | プロバイダ自前のキーを Gateway に持ち込み利用 | Dashboard で登録。マークアップなし |
+| Image Generation | `experimental_generateImage` または `image_generation` ツール経由 | AI SDK / OpenAI 互換 API |
+
+ZDR 対応プロバイダはドキュメントに明記されている範囲で Amazon Bedrock / Anthropic / Azure / Baseten / Cerebras / DeepInfra / Fireworks / Google Vertex / Groq / Mistral / Moonshot AI / Nebius / Parasail / Together が掲載されている。BYOK 経由の場合 ZDR 強制はかからず、利用者と該当プロバイダ間の合意がそのまま効く点に注意する。
+
+## 使い方
+
+最小構成は AI SDK v5/v6 を使う形である。`AI_GATEWAY_API_KEY` を環境変数に設定すれば、モデル文字列を渡すだけで Gateway 経由になる。
+
+```ts
+import { generateText } from 'ai';
+
+const { text } = await generateText({
+  model: 'anthropic/claude-opus-4.6',
+  prompt: 'What is the capital of France?',
+});
+```
+
+OpenAI 互換 API として呼ぶ場合は、`OpenAI` クライアントの `baseURL` を `https://ai-gateway.vercel.sh/v1` に向け、`api_key` を AI Gateway のキーに差し替える。Pydantic AI / LangChain / LlamaIndex / LiteLLM / Mastra も基本はこのパターンか専用プロバイダで接続する。
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.getenv('AI_GATEWAY_API_KEY'),
+    base_url='https://ai-gateway.vercel.sh/v1',
+)
+
+response = client.chat.completions.create(
+    model='xai/grok-4.1-fast-non-reasoning',
+    messages=[{'role': 'user', 'content': 'Why is the sky blue?'}],
+)
+```
+
+Pydantic AI からは `VercelProvider` を介して型安全エージェントを構成できる。型付き構造化出力を要件にする業務ワークフローでは AI SDK よりこちらが素直な場合が多い。
+
+```python
+from pydantic_ai import Agent
+from pydantic_ai.providers.vercel import VercelProvider
+
+agent = Agent(
+    VercelProvider(model='anthropic/claude-opus-4.6'),
+    system_prompt='You are a helpful assistant',
+)
+result = agent.run_sync('What is the capital of France?')
+```
+
+エンドユーザーへ AI 利用料を転嫁したい SaaS では、Stripe Billing 連携が要になる。`stripe-customer-id` と `stripe-restricted-access-key`（`rk_...`、Billing Meter Events の Write 権限のみ）を渡すと、成功レスポンスごとに入出力トークンが `token-billing-tokens` メーターに発火する。
+
+```ts
+import { createGateway } from '@ai-sdk/gateway';
+import { streamText } from 'ai';
+
+const gateway = createGateway({
+  baseURL: 'https://ai-gateway.vercel.sh/v1/ai',
+  apiKey: process.env.AI_GATEWAY_API_KEY,
+  headers: {
+    'stripe-customer-id': process.env.STRIPE_CUSTOMER_ID,
+    'stripe-restricted-access-key': process.env.STRIPE_RESTRICTED_ACCESS_KEY,
+  },
+});
+
+const result = streamText({
+  model: gateway('anthropic/claude-sonnet-4.6'),
+  prompt: 'Explain quantum computing in simple terms.',
+});
+```
+
+機微データを扱う API ルートでは、リクエスト単位の ZDR を `providerOptions.gateway.zeroDataRetention: true` で指定する。ZDR 経路がないモデル / 組み合わせはエラーになる仕様なので、フォールバックとリトライ戦略はアプリ側で握っておく。
+
+```ts
+import type { GatewayProviderOptions } from '@ai-sdk/gateway';
+import { streamText } from 'ai';
+
+const result = streamText({
+  model: 'moonshotai/kimi-k2.5',
+  prompt: 'Analyze this sensitive business data and provide insights.',
+  providerOptions: {
+    gateway: { zeroDataRetention: true } satisfies GatewayProviderOptions,
+  },
+});
+```
+
+社内向けチャット UI を立てる場合は、Open WebUI / LibreChat / Chatbox / OpenClaw のいずれかから Gateway を OpenAI 互換プロバイダとして登録する。LibreChat なら `librechat.yaml` に `baseURL: https://ai-gateway.vercel.sh/v1` と `apiKey: ${AI_GATEWAY_API_KEY}`、`models.fetch: true` を書くだけでカタログが自動取得される。チーム全体の AI 利用を Gateway の Observability ダッシュボードで一元計測できる点が、各プロバイダ別 SaaS を個別契約する構成に対する最大の差分である。
+
+画像生成は AI SDK の `experimental_generateImage` で画像専用モデル（`openai/gpt-image-2` `bfl/flux-2-pro` `google/imagen-4.0-ultra-generate-001` `xai/grok-imagine-image-pro` 等）を直接呼ぶ系統と、`generateText` から `google/gemini-3-pro-image` などのマルチモーダル LLM を呼んで `result.files` に画像を受け取る系統の二本立てになる。GPT-5 系から OpenAI の `image_generation` ツールを介して呼ぶ系統もあり、テキストレスポンスの中で画像をツール結果として受け取る形になる。
+
+## 注意点・セキュリティ観点
+
+ZDR は Pro / Enterprise 限定の機能であり、チーム全体 ON は 1,000 リクエストあたり $0.10 の追加課金、リクエスト単位の ZDR は追加コストなしという建付けになっている。BYOK ではプロバイダとの直接合意が優先されるため Gateway 側の ZDR 強制はかからない一方、Gateway がシステムクレデンシャルへフォールバックした際は ZDR フィルタが適用される。「BYOK だから安全」「ZDR を有効にしたから安全」という単純化はせず、実際にどの経路が選ばれたかは成功レスポンスの `gateway.routing.planningReasoning` で確認する運用を組み立てる。
+
+App Attribution の `http-referer` `x-title` は任意ヘッダだが、`http-referer` の値はリーダーボード（`/ai-gateway/leaderboards`）や AI Gateway ページで表示される可能性がある。社外公開できないアプリ名や内部 URL を入れない。リーダーボードの公開は Vercel 側のオプトイン制御に依存するが、ヘッダを送る時点で「公開され得る情報」として扱うのが安全である。
+
+Stripe Billing 連携で使うキーは、必ず Restricted Access Key（`rk_live_...` / `rk_test_...`、`Billing meter events: Write` 権限のみ）にする。シークレットキーをそのまま Gateway に渡すと、漏洩時に顧客課金や退会処理まで巻き込む事故になる。メーターイベントは非ブロッキング・冪等・成功レスポンス時のみ発火という設計なので、AI 応答自体は失敗しないが、課金イベントの取りこぼしを許容しない要件があるならログ監視（`stripe_meter_failed`）から再処理パイプラインを別建てする必要がある。
+
+プロバイダ間フェイルオーバーは「同じモデル名でも別プロバイダ経由になる可能性がある」ことを意味する。ツール呼び出しの仕様差・Tool Use のスキーマ差・JSON モードの厳密性・コンテキスト長・トークナイザの差などはプロバイダ単位で挙動が変わり得るため、本番ではテスト段階で `providerOptions.gateway.only` や `order` を使って経路を固定し、フェイルオーバー先も明示的に許可リストで管理する運用が無難である。Anthropic Messages 互換エンドポイントを使っている場合でも、`anthropic/claude-sonnet-4.6` のような Gateway スラッグ表記が必要になる点（裸の `claude-sonnet-4-...` ではない）にも注意する。
+
+レート制限とコスト管理は Vercel の Spend Management と AI Gateway 側のチーム予算の両方で守る。BYOK 利用時はプロバイダ側のレート制限がそのまま天井になるが、Gateway 経由の通常利用ではスループットが Vercel の集約により高めに出る一方、トラフィック急増時に「自社プロジェクト単独では到達しないがチーム合算で上限に達する」事象が起きる。チーム単位の予算上限とアラートを必ず設定する。
+
+リーダーボードや Models ページに掲載される利用統計は商用利用先や戦略を読み取られ得る情報を含む。競合分析に利用される前提で、機微なプロジェクトでは App Attribution を有効化しない、もしくはプロジェクト固有の名前を出さない方針を採る。AI Gateway の利用ログ自体は Vercel のチーム RBAC とログドレインの設計に従って取り扱う。
+
+## 一次ソース（原文）
+
+- https://vercel.com/ai-gateway
+- https://vercel.com/ai-gateway/leaderboards
+- https://vercel.com/ai-gateway/models
+- https://vercel.com/docs/ai-gateway
+- https://vercel.com/docs/ai-gateway/ecosystem
+- https://vercel.com/docs/ai-gateway/ecosystem/framework-integrations
+- https://vercel.com/docs/ai-gateway/ecosystem/app-attribution
+- https://vercel.com/docs/ai-gateway/ecosystem/stripe-billing
+- https://vercel.com/docs/ai-gateway/capabilities/zdr
+- https://vercel.com/docs/ai-gateway/capabilities/image-generation/ai-sdk
+- https://vercel.com/docs/ai-gateway/chat-platforms
+- https://vercel.com/changelog/ai-gateway-is-now-in-beta
+- https://vercel.com/changelog/ai-gateway-is-now-generally-available
+- https://vercel.com/changelog/openai-compatible-api-endpoints-now-supported-in-ai-gateway

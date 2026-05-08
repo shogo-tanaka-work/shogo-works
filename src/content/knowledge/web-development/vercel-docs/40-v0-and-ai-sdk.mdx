@@ -1,0 +1,213 @@
+---
+title: "v0 & AI SDK — UI 生成と AI アプリ実装の標準ライブラリ"
+description: "Vercel の v0（自然言語からの UI / アプリ生成）と AI SDK（プロバイダ非依存の TypeScript LLM SDK）を解説。Basic Chatbot / Tool Use / Structured Data Extraction の実装パターンと、v0 と AI SDK の連携をカバーする。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 40
+---
+
+## この章の要点
+
+- v0 は「自然言語 → UI / フルスタックアプリ」を生成するエージェント型ツールで、Next.js + Tailwind + shadcn/ui を前提に React コンポーネントを直接書き出し、Vercel へワンクリックデプロイまで一気通貫でつなぐ
+- AI SDK は TypeScript で LLM を扱うためのプロバイダ非依存ツールキット。`generateText` / `streamText` / `generateObject` / Tool Use の 4 つを覚えれば、チャットボット・分類・抽出・外部 API 連携の主要ユースケースは網羅できる
+- v0 と AI SDK は別レイヤだが補完関係にある。v0 は UI 層と初期実装の生産速度を、AI SDK は LLM 呼び出しの抽象化と本番運用品質を担う
+- v0 の Private Blob Stores 連携（2026-03 リリース）により、認証必須の機密ファイルとパブリックアセットをワンクリックで使い分けられるようになった
+- AI SDK は `ai` パッケージのメジャーバージョンで API（特に `useChat` / `streamText` の戻り値）が変わるため、教材・ブログのコードをそのまま貼ると動かないケースが多い。バージョンを必ず固定する
+
+## v0 と AI SDK とは
+
+両者は名称が並列で語られがちだが、レイヤが違う。
+
+**v0（[v0.app](https://v0.app/docs/introduction)）** は「AI エージェントが実コードとフルスタックアプリを生成する」ためのプロダクト。プロンプト・スクリーンショット・Figma ファイルから React コンポーネントや Next.js ページを生成し、shadcn/ui ベースで書き出す。デザインモードでの反復編集、GitHub 連携、Vercel へのワンクリックデプロイ、Snowflake 等のデータベース統合、そして 2026-03 から正式提供された Private / Public Blob Stores のワンクリック作成までを内包する。プロダクトマネージャー・デザイナー・エンジニアいずれもユーザーになり得る、UI 層に強いツール。
+
+**[AI SDK](https://vercel.com/docs/ai-sdk)** は Vercel が提供する TypeScript ツールキットで、Next.js / Vue / Svelte / Node.js から LLM を呼び出す際の差分を吸収する。OpenAI / Anthropic / Google などの Provider を `model: 'openai/gpt-5.2'` のような文字列指定で切り替えられるのが大きな特徴で、プロバイダロックインを避けたい組織での採用が多い。中心は `generateText` / `streamText` / `generateObject` / `streamObject` と `tool()` ヘルパー、そして React 向けの `useChat` フックまわり。
+
+連携関係としては、v0 が生成するチャットボット UI の中身は AI SDK を呼び出す構成になっていることが多い。「v0 で UI と API ルートの雛形を作り、AI SDK のコードは自分で品質チェックする」という運用が現実的。
+
+## 何が解説されているか
+
+[AI SDK Academy](https://vercel.com/academy/ai-sdk) は 3 セクション構成で、データ抽出・分類・チャットボットの順に積み上げる設計になっている。
+
+### v0 の機能対応表
+
+| 機能カテゴリ | 内容 | 実務での主な用途 |
+| --- | --- | --- |
+| Chat | プロンプトでコンポーネント / ページを生成 | LP・管理画面の初期実装 |
+| Component Generation | React + Tailwind + shadcn/ui で書き出し | デザインシステム準拠の UI |
+| Project | 生成資産をプロジェクト単位で保持・反復 | 段階的な機能追加 |
+| デザインモード | 生成済み UI の見た目をビジュアル編集 | デザイナーとの協業 |
+| GitHub 連携 | 生成コードをリポジトリに直接 push | 既存リポジトリへの組み込み |
+| Vercel デプロイ | ワンクリックで本番デプロイ | プロトタイプ即公開 |
+| Private / Public Blob Stores | ストアをワンクリック作成し、認証ルート / 直接 URL を自動配線 | 機密ファイル配信、メディア配信 |
+| データベース統合 | Snowflake 等への接続 | 業務データを使った内製ツール |
+
+### AI SDK の主要関数
+
+| 関数 | 役割 | 典型ユースケース |
+| --- | --- | --- |
+| `generateText` | 一括でテキスト生成 | バッチ要約・分類・スクリプト処理 |
+| `streamText` | SSE でトークン単位ストリーム | チャットボット、リアルタイム生成 UI |
+| `generateObject` | Zod スキーマに沿った構造化 JSON | 抽出、分類、合成データ生成 |
+| `streamObject` | 構造化 JSON のストリーミング | ストリーム + 構造化が必要な UI |
+| `tool()` ヘルパー | LLM が呼び出せる関数を定義 | 天気・在庫・社内 API 連携 |
+| `useChat`（`@ai-sdk/react`） | クライアント側のメッセージ状態と API 通信を一括管理 | Next.js でのチャット UI |
+
+### Provider の例
+
+`'openai/gpt-5.2'` / `'anthropic/claude-opus-4.5'` のように Provider と Model を文字列で指定するだけで切り替えられる。OpenAI / Anthropic / Google / Mistral / Groq / Bedrock など主要プロバイダに対応し、自前の `@ai-sdk/<provider>` パッケージで拡張する形。
+
+## 使い方
+
+### `streamText` 最小例（チャットボット API ルート）
+
+[Basic Chatbot](https://vercel.com/academy/ai-sdk/basic-chatbot) のレッスンで紹介されている、Next.js App Router 前提の最小構成。バックエンドは数行で書ける。
+
+```typescript
+// app/api/chat/route.ts
+import { streamText, convertToModelMessages } from "ai";
+
+export const maxDuration = 30;
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: "openai/gpt-5-mini",
+    messages: await convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+クライアント側は `useChat` でメッセージ状態と API 通信をまとめて扱う。手動で WebSocket や fetch ストリーミングを組む必要はない。
+
+```tsx
+// app/chat/page.tsx
+"use client";
+
+import { useChat } from "@ai-sdk/react";
+import { useState } from "react";
+
+export default function Chat() {
+  const [input, setInput] = useState("");
+  const { messages, sendMessage } = useChat();
+
+  return (
+    <form
+      onSubmit={async (e) => {
+        e.preventDefault();
+        if (!input.trim()) return;
+        await sendMessage({ text: input });
+        setInput("");
+      }}
+    >
+      {messages.map((m) => (
+        <div key={m.id}>
+          <strong>{m.role === "user" ? "User: " : "AI: "}</strong>
+          {m.parts?.map((p, i) => p.type === "text" && <span key={i}>{p.text}</span>)}
+        </div>
+      ))}
+      <input value={input} onChange={(e) => setInput(e.target.value)} />
+    </form>
+  );
+}
+```
+
+### Tool Use 例（外部 API 連携）
+
+[Tool Use](https://vercel.com/academy/ai-sdk/tool-use) で扱う最小パターン。`description` と `inputSchema` がモデルの判断材料になるため、ここの記述品質がそのまま呼び出し精度に直結する。
+
+```typescript
+// app/api/chat/tools.ts
+import { tool } from "ai";
+import { z } from "zod";
+
+export const getWeather = tool({
+  description: "Get current weather for a specific city. Use when users ask about weather.",
+  inputSchema: z.object({
+    city: z.string().describe("City name for lookup"),
+  }),
+  execute: async ({ city }) => {
+    // 実装側で 5 秒程度のタイムアウトと失敗時の意味あるエラーを必ず返す
+    const res = await fetch(`https://api.example.com/weather?city=${encodeURIComponent(city)}`);
+    if (!res.ok) throw new Error(`weather lookup failed: ${res.status}`);
+    return (await res.json()) as { city: string; temperature: number };
+  },
+});
+```
+
+```typescript
+// app/api/chat/route.ts に組み込む
+import { streamText } from "ai";
+import { getWeather } from "./tools";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: "openai/gpt-5-mini",
+    messages,
+    tools: { getWeather },
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+### Structured Data Extraction 例（Zod による抽出）
+
+[Structured Data Extraction](https://vercel.com/academy/ai-sdk/structured-data-extraction) のパターン。フィールドに `.describe()` を付けることでモデルへの暗黙のプロンプトとして効くのが要点で、ここを省くと精度が大きく落ちる。`.optional()` ではなく `.nullable()` を使い、「値がない」を明示するのが推奨される。
+
+```typescript
+// schemas.ts
+import { z } from "zod";
+
+export const appointmentSchema = z.object({
+  title: z.string().describe("イベント名。主な目的を簡潔に"),
+  startTime: z.string().nullable().describe("HH:MM 形式（例: 14:00）"),
+  endTime: z.string().nullable().describe("終了時間、HH:MM 形式"),
+  attendees: z.array(z.string()).nullable().describe("参加者名のリスト"),
+  location: z.string().nullable(),
+  date: z.string().describe("YYYY-MM-DD 形式"),
+});
+
+export type AppointmentDetails = z.infer<typeof appointmentSchema>;
+```
+
+```typescript
+// actions.ts
+"use server";
+import { generateObject } from "ai";
+import { appointmentSchema } from "./schemas";
+
+export async function extractAppointment(input: string) {
+  const { object } = await generateObject({
+    model: "openai/gpt-5-mini",
+    schema: appointmentSchema,
+    prompt: `以下の自然文から予定の詳細を抽出してください:\n"${input}"`,
+  });
+  return object;
+}
+```
+
+`generateText` と `Output.object()` の組み合わせでも同じことはできるが、純粋な抽出用途なら `generateObject` の方がシンプルで型推論も素直に効く。
+
+## 注意点・セキュリティ観点
+
+- **v0 出力コードは必ずレビューする**：v0 は「動く UI」を素早く出すのが得意な反面、認証・認可・入力バリデーション・SSRF / XSS 対策まで考慮した実装になっているとは限らない。本番投入前に、特に API ルートと Server Actions は人間が読み切る前提で扱う
+- **Provider Key の管理**：AI SDK の各 Provider は `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` 等の環境変数を読む。クライアントコンポーネントから直接呼ばないこと、Preview 環境にも本番キーを流さないこと、Vercel の環境変数スコープを Production / Preview / Development で分離することが最低ライン
+- **ストリーミングのキャンセル処理**：`streamText` のレスポンスをユーザーがブラウザで途中閉じすると、サーバー側の生成は走り続けてトークン課金が止まらないことがある。`AbortController` を Route Handler 側で受け取り、`req.signal` を Provider 側に渡してキャンセル伝播させる
+- **AI SDK のメジャーバージョン互換**：`ai` パッケージはメジャー版で `useChat` の戻り値や `streamText` の API 形（`messages.parts` の構造、`toUIMessageStreamResponse()` の有無）が変わる。教材コードを写経するときは必ず `package.json` のバージョンに合わせて読む。本番では `^` ではなく固定版指定を検討する
+- **Function 実行時間と AI ワークロードの整合**：LLM のストリーミングは長時間化しやすい。Vercel Functions の `maxDuration` を明示的に指定する（例の `export const maxDuration = 30`）。Hobby プランの上限、Pro / Fluid Compute での上限、リージョン配置を踏まえ、長時間生成は別ジョブ（Cron / Queue）に逃がす設計にする
+- **Tool Use の入力検証**：`inputSchema` の Zod は LLM の出力を信頼しないための最後の砦。`execute` 側でも DB アクセス前に再度バリデーションし、SQL インジェクションや権限昇格に使われない設計にする
+- **構造化抽出のフィールド説明はプロンプトと等価**：`.describe()` の文言は実質的にシステムプロンプトの一部として効く。社内ナレッジや個人情報の取り扱いポリシーをここに書くのは避け、機微情報の有無だけを判定させて別レイヤで処理する
+- **v0 の Private Blob 連携**：[Private Blob Stores 機能](https://vercel.com/changelog/create-private-blob-stores-with-a-single-click-in-v0) はデフォルトで認証必須。Public に切り替えるとアセットが直接 URL で読めてしまうため、用途を明確に分けて作成する。誤って機密ファイルを Public ストアに置く事故が起きやすい
+
+## 一次ソース（原文）
+
+- [v0 Documentation — Introduction](https://v0.app/docs/introduction)
+- [Vercel Docs — AI SDK](https://vercel.com/docs/ai-sdk)
+- [Vercel Academy — AI SDK](https://vercel.com/academy/ai-sdk)
+- [Vercel Academy — Basic Chatbot](https://vercel.com/academy/ai-sdk/basic-chatbot)
+- [Vercel Academy — Tool Use](https://vercel.com/academy/ai-sdk/tool-use)
+- [Vercel Academy — Structured Data Extraction](https://vercel.com/academy/ai-sdk/structured-data-extraction)
+- [Vercel Changelog — Create private Blob stores with a single click in v0](https://vercel.com/changelog/create-private-blob-stores-with-a-single-click-in-v0)

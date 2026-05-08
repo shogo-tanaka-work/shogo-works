@@ -1,0 +1,143 @@
+---
+title: "Ship Week & ロードマップ — Vercel の半期発表で見る AI Cloud の方向性"
+description: "Vercel Ship イベント（vercel.com/shipped）の主要発表を時系列で整理し、AI Accelerator や Infrastructure Pricing 改善などの戦略的アップデートを「AI Cloud 化」「Compute 進化」「セキュリティ」「Pricing 透明化」の 4 軸で読み解く。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 51
+---
+
+## この章の要点
+
+- **Vercel Ship** は半期に一度開催される Vercel のフラッグシップ発表イベント。Changelog が日々の細かい更新を流すのに対し、Ship は **戦略の塊** をまとめて打ち出す場として機能する
+- 直近の流れを俯瞰すると、2024 → 2025 → 2026 で重心が「Frontend Cloud」から「**AI Cloud**」へと明確にシフトしている。Firewall・v0・AI SDK（2024）→ Fluid Compute / Active CPU / BotID / Rolling Releases（2025）→ AI Gateway / Agent / Sandbox（2026）という系譜
+- 4 軸で読むと整理しやすい：(1) **AI Cloud 化**（AI Gateway / Sandbox / Agent）、(2) **Compute 進化**（Fluid Compute / Active CPU pricing）、(3) **セキュリティ強化**（Firewall / BotID / Deployment Protection）、(4) **Pricing 透明化**（2024-04 の Infrastructure Pricing 改善 → 2025 の Active CPU）
+- **AI Accelerator** は Ship と並走するもう一つの戦略軸。6 週間 / 40 社 / 800 万ドル超のクレジットで、Vercel を中心とした AI スタートアップの生態系を作りに行っている
+- Ship 発表は「ビジョンと実装済み機能の境界が曖昧」になりがち。本章は道標であり、各機能の実装可否は本シリーズ各章および公式 Docs / Changelog で再確認する前提で読む
+
+## Ship イベントとは
+
+Vercel Ship（[vercel.com/shipped](https://vercel.com/shipped) / [vercel.com/ship](https://vercel.com/ship)）は、Vercel が半期ごとに開催する発表会型イベントである。基調講演（Opening Keynote）でその期の戦略的な機能群を一気にアナウンスし、午後はトラック別のセッションでディープダイブする構成が定着している。
+
+Changelog との違いは粒度と意図にある。
+
+- **Changelog** は機能単位の事実ベースのリリースノート。日次〜週次で流れる
+- **Ship** は **複数の Changelog を束ねた戦略的メッセージ**。「Vercel が次の半年でどこへ向かうか」を、デモ・顧客事例・パートナー登壇とセットで提示する
+
+開発者向けマーケティングの観点では、Ship は「ロゴショー」も兼ねている。OpenAI / Anthropic / xAI などの AI ベンダーや、v0 で構築する大企業の事例が並び、「Vercel = AI 時代の標準デプロイ先」というポジショニングを強化する場として機能する。
+
+採用判断側としては、Ship のキーノートを 1 本見るのが最短の方向感把握になる。`vercel.com/ship/<year>/session/opening-keynote` で過去回の録画が公開されている。
+
+## 直近の Ship 発表
+
+確認できた範囲で時系列に並べる。各回の細部は本シリーズの各章で扱っているため、ここではキーノートの主題のみを押さえる。
+
+### Vercel Ship 2024（2024-05-23 / New York）
+
+主題は **「Frontend Cloud の完成形」**。AI を扱いつつも、軸足はまだ Web フロントエンドの統合プラットフォームにあった。
+
+- **Vercel Firewall**：悪性トラフィックのログ・ブロック・チャレンジ。WAF と DDoS 緩和の正式名称化。詳細は [WAF とファイアウォール](/knowledge/web-development/vercel-docs/31-waf-and-firewall) を参照
+- **Feature Flags の Web Analytics 統合**：フラグごとのページビュー / カスタムイベント分解
+- **Vercel Toolbar の刷新**：プレビュー上での反復速度改善
+- **Next.js 15 RC**（React 19 サポート / キャッシュ挙動の見直し）
+- **v0 と AI SDK のアップデート**：プロンプトから UI 生成、SDK の DX 改善
+
+### Vercel Ship 2025（2025-06 / 別途 Ship AI トラックあり）
+
+主題は **「AI 時代の Building Blocks」**。Compute モデルとセキュリティの両面で、AI ワークロードを前提に作り直された層が出揃った。
+
+- **Fluid Compute + Active CPU pricing**：「Serverless Servers」と銘打つ新 Compute モデル。アイドル時間（LLM レスポンス待ち等）に CPU 課金しない方式へ。AI 推論など待機の長いワークロードで最大 90 % のコスト削減。詳細は [Functions と Fluid Compute](/knowledge/web-development/vercel-docs/21-functions-and-fluid-compute) を参照
+- **Rolling Releases**：段階リリース（カナリア → 全体）を標準デプロイフローに組み込む。デプロイ失敗時のブラスト半径削減
+- **BotID**（Invisible CAPTCHA）：Checkout / Login / LLM 呼び出しなど高コスト経路を「人間/Bot」で守る。reCAPTCHA 系の代替。詳細は [Bot Management と BotID](/knowledge/web-development/vercel-docs/32-bot-management-and-botid) を参照
+- **AI Gateway 系の整備**：複数モデルベンダーへの統一インターフェース。詳細は [AI Gateway](/knowledge/web-development/vercel-docs/41-ai-gateway) を参照
+
+### Vercel Ship 2026（2026-10-15 / San Francisco, Palace of Fine Arts）
+
+時期は 2026 年秋（執筆時点では予告フェーズ）。基調メッセージは **「AI Cloud」**。Vercel というブランドの定義そのものが「Frontend Cloud」から「AI Cloud」へと書き換わるアナウンスがトップに来る構成。
+
+- **AI Gateway の本格展開**：OpenAI / Anthropic / xAI など数百モデルへの統一アクセス、ロングリスニング対応のストリーミング
+- **Sandbox**：エージェントが任意コードを安全に実行するための隔離環境。詳細は [MCP と Sandbox](/knowledge/web-development/vercel-docs/42-mcp-and-sandbox) を参照
+- **Vercel Agent**：PR レビュー / 異常検知の運用エージェント。Pro 以上で全 PR 対象。詳細は [AI Agents と Claim Deployments](/knowledge/web-development/vercel-docs/43-ai-agents-and-claim-deployments) を参照
+- **Security Suite の統合**：WAF・Bot 管理・BotID・Sandbox を「セキュリティ製品群」として再パッケージ
+
+時期不詳の細部もあるため、確定版の詳細は [Ship 2026 公式ページ](https://vercel.com/ship) と当日の Opening Keynote で再確認する前提で読む。
+
+## 戦略的トピック
+
+Ship 発表の流れを 4 軸で読み直すと、Vercel が「単なるホスティング」から「AI Cloud のフルスタック」へ移行する道筋が浮かぶ。
+
+### AI Cloud 化（AI Gateway / Sandbox / Agent）
+
+2024 の v0 / AI SDK は「アプリケーション層の AI ツール」だった。2025 〜 2026 の Ship で追加された **AI Gateway / Sandbox / Vercel Agent** は、AI ワークロードを支える **インフラ層** の三点セットになる。
+
+- **AI Gateway**：モデル切替・レート制御・ログ集約のプロキシ
+- **Sandbox**：エージェント実行の隔離・タイムアウト・リソース上限
+- **Vercel Agent**：プラットフォーム自身が PR や異常を見るオートパイロット
+
+「フロントエンドのデプロイ先」だった Vercel が、「AI アプリの Compute / Gateway / Agent を一体提供する場所」へとレイヤを増やしている。
+
+### Compute モデル進化（Fluid Compute / Active CPU）
+
+Compute の進化は二段階で起きた。
+
+1. **Fluid Compute**（Serverless Servers）：従来の関数モデルでは、LLM のレスポンス待ちのようなアイドル時間にも課金が発生していた。Fluid は同一インスタンス上で複数リクエストを並走させる「サーバ的」な実行モデルで、I/O 待ちを再利用する
+2. **Active CPU pricing**（2025 Ship）：課金単位を「壁時計時間」から「実 CPU 使用時間（vCPU × ms）」へ。アイドル中はメモリだけが 1/11 レートで課金され、Invocations は別ライン。AI 推論や外部 API 待ちなど idle が長い処理で、上記の Fluid と組み合わせて最大 95 % の削減実績が公表されている
+
+これは Pricing 改善というより **Compute モデル自体の再定義** で、「AI 時代の課金は秒/分ではなく ms × vCPU」というメッセージが核にある。
+
+### セキュリティ強化（Firewall / BotID / Deployment Protection）
+
+セキュリティ系も Ship で段階的に統合されてきた。
+
+- **Vercel Firewall**（2024）：WAF・DDoS 緩和を一次プロダクトとして再定義
+- **BotID**（2025）：人間 vs Bot 判定を Invisible CAPTCHA で実装。AI Endpoint やチェックアウトの保護に寄せた仕様
+- **Deployment Protection / RBAC**（継続）：Preview の社外露出を抑える運用面の強化
+- **Sandbox**（2026）：エージェントのコード実行を隔離する執行環境
+
+総じて「AI 経路と Bot 経路を、ネットワーク → アプリ → 実行環境の各層で守る」という構図に整理されている。詳細は [セキュリティ・コンプライアンス](/knowledge/web-development/vercel-docs/30-security-compliance) 〜 [DDoS と Network](/knowledge/web-development/vercel-docs/34-ddos-and-network) を参照。
+
+### Pricing 透明化（Infrastructure Pricing 改善）
+
+2024-04-25 に発表された [Infrastructure Pricing 改善](https://vercel.com/changelog/improved-infrastructure-pricing-is-now-active-for-new-customers) は、Ship の場ではないが半期戦略の延長線にある重要アップデート。
+
+- 旧来の「帯域 + 関数」を束ねた統合メトリクスを **粒度ごとに分解**
+- 基本価格を引き下げ、Usage ページで新メトリクスを可視化
+- 新規顧客は即日（2024-04-25）、既存顧客は 2024-06-25 〜 07-24 で順次移行
+- Enterprise 契約は据え置き
+
+2025 の Active CPU pricing はこの透明化の延長で、「ユーザーが意識する単位を、実際にコストを生む単位に近付ける」という方向性が一貫している。
+
+### AI Accelerator プログラム
+
+[Vercel AI Accelerator](https://vercel.com/ai-accelerator) は Ship と並走する戦略軸。
+
+- **規模**：6 週間・40 社・800 万ドル超のクレジット
+- **クレジット内訳**：Vercel 120 万ドル / AWS 100 万ドル / Anthropic 60 万ドル + 30 社以上のテック企業
+- **構成**：Weekly Fireside Chats と Workshops、投資家との直接面談、SF でのデモデイ
+- **狙い**：v0 / AI SDK / AI Gateway を中心とした **AI スタートアップ生態系** の囲い込み。プラットフォームの digestible な顧客層を Ship イベントの登壇者プールにつなぐ流れを作っている
+
+採用判断側としては、AI Accelerator 出身企業の事例が Ship キーノートの「お墨付き」役を担っているため、参考事例の出所として把握しておくと読み解きが速い。
+
+## 注意点
+
+Ship 発表を一次資料として扱うときの注意。
+
+- **ビジョンと実装済みの境界が曖昧**：キーノートでは「Coming soon」「In Beta」「GA」が混在する。本章で挙げた機能でも、回によっては当日 Beta だったものが翌四半期に GA するケースが多い。実装可否は本シリーズ各章 / [公式 Docs](https://vercel.com/docs) / [Changelog](https://vercel.com/changelog) で **必ず再確認** する
+- **デモ環境と本番環境の差**：キーノートのデモは理想ケース。Quotas / Limits / Region 制約は別途 Docs で確認する
+- **時期の表記**：本章で「時期不詳」と書いた箇所は、執筆時点で一次ソースから日付が確定できなかったもの。当日の発表サマリ Blog（`vercel.com/blog/vercel-ship-<year>-recap`）が出れば、日付・登壇者・GA ステータスが整理されるのでそちらを正本とする
+- **AI Cloud という呼称**：Vercel の自称が「Frontend Cloud」→「AI Cloud」と移っているが、これは技術スタックの破壊的変更ではなく **マーケティング上のリブランド** に近い。既存の Next.js / Edge / Functions の積み上げは継続している点を混同しない
+
+## 一次ソース（原文）
+
+- [Vercel Shipped（顧客ショーケース） — vercel.com/shipped](https://vercel.com/shipped)
+- [Vercel Ship（イベント・ハブ） — vercel.com/ship](https://vercel.com/ship)
+- [Vercel Ship 2024 recap — vercel.com/blog/vercel-ship-2024](https://vercel.com/blog/vercel-ship-2024)
+- [Vercel Ship 2024 Opening Keynote — vercel.com/ship/2024/session/opening-keynote](https://vercel.com/ship/2024/session/opening-keynote)
+- [Vercel Ship 2025 recap — vercel.com/blog/vercel-ship-2025-recap](https://vercel.com/blog/vercel-ship-2025-recap)
+- [Introducing Active CPU pricing for Fluid compute — vercel.com/blog/introducing-active-cpu-pricing-for-fluid-compute](https://vercel.com/blog/introducing-active-cpu-pricing-for-fluid-compute)
+- [Lower pricing with Active CPU pricing for Fluid compute — vercel.com/changelog/lower-pricing-with-active-cpu-pricing-for-fluid-compute](https://vercel.com/changelog/lower-pricing-with-active-cpu-pricing-for-fluid-compute)
+- [Fluid compute: How we built serverless servers — vercel.com/blog/fluid-how-we-built-serverless-servers](https://vercel.com/blog/fluid-how-we-built-serverless-servers)
+- [Improved Infrastructure Pricing is now active for new customers — vercel.com/changelog/improved-infrastructure-pricing-is-now-active-for-new-customers](https://vercel.com/changelog/improved-infrastructure-pricing-is-now-active-for-new-customers)
+- [Vercel AI Accelerator — vercel.com/ai-accelerator](https://vercel.com/ai-accelerator)
+- [2026 Vercel AI Accelerator recap — vercel.com/blog/2026-vercel-ai-accelerator-recap](https://vercel.com/blog/2026-vercel-ai-accelerator-recap)
+- [AI Gateway — vercel.com/ai-gateway](https://vercel.com/ai-gateway)
+- [Vercel Changelog — vercel.com/changelog](https://vercel.com/changelog)

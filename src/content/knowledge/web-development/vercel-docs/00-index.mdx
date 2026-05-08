@@ -1,0 +1,134 @@
+---
+title: "Vercel 公式ドキュメント完全解説 — 全体目次と読み方"
+description: "Vercel 公式ドキュメントを日本語で体系的に整理した解説集の目次。Frameworks / Functions / Edge / Storage / Observability といったコア機能、WAF / Bot Management / Deployment Protection 等のセキュリティ、v0 / AI Gateway / MCP / Sandbox の AI インフラ、最新動向、CLI・REST API 目次までを章立てで案内する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 0
+---
+
+## このシリーズの要点
+
+- Vercel 公式ドキュメント（[vercel.com/docs](https://vercel.com/docs)）を日本語で体系的に整理した解説集である
+- 「全体像」「コア機能」「セキュリティ」「AI インフラ」「最新動向」「リファレンス目次」「実務ヒント」の 7 ブロックに分けてある
+- 各章は「要点 / 何ができるサービスか / 何が解説されているか / 使い方 / 注意点 / 一次ソース」の 6 セクション構成で統一されている
+- Vercel は AI Cloud としてリブランディングされて以降、`v0` / `AI Gateway` / `MCP Servers` / `Sandbox` といった AI ワークロード向け基盤と、`WAF` / `Bot Management` / `BotID` / `Deployment Protection` / `RBAC` / `DDoS Mitigation` といったセキュリティ機能が大幅に拡張されており、本シリーズはその全範囲をカバーする
+- 公式ドキュメントは 1,000 ページ超あるが、本シリーズは **コア機能とセキュリティは全章フル網羅、CLI / REST API は目次レベル** という方針で読みやすさと実用性を両立している
+- 公式の原文 URL を各章末に必ず明示しているので、深掘りしたいときは原文へ直接ジャンプできる
+
+## 想定読者
+
+- Vercel をプロダクトに採用するか検討している開発者
+- Next.js は使っているが、Vercel プラットフォーム側の機能を体系的に把握できていない人
+- AI Cloud 化以降の Vercel（v0 / AI Gateway / Sandbox など）に何ができるのか知りたい人
+- セキュリティ要件・コンプライアンス要件で採用可否を判断したい技術選定責任者
+- AI コンサル・研修担当者として Vercel を教材として理解したい人
+
+## なぜこのシリーズが必要か
+
+Vercel はアップデート頻度が極めて高く、AI Cloud リブランディング以降の機能追加（Fluid Compute・AI Gateway・BotID・Sandbox など）は四半期単位でドキュメントが書き換わっている。一方で公式ドキュメントは英語で 1,000 ページを超え、Next.js のドキュメントと混じって読める構造のため、「Vercel プラットフォーム側の機能だけ」を切り出して把握するのが難しい。
+
+本シリーズは「公式ドキュメントを読み解く前のオリエンテーション」として機能することを目的にする。各章の役割を読めば、自分が今ぶつかっている課題が公式のどこに書かれているか、地図として使える状態を目指している。
+
+## 全体構成
+
+### 第 1 部：Vercel の全体像
+
+| 章 | タイトル | 概要 |
+|---|---|---|
+| 10 | Vercel 全体像 | AI Cloud としてのプラットフォーム位置付け、Next.js との関係、競合との違い |
+
+### 第 2 部：コア機能
+
+| 章 | タイトル | 概要 |
+|---|---|---|
+| 20 | Frameworks & Builds | Frameworks（Next.js 含む）対応・ビルド設定・モノレポ・Build Output API |
+| 21 | Functions & Fluid Compute | Vercel Functions・Fluid Compute・Active CPU 課金モデル |
+| 22 | Routing Middleware & Edge | Routing Middleware・Edge Network・Edge Functions の使い分け |
+| 23 | ISR & Image Optimization | Incremental Static Regeneration・画像最適化・キャッシュ制御 |
+| 24 | Deployments & Environments | Preview / Production・Rolling Releases・Instant Rollback・Skew Protection |
+| 25 | Domains & Delivery Network | Domains 管理・Vercel Delivery Network・CDN |
+| 26 | Storage & Marketplace | Blob / Postgres / KV / Edge Config と Vercel Marketplace の使い分け |
+| 27 | Observability & Analytics | Observability Suite・Web Analytics・Speed Insights |
+
+### 第 3 部：セキュリティとコンプライアンス
+
+| 章 | タイトル | 概要 |
+|---|---|---|
+| 30 | コンプライアンス | SOC 2 / ISO 27001 / HIPAA / GDPR の取得状況と対応範囲 |
+| 31 | WAF & Firewall | Vercel WAF・カスタムルール・Managed Rulesets |
+| 32 | Bot Management & BotID | Bot Management・BotID（invisible CAPTCHA）・AI Bot Filtering |
+| 33 | Deployment Protection & RBAC | Deployment Protection・SSO・RBAC・チーム権限 |
+| 34 | DDoS & Network | Platform DDoS Mitigation・ネットワーク制御 |
+| 35 | 安全に使える領域マップ | 機能 × 安全度 × プラン依存マトリクス（本シリーズの中核） |
+
+### 第 4 部：AI インフラ
+
+| 章 | タイトル | 概要 |
+|---|---|---|
+| 40 | v0 & AI SDK | v0 によるコード生成と AI SDK |
+| 41 | AI Gateway | プロバイダ間ルーティング・フェイルオーバー・モデル横断課金 |
+| 42 | MCP & Sandbox | MCP Servers・Vercel Sandbox（untrusted code 実行環境） |
+| 43 | Agents & Claim Deployments | Agent Resources・Claim Deployments による AI 連携の境界設計 |
+
+### 第 5 部：最新動向
+
+| 章 | タイトル | 概要 |
+|---|---|---|
+| 50 | Changelog ダイジェスト | 直近 12〜18 ヶ月の主要変更点をカテゴリ別に整理 |
+| 51 | Ship Week & ロードマップ | Ship イベントの主要発表とプラットフォーム方向性 |
+
+### 第 6 部：リファレンス目次
+
+| 章 | タイトル | 概要 |
+|---|---|---|
+| 60 | CLI・REST API 目次 | Vercel CLI・REST API・Project API の俯瞰 |
+
+### 第 7 部：実務ヒントと参考資料
+
+| 章 | タイトル | 概要 |
+|---|---|---|
+| 90 | プロダクト改善ヒント | 各章から抽出した実プロダクトへの適用候補 |
+| 99 | 全一次ソース URL | 本シリーズで参照した公式ドキュメント URL 一覧 |
+
+## 読み方の推奨ルート
+
+**初めて Vercel に触れる人**：
+
+1. 第 10 章（全体像）で AI Cloud としての位置付けを掴む
+2. 第 20 章（Frameworks & Builds）と第 24 章（Deployments & Environments）で 2 大コア機能を理解
+3. 第 21 章（Functions & Fluid Compute）と第 22 章（Routing Middleware & Edge）でサーバーレス側を押さえる
+4. 必要に応じて ISR / Storage / Observability へ
+
+**Next.js は使えるが Vercel の機能を体系把握したい人**：
+
+1. 第 21〜27 章のコア機能をひと通り通読
+2. 第 50 章（Changelog ダイジェスト）で直近の進化を俯瞰
+3. 第 35 章（安全に使える領域マップ）で本番採用ラインを把握
+
+**プロダクト採用判断のために読む場合**：
+
+1. 第 30 章（コンプライアンス）で取得認証を確認
+2. 第 35 章（安全に使える領域マップ）で機能 × 安全度 × プラン依存を確認
+3. 第 33 章（Deployment Protection & RBAC）でアクセス制御の限界を確認
+4. 第 90 章（プロダクト改善ヒント）で適用候補を確認
+
+**AI ワークロード基盤として評価したい場合**：
+
+1. 第 40 章（v0 & AI SDK）と第 41 章（AI Gateway）で AI 開発体験を確認
+2. 第 42 章（MCP & Sandbox）で agent / untrusted code 実行の境界を理解
+3. 第 21 章（Functions & Fluid Compute）で AI 推論ワークロードの実行モデルを把握
+
+## 本シリーズの方針
+
+- 公式ドキュメントの内容を **そのまま翻訳しない**。要点を抽出し、なぜそれが必要か・どこで詰まりやすいかを補う
+- コード例は **実用に耐えるもののみ** 載せる。見せかけだけのスニペットは避ける
+- 公式 URL を各章末に明示し、原文へ直接ジャンプできるようにする
+- 取得日時点の情報であることを明示する。アップデートが激しいサービスなので、特に Changelog / Ship 系は鮮度に注意する
+- robots.txt 上の指示（`ai-train=no` / `ai-input=yes` / `search=yes`）に従い、教材化（参照・引用・要約）は出典明示で行う
+
+## 一次ソース
+
+- [Vercel 公式ドキュメント トップ](https://vercel.com/docs)
+- [Vercel Changelog](https://vercel.com/changelog)
+- [Vercel Blog](https://vercel.com/blog)
+- [v0 Documentation](https://v0.app/docs)

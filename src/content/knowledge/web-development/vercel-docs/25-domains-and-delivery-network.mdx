@@ -1,0 +1,149 @@
+---
+title: "Domains & Delivery Network — Vercel の DNS と CDN を使い切る"
+description: "Vercel Domains（DNS 管理・カスタムドメイン）と Vercel Delivery Network（CDN）を解説。HTTPS DNS records 対応・Bulk Redirects・CDN 利用量管理など、本番サイト運用に必要なネットワーク機能を体系化する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 25
+---
+
+## この章の要点
+
+Vercel における「ドメイン」と「配信」は、本番運用の品質を決定づける二つの軸である。前者は Vercel Domains が DNS と SSL を一元管理し、後者は Vercel Delivery Network（CDN）が世界中のエッジでルーティング・キャッシュ・セキュリティを担う。本章では両者を一本の流れとして整理し、外部 DNS との併用、Apex ドメインの扱い、HTTPS DNS records、Bulk Redirects、`vercel.json` の `redirects` / `rewrites` との使い分け、そして CDN 利用量のモニタリングまでを横断的にまとめる。
+
+要点は次の通り。
+
+- Vercel CDN は 51 か国 126+ PoP を持つフレームワーク認識型のグローバル網であり、ルーティング・キャッシュ・DDoS 緩和・SSL を標準で内包する。
+- DNS は A / AAAA（注: Vercel は IPv6 非対応）/ CNAME / ALIAS / HTTPS / TXT / MX / NS / CAA / SRV をサポートし、Apex ドメインは A もしくは ALIAS、または 2024 年から作成可能になった HTTPS レコードで運用する。
+- リダイレクトは「件数とライフサイクル」で使い分ける。少数なら `vercel.json` の `redirects`、サイト移行など大量件数では Bulk Redirects（2025-11-13 GA、最大 100 万件/プロジェクト）が適切。
+- CDN コストは Fast Data Transfer / Fast Origin Transfer / CDN Requests（ダッシュボード上は Edge Requests）の三軸で課金され、リージョン別単価が適用される。
+
+## Vercel の Domains と Delivery Network とは
+
+Vercel Domains は、ドメインの取得・移管・DNS レコード管理・SSL 証明書発行を Vercel ダッシュボード上で完結させる仕組みである。利用形態は大きく二つに分かれる。
+
+1. **Vercel ネームサーバーへ委譲する形態（フル委譲）**: ドメインのネームサーバーを `ns1.vercel-dns.com` 等に向ける。DNS レコードはすべて Vercel 側で管理され、Apex の A レコードや HTTPS レコードも Vercel が自動補完する。CAA レコードは Let's Encrypt 向けに自動投入される。
+2. **外部 DNS を維持する形態（レコード追加のみ）**: Cloudflare DNS / Route 53 / お名前.com 等のレジストラ DNS をそのまま利用し、Vercel が指示する `A 76.76.21.21` や `CNAME cname.vercel-dns.com` を該当ゾーンへ追加する。SSL 証明書は ACME challenge を介して Vercel が発行する。
+
+一方の Vercel Delivery Network は、いわゆる CDN だが、`Cache-Control` ヘッダを手書きする従来型 CDN とは設計思想が異なる。公式ドキュメントは「framework-aware, zero config」と表現し、Next.js / SvelteKit / Nuxt / Astro 等のビルド出力からルーティング規則とキャッシュポリシーを読み取り、エッジに自動配布する。グローバル網は **51 か国・126+ PoP・20+ Vercel リージョン**で構成され、PoP 同士はプライベートな低遅延バックボーンで接続される。各リクエストは「ルーティング層 → キャッシュ層 → コンピュート層」の順に評価され、いずれかの層でリクエストが解決された時点でレスポンスが返る。
+
+両者の関係は単純である。Domains が「どこへ届けるか」（解決先）を決め、Delivery Network が「どう届けるか」（経路・キャッシュ・防御）を担う。ドメインの NS を Vercel に向ける構成では HTTPS レコードや CAA を含むあらゆる最適化が自動適用されるが、外部 DNS を保持する構成でも CDN の挙動自体は変わらない。CDN 機能と DNS 委譲の有無は独立している点を押さえておくとよい。
+
+## 何が解説されているか
+
+Vercel Domains のドキュメントは DNS の基礎（recursive resolver / root nameserver / TLD nameserver / authoritative nameserver の階層）から始まり、レコード種別ごとの用途、TTL の選定、伝播時間（最大 24〜48 時間）、apex の制限などをカバーする。Delivery Network 側のドキュメントはルーティング・セキュリティ・キャッシュ・利用量の四領域に分かれ、料金体系まで一気通貫で記述される。
+
+### DNS レコード対応表
+
+| レコード | 用途 | Vercel での扱い |
+| --- | --- | --- |
+| `A` | ホスト名を IPv4 アドレスへ解決。最も一般的。 | Apex を Vercel に向ける場合は `76.76.21.21` を指定。 |
+| `AAAA` | ホスト名を IPv6 アドレスへ解決。 | **Vercel は IPv6 非対応**。AAAA を Vercel 向けに用いることは不可。 |
+| `CNAME` | 別ドメインへの別名。 | サブドメインで `cname.vercel-dns.com` を指定。Apex には使用不可。 |
+| `ALIAS` | CNAME に類似するが Apex で利用可能な独自レコード。 | ALIAS をサポートする外部 DNS（DNSimple, Route 53 ALIAS 等）でのみ利用可。ターゲットは A/AAAA を返す必要がある。 |
+| `HTTPS` | RFC 9460 の SVCB 派生。Apex で CNAME 相当の挙動を提供し、ALPN（HTTP/2, HTTP/3 など）を事前広告。 | **2024-01-08 から Vercel DNS で作成可能**。クライアント側対応はまだ不完全な点に注意。 |
+| `TXT` | テキスト形式の任意情報。 | ドメイン所有確認、SPF、DKIM、Vercel 側の verification 等に頻用。 |
+| `MX` | メールサーバーの指定。 | Vercel はメール配信を提供しないため、Google Workspace 等の外部 MX を併設する。 |
+| `NS` | 権威ネームサーバーの指定。 | Vercel に委譲する場合は `ns1.vercel-dns.com` 系を指定。 |
+| `CAA` | 証明書発行を許可する CA を限定。 | Vercel が Let's Encrypt 用 CAA を Apex へ自動追加。 |
+| `SRV` | サービス位置情報（priority/weight/port/target）。 | XMPP, SIP 等の特殊用途。Vercel DNS でも作成可。 |
+
+TTL は Vercel デフォルト 60 秒、最小 30 秒、最大 86400 秒（24 時間）。移行時は事前に TTL を 60 秒へ短縮しておくのが定石である。
+
+### CDN 機能対応表
+
+| 領域 | 機能 | 概要 |
+| --- | --- | --- |
+| ルーティング | Redirects / Rewrites / Header rules / External rewrites | キャッシュ評価より前に実行。外部バックエンドへのリバースプロキシも可能。 |
+| セキュリティ | 自動 SSL（Let's Encrypt）、TLS 1.2/1.3、常時有効 DDoS 緩和、Vercel Firewall、WAF | 全プランで unmetered。WAF はプロジェクト単位でルール定義。 |
+| キャッシュ | CDN Cache、Runtime Cache、ISR、Tag invalidation | フレームワーク出力から自動構成。`Cache-Control` 上書きも可能。 |
+| 圧縮 | Brotli / gzip 自動 | リクエストの `Accept-Encoding` に応じて選択。 |
+| 画像 | Image Optimization（WebP/AVIF 変換、リサイズ、エッジキャッシュ） | 別パイプライン不要。 |
+| 観測 | System headers（response/request）、Observability | デバッグ用にルーティング決定・キャッシュ状態を露出。 |
+| 課金 | Fast Data Transfer / Fast Origin Transfer / CDN Requests / Edge Request CPU duration | リージョン別単価。CPU は 10 ms 以下なら無料、以降 10 ms 単位で計上。 |
+
+なお 2024-07-16 のアップデートで初期 TCP congestion window が 300% 拡大され、初回ページロードが最大 3 倍高速化した。これは全プラン自動適用で、特に高遅延モバイル回線で効果が大きい。
+
+## 使い方
+
+### 1. カスタムドメインの追加と DNS 設定
+
+ドメインを Vercel プロジェクトに紐づける手順は次の通り。
+
+1. プロジェクトの **Settings → Domains** から対象ドメインを入力する。
+2. Vercel が必要な DNS 設定を提示する。フル委譲なら NS の書き換え、レコード追加形態なら以下の組み合わせ。
+   - Apex（`example.com`）: `A 76.76.21.21`、もしくは外部 DNS が ALIAS をサポートするなら ALIAS、HTTPS レコード対応クライアントが多数なら HTTPS レコードも併設可。
+   - サブドメイン（`www.example.com` 等）: `CNAME cname.vercel-dns.com`。
+3. 検証完了後、Vercel が SSL 証明書を自動発行する（HTTP-01 / DNS-01 challenge）。
+4. ステータスが Valid Configuration になれば配信開始。
+
+2024-01-19 の Domains ページ刷新により、検索性が向上し、各ドメインで configure / transfer / move / delete が個別に操作可能になった。更新期限フィルタもあるため、複数ドメインの満了管理が一括で行える。
+
+### 2. Bulk Redirects の登録
+
+サイト移行や URL 体系の刷新で大量のリダイレクトを扱う場合は、`vercel.json` の `redirects` ではなく **Bulk Redirects** を使う。2025-11-13 に GA 化された機能で、プロジェクトあたり最大 100 万件まで静的リダイレクトを登録できる。
+
+```json
+// vercel.json
+{
+  "bulkRedirectsPath": "redirects/"
+}
+```
+
+`redirects/` 配下に CSV または JSON でリダイレクト定義を置くと、ビルド時に自動インポートされる。プラン別の含有数は次の通り。
+
+- Pro: 1,000 件/プロジェクトを含む
+- Enterprise: 10,000 件/プロジェクトを含む
+- 追加: 25,000 件あたり月額 $50〜
+
+### 3. `vercel.json` redirects / rewrites との使い分け
+
+| 用途 | 推奨手段 | 理由 |
+| --- | --- | --- |
+| パターンマッチを含む数十件以下のリダイレクト | `vercel.json` の `redirects` | 正規表現・ワイルドカード・動的セグメントが扱える。Git で差分管理しやすい。 |
+| 数千件以上の静的 1:1 リダイレクト | Bulk Redirects | デプロイ時間に影響せず、Edge Request CPU duration を圧縮できる。 |
+| パスの内部書き換え（クライアントには見えない） | `vercel.json` の `rewrites` | URL を保ちつつ別の関数や静的ファイルへ振る。 |
+| 外部バックエンド（既存の Rails / Django 等）への透過プロキシ | External rewrites | 段階的移行に有効。CDN キャッシュも適用可能。 |
+
+`vercel.json` に大量の `redirects` を書くと、CDN がルーティング評価のたびに巨大な正規表現を走査するため Edge Request CPU duration が増える。件数が増え始めたら Bulk Redirects への移管を検討する。
+
+### 4. CDN 利用量のモニタリング
+
+ダッシュボードのサイドバー **Usage** から、以下のチャートで実態を把握する。
+
+- **Fast Data Transfer**: CDN ⇄ ブラウザ間。Direction（incoming/outgoing）、Projects、Regions でフィルタ可。
+- **Edge Requests**（= CDN Requests）: 件数、プロジェクト別、リージョン別。
+- **Fast Origin Transfer**: CDN ⇄ Functions / Middleware / Blob / Data Cache 間。incoming/outgoing 双方で課金。
+- **Edge Request CPU Duration**: ルーティング正規表現や `redirects` の複雑さが反映される。
+
+最適化の定石は次の通り。
+
+- 画像は Image Optimization に通し、WebP/AVIF を自動配信させる。
+- Functions のレスポンスから不要フィールドを削除し、`Cache-Control` を付けて再呼出を抑える。
+- Next.js なら `generateEtags`（既定で有効）と `If-Modified-Since` を活かす。
+- Middleware には `matcher` を設定し、不要パスでの再実行を防ぐ。
+- ポーリング系（SWR、React Query の focus 再取得）はインターバルと dedup を見直す。
+
+## 注意点・セキュリティ観点
+
+DNS 移行のダウンタイムを最小化するには、切替の 24〜48 時間前に既存レコードの TTL を 60 秒へ短縮し、伝播後に Vercel 向けレコードへ差し替える。逆にいえば、TTL を縮めずに切替えると、古い resolver キャッシュが残るユーザーには最大 24 時間旧サーバーが見え続ける。`whatsmydns.net` などで世界各リージョンの伝播状況を確認する。
+
+Apex ドメインは CNAME を置けないため、`A 76.76.21.21` を直接書くか、ALIAS（DNSimple や Route 53 など対応 DNS のみ）、あるいは HTTPS レコードを使う。HTTPS レコードは RFC 9460 として標準化されたが「すべての HTTP クライアントが対応しているわけではない」と Vercel 自身が明記しており、HTTPS レコードのみで A レコードを省く運用は推奨されない。実務上は A + HTTPS の併設が無難である。なお Vercel は IPv6 非対応のため、AAAA を Vercel に向けることはできない。
+
+CDN キャッシュキーは URL ＋一部のヘッダで決まる。`Cookie` を含む認証付きレスポンスを誤ってキャッシュさせると、別ユーザーへ漏洩する事故につながる。`Cache-Control: private` の徹底、`Vary` ヘッダの正しい指定、そして認証ページでは ISR や CDN cache を使わない設計が必要である。SaaS ダッシュボード型のアプリでは「共有アセットは CDN、個別 API は Functions」の役割分担を意識する。
+
+Bulk Redirects は Pro / Enterprise プラン依存で、Hobby では利用できない。さらに Bulk Redirects は **静的な 1:1 マッピング**を前提としており、正規表現や動的セグメントは扱えない。パターンを残したままで件数だけ増えている場合は、Bulk Redirects に移す前に正規化（クエリ正規化、パスの統合）を済ませておく。
+
+SSL は Let's Encrypt の DV 証明書が自動発行されるが、Wildcard（`*.example.com`）は DNS-01 challenge が前提となるため、外部 DNS 構成では DNS プロバイダ側の API 連携または Vercel への NS 委譲が必要になる。さらに「`*.example.com`」のワイルドカードは**一階層のみ**をカバーする点（`a.b.example.com` は別途）にも注意。多段サブドメインを多用するマルチテナント SaaS では、Enterprise の Custom Domains API でドメインごとに証明書を発行する設計を検討する。
+
+最後に、Vercel Firewall / WAF は CDN 層で動作するため、Functions の前段でリクエストを遮断できるが、外部の独自 CDN（Cloudflare 等）を Vercel の前段に挟むと、レート制御や Bot 検出のシグナルが二重・打ち消しになりがちである。基本は **Vercel CDN を直接ドメインに当てる**構成を採用し、追加 CDN を被せるのは特殊要件のときだけにとどめる。
+
+## 一次ソース（原文）
+
+- [Vercel CDN overview](https://vercel.com/docs/cdn)
+- [CDN pricing and usage](https://vercel.com/docs/manage-cdn-usage)
+- [Domains Overview](https://vercel.com/docs/domains)
+- [Working with DNS](https://vercel.com/docs/domains/working-with-dns)
+- [Changelog: Improved CDN performance (2024-07-16)](https://vercel.com/changelog/improved-cdn-performance)
+- [Changelog: HTTPS DNS records are now supported in Vercel DNS (2024-01-08)](https://vercel.com/changelog/https-dns-records-are-now-supported-in-vercel-dns)
+- [Changelog: Bulk Redirects are now generally available (2025-11-13)](https://vercel.com/changelog/bulk-redirects-are-now-generally-available)
+- [Changelog: Improved Domains page (2024-01-19)](https://vercel.com/changelog/improved-domains-page)

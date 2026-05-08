@@ -1,0 +1,89 @@
+---
+title: "Changelog ダイジェスト — 直近 12〜18 ヶ月の Vercel 主要変更"
+description: "Vercel Changelog から「Compute（Fluid Compute・Build 高速化）」「DX（Flags・Queues・Streamdown）」「セキュリティ（Firewall・CVE 対応）」「AI 基盤（AI Gateway・Sandbox・Agent）」「課金・運用（Spend Management・Billing API）」のトピック軸で 12〜18 ヶ月の変化をダイジェスト。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 50
+---
+
+## この章の要点
+
+- 直近 12〜18 ヶ月の Vercel Changelog は、Fluid Compute デフォルト化と Build インフラ刷新を軸とする「Compute」、Flags・Queues を中心とした「DX」、CVE 対応を含む「セキュリティ」、AI Gateway / Sandbox の GA を含む「AI 基盤」、Billing API と Spend Management 改善を含む「課金・運用」の 5 トピックで整理できる。
+- Build 周りでは 2025 年 5 月の初期化 45% 高速化と 2025 年 10 月の Turbo build machines が代表的な改善であり、Pro / Enterprise の体感ビルド時間に直結する。
+- DX では Vercel Flags が 2026 年 2 月に Public Beta、4 月に GA となり、Queues も 2026 年 2 月に Public Beta となった。プラットフォーム標準で「フラグとキュー」を持つ構成に近づいている。
+- セキュリティでは Image Optimizer・PPR・React Server Components 周辺の CVE が立て続けに公開され、Vercel ホスティング側はパッチ適用済みでも、セルフホストは個別アップグレードが必要というパターンが繰り返されている。
+- 課金・運用では Spend Management の hard caps と Billing/Usage Cost Data API（FOCUS v1.3 準拠）が登場し、料金の可観測性・自動停止の両面が強化された。
+- 本章は網羅ではなくトピック軸の俯瞰であり、個別 Changelog はシリーズ内の各章で引用済みである。
+
+## このダイジェストの読み方
+
+本章は Vercel Changelog の全件を列挙するものではない。直近 12〜18 ヶ月のうち、シリーズ各章で扱った機能の背景や周辺動向を理解するうえで参照価値の高いエントリを 5 つのトピック軸に束ね、それぞれの意味づけを与えるダイジェストである。個別機能の詳細仕様は、シリーズの該当章および一次ソース欄のリンクを参照のこと。
+
+ダイジェストである以上、ここに挙がっていない Changelog にも重要なものは存在する。特に AI モデル追加や Marketplace 連携は更新頻度が高いため、定期的に Changelog 本体を巡回する運用が推奨される。本ダイジェストは 2026-05-08 時点の情報で構成されている。
+
+## トピック別ダイジェスト
+
+### Compute・Build
+
+Compute まわりは「Fluid Compute のデフォルト化」と「Build インフラの段階的高速化」が並走している。2023 年 12 月の Enterprise 向け build compute 改善ではビルドが Pro 比 15%、旧 Enterprise インフラ比 7% 高速化された。2025 年 5 月の build 初期化 45% 高速化は Hive 基盤の最適化であり、Pro / Enterprise で平均 15 秒程度の短縮、コンテナ内のファイル書き込み I/O wait は 75% 削減という具体的な数値を伴っている。
+
+2025 年 10 月には Turbo build machines（30 vCPU・60GB メモリ）が全有償プランで提供開始となり、Turbopack ビルドや大規模モノレポでの並列タスクを想定したスペックでプロジェクト単位に切り替えられるようになった。これらは Fluid Compute の「ランタイム側の効率化」と対をなす「ビルド側の効率化」であり、コスト最適化の議論はランタイムとビルドの両方で行う必要があることを示している。
+
+### Developer Experience
+
+DX まわりでは 2026 年に入ってから Vercel Flags と Queues が立て続けに登場した。Vercel Flags は 2026 年 2 月 11 日に Public Beta（$30 / 1M flag requests）、4 月 16 日に GA となり、ダッシュボードから targeting rules・user segments・環境別制御が可能になった。SDK は Next.js / SvelteKit にネイティブ対応し、それ以外のフレームワークは OpenFeature 経由で接続できる。
+
+Vercel Queues は 2026 年 2 月 27 日に Public Beta となった。Fluid Compute 上に構築された pub-sub の永続イベントストリーミングで、at-least-once 配信・複数 AZ レプリケーション・visibility timeout・冪等キー・並行制御を備える。料金は $0.60 / 1M API operations + Fluid Compute レート。マルチステップのオーケストレーションは Workflow、メッセージングは Queues、という役割分担が明示されている。
+
+そのほか 2026 年 1 月の Streamdown v2 はプラグイン化によるバンドル削減と streaming 用のキャレット表示、2026 年 3 月の Next-Forge 6 は Bun デフォルト化と任意統合（Stripe / PostHog / BaseHub / Flags）の graceful degradation、2024 年 3 月の Next.js AI Chatbot 2.0 は AI SDK 3.0 と RSC ベースの Generative UI 化が主な変更点である。Next.js 14（2023 年 10 月）は本シリーズの起点として App Router・Server Actions・PPR・Turbopack 高速化を導入した節目のリリースである。
+
+### セキュリティ・脆弱性対応
+
+セキュリティ面では 2025 年から 2026 年にかけて Next.js / 周辺エコシステム由来の CVE が継続的に公開され、Vercel 側の対応パターンが定型化してきた。代表例は以下である。
+
+- CVE-2025-55173（2025 年 7 月、Image Optimization）— 外部画像サーバーが任意のファイル名・内容のダウンロードを誘発できる問題。v15.4.5 / v14.2.31 で修正、Vercel ホスティングは 2025/7/29 にパッチ適用済み。
+- CVE-2025-55182（React Server Components）— React 19 系および Next.js 14.3.0-canary.77 以降に影響し、特定条件下で RCE の恐れ。Next.js 15.0.5 / 15.1.9 / 15.2.6 / 15.3.6 / 15.4.8 / 15.5.7 / 16.0.7 で修正、Vercel は WAF 側で先行緩和。
+- CVE-2025-52662（Nuxt DevTools XSS）— DevTools 認証画面のエラーメッセージがサニタイズ不足で、auth トークン窃取と path traversal 経由の RCE の恐れ。v2.6.4 で textContent 化により修正。
+- CVE-2025-59471 / 59472（2026 年 1 月、Image Optimizer / PPR）— セルフホストの Next.js でメモリ枯渇を誘発できる中程度の脆弱性（CVSS 5.9）。15.5.10 / 16.1.5 等で修正、Vercel ホスティングには影響なし。
+- CVE-2026-23869 — 公開ページが取得時点（2026-05-08）で 404 のため詳細未確認。一次ソース欄に状況を明記する。
+
+教訓は明確で、Vercel ホスティングは個別 CVE で先行緩和されるケースが多い一方、セルフホストは Next.js / React 側のバージョンアップ判断を継続的に行う運用が必須である。
+
+### AI 基盤
+
+AI 基盤は AI Gateway の GA と Sandbox の GA、Agent / Claim Deployments、各種モデル追加が並ぶ領域である。直近では Sandbox の Postgres 接続を SNI ベースの firewall で許可する更新、Grok 4.3（1M トークン）の追加、Sandbox 用の custom tags（beta）といった、エージェント実行環境としての成熟が観察される。個別の Changelog エントリはシリーズの AI 基盤章で引用済みのため、本章ではトピックの存在のみを示す。
+
+AI モデル追加は更新頻度が高く、半年程度で勢力図が変わる。アプリ側で固有モデルにロックインせず、AI Gateway のモデル切替を前提に組む方針が引き続き有効である。
+
+### 課金・運用
+
+課金・運用では Spend Management hard caps の改善（2024 年 3 月）と Billing/Usage Cost Data API の提供開始（2026 年 2 月 19 日）が大きい。前者は Pro 顧客向けに、しきい値到達時にプロジェクトを自動停止できる機能を追加し、50% / 75% / 100% での Web・Email 通知、100% で SMS 通知という段階的アラートを備える。
+
+後者は `/billing/charges` エンドポイントを通じて FOCUS v1.3 準拠の課金・コストデータを取得できる API である。1 日粒度・最大 1 年レンジ・NDJSON 出力に対応し、SDK / CLI（`vercel usage`）/ REST いずれからも呼び出せる。Vantage との公式統合も同時に発表されており、Vercel コストを FinOps ツールに直接取り込む運用が現実的になった。
+
+## 注意点
+
+Changelog の鮮度は短く、機能の名称や料金が数ヶ月単位で変わる前提で読む必要がある。Public Beta の機能は GA までに仕様変更や撤回が起きうるため、本番採用前には最新の Changelog と Docs を必ず確認する。本ダイジェストは 2026-05-08 時点で取得した情報をもとに構成しており、それ以降の更新は反映されていない。
+
+CVE 関連は特に時間に敏感で、本章で挙げた以外にも継続的に公開される。セルフホスト運用では Next.js のセキュリティアドバイザリと Vercel Changelog の双方を購読し、影響バージョンとパッチ適用状況を都度突き合わせる運用が望ましい。
+
+## 一次ソース（原文）
+
+- Vercel Changelog（一覧） — https://vercel.com/changelog
+- Vercel Queues now in Public Beta — https://vercel.com/changelog/vercel-queues-now-in-public-beta
+- Vercel Flags is now Generally Available — https://vercel.com/changelog/vercel-flags-ga
+- Vercel Flags is now in Public Beta — https://vercel.com/changelog/vercel-flags-is-now-in-public-beta
+- Streamdown v2 — https://vercel.com/changelog/streamdown-v2
+- Next-Forge 6 — https://vercel.com/changelog/next-forge-6
+- Next.js 14 — https://vercel.com/changelog/next-js-14
+- Next.js AI Chatbot 2.0 — https://vercel.com/changelog/next-js-ai-chatbot-2-0
+- Builds initialize 45% faster — https://vercel.com/changelog/45-percent-faster-build-initialization
+- Turbo build machines — https://vercel.com/changelog/turbo-build-machines
+- Improved build compute performance for Enterprise customers — https://vercel.com/changelog/improved-build-compute-performance-for-enterprise-customers
+- Access billing and usage cost data via API — https://vercel.com/changelog/access-billing-usage-cost-data-api
+- Improved hard caps for Spend Management — https://vercel.com/changelog/improved-hard-caps-for-spend-management
+- CVE-2026-23869 — https://vercel.com/changelog/cve-2026-23869 ※ 2026-05-08 時点で取得時に HTTP 404 となり原文未確認
+- CVE-2025-55173 — https://vercel.com/changelog/cve-2025-55173
+- CVE-2025-55182 — https://vercel.com/changelog/cve-2025-55182
+- CVE-2025-52662 (XSS on Nuxt DevTools) — https://vercel.com/changelog/cve-2025-52662-xss-on-nuxt-devtools
+- Summaries of CVE-2025-59471 and CVE-2025-59472 — https://vercel.com/changelog/summaries-of-cve-2025-59471-and-cve-2025-59472

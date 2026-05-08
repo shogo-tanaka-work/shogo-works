@@ -1,0 +1,83 @@
+---
+title: "プロダクト改善ヒント — 本シリーズから抽出した実プロダクト適用候補"
+description: "本シリーズ全章から「自分が運用するプロダクトに今すぐ適用できる改善ポイント」を抽出した実務ヒント集。Compute / DX / セキュリティ / コスト / AI 活用の 5 軸で、優先順位の高い順に整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 90
+---
+
+## この章の要点
+
+- Vercel を業務で使い込むうえで「明日からやれる改善」を 5 つの観点（Compute・DX・セキュリティ・コスト・AI 活用）に絞って棚卸しする
+- 採用判断の際は本シリーズの第 35 章（安全に使える領域マップ）の機能 × 安全度 × プラン依存マトリクスと突き合わせる
+- ヒントは「コストが安い順」かつ「副作用が少ない順」に並べる。優先度 A は今すぐ着手、B は四半期内、C は要件次第
+- 個別の機能挙動・落とし穴は各章の「注意点」セクションに集約してあるので、本章はリンクと一行要約に留める
+
+## このヒントの読み方
+
+各ヒントは「現状の課題 → 推奨アクション → 参照章」の三点セットで書く。チェックリストとして上から順に検討し、自社の状況に合わない項目はスキップしてよい。Vercel のプラン制約に該当する項目は明記している。
+
+## A 優先（今すぐ着手）
+
+### Compute
+
+- **Fluid Compute を新規プロジェクトに適用**：2025 年以降の新規プロジェクトはデフォルトで Fluid Compute が有効になるが、既存プロジェクトは手動切替が必要。Active CPU 課金で AI / I/O 待機が支配的なワークロードは数十%のコスト削減余地。第 21 章
+- **Build Output API を意識した Framework 選定**：Next.js 一択にする必要はないが、Build Output API に対応していない FW は Vercel の最適化（ISR / Image Optimization / Skew Protection）が部分的に効かないことがある。第 20 章
+
+### セキュリティ
+
+- **Preview Deployment Protection の全面有効化**：Vercel Authentication もしくは Password Protection を全 Preview に必ず適用。Pro プラン以上で標準機能。第 33 章
+- **2FA / Verified Commits 強制**：Team 設定で 2FA 必須化、本番ブランチに Verified Commits 必須化。Pro 以上で利用可能。第 33 章
+- **Spend Management のしきい値設定**：DDoS / 不正利用での請求事故対策。既定で本番停止になる挙動も合わせて確認。第 24 章
+
+### コスト
+
+- **Skew Protection と Turborepo の cache miss 問題**：Turborepo 2.4.1 未満を使うモノレポは常時 cache miss が発生する既知バグ。バージョン更新で大幅な build コスト削減。第 20 章
+
+## B 優先（四半期内に検討）
+
+### DX
+
+- **Vercel Flags GA を Feature Flag 基盤に**：Agents 最適化（Copy-to-Prompt 含む）まで対応した本家実装。LaunchDarkly や Statsig からの移行候補。第 43 章 / 第 50 章
+- **Observability Plus への移行検討**：Runtime Log の保持を 30 日に伸ばす、Notebooks でメトリクス共有、OpenTelemetry Drains で Datadog / Honeycomb と相関。第 27 章
+- **Bulk Redirects の導入**：1,000 件超のリダイレクトは `vercel.json` に書かず Bulk Redirects へ。Pro / Enterprise でプラン依存。第 25 章
+
+### セキュリティ
+
+- **Vercel WAF の Custom Rules 整備**：認証エンドポイントへの Rate Limit、IP CIDR ブロック、CVE プロアクティブ保護の確認。第 31 章
+- **AI Bots Managed Ruleset のポリシー判断**：コンテンツ事業は GPTBot / ClaudeBot / Perplexity を Allow / Deny / Log で URL パターン別に切り分け。第 32 章
+- **OIDC Federation で短期トークン化**：CI / 外部統合で長期 Personal Access Token を使っている経路を OIDC Federation に置き換え。第 33 章
+
+### コスト
+
+- **CDN 課金 4 軸の可視化**：Fast Data Transfer / Fast Origin Transfer / CDN Requests / Edge Request CPU duration の各軸で削減候補を洗い出し。第 25 章 / 第 27 章
+- **Image Optimization の transformations 課金監視**：画像配信が多い場合は転送量よりも変換回数の方が支配的になる。第 23 章
+
+## C 優先（要件次第）
+
+### AI 基盤の活用
+
+- **AI Gateway 導入によるプロバイダ切替コスト削減**：複数 LLM を試す段階で、ZDR / OpenAI 互換 API / App Attribution / Stripe Billing の各 Capability が刺さるかを評価。第 41 章
+- **Vercel Sandbox を AI 生成コード実行に**：Untrusted code を本番環境に出さずに動かす要件があれば導入候補。Persistent Sandbox の課金モデルに注意。第 42 章
+- **Claim Deployments を AI エージェント開発フローに**：エージェントがビルドした成果物を人間が引き取るフローを業務に組み込む段階的導入。第 43 章
+
+### Enterprise 要件
+
+- **HIPAA BAA / Conformance Rule / Trusted IPs / Secure Compute / SAML SSO**：いずれかが必須要件になる場合のみ Enterprise を検討。コンプライアンス担当者と一次ソース（DPA / SOC 2 レポート）を共有。第 30 章 / 第 33 章 / 第 34 章
+
+### マルチプロバイダ運用
+
+- **Marketplace パートナーの責任境界整理**：Neon / Upstash / Convex / Stripe 等を Native Integration で繋いでいる場合、SLA / セキュリティ責任の分担を契約レベルで確認。第 26 章
+
+## 注意点
+
+- 本ヒントは 2026-05-08 時点の機能セットに基づく。Vercel はリリース頻度が高いため、半年単位で見直す
+- プラン依存の機能は対象プラン以外で検討しても適用できない。第 35 章のマトリクスと突き合わせる
+- 「やれる」と「やるべき」は別。SLA・コンプライアンス・コストの 3 観点で必ず ROI を再評価する
+
+## 一次ソース（原文）
+
+- [Vercel Pricing](https://vercel.com/pricing)
+- [Vercel Production Checklist](https://vercel.com/docs/production-checklist)
+- [Vercel Customers（事例）](https://vercel.com/customers)
+- 本シリーズ各章の「注意点・セキュリティ観点」セクション

@@ -1,0 +1,108 @@
+---
+title: "WAF & Firewall — Managed Rulesets とカスタムルールでアプリ層を守る"
+description: "Vercel WAF / Firewall の概念、Managed Ruleset、カスタムルールビルダー（OR/AND 条件）、Firewall REST API、Terraform プロバイダ、IP ブロック・SAMLStorm 等の Proactive Protection を体系化する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 31
+---
+
+## この章の要点
+
+Vercel Firewall は CDN の入口で全リクエストを検査するプラットフォーム横断の防御層であり、その上に L7 のアプリケーション保護として Vercel WAF が積まれている。WAF は Managed Ruleset・Custom Rule・IP Blocking・Rate Limit の四系統で構成され、ダッシュボード／REST API／Terraform プロバイダの三経路から宣言的に運用できる。本章では各機能の役割分担、プラン依存、ルールビルダーと API の使い方、そして SAMLStorm や Next.js Middleware CVE のような Proactive Protection の限界までを整理する。
+
+## Vercel WAF と Firewall とは
+
+Vercel のセキュリティスタックは多層構造である。最初に動くのはプラットフォーム横断の Firewall で、CDN に到達した全リクエストを検査して既知の悪性 IP や DDoS パターンを遮断する。これを通過したリクエストはプロジェクト単位の Deployment Protection に委ねられ、最後に WAF に設定したルール群が評価される。WAF が Persistent Action 付きルールでブロックした送信元 IP はプラットフォーム Firewall 側に登録され、以降のリクエストは CDN 入口で破棄される設計となっている。
+
+Vercel WAF はこのうち最上層の L7 防御を担い、設定変更は約 300ms でグローバルに反映される。ロールバックは Audit Log から任意のバージョンを選んで瞬時に戻せるため、誤検知が出ても影響時間を最小化できる。CDN そのものではなく CDN の手前で動くため、Edge Cache のヒット可否とは独立してルールが評価される点が一般的なリバースプロキシ型 WAF との違いである。
+
+ルールにマッチしたときに取れるアクションは Log・Deny・Challenge・Bypass の四種で、Challenge は JavaScript 実行を要求する Vercel Security Checkpoint を挟み、検証成功後 1 時間のセッションを発行する。Bypass はそれ以降のルールをすべてスキップさせる脱出口で、内部ツールや CI からのトラフィックを救済するための専用枠である。
+
+## 何が解説されているか
+
+WAF と Firewall の機能は次の対応関係で整理できる。プランによって上限値と利用可否が大きく変わるため、設計初期に制約を確認しておく必要がある。
+
+| 機能 | 役割 | プラン依存 |
+| --- | --- | --- |
+| Managed Rulesets | OWASP 系の既知攻撃パターンに対する Vercel 提供のルール集 | Enterprise（要営業窓口） |
+| Custom Rules | ヘッダ・パス・地理・ASN・JA4 等の条件で Allow/Deny/Challenge | Hobby 3 / Pro 40 / Enterprise 1000 |
+| IP Blocking（Project） | プロジェクト単位の IP・CIDR ブロック | Hobby 10 / Pro 100 / Enterprise Custom |
+| IP Blocking（Account） | アカウント全体の IP・CIDR ブロック（IPv4 /16・IPv6 /48 まで） | Enterprise のみ |
+| Rate Limiting | キー指定の閾値超過リクエストへ Action 適用 | Pro 以上 |
+| Bot Filter / Attack Challenge Mode | 非ブラウザクライアントへの一括 Challenge | 全プラン |
+| REST API / Terraform | ルールの宣言的管理 | 全プラン |
+
+REST API は 2024 年 9 月にリリースされ、Firewall 設定の取得、カスタムルールの作成・更新、Attack Challenge Mode の切替、IP ブロックリストの管理に対応した。同年 10 月には Vercel Terraform Provider に `vercel_firewall_config` と `vercel_attack_challenge_mode` が追加され、`rules` と `ip_rules` 属性で IaC 管理が可能となった。2023 年 12 月の更新で IP Blocking は CIDR レンジ指定に対応している。
+
+ダッシュボード側は 2025 年 5 月の更新で Firewall タブのトラフィックビューから直接「このリクエストパターンを Deny するルール」を下書き生成できるようになった。さらに同年 3 月には条件グループ間の `OR` 演算子が追加され、これまで AND のみだった Custom Rule の組み立てが大幅に柔軟化された。2025 年 11 月の Analytics 改善では DDoS・システムルール・カスタムルール・IP ブロックを横断的に俯瞰する Overview と、IP・パス・JA4・ASN・User Agent でフィルタできる Traffic Analysis ページが提供されている。
+
+Proactive Protection としては、2025 年 3 月の SAMLStorm（CVE-2025-29774 / 29775）と Next.js Middleware の `x-middleware-subrequest` ヘッダ悪用（CVE-2025-29927）の二件が代表例である。いずれも Vercel Firewall 側で自動的に攻撃パターンが緩和されたが、xml-crypto や Next.js のパッチ適用は引き続き推奨されている。
+
+## 使い方
+
+Custom Rule の最小手順はダッシュボードの Firewall タブから Rule Builder を開き、条件グループとアクションを定義する流れである。OR 対応により、たとえば「`/api/admin` 配下に対して、User Agent が `curl` または ASN がブロックリスト」という複合条件を一つのルールに集約できる。ルールは保存と同時にグローバルに伝播し、Audit Log に履歴が残る。
+
+CIDR による IP ブロックは Firewall タブの IP Blocks で `203.0.113.0/24` のようにレンジ指定する。Account-level Block は Enterprise 限定で、IPv4 は `/16`、IPv6 は `/48` までしか指定できないため、より広い帯域を遮断する場合は Custom Rule の `ip.src` 条件と `Persistent Action` を組み合わせる構成が現実的である。
+
+REST API + Terraform で宣言的に管理する場合は、`vercel_firewall_config` リソースの `rules` ブロックに条件とアクションを書く。次の例は User Agent に `curl` を含むリクエストへ Challenge を発行する最小構成である。
+
+```hcl
+resource "vercel_firewall_config" "example" {
+  project_id = vercel_project.example.id
+
+  rules {
+    rule {
+      name        = "challenge-curl"
+      description = "Issue a JS challenge for curl-like clients"
+      condition_group {
+        conditions {
+          type  = "user_agent"
+          op    = "inc"
+          value = "curl"
+        }
+      }
+      action {
+        action = "challenge"
+      }
+    }
+  }
+
+  ip_rules {
+    rule {
+      action = "deny"
+      ip     = "203.0.113.0/24"
+      hostname = "*"
+    }
+  }
+}
+```
+
+REST API を直接叩く場合は Vercel SDK の `security` 名前空間を使い、`updateFirewallConfig` でルール一式を上書きする。CI から呼び出すときは、ルール変更の Pull Request 単位で `terraform plan` の差分をレビューし、merge をトリガに `terraform apply` を走らせる構成にすると Audit Log とコードレビュー履歴を一致させられる。
+
+Rate Limit は Custom Rule の Action として設定し、キー（IP・JA4・Cookie 値など）ごとに「N 秒に M 回」の閾値と超過時アクションを指定する。認証 API には IP + ユーザー識別子の複合キー、公開 API には IP 単独キーといった具合に、エンドポイント特性ごとにキー設計を変えるのが基本である。
+
+## 注意点・セキュリティ観点
+
+Managed Ruleset と OWASP 系のシグネチャは正規ユーザーを誤って遮断する False Positive を必ず生む。新規ルールセットを有効化する際は最初に `Log` モードで 1〜2 週間運用し、ダッシュボードの Traffic Analysis で誤検知パターンを洗い出してから `Deny` や `Challenge` に切り替える二段階展開が安全である。Instant Rollback で戻せるとはいえ、ロールバック中もすでに 403 を受けたユーザー体験は失われている。
+
+Rate Limit のキー設計は実害に直結する。IP 単独キーは NAT 配下や CGNAT のテナントを巻き込みやすく、Cookie 単独キーはログイン前のリクエストをカバーできない。攻撃面に応じて IP・JA4 ハッシュ・User ID・Cookie の組み合わせを使い分け、特権 API は厳しく、公開ページは緩めに、と段階を分ける。
+
+Bot Filter は Googlebot や Bingbot のような検索クローラを誤って Challenge してしまうと SEO に直接影響する。User Agent と逆引き DNS（公式ドキュメント記載のホスト名パターン）を組み合わせて検証し、検証済みクローラ向けの Bypass ルールを Challenge ルールより上位に置く運用が前提となる。
+
+Proactive Protection は万能ではない。Vercel Firewall は SAMLStorm や Next.js Middleware CVE のように、攻撃パターンが特定されたものに対してのみシグネチャを配布する仕組みである。ゼロデイそのものを防ぐ装置ではないため、依存ライブラリのアップデート・SCA・SAST はアプリ側の責務として残る。とくに自前ミドルウェアで認可判定を行っている場合は、`x-middleware-subrequest` のような内部ヘッダを Edge で剥がす Custom Rule を用意しておくと多層防御になる。
+
+ログの保持期間は前章で見たとおりデフォルト 3 日であり、インシデント分析を後追いするには Observability Plus か Drains 経由の長期ストレージが必須である。WAF の判定ログは Traffic Analysis から CSV でも取れるが、コンプライアンス要件で年単位の保管が必要なら Drains から SIEM に流す前提で設計する。Audit Log と組み合わせて「いつ・誰が・どのルールを変更したか」を後から監査できる状態を保つ。
+
+## 一次ソース（原文）
+
+- https://vercel.com/docs/vercel-firewall/vercel-waf
+- https://vercel.com/docs/vercel-firewall/firewall-concepts
+- https://vercel.com/docs/vercel-firewall/firewall-api
+- https://vercel.com/changelog/rest-api-for-the-vercel-firewall
+- https://vercel.com/changelog/create-custom-waf-rules-directly-from-the-vercel-firewall-tab
+- https://vercel.com/changelog/vercel-firewall-rule-builder-now-supports-or-for-rule-condition-groups
+- https://vercel.com/changelog/vercel-terraform-provider-now-supports-vercel-firewall
+- https://vercel.com/changelog/improved-analytics-experience-now-available-on-the-vercel-firewall
+- https://vercel.com/changelog/vercel-firewall-proactively-protects-against-vulnerability-with-middleware
+- https://vercel.com/changelog/vercel-firewall-protects-against-the-samlstorm-vulnerability
+- https://vercel.com/changelog/restrict-access-with-ip-blocking-by-cidr-range

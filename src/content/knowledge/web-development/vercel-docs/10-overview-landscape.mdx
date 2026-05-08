@@ -1,0 +1,114 @@
+---
+title: "Vercel 全体像 — AI Cloud としてのプラットフォームを俯瞰する"
+description: "Vercel が提供する Frameworks / Functions / Edge / Storage / Observability / セキュリティ / AI インフラの全体像と、Next.js との関係・AI Cloud リブランディングの位置付けを俯瞰する概論章。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 10
+---
+
+## この章の要点
+
+- Vercel は公式に「The AI Cloud」を名乗る統合プラットフォームであり、Web アプリのデプロイ基盤から AI ワークロードの実行基盤へとスコープを拡張している。
+- 中核は Next.js を筆頭とする Frameworks サポートと、Fluid Compute をベースにした Functions・Routing Middleware・ISR・Image Optimization の組み合わせである。
+- AI 領域には v0 / AI SDK / AI Gateway / Sandbox / MCP / Agent / Claim Deployments という独立した製品群があり、それぞれ Core Platform（Functions・CDN・Observability）の上に乗る形で構成されている。
+- セキュリティは Deployment Protection / RBAC / WAF / Bot Management / BotID / DDoS Mitigation の階層で提供され、プラン（Hobby / Pro / Enterprise）ごとに利用可能な範囲が変わる。
+- ストレージは自前提供を縮小し、Vercel Marketplace 経由で Neon / Upstash / Supabase などの外部サービスを `vercel install` で接続する設計に寄っている。
+- Next.js の開発元という立ち位置と AI Cloud としての再定義により、Vercel は「フロントエンドのデプロイ先」から「AI 時代のアプリケーションランタイム」へとポジションを移しつつある。
+
+## Vercel とは
+
+Vercel は、Next.js の開発元として知られるクラウドプラットフォームである。公式 docs のトップは「Vercel is the AI Cloud, a unified platform for building, deploying, and scaling AI-powered applications」と宣言しており、トップページでも「Build and deploy on the AI Cloud」というヘッドラインが採用されている。AI Cloud という呼称は単なるマーケティング上の言い換えではなく、Functions・CDN・Observability といった既存の Web インフラに、AI Gateway・Sandbox・Agent・v0・MCP といった AI ネイティブな製品を統合した結果としての再定義である。
+
+歴史的には、Vercel は Next.js のホスティングに最適化されたサーバーレスプラットフォームとして出発した。Git リポジトリと連携して push のたびにデプロイし、プレビュー URL を自動生成する開発体験は、フロントエンド界隈の標準になった。AI Cloud への明確な軸足変更は 2025 年前後に顕著になり、Fluid Compute（2025 年 4 月にデフォルト化）、AI Gateway の GA、Vercel Sandbox の GA、Vercel Agent や Claim Deployments の登場といった一連のリリースが同じ方向を指している。Active CPU と Provisioned Memory という料金モデルも、I/O バウンドな AI ワークロード（埋め込み生成、ベクター検索、外部 API 呼び出し）を前提に設計されたものである。
+
+Next.js との関係は単なる「サポート対象フレームワーク」ではない。Next.js は Vercel が開発し続けているオープンソースであり、ISR・Streaming SSR・Routing Middleware・Image Optimization・Skew Protection など、Vercel のプラットフォーム機能の多くは Next.js を第一級の利用想定として設計されている。同時に SvelteKit / Nuxt / Astro / Remix / TanStack Start など主要フレームワークも Build Output API を通じて同等の機能セットを使えるようになっており、ロックインを完全には強制しない構造になっている。
+
+競合との立ち位置は整理しておく価値がある。Netlify は同種の Jamstack プラットフォームだが、AI 領域への投資量と Next.js との結合度で差がついている。Cloudflare（Workers / Pages）は Edge ネイティブな実行モデルとフルスタックの自社ストレージで Vercel と直接競合し、特に低レイテンシ・グローバル分散用途で強い。AWS Amplify は AWS 内のリソースとの統合と引き換えに、開発体験のシンプルさで Vercel に劣る。Vercel の選好は、Next.js を中心とした開発体験と、AI Cloud としての統合を一括で買うかどうかで決まる。
+
+## 何が解説されているか（公式ドキュメント全体の俯瞰）
+
+公式 docs のトップは、機能をフラットに並べるのではなく、「アプリを作る」「AI インフラを使う」「チームで協働する」「アプリを守る」「デプロイ・スケールさせる」という五つの動詞で章立てしている。本シリーズで掘り下げる対象を、ここで一望しておく。
+
+| カテゴリ | 扱う範囲 |
+| --- | --- |
+| Frameworks & Builds | Next.js を筆頭とする対応フレームワーク、Build Features、Build Output API、Git 連携、Project Configuration、モノレポ（Turborepo / Nx / Rush）対応。 |
+| Functions & Fluid Compute | Vercel Functions、対応ランタイム（Node.js / Python / Edge / Bun / Rust）、Fluid Compute、Active CPU・Provisioned Memory 料金、ストリーミング、`waitUntil` による背景処理。 |
+| Routing Middleware & Edge | リクエスト処理前に走る Middleware、Edge Functions、環境変数、Node.js 互換性。 |
+| ISR & Image Optimization | Incremental Static Regeneration、Image Optimization、Cache-Control、CDN Cache、Runtime Cache API、stale-if-error。 |
+| Deployments & Environments | Preview / Production / Custom 環境、Rolling Releases、Instant Rollback、Skew Protection、Spend Management。 |
+| Domains & Delivery Network | Vercel Delivery Network（CDN）、Domains、HTTPS DNS records、Bulk Redirects。 |
+| Storage & Marketplace | Vercel Blob、Edge Config、Marketplace 経由の Neon / Upstash / Supabase / Convex / Clerk / Stripe など。 |
+| Observability & Analytics | Observability Suite、Web Analytics、Speed Insights、Runtime Logs、Drains、OpenTelemetry。 |
+| Security & Compliance | SOC2 / ISO / HIPAA BAA / GDPR、Conformance、OIDC Federation、DPA。 |
+| WAF & Firewall | Vercel WAF、Firewall API、Custom rules、Terraform Provider、IP CIDR ブロック。 |
+| Bot Management & BotID | Bot Management、AI Bots Managed Ruleset、不可視 CAPTCHA としての BotID。 |
+| Deployment Protection & RBAC | プレビュー保護、Access Groups、Verified commits、2FA、API スコープ。 |
+| DDoS & Network | Platform DDoS Mitigation、Secure Compute、Static IPs、Trusted IPs。 |
+| v0 & AI SDK | v0（独立サブドメイン `v0.app`）、AI SDK、Academy 教材（Chatbot / Tool Use / Structured Data）。 |
+| AI Gateway | 統一エンドポイント、Leaderboards、Models、Ecosystem、ZDR、Image Generation、OpenAI 互換 API。 |
+| MCP & Sandbox | Vercel MCP Servers、Vercel Sandbox（SDK と REST API ベータ）、Persistent Sandboxes。 |
+| AI Agents & Claim Deployments | Vercel Agent、Agent Resources、Claim Deployments、Flags for agents、Filesystem Agents。 |
+| Changelog & Roadmap | リリースノート、Ship Week、AI Accelerator、CVE 情報。 |
+| CLI & REST API | Vercel CLI、CLI Contract、REST API、Build Output API、Drains API。 |
+| Pricing & Plans | Hobby / Pro / Enterprise、リージョン別価格、請求理解、Queues Pricing。 |
+
+本シリーズは上記カテゴリを 10 / 20-27 / 30-35 / 40-43 / 50-51 / 60 / 90 / 99 の章番号に対応させ、概論（10）から各論、AI 領域（40 番台）、変更履歴（50 番台）、リファレンス（60 番台）、運用観点（90 番台）、出典（99）の順で展開する。
+
+## 使い方（最初の一歩のオリエンテーション）
+
+Vercel を使い始める経路は二つある。Vercel CLI で手元のプロジェクトを `vercel` コマンドでデプロイする方法と、ダッシュボードから GitHub / GitLab / Bitbucket のリポジトリを連携して push 起動でデプロイする方法である。学習・プロトタイプ用途では前者が速く、本番運用では Git 連携によって PR ごとに自動でプレビュー URL が発行される後者がデフォルトになる。
+
+最初のデプロイから本番公開までの典型的な流れは以下の通り。
+
+1. Vercel アカウントを作成し、Node.js 18+ をローカルに用意する。
+2. `npm i vercel`（または pnpm / yarn / bun）で CLI をインストールし、`vercel login` で認証する。
+3. プロジェクトディレクトリで `vercel` を実行する。フレームワークが自動検出され、ビルドとプレビューデプロイが走る。
+4. Git リポジトリをダッシュボードから連携し、Production ブランチを設定する。push のたびに自動デプロイされる。
+5. 必要に応じて `vercel install neon` のような Marketplace 統合でデータベースやストレージを払い出し、環境変数を `.env.local` に同期する。
+6. カスタムドメインを Domains 設定から追加し、本番環境を `vercel --prod` または Git の Production ブランチへの push で発行する。
+
+`vercel.json` の最小例は以下のようになる。これは Fluid Compute を明示的に有効化するだけのスニペットだが、Vercel の設定ファイルがどう見えるかの感覚を掴むのに使える。
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "fluid": true
+}
+```
+
+Vercel を触り始める段階で最低限押さえるべき概念は三つに絞れる。
+
+- **Deployments**: push やコマンド実行のたびに不変のビルド成果物として発行される単位。すべての deployment は固有の URL を持ち、Instant Rollback で即座に過去状態へ戻せる。
+- **Environments**: Production / Preview / Custom の三層構造。環境変数とドメインは環境ごとに分離され、Preview は PR 単位で自動払い出しされる。
+- **Functions**: API ルートやサーバーサイドレンダリングを担う実行単位。2025 年以降は Fluid Compute がデフォルトで、Active CPU と Provisioned Memory の組み合わせで課金される。
+
+この三点が噛み合うことで「Git push したら本番に出る」だけではない、プレビュー・段階的ロールアウト・即時ロールバックを前提とした運用フローが成立する。
+
+## 注意点・セキュリティ観点
+
+全体に共通する注意点を、章を跨いで何度も戻ってくることになる順に並べておく。詳細はそれぞれの専用章で扱う。
+
+- **プラン依存の機能差が大きい**: Fluid Compute の最大実行時間（Hobby は 300 秒、Pro / Enterprise は 800 秒）、Multi-region functions、HIPAA BAA、Access Groups、Trusted IPs、Secure Compute などはプラン境界で挙動と可用性が変わる。技術選定の段階で対象プランを固定してから検証する。
+- **リージョン選択とレイテンシ**: Functions のデフォルトリージョンは `iad1`（米国東部）であり、日本ユーザー向けには `hnd1` などへの明示的な切り替えが必要になる。リージョン変更はプロジェクト設定または `vercel.json` で行う。Multi-region は Pro 以上の機能で上限がある。
+- **環境変数とシークレット**: 環境変数は Production / Preview / Development で別管理になる。`.env` をコミットしない、Edge Functions では環境変数の利用に制約があった経緯（現在は緩和済）がある、Marketplace 統合は資格情報を自動で同期する、という三点を起動時に意識する。
+- **Deployment Protection と Preview の公開範囲**: Preview デプロイのデフォルト公開範囲はチームごとに異なり、誤って外部からアクセス可能な状態で機密データを含めると事故になる。Protected Preview や Password Protection を初期段階で有効化する。
+- **Spend Management と無料枠**: Hobby プランの無料枠は AI 系機能（特に AI Gateway 経由のモデル呼び出し、Functions の長時間実行）で簡単に消費される。Spend Management は本番デプロイを停止する設定がデフォルトであり、停止条件と通知経路を事前に握っておく。
+- **ベンダーロックインと回避策**: Build Output API と標準フレームワーク群により、最低限の互換は保たれている。一方で AI Gateway / v0 / Vercel Agent / Edge Config / Skew Protection といった独自機能に深く依存すると、他プラットフォームへの移行コストは上がる。Incremental Migration ガイドが「Vercel に移る」側のみを扱っていることも踏まえ、撤退経路は別途設計する。
+- **AI ボット・WAF の前提変化**: AI Bots Managed Ruleset と BotID により、AI クローラーや自動化トラフィックの扱いがデフォルトで変わってきている。robots.txt のみで制御してきたサイトは、Firewall ルールの確認が必要になる。
+
+これらは Vercel 全体に効く横断的な前提であり、後続章の各論（Functions / Routing / ISR / Storage / Security / AI Gateway など）はいずれもこの前提のうえに立つ。
+
+## 一次ソース（原文）
+
+- Vercel Documentation トップ — https://vercel.com/docs
+- Getting Started with Vercel — https://vercel.com/docs/getting-started-with-vercel
+- Vercel トップ（The AI Cloud） — https://vercel.com/
+- AI Cloud プロダクトページ — https://vercel.com/ai
+- Production Checklist — https://vercel.com/docs/production-checklist
+- Incremental Migration Guide — https://vercel.com/docs/incremental-migration
+- Frameworks on Vercel — https://vercel.com/docs/frameworks
+- Fluid Compute — https://vercel.com/docs/fluid-compute
+- Vercel Functions — https://vercel.com/docs/functions
+- Routing Middleware — https://vercel.com/docs/routing-middleware
+- Deployments / Environments — https://vercel.com/docs/deployments/environments
+- Vercel Delivery Network — https://vercel.com/docs/cdn

@@ -1,0 +1,163 @@
+---
+title: "MCP & Sandbox — エージェント連携サーバーと Untrusted Code 実行基盤"
+description: "Vercel MCP Servers（Devin / Raycast / Windsurf / Goose 等から接続される MCP）と Vercel Sandbox（untrusted code / AI 生成コードを安全に実行する短命 VM 環境）を解説。GA 版 Sandbox の sudo / RPM サポート、Persistent Sandboxes Beta、Snapshots による状態管理までカバーする。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 42
+---
+
+## この章の要点
+
+- Vercel MCP は AI クライアント（Devin / Raycast / Windsurf / Goose / Cursor / ChatGPT など）と外部システムを橋渡しする「公式 MCP サーバー」のホスティング層。Vercel が認可したクライアントのみが `https://mcp.vercel.com` に接続できる
+- Vercel Sandbox は Firecracker microVM で隔離された短命 Linux 環境。AI エージェントの生成コード・ユーザー投稿コード・サードパーティスクリプトを本番環境に触れさせずに実行するための「破棄前提の計算基盤」として設計されている
+- 2026 年に GA 化された Sandbox は `sudo` と RPM パッケージインストールに対応し、`node24 / node22 / python3.13` ランタイム上で Go・Python・任意のシステム依存を実行時にインストールできる
+- Snapshots と Persistent Sandboxes（Beta）により、「依存インストール済みの状態を保存して再開」「停止しても自動で状態保持して再開時に再注入」という二系統の状態管理が用意されている
+- `x402-mcp` により MCP ツール単位での超少額課金（100〜200ms 確認、$0.001 未満も可）が可能になり、AI エージェントが事前登録なしで有料ツールを呼び出すフローが現実になった
+- Sandbox は SDK（`@vercel/sandbox`）と CLI に加え、REST API v2 beta（`GET /v2/sandboxes` 等）でも管理可能。Persistent / Snapshot / Tags / NetworkPolicy のメタデータが API レスポンスに含まれる
+
+## Vercel の MCP と Sandbox とは
+
+Vercel MCP と Vercel Sandbox は、いずれも「AI エージェントを実運用に乗せる」ために 2025〜2026 年にかけて急速に整備された二つの基盤である。役割は明確に分かれている。
+
+**MCP（Model Context Protocol）** は LLM と外部ツールの通信規格。Vercel は次の二つの立場で MCP に関わる。
+
+1. Vercel 自身が提供する公式 MCP サーバー（`https://mcp.vercel.com`）。Devin / Raycast / Windsurf / Goose などのクライアントが、Vercel の Project / Deployment / Logs といったプラットフォーム機能をエージェントから直接操作できる
+2. 開発者が自前の MCP サーバーを Vercel にデプロイするためのプラットフォーム機能（Functions / Fluid Compute をベースに、Nuxt や Next.js で MCP エンドポイントを公開する）
+
+**Vercel Sandbox** は LLM や MCP クライアントが「安全には実行できない」コードを引き受けるための隔離環境。各サンドボックスは Firecracker microVM 上で起動し、専用ファイルシステム・専用ネットワーク・専用ユーザー（`vercel-sandbox`）で隔離される。デフォルトで 5 分・最長で Pro/Enterprise は 5 時間まで延長可能な短命 VM であり、状態は明示的に Snapshot するか Persistent Sandbox にしない限り破棄される。
+
+二つを組み合わせると、「MCP 経由で受け取ったツール呼び出しの実行を、Sandbox 内に閉じ込める」というアーキテクチャになる。エージェントが任意の `npm install` や `pip install` を実行しても、本番のプロジェクト・データベース・シークレットには触れない。
+
+## 何が解説されているか
+
+### Vercel MCP の対応クライアント
+
+| クライアント | 接続方法 | 備考 |
+| --- | --- | --- |
+| Devin | MCP Marketplace から検索・インストール | Cognition の自律エージェント |
+| Raycast | HTTP トランスポートで `https://mcp.vercel.com` を登録 | macOS ランチャー |
+| Windsurf | `mcp_config.json` に Vercel MCP を追記 | Codeium 系エディタ |
+| Goose | ワンクリックインストール | Block 社の OSS エージェント |
+| Cursor / ChatGPT / Claude 系 | Vercel が事前にレビューしたクライアントのみ接続可 | セキュリティ理由で許可制 |
+
+公式ドキュメントは「Vercel MCP は Vercel 側でレビュー・承認されたクライアントのみ接続可能」と明記している。任意の MCP クライアントから直接 `https://mcp.vercel.com` を叩けるわけではない点が、汎用 MCP との大きな違いになる。
+
+### Sandbox の機能対応表
+
+| 機能 | 状態 | 内容 |
+| --- | --- | --- |
+| Firecracker microVM 隔離 | GA | 専用 FS・専用ネットワーク。Amazon Linux 2023 ベース |
+| ランタイム | GA | `node24`（既定）/ `node22` / `python3.13` |
+| `sudo` / RPM インストール | GA | `runCommand({ sudo: true })` で `dnf install` 等が可能 |
+| Snapshots | GA | 既定 30 日、`expiration: 0` で無期限、`ms('14d')` 等で任意指定 |
+| Persistent Sandboxes | Beta | 停止時に自動で状態保存、再開時に透過セッション生成。状態保管は無料、CPU 課金のみ |
+| Tags | Beta | key/value で環境・チームなどに分類 |
+| NetworkPolicy | GA | `allow-all`（既定）/ `deny-all` / `allow` / `subnets.allow` / `subnets.deny` |
+| 起動時間 | GA | ミリ秒オーダー |
+| デフォルトタイムアウト | GA | 5 分。Hobby は 45 分、Pro/Enterprise は 5 時間まで延長可 |
+| `x402-mcp`（超少額課金） | 利用可 | MCP ツール単位で `paidTool()` を定義し `withPayment()` で呼び出す |
+
+### SDK と REST API の対応関係
+
+SDK（`@vercel/sandbox`）の主要クラスは `Sandbox` / `FileSystem`（`sandbox.fs`）/ `Command` / `CommandFinished` / `NetworkPolicy` / `Snapshot` の 6 種。これに対応する REST API として `/v2/sandboxes`（list / get / create / stop など）と `/v2/sandboxes/{id}/snapshots`（list-snapshots など）が公開されている。
+
+`GET /v2/sandboxes` のレスポンスには `name` / `currentSessionId` / `currentSnapshotId` / `persistent` / `region` / `vcpus` / `memory` / `runtime` / `timeout` / `snapshotExpiration` / `keepLastSnapshots` / `networkPolicy` / `totalEgressBytes` / `totalActiveCpuDurationMs` などが含まれており、課金に必要な計測値（CPU 時間・ネットワーク量）と状態管理に必要な ID が同じレスポンスで取れる構造になっている。
+
+## 使い方
+
+### Vercel MCP クライアント側の接続
+
+Raycast の場合、`https://mcp.vercel.com` を HTTP トランスポートで登録するだけで Vercel Project の一覧やデプロイ操作がエージェントから可能になる。Windsurf であれば `mcp_config.json` に同 URL を追記する。Devin / Goose は GUI からのインストール導線が用意されている。
+
+接続後、エージェントは Vercel 側の MCP ツール（プロジェクト一覧、デプロイメント取得、ログ取得など）を会話の中で呼び出せるようになる。
+
+### Nuxt で自前 MCP サーバーを構築
+
+Nuxt MCP Toolkit を使うと、ルート単位ではなくモジュールとして MCP エンドポイントを生やせる。
+
+```bash
+npx nuxt module add mcp-toolkit
+```
+
+このモジュールは Zod でツール入力を検証し、リソース・プロンプトを公開できる。デバッグ用の MCP Inspector、セッション持続、複数ツール呼び出しを 1 実行に束ねる Code Mode を備えている。Vercel にデプロイすれば Functions（Fluid Compute）上で MCP サーバーが動く形になる。
+
+### Sandbox SDK での実行
+
+最小例（`@vercel/sandbox`）。
+
+```ts
+import { Sandbox } from '@vercel/sandbox';
+import ms from 'ms';
+
+const sandbox = await Sandbox.create({
+  runtime: 'node24',
+  networkPolicy: 'deny-all',
+  env: { NODE_ENV: 'production' },
+});
+
+const result = await sandbox.runCommand('node', ['--version']);
+console.log(result.exitCode, await result.stdout());
+
+await sandbox.stop();
+```
+
+`sudo` で RPM をインストールしてから AI 生成コードを動かす場合。
+
+```ts
+await sandbox.runCommand({
+  cmd: 'dnf',
+  args: ['install', '-y', 'go'],
+  sudo: true,
+});
+
+await sandbox.writeFiles([
+  { path: 'main.go', content: Buffer.from(generatedCode) },
+]);
+
+const run = await sandbox.runCommand('go', ['run', 'main.go']);
+```
+
+Snapshot で状態を保存して再利用するパターン。
+
+```ts
+const snapshot = await sandbox.snapshot({ expiration: ms('14d') });
+
+// 後で別プロセスから
+const fresh = await Sandbox.create({
+  source: { type: 'snapshot', snapshotId: snapshot.snapshotId },
+});
+```
+
+Persistent Sandbox（Beta）にすると、停止時の自動保存と再開時の透過セッション再生成が SDK 側で隠蔽されるため、`snapshot()` / `Sandbox.create({ source })` を自分で書かずに「同じ名前のサンドボックスにつなぐと前回の続きから動く」という体験になる。`GET /v2/sandboxes` のレスポンスにある `persistent: true` がこのモードに該当する。
+
+### x402 課金型 MCP ツールの呼び出し
+
+`x402-mcp` を使うと、サーバー側は `paidTool()` でツールに価格を付け、クライアント側は AI SDK を `withPayment()` でラップするだけで、エージェントがツール呼び出しと同時に決済を行える。決済確認は 100〜200ms、手数料は $0.01 未満、$0.001 未満の超少額にも対応する。アカウント登録不要のため、エージェントが「初めて見たツールを発見してそのまま課金して使う」フローが組める。
+
+## 注意点・セキュリティ観点
+
+- **Sandbox は隔離だが万能ではない**：Firecracker microVM による隔離は強力だが、Vercel が公式に保証しているのは「本番のプロジェクト・DB・シークレットを汚染しない」までであり、サンドボックス内で発生する任意のネットワーク通信そのものが安全という意味ではない。Untrusted code を動かすときは `networkPolicy: 'deny-all'` から始め、必要なドメインだけを `allow` で開ける運用が安全側
+- **NetworkPolicy の置換は完全置換**：`updateNetworkPolicy()` は新しいポリシーで既存設定を完全に上書きする。「既存ルールに 1 行追加」のような部分更新ではないので、運用コードでは現行ポリシーを保持しておきマージしてから渡す
+- **Persistent Sandbox の課金境界**：状態の保管自体は無料、課金されるのは「アクティブな状態のとき」のみ。とはいえアイドル中も誤ってコマンドを叩くと SDK が透過的に新しいセッションを起こして CPU 課金が発生する。コスト管理上は「停止中のサンドボックスを操作しない」設計が安全
+- **Snapshot の保持期間設定**：既定 30 日、最大は無期限（`expiration: 0`）、最短 1 日。長期保管はストレージ料金につながるため、Snapshot 一覧（`Snapshot.list()` / REST `/v2/sandboxes/{id}/snapshots`）を定期的に棚卸しして不要分を `snapshot.delete()` する。`keepLastSnapshots` の自動退避設定も併用するとよい
+- **MCP サーバー側の権限境界**：`https://mcp.vercel.com` には Vercel が承認したクライアントしか接続できないが、自前の MCP サーバーを Vercel にデプロイした場合、認証はあくまで自分の責任になる。OAuth / OIDC / API キーのいずれかを必ず噛ませ、ツール単位で「読み取り専用」「破壊的操作」を分離して公開する
+- **AI 生成コードの暗黙ネットワーク通信**：AI エージェントが書くコードは外部 API を呼ぶ可能性が高く、`allow-all` のままだと意図しないデータ送信が起きうる。Sandbox の既定が `allow-all` である点は本番採用時に必ず見直す
+- **`sudo` 解禁の副作用**：sudo と RPM インストールは便利な反面、攻撃者寄りのコードが任意のシステムパッケージを引き込めるという意味でもある。ネットワークポリシーの `deny-all` 化、Sandbox のタイムアウト短縮、`activeCpuUsageMs` / `networkUsage` のしきい値監視で「壊れた挙動を早く止める」設計に倒す
+- **x402 課金型 MCP の信頼境界**：エージェントが自律的に有料ツールを呼べるということは、悪意あるツール側が安価に見せて高頻度に課金させる攻撃面が生まれる。クライアント側で「1 セッション・1 日あたりの上限」を SDK レベルで必ず噛ませる
+- **REST API は v2 beta**：`/v2/sandboxes` 系はベータ表記であり、レスポンス構造（特に `keepLastSnapshots` などのオプションフィールド）は変更されうる。安定運用には SDK を介し、REST 直叩きは管理コンソール用途に限定するのが無難
+
+## 一次ソース（原文）
+
+- [Model Context Protocol on Vercel](https://vercel.com/docs/mcp)
+- [Vercel Sandbox 概要](https://vercel.com/docs/vercel-sandbox)
+- [Sandbox SDK Reference](https://vercel.com/docs/vercel-sandbox/sdk-reference)
+- [REST API: List sandboxes (v2 beta)](https://vercel.com/docs/rest-api/sandboxes-v2-beta/list-sandboxes)
+- [REST API: List snapshots](https://vercel.com/docs/rest-api/sdk/sandboxes/list-snapshots)
+- [Changelog: Vercel Sandboxes GA](https://vercel.com/changelog/vercel-sandboxes-ga)
+- [Changelog: Persistent Sandboxes Beta](https://vercel.com/changelog/vercel-sandbox-persistent-sandboxes-beta)
+- [Changelog: Snapshots Custom Retention](https://vercel.com/changelog/vercel-sandbox-snapshots-now-allow-custom-retention-periods)
+- [Changelog: Sandbox supports sudo and RPM packages](https://vercel.com/changelog/sandbox-now-supports-sudo-and-installing-rpm-packages)
+- [Changelog: Devin / Raycast / Windsurf / Goose on Vercel MCP](https://vercel.com/changelog/devin-raycast-windsurf-and-goose-now-supported-on-vercel-mcp)
+- [Changelog: Build MCP server with Nuxt](https://vercel.com/changelog/build-mcp-server-with-nuxt)
+- [Changelog: 402 MCP enables x402 payments](https://vercel.com/changelog/402-mcp-enables-x402-payments-in-mcp)
+- [KB: How to build an MCP server with Nuxt](https://vercel.com/kb/guide/how-to-build-an-mcp-server-with-nuxt)

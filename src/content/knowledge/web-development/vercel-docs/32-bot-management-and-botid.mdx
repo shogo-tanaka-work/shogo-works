@@ -1,0 +1,131 @@
+---
+title: "Bot Management & BotID — AI Bot Filtering と invisible CAPTCHA で自動化トラフィックを切り分ける"
+description: "Vercel の Bot Management（AI Bots Managed Ruleset 等）と BotID（invisible CAPTCHA / Deep Analysis）を解説。スクレイパー・LLM クローラ・購入 Bot を区別する仕組みと、ローカル開発時の挙動・誤検知対策まで体系化する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 32
+---
+
+## この章の要点
+
+Vercel の Bot 対策は責務の異なる二系統で構成されている。Bot Management は Vercel Firewall の中で動く Managed Ruleset 群で、ネットワークレベルでクローラと自動化トラフィックを Log / Challenge / Deny する。BotID は Kasada をエンジンに据えた invisible CAPTCHA で、ログイン・購入・API などの高価値エンドポイントに対する高度な Bot を、ユーザー操作を強いずクライアント側チャレンジと機械学習で識別する。本章ではこの二段構えを軸に、AI クローラの扱い、Basic / Deep Analysis の差、ローカル開発での挙動、誤検知の救済導線を整理する。
+
+## Vercel の Bot Management と BotID とは
+
+Bot Management は Vercel Firewall に組み込まれた Managed Ruleset の集合体である。代表的な Bot Protection ruleset は、ブラウザを名乗りながらブラウザらしい挙動を満たさないクライアントに JavaScript Challenge を返す仕組みで、`curl` が Chrome を騙るような単純偽装を弾く。並行して提供される AI Bots managed ruleset は、GPTBot や ClaudeBot に代表される AI クローラを Log または Deny に振り分ける専用ルールで、Vercel が新しい AI Bot を発見次第リストへ自動追加する設計のため、運用側が逐次更新する必要はない。Googlebot や Bingbot など Verified Bots は Vercel が管理するディレクトリで自動的に許可され、IP 範囲・逆引き DNS・Web Bot Authentication（HTTP Message Signatures, RFC 9421）の三方式で正当性が確認される。
+
+BotID はこれと階層が異なる「アプリケーション側」の Bot 検知である。Kasada が提供する invisible CAPTCHA エンジンを利用し、画面に CAPTCHA を出さずクライアント側でチャレンジを解かせ、その応答とブラウザシグナルをサーバー側 `checkBotId()` で検証する。Playwright や Puppeteer を駆使して人間を模倣する高度な Bot を主な対象とし、決済・サインアップ・在庫取得 API のような明確な金銭的価値を持つ経路に部分適用するのが基本姿勢である。
+
+両者は競合しないどころか相補関係にある。Firewall 層で AI クローラと粗悪な自動化トラフィックを切り落としつつ、すり抜けた高度な Bot を BotID で個別エンドポイント単位に止める、という二段構えが Vercel の推奨形である。
+
+## 何が解説されているか
+
+Bot 種別と対応アクションの関係は次のとおり整理できる。種別ごとに使うべき機能が異なるため、まず分類を押さえてから設定に進むのが安全である。
+
+| Bot 種別 | 例 | 推奨対応 | 担当機能 |
+| --- | --- | --- | --- |
+| Verified Bots（正規クローラ） | Googlebot / Bingbot / Slackbot | 許可（自動） | Bot Management（Verified Bots ディレクトリ） |
+| AI Bots（LLM 学習・検索） | GPTBot / ClaudeBot / PerplexityBot | Log または Deny を選択 | AI Bots managed ruleset |
+| Likely Automated（ブラウザ偽装） | curl が Chrome を騙る等 | Challenge | Bot Protection managed ruleset |
+| Sophisticated Bots（人間模倣） | Playwright / Puppeteer 製スクリプト | invisible CAPTCHA + ML | BotID |
+| Malicious Bots（明確な攻撃源） | 既知の悪性 IP / シグネチャ | Deny / Rate limit | WAF Custom Rules + DDoS Mitigation |
+
+Managed Ruleset 側のアクションは Log・Challenge・Deny の三種に集約され、Bot Protection は Challenge / Log、AI Bots は Deny / Log の組み合わせから選ぶ二択構成である。BotID 側は Basic と Deep Analysis の二段階で、機能対応は次表のように分かれる。
+
+| 観点 | Basic | Deep Analysis |
+| --- | --- | --- |
+| 検証内容 | チャレンジ応答の整合性検証 | ML による数千シグナルの解析 |
+| 対応プラン | 全プラン（無料） | Pro / Enterprise |
+| 価格 | 無料 | `checkBotId()` 1,000 回あたり 1 ドル |
+| 主な対象 | 単純な自動化・古典的 Bot | Credential Stuffing / 高度スクレイピング / API 濫用 |
+| 実行順 | 常時 | Basic 通過後にのみ実行 |
+
+ローカル開発では `checkBotId()` が常に `{ isBot: false }` を返し、開発体験を阻害しない設計になっている。Bot として扱った場合の挙動を確認したいときは `developmentOptions.bypass` に `'BAD-BOT'` などを指定して任意の判定を強制でき、本番ではこの設定は無視される。観測面では Vercel Firewall タブのトラフィックフィルタから BotID チェック結果を確認でき、Observability Plus からも詳細メトリクスを引ける。
+
+## 使い方
+
+Bot Management の有効化は、プロジェクトの Firewall 設定から Managed Rulesets を開き、Bot Protection と AI Bots を個別にトグルするだけで完了する。最初は両方とも Log モードで運用し、Firewall Observability で誤ヒット率を観察してから Challenge / Deny に切り替えるのが安全な手順である。AI Bots ruleset は Vercel が一覧を継続更新するため、新しい LLM クローラが登場しても設定を変える必要はない。トラステッドな自動化トラフィック（社内クローラや外部 SaaS の Webhook 経由）には WAF Custom Rule の Bypass action を上位に置き、Bot Protection より先に評価させる構成を取る。
+
+BotID は Next.js App Router で次のように組み込む。クライアント側はチャレンジスクリプトを読み込ませ、サーバー側で `checkBotId()` を呼ぶ二段構成である。
+
+```ts
+// next.config.ts
+import { withBotId } from 'botid/next/config';
+
+export default withBotId({
+  botIdConfig: {
+    protect: [
+      { path: '/api/checkout', method: 'POST' },
+      { path: '/api/signup', method: 'POST' },
+    ],
+  },
+});
+```
+
+```tsx
+// app/layout.tsx
+import { BotIdClient } from 'botid/client';
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="ja">
+      <head>
+        <BotIdClient protect={[{ path: '/api/checkout', method: 'POST' }]} />
+      </head>
+      <body>{children}</body>
+    </html>
+  );
+}
+```
+
+```ts
+// app/api/checkout/route.ts
+import { checkBotId } from 'botid/server';
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(request: NextRequest) {
+  const verification = await checkBotId();
+
+  if (verification.isBot) {
+    return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+  }
+
+  // 通常の決済処理
+  return NextResponse.json({ ok: true });
+}
+```
+
+ローカル検証では `developmentOptions.bypass` を一時的に切り替え、Bot 判定された場合のエラーレスポンスや UI フォールバックが正しく動くかを確認する。下記は開発時のみ Bot 扱いに固定する例である。
+
+```ts
+const verification = await checkBotId({
+  developmentOptions: {
+    bypass: 'BAD-BOT', // 本番では無視される
+  },
+});
+```
+
+例外的に通したいトラフィック（負荷試験・Synthetic 監視・QA ボット）は、Vercel WAF の Bypass ルールに送信元 IP やカスタムヘッダの条件を入れて BotID 判定をスキップさせる。BotID 側のコードを書き換えるのではなく Firewall 側でバイパスを定義することで、アプリケーションコードを改変せずに例外運用を表現できる。
+
+## 注意点・セキュリティ観点
+
+Bot Protection ruleset は Vercel 直前にリバースプロキシ（Cloudflare や Azure Front Door 等の他 CDN）が挟まると検知精度と性能が大きく落ちる。プロキシが信号をマスクすることで正規ユーザーまで Challenge され、出口 IP のローテーションごとに再チャレンジが発生する点も体験を損なう。原則として Vercel をエッジに据える構成で運用し、どうしても多層 CDN を採る場合は Bot Protection ではなく BotID 側に重心を寄せる判断が必要である。
+
+AI Bots ruleset を Deny にするとサイトの内容が GPT・Claude・Perplexity 等の検索回答に取り込まれにくくなる。ブランドの SEO 戦略として「LLM 引用を取りにいく」方針なら Log 運用に留め、コンテンツ盗用を最優先で塞ぎたい場合のみ Deny に切り替える、という基準を事前に定めておく。Verified Bots は IP・逆引き DNS・暗号署名で識別されるため、自社向けの社内クローラを WAF Custom Rule で User-Agent ベースに弾くと Verified Bots まで巻き込みやすい。`Signature-Agent` ヘッダや IP レンジで条件を絞り込む書き方を選ぶ。
+
+BotID の Deep Analysis は Basic 通過後にのみ走る課金イベントで、`checkBotId()` を呼んだ回数だけ料金が発生する。低価値ルートに無差別に挿し込むとコストが膨らむため、適用対象はチェックアウトやサインアップ、API キー発行など実害コストの高い経路に限定する設計が定石である。レイテンシ面では Basic はクライアント側チャレンジが瞬時に終わる一方、Deep Analysis はサーバー検証がリモート ML を伴うため、UX 上の許容遅延を踏まえて配置先を選ぶ。
+
+invisible CAPTCHA という性質上、本物のユーザーが誤検知された際に救済導線がないと事実上のサービス遮断となる。Bot 判定時には 403 を返すだけでなく、再試行を案内する画面、別経路（メール認証や電話認証）でのフォールバック、サポート窓口へのリンクを用意するのが望ましい。本番でテストできない仕様にも注意が必要で、ローカルでは常に `isBot: false` が返るため、`developmentOptions.bypass` を使った判定パターンの網羅テストと、プレビュー環境で実エンドポイントを叩く検証を CI に組み込む。BotID の検知ログは Firewall Observability の BotID フィルタで参照でき、誤検知傾向を継続監視するパネルを Notebooks に保存しておくと、運用ルールのチューニングが回しやすくなる。
+
+## 一次ソース（原文）
+
+- https://vercel.com/docs/bot-management
+- https://vercel.com/docs/botid
+- https://vercel.com/docs/botid/get-started
+- https://vercel.com/docs/botid/local-development-behavior
+- https://vercel.com/docs/botid/advanced-configuration
+- https://vercel.com/docs/botid/form-submissions
+- https://vercel.com/docs/botid/verified-bots
+- https://vercel.com/docs/vercel-waf/managed-rulesets
+- https://vercel.com/docs/vercel-firewall/firewall-concepts
+- https://vercel.com/docs/vercel-firewall/firewall-observability

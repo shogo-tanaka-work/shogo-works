@@ -1,0 +1,110 @@
+---
+title: "Deployment Protection & RBAC — Preview の閉域化、SSO・Access Groups・Verified Commits"
+description: "Vercel Deployment Protection（Vercel Authentication / Password Protection / Trusted IPs）と RBAC（ロール / Access Groups / リポジトリ制限 / 2FA / 検証付きコミット / OIDC Federation）を体系化。組織でのアクセス制御の限界と落とし穴を整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 33
+---
+
+## この章の要点
+
+Vercel のアクセス制御は、デプロイメント単位で URL を閉域化する Deployment Protection と、チームメンバーやマシン ID の権限を扱う RBAC の二系統で構成される。Preview URL の偶発的漏洩を抑える Vercel Authentication / Password Protection / Trusted IPs と、人と Bot の権限を切る Owner / Member / Developer / Contributor / Security ロール、そして Enterprise の Access Groups と Verified Commits、OIDC Federation までを一気通貫で扱うのが本章の射程である。プランごとの利用可否と、SSO Bypass・Shareable Link の取り扱いに代表される運用上の落とし穴を押さえる。
+
+## Vercel の Deployment Protection と RBAC とは
+
+Deployment Protection は「誰が Preview / Production の URL にアクセスできるか」を Project 設定で縛る仕組みである。保護方法（Method）と保護範囲（Scope）の二軸で構成され、Method は Vercel Authentication・Password Protection・Trusted IPs の三種、Scope は Standard Protection（本番ドメイン以外を保護）・All Deployments（本番含む全 URL を保護）・Only Production（Trusted IPs で本番のみ保護）から選ぶ。Hobby プランでも Vercel Authentication + Standard Protection は利用できるが、本番ドメインの保護は Pro / Enterprise が必要になる。
+
+RBAC は Team に属するメンバーへ役割を割り当てる仕組みであり、Team 全体に効くチームレベルロールと、Contributor を経由してプロジェクト単位で割り当てるプロジェクトレベルロールに分かれる。ロールに加えて、Permission Groups（Create Project や Deployment Protection Manager など）を上乗せすることで、既存ロールの権限を細かくチューニングできる構造になっている。
+
+Verified Commits は「Vercel が Git からビルドする前にコミット署名を検証する」機能であり、リポジトリ書き込みを奪われたケースでも未署名コミットでの本番デプロイを止められる。Access Groups と OIDC Federation は組織規模が大きくなった際に効く拡張機能で、前者はメンバーとプロジェクト群のマッピングを Okta 等から SCIM 同期する用途、後者は CI / Functions から AWS・Azure などへ短命 JWT で認証する secret-less な接続用途を担う。
+
+## 何が解説されているか
+
+Deployment Protection の Method と Scope はプラン依存の組み合わせ表として把握しておく必要がある。Standard Protection が「本番ドメイン以外の保護」である点と、Pro 以下で Password Protection / Trusted IPs を有効化する場合は Advanced Deployment Protection アドオン（月額 150 ドル）が必須である点が要所になる。
+
+| 保護方法 | 役割 | プラン |
+| --- | --- | --- |
+| Vercel Authentication | Vercel アカウントを持つチームメンバーのみ許可 | 全プラン |
+| Password Protection | 共通パスワードで外部関係者に限定共有 | Enterprise / Pro はアドオン |
+| Trusted IPs | 許可 IPv4 リストで制限。本番のみ保護も可 | Enterprise |
+| Shareable Link | ログイン不要で Preview を一時共有 | 全プラン（Enterprise は監査ログ対応） |
+
+| 保護範囲 | 何を守るか | プラン |
+| --- | --- | --- |
+| Standard Protection | 本番ドメイン以外の Preview / 生成 URL | 全プラン |
+| All Deployments | 本番ドメインを含む全 URL | Pro / Enterprise |
+| Only Production | 本番ドメインのみ（Trusted IPs と併用） | Enterprise |
+
+RBAC のチームレベルロールは八種で、ロールごとにプロジェクト読み書きの粒度と、課金や招待などのチーム管理権限が分かれる。Contributor は単独では何も触れず、プロジェクトレベルロール（Project Administrator / Project Developer / Project Viewer）と組み合わせて初めて効力を持つ点が他ロールと異なる。
+
+| ロール | 主な役割 | 備考 |
+| --- | --- | --- |
+| Owner | チーム設定・課金・メンバー管理を含む全権限 | 全プロジェクトで Project Administrator 相当 |
+| Member | プロジェクト管理ほぼ全般。課金と招待は不可 | 本番デプロイ可 |
+| Developer | デプロイと環境変数管理（本番環境変数は不可） | プロジェクトレベルロールは付与不可 |
+| Security | Firewall / Rate Limiting / Deployment Protection の管理 | 既定ではデプロイ不可・全プロジェクト読み取り可 |
+| Billing | 課金と支払い手段の管理 | Pro は 1 名・Enterprise は複数可 |
+| Pro Viewer / Enterprise Viewer | 読み取り専用。Enterprise は Observability も可視 | Pro Viewer は Pro 無料枠 |
+| Contributor | プロジェクト単位で Admin / Developer / Viewer を割り当て | 未割当のプロジェクトには一切アクセス不可 |
+
+API トークンと Integration には別軸の API Scope が存在する。2022 年 6 月の刷新で機能単位のスコープ選択が必須化され、既存 Integration も同年 7 月末までに移行が求められた。Integration トークンの過剰権限は、移行漏れによる残存スコープから事故が起きやすいため、定期棚卸しの対象として扱う。
+
+組織横断のアクセス制御としては Access Groups（2024 年 5 月 GA、Enterprise 限定）、Protected Git Scopes によるリポジトリ・チーム紐付け（2024 年 9 月、Enterprise）、Verified Commits の必須化（2025 年 11 月 24 日、GitHub 連携プロジェクトで設定）、SAML SSO（Enterprise 標準・Pro はアドオン）、OIDC Federation の Team Issuer Mode（2024 年 10 月 GA）、TOTP / Passkey による 2FA（2025 年 4 月 3 日）が並ぶ。
+
+## 使い方
+
+Vercel Authentication を有効化する基本フローは Project Settings → Deployment Protection → 保護方法に Vercel Authentication、保護範囲に Standard Protection を選択する流れである。Standard Protection を入れると `VERCEL_URL` で参照される生成 URL が認証必須になるため、サーバー間で `${process.env.VERCEL_URL}` を叩いている fetch は相対パスかリクエスト元オリジンに切り替える。下記は Web から fetch する側の修正例である。
+
+```ts
+// Before — VERCEL_URL を直接叩いていた箇所が 401 になる
+fetch(`${process.env.VERCEL_URL}/api/items`);
+
+// After — 同一ドメインに揃えて Cookie を引き継ぐ
+fetch('/api/items');
+```
+
+サーバー側で外部から呼び出す自動化処理は、相対パスが使えないので Protection Bypass for Automation を使うか、認証 Cookie をリクエストヘッダに引き渡す。
+
+```ts
+// Server-to-server で保護下の URL を叩く場合の最小例
+const headers = { cookie: incomingHeaders.get('cookie') ?? '' };
+await fetch(new URL('/api/items', incomingRequestUrl), { headers });
+```
+
+Access Group は Team Settings → Access Groups から作成し、グループのデフォルトロール（Project Developer など）と紐付けるプロジェクト群を選んで保存する。Okta などの IdP と SCIM 同期している Enterprise では、IdP 側のグループ追加が Vercel の Access Group 所属に反映され、メンバー追加と同時にプロジェクト権限が自動付与される構造になる。
+
+Protected Git Scopes は GitHub Organization 単位で「この Org のリポジトリは特定の Vercel Team しかデプロイできない」という制約を入れるための設定である。Team Settings → Security のスコープ設定で対象 Org を登録すると、別 Team から同じリポジトリを Import しても Vercel 側でデプロイがブロックされる。
+
+Verified Commits は Project Settings → Git の保護オプションから有効化する。GitHub 側で GPG / SSH / S/MIME のいずれかで署名されたコミットのみがビルド対象になり、未署名コミットは Vercel 側で deployment failure として扱われる。社内ポリシーとしてマージ時に署名を強制する `gh repo edit --enable-vanity-url` 相当の Branch Protection と組み合わせて運用する想定である。
+
+2FA は Account Settings → Authentication で TOTP（Google Authenticator 等）か Passkey を登録する。SAML SSO 配下のチームでは IdP 側で MFA を強制すれば、Vercel 側で追加要素は要求されない仕様のため、SSO 利用時は IdP MFA に集約するのが運用上シンプルである。
+
+OIDC Federation は Project Settings → Security の OIDC を ON にし、AWS なら IAM の OIDC Identity Provider として `https://oidc.vercel.com/<team>` を登録、IAM Role の Trust Policy で `aud` と `sub`（プロジェクトとブランチ）を絞る。Functions 側では `@vercel/functions` の `awsCredentialsProvider` 相当で短命 JWT を AssumeRoleWithWebIdentity に交換する。Team Issuer Mode を選ぶと issuer URL がチーム固有になるため、Trust Policy 側で Vercel テナント全体ではなく自チームに限定できる。
+
+## 注意点・セキュリティ観点
+
+Shareable Link は URL を知っていれば誰でも Preview にアクセスできる強力な共有手段であり、リンクが Slack や外部メールで転送された時点で実質的に統制が効かなくなる。Enterprise では Shareable Link 生成イベントが監査ログに残るが、Pro 以下では誰がいつ共有したかを後追いできないため、外部共有が必要なプロジェクトは Password Protection か Vercel Authentication 経由のゲスト招待に倒すのが安全である。
+
+Hobby プランでは Vercel Authentication + Standard Protection しか使えず、本番ドメインの閉域化（All Deployments / Trusted IPs）は構造的に不可能である。社内ツールを Hobby で運用したいケースでは、本番ドメインを当てずに `*.vercel.app` の生成 URL のみで閉じる運用が現実解になる。Pro で本番閉域化や Password Protection を入れる場合は Advanced Deployment Protection の月額 150 ドルアドオンが乗り、解約には最低 30 日間の利用が条件となる点もコスト計画に織り込む。
+
+Access Groups は Enterprise 限定機能であり、Pro 以下では同等のグルーピングはできない。Pro で同様の運用をしたい場合は Contributor + プロジェクトレベルロールの組み合わせを手作業で維持するか、外部のアクセス管理プラットフォームから API 経由で Vercel メンバーを同期させるしかない。Member ロールはチーム内の全プロジェクトに対して Project Administrator 相当の権限を自動的に持つため、「特定プロジェクトだけ触らせたい」要件では必ず Contributor に降格させてから個別ロールを割り当てる運用にする必要がある。
+
+Verified Commits を必須化すると、Bot や CI が出すコミット（Renovate / Dependabot の一部設定や、署名なしの GitHub Actions push など）が即座に止まる。導入前に主要 Bot の署名対応と、リリースフローで使う `gh` コマンドや内製スクリプトの署名状況を棚卸ししないと、デプロイパイプラインが全停止する事故が起きる。コミット署名鍵を CI に置く場合は OIDC Federation 等で短命化を併用し、長期 GPG 鍵をリポジトリ Secrets に直書きしないことが推奨される。
+
+API Token と Integration は最小スコープで切ることを徹底する。とくに「Full Account」相当の旧スコープが残ったトークンは、Drains の URL 書き換えや Environment Variable の読み出しまで通る危険があるため、2022 年以降にスコープ刷新を経たかどうかを発行日基準で点検する。Integration マーケットプレイス経由のアプリも、必要最小権限以外を要求してくる場合は導入を見送る選択を残す。
+
+SSO 周りでは「SSO Bypass」経路に注意したい。SAML SSO を有効化していても、Vercel が個別に発行する Personal Access Token や、SSO 設定前に作成済みの Owner アカウントは IdP の停止と同期しない。退職フローでは IdP 無効化と同時に Vercel 側のメンバー削除と Token Revoke を必ず手動で走らせ、Owner 権限は二名以上で持って単一障害点を作らない運用にする。Pro で SSO アドオンを入れる場合も、料金と運用の両面で誰がオーナーロックを引き受けるかを先に決めておく。
+
+## 一次ソース（原文）
+
+- https://vercel.com/docs/deployment-protection
+- https://vercel.com/docs/rbac
+- https://vercel.com/docs/rbac/access-roles
+- https://vercel.com/docs/accounts
+- https://vercel.com/changelog/protected-preview-deployments-available-on-all-plans
+- https://vercel.com/changelog/access-groups-now-generally-available-on-enterprise-plans
+- https://vercel.com/changelog/restrict-repository-deployments-to-specific-teams
+- https://vercel.com/changelog/deployments-can-now-require-cryptographically-verified-commits
+- https://vercel.com/changelog/2fa-is-now-available
+- https://vercel.com/changelog/enhanced-security-with-new-api-scopes-for-integrations
+- https://vercel.com/changelog/openid-connect-federation-now-generally-available
