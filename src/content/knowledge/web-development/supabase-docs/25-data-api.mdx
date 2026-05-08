@@ -1,0 +1,201 @@
+---
+title: "Supabase Data API — REST と GraphQL の自動 API を理解する"
+description: "Supabase が PostgREST と pg_graphql で自動生成する REST / GraphQL API の仕組み、フィルタリング、JOIN、認可、Custom Schema、Performance まで実用観点で整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 25
+---
+
+## この章の要点
+
+- Supabase の Data API は、Postgres スキーマから REST と GraphQL の二系統の API を **自動生成** する仕組みである。
+- REST は **PostgREST**、GraphQL は **pg_graphql** が担当する。どちらも DB スキーマを変更すれば即座に API へ反映される。
+- supabase-js などの SDK は内部でこの REST API を叩いているだけであり、SDK・curl・他言語クライアントすべて同じエンドポイントを共有する。
+- API の認可は **Grants（ロール権限）と RLS（行レベルセキュリティ）の二層** で構成される。RLS を有効化していないテーブルは丸見えになるので注意である。
+- TypeScript の型は `supabase gen types typescript` でスキーマから自動生成でき、Custom Schema は `Exposed schemas` 設定と GRANT を通すことで API に公開できる。
+
+## Supabase の Data API とは
+
+Supabase の Data API とは、**Postgres のスキーマ（テーブル・ビュー・関数）から、REST API と GraphQL API を自動的に生成する仕組み** である。新しくテーブルや列を追加するたびに API ハンドラを書き直す必要がなく、DB スキーマがそのまま API になる、というのが最大の思想である。
+
+REST API は **PostgREST** によって提供される。PostgREST は Postgres スキーマを反射的に解析し、`https://<project_ref>.supabase.co/rest/v1/` 配下に各テーブル・ビュー・RPC をエンドポイントとして自動公開する。公式ドキュメントには「As you update your database the changes are immediately accessible」「configured to work with Postgres's Row Level Security」と明記されており、スキーマ変更が即時反映されること、RLS により保護されることが設計の前提として置かれている。
+
+GraphQL API は **pg_graphql** という Postgres 拡張によって生成される。pg_graphql は「reflects a GraphQL schema from the existing SQL schema」と説明される通り、テーブルや外部キーから GraphQL の型・コレクション・リレーションを自動的に組み立てる。サーバーレス型（追加プロセス不要）で Postgres 内部に閉じて動作する点が特徴である。
+
+supabase-js / supabase-flutter / supabase-py といった公式 SDK は、内部的にはこの PostgREST に対する HTTP リクエストを組み立てているにすぎない。つまり SDK で書ける操作は curl からも、別言語の HTTP クライアントからも同じ API として叩けるということである。GraphQL も同様に、Supabase プロジェクトの `/graphql/v1` エンドポイントを通じて呼び出せる。
+
+API は最終的に Postgres のロール（`anon` / `authenticated` / `service_role`）と RLS ポリシーに紐づいており、外部公開された API キー単体では無制限にデータへアクセスできない。これが Supabase が「フロントエンドから直接 DB を叩いても安全である」と謳う根拠である。
+
+## 何が解説されているか
+
+公式ドキュメントの Data API 周辺は、おおむね以下のトピックに分かれている。
+
+- **REST API（PostgREST）**
+  - **Tables and Views**: ダッシュボードの Data API → Docs から、各テーブル・ビューに対する API 利用例（curl / JS）が自動生成されている。
+  - **Auto-generated Documentation**: スキーマ変更に応じて API リファレンスが自動更新される仕組みである。
+  - **Generating Types**: `supabase gen types typescript` で Postgres スキーマから TypeScript 型ファイル（`database.types.ts` 等）を生成する。
+  - **Securing your API**: Grants と RLS の二層モデル、`anon` / `authenticated` / `service_role` の権限分離、`pgrst.db_pre_request` を用いたリクエスト前処理について解説される。
+  - **Using Custom Schemas**: `public` 以外のスキーマを API に公開する手順（`Exposed schemas` 設定 + GRANT + SDK 側の `db.schema` オプション）が示される。
+  - **Connecting to Postgres**: API 経由ではなく、直接接続（Connection Pooler や Direct Connection）を使い分けるためのガイドが用意される。
+- **GraphQL API（pg_graphql）**
+  - **Quickstart**: `/graphql/v1` エンドポイントの利用、ApiKey ヘッダ、基本クエリの構成。
+  - **API**: テーブルから生成される `xxxCollection` クエリ、`insertIntoXxxCollection` などのミューテーション、外部キーから生成されるリレーション。
+  - **Configuration**: `COMMENT ON SCHEMA / TABLE / COLUMN` を用いた名前変換（`inflect_names`）、フィールド名の変更、型のリネームなどの設定方法。
+
+REST も GraphQL も、根っこは「Postgres スキーマからの自動生成」という同じ思想であり、API 認可も両者とも同じ Grants + RLS に従う。
+
+## 使い方
+
+### REST：select / insert / update / delete
+
+最も基本となるのは select である。`leaderboard` テーブルからスコア降順に取得する例を示す。
+
+curl の場合は次のようになる。
+
+```bash
+curl 'https://<project>.supabase.co/rest/v1/leaderboard?select=*&order=score.desc' \
+  -H "apikey: <ANON_KEY>" \
+  -H "Authorization: Bearer <ANON_KEY>"
+```
+
+JS SDK だと同じ意味のコードがこう書ける。
+
+```ts
+const { data, error } = await supabase
+  .from('leaderboard')
+  .select()
+  .order('score', { ascending: false })
+```
+
+挿入は `.insert()`、更新は `.update().eq(...)`、削除は `.delete().eq(...)` を使う。
+
+```ts
+await supabase.from('leaderboard').insert([{ player: 'shogo', score: 1000 }])
+
+await supabase.from('leaderboard').update({ score: 1200 }).eq('player', 'shogo')
+
+await supabase.from('leaderboard').delete().eq('player', 'shogo')
+```
+
+### フィルタ・並び替え・ページネーション
+
+PostgREST はクエリパラメータでフィルタや並び替えを表現できる。SDK ではこれをメソッドチェーンとして書ける。
+
+```ts
+const { data } = await supabase
+  .from('posts')
+  .select('id, title, created_at')
+  .eq('status', 'published')
+  .gte('created_at', '2026-01-01')
+  .order('created_at', { ascending: false })
+  .range(0, 19) // 1ページ目（0〜19 行）
+```
+
+`range(from, to)` は HTTP では `Range` ヘッダに変換され、ページネーションに使える。総件数が必要な場合は `.select('*', { count: 'exact' })` のように `count` オプションを付ける。
+
+### JOIN（embedded resource）
+
+PostgREST は外部キーを認識しており、関連テーブルを **埋め込みリソース** として一発で取得できる。
+
+```ts
+const { data } = await supabase
+  .from('posts')
+  .select('id, title, author:users(id, name)')
+```
+
+これは `posts` を引きながら、外部キー `posts.author_id → users.id` を辿って `author` を埋め込む例である。`users!inner(...)` と書けば INNER JOIN 相当に切り替わる。
+
+### RPC（Postgres Functions 呼び出し）
+
+複雑な処理は Postgres 関数として作り、`rpc()` で呼び出す。
+
+```sql
+create or replace function search_posts(keyword text)
+returns setof posts
+language sql stable as $$
+  select * from posts where title ilike '%' || keyword || '%';
+$$;
+```
+
+```ts
+const { data } = await supabase.rpc('search_posts', { keyword: 'supabase' })
+```
+
+`stable` / `immutable` の関数は GET、`volatile` は POST にマッピングされる。
+
+### GraphQL：基本クエリ例
+
+GraphQL のエンドポイントは `https://<project_ref>.supabase.co/graphql/v1` である。`apikey` ヘッダと `Authorization` ヘッダを付ければそのまま POST できる。
+
+```bash
+curl https://<project>.supabase.co/graphql/v1 \
+  -H "apikey: <ANON_KEY>" \
+  -H "Authorization: Bearer <ANON_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"query":"{ postsCollection(first: 10) { edges { node { id title } } } }"}'
+```
+
+pg_graphql はテーブルごとに `xxxCollection` クエリと `insertIntoXxxCollection` などのミューテーションを生成する。外部キーがあれば、ネストしたフィールドとして関連レコードを引ける。
+
+### 型生成（supabase gen types）
+
+CLI で TypeScript 型を生成できる。リモートとローカルでフラグが分かれている。
+
+```bash
+# リモートプロジェクトから生成
+npx supabase gen types typescript --project-id "$PROJECT_REF" --schema public > database.types.ts
+
+# ローカル開発環境から生成
+npx supabase gen types typescript --local > database.types.ts
+```
+
+生成した `Database` 型を `createClient<Database>()` に渡すと、`from('table').select()` の戻り値まで型推論が効くようになる。
+
+### Custom Schema を API で expose する
+
+`public` 以外のスキーマを API から触りたい場合は、3 ステップが必要である。
+
+1. ダッシュボードの「API settings → Exposed schemas」に対象スキーマ名を追加する。
+2. SQL で GRANT を付与する。
+
+   ```sql
+   create schema myschema;
+   grant usage on schema myschema to anon, authenticated, service_role;
+   grant all on all tables in schema myschema to anon, authenticated, service_role;
+   ```
+
+3. クライアント側でスキーマを指定する。
+
+   ```ts
+   const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+     db: { schema: 'myschema' },
+   })
+
+   // クエリ単位での切り替えも可能である
+   const { data } = await supabase.schema('myschema').from('todos').select('*')
+   ```
+
+REST から直接叩く場合は、GET なら `Accept-Profile`、それ以外なら `Content-Profile` ヘッダにスキーマ名を入れる。
+
+## 注意点・セキュリティ観点
+
+ここまでの仕組みは便利である一方、**設計を一歩誤ると DB を丸ごと公開してしまう** 性質を持つ。最低限の注意点を整理する。
+
+- **RLS が無効なテーブルは丸見えになる**。Grants だけが付いていて RLS が無効、という状態は、そのロールでアクセスすればテーブルの全行が読める状態である。公式も「Grants control whether a role can touch an object. RLS controls what rows they see.」と明記している。公開テーブルには **必ず** RLS を有効化し、最小権限の SELECT/INSERT/UPDATE/DELETE ポリシーを書くこと。
+- **anon key はクライアント公開前提**である。フロントエンドのソースに含まれて配布される鍵であり、秘匿しても意味がない。anon key で守りたいなら RLS で守る、という発想に倒す必要がある。逆に、`service_role` キーは RLS をバイパスするため、**絶対に** ブラウザに出してはいけない。サーバーサイドでのみ使う。
+- **JWT 経由で auth.uid() が効く**。Supabase Auth でログインしたユーザーの JWT を `Authorization: Bearer <jwt>` で API に渡すと、PostgREST 側で `auth.uid()` がそのユーザーの ID として評価される。これを RLS ポリシー内で使うことで、「自分の行だけ読める」「自分の行だけ更新できる」を表現できる。
+- **Custom Schema は exposed schemas 設定が必須**である。GRANT を付けても、ダッシュボード設定で公開していなければ API からは見えない。逆にここに足したスキーマは PostgREST の探索対象になるため、内部用スキーマを誤って expose しないこと。
+- **API は OpenAPI 互換だが、N+1 になりやすい**。embedded resource を多段にネストすると、PostgREST 側で大きな JOIN が組まれる。本番ではクエリプランの確認や、適切な INDEX、必要に応じた View / Materialized View / RPC への切り出しを検討すべきである。
+- **PostgREST のレスポンスサイズには上限がある**。デフォルトでは大きな結果セットを返そうとするとタイムアウトや切り詰めの対象になりうる。一覧系 API は必ず `range()` / `limit()` でページネーションを掛ける運用にする。
+- **追加のリクエスト前処理が必要なら `pgrst.db_pre_request`** を使う。レート制限・独自 API キー検証・クォータ管理など、RLS の外側でかけたい制約はここに寄せられる。ただし対象は Data API（PostgREST）のみで、Realtime や Storage には適用されない点に注意する。
+
+## 一次ソース（原文）
+
+- Data API 概要: https://supabase.com/docs/guides/api
+- Quickstart: https://supabase.com/docs/guides/api/quickstart
+- Auto-generated Docs: https://supabase.com/docs/guides/api/rest/auto-generated-docs
+- Securing your API: https://supabase.com/docs/guides/api/securing-your-api
+- Using Custom Schemas: https://supabase.com/docs/guides/api/using-custom-schemas
+- Generating Types: https://supabase.com/docs/guides/api/rest/generating-types
+- GraphQL（pg_graphql）: https://supabase.com/docs/guides/graphql
+- pg_graphql リポジトリ: https://github.com/supabase/pg_graphql

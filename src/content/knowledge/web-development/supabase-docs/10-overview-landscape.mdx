@@ -1,0 +1,141 @@
+---
+title: "Supabase 全体像 — 何ができるオープンソース BaaS なのか"
+description: "Supabase が提供する Database / Auth / Storage / Realtime / Edge Functions / Data API / AI & Vectors の全体像と、それぞれの位置付け・関係性を俯瞰する概論章。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 10
+---
+
+## この章の要点
+
+- Supabase は Postgres を中核に据えたオープンソースの BaaS であり、Firebase の代替として位置付けられている。
+- 提供される機能は Database / Auth / Storage / Realtime / Edge Functions / Data API / AI & Vectors / Cron & Queues など多岐にわたるが、すべて「Postgres を中心に統合される」という設計思想で貫かれている。
+- 各コンポーネント（GoTrue、PostgREST、Realtime、Storage API、Deno など）は単独でも動作するオープンソース製品の組み合わせであり、ベンダーロックインを避けやすい。
+- 利用形態は Supabase Cloud（マネージド）と Self-hosting（Docker Compose）の二択で、本番運用ではほぼ Cloud が選ばれる。
+- 全体に共通する注意点は「anon key と service_role key の使い分け」と「RLS を前提とした設計」であり、ここを外すとセキュリティ事故に直結する。
+
+## Supabase とは
+
+Supabase は、Postgres を中核に据えたオープンソースの Backend-as-a-Service である。公式の表現を借りれば「毎プロジェクトに完全な Postgres データベースを提供する」プラットフォームであり、データベース・認証・ストレージ・リアルタイム同期・サーバーレス関数といった、現代的なアプリケーションを構築するうえで必要な機能を一通り束ねている。
+
+しばしば「Firebase の代替」として紹介されるが、内部の技術選択はかなり異なる。Firebase が独自仕様の NoSQL（Firestore / Realtime Database）に乗っているのに対し、Supabase は標準的なリレーショナルデータベースである Postgres をそのまま使う。スキーマ設計・SQL・トランザクション・拡張機能（pgvector や PostGIS など）といった、Postgres エコシステムの資産をそのまま活用できる点が最大の特徴である。
+
+もうひとつ重要な性質は、Supabase が「単一の独自プロダクト」ではなく、複数のオープンソース製品の組み合わせとして実装されていることである。認証は GoTrue、自動生成 API は PostgREST、リアルタイム同期は Realtime サーバー、Edge Functions は Deno ランタイム、ストレージは S3 互換 API という具合に、それぞれが独立して機能するコンポーネントを Supabase という統合スイートとしてまとめている。これにより、ユーザーは Cloud 版の利便性を享受しつつ、必要に応じて Self-hosting に切り替えたり、特定コンポーネントだけを差し替えたりする自由を保てる。
+
+設計原則として公式が掲げているのは「単独動作」「統合性」「拡張性」「ポータビリティ」「長期戦略」「開発者中心」「既存ツール支援」の七つである。これらはすべて、ロックインを避けながら Postgres エコシステムの上に薄く乗ることを志向した方針として読める。
+
+## 何が解説されているか（公式ドキュメント全体の俯瞰）
+
+公式 docs のトップ階層は、以下のカテゴリに分かれている。本シリーズで掘り下げる対象を、ここで一望しておく。
+
+| カテゴリ | 扱う範囲 |
+| --- | --- |
+| Database | Postgres そのもの。テーブル設計、SQL エディタ、拡張機能（pgvector / PostGIS など）、バックアップ、Realtime Server との接続。 |
+| Auth | GoTrue ベースの認証基盤。メール/パスワード、マジックリンク、OTP、ソーシャルログイン、SSO、MFA、JWT 発行と RLS 連携。 |
+| Storage | S3 互換のオブジェクトストレージ。Files / Analytics（Apache Iceberg）/ Vector の 3 種類のバケットと、グローバル CDN・画像最適化を扱う。 |
+| Realtime | WebSocket ベースのリアルタイム通信。Broadcast（クライアント間メッセージ）、Presence（オンライン状態）、Postgres Changes（DB 変更通知）の 3 機能。 |
+| Edge Functions | Deno ランタイムで動くグローバル分散の TypeScript 関数。Webhook 受信、AI 推論、トランザクションメール送信などに使う。 |
+| Data API (REST/GraphQL) | PostgREST が DB スキーマから自動生成する REST API、および GraphQL API。クライアント SDK の裏側で呼ばれている。 |
+| AI & Vectors | pgvector を使ったベクターストア。OpenAI / Hugging Face / LangChain との統合、セマンティック・キーワード・ハイブリッド検索を扱う。 |
+| Cron & Queues | Postgres 内でのジョブスケジューリング（pg_cron）と、メッセージキュー（pgmq）。 |
+| Platform | 組織・プロジェクト管理、課金、リージョン、ステータス、Slack アラート連携など運用面。 |
+| CLI | ローカル開発・マイグレーション管理・型生成・デプロイを担うコマンドラインツール。 |
+| Self-hosting | Docker Compose を使った自己ホスト構成と、Cloud 版との機能差分。 |
+| Integrations | Vercel、GitHub、各種 ETL、可視化ツールなどとの連携。 |
+| SDK Reference | JavaScript / Flutter / Python / C# / Swift / Kotlin の各クライアント SDK の API リファレンス。 |
+
+この一覧を頭に入れておけば、後続章でどの領域を扱っているかが迷いなく追える。
+
+アーキテクチャ的には、これらのカテゴリは概ね以下のオープンソース・コンポーネントに対応している。
+
+- **Postgres**: データの中核。
+- **Studio**: ダッシュボード／管理画面。
+- **GoTrue**: JWT ベースの認証サーバー。
+- **PostgREST**: スキーマから REST API を自動生成。
+- **Realtime**: WebSocket でリアルタイム配信。
+- **Storage API**: S3 互換のファイルストレージ。
+- **Deno**: Edge Functions の実行環境。
+- **postgres-meta**: DB 管理用の API。
+- **Supavisor / Kong**: コネクションプーリングと API ゲートウェイ。
+
+## 使い方（最初の一歩のオリエンテーション）
+
+Supabase を使い始める経路はおおまかに二つある。Supabase Cloud（[supabase.com](https://supabase.com)）で組織とプロジェクトを作る方法と、Self-hosting で自前のインフラに Docker Compose で立てる方法である。学習・プロトタイプ・本番運用の大半は前者で十分まかなえる。Self-hosting はオンプレ要件・データ主権要件・テレメトリを完全に避けたい用途で選ぶことになるが、自動バックアップ・PITR・ブランチング・Vector バケットなど Cloud のみの機能が使えなくなる点は事前に押さえておく必要がある。
+
+最初のプロジェクト作成からアプリ接続までの典型的な流れは以下の通り。
+
+1. supabase.com で組織とプロジェクトを作成し、リージョンとデータベースパスワードを設定する。
+2. プロジェクトの Settings > API から `Project URL` と `anon public key` を取得する。
+3. クライアントアプリで `@supabase/supabase-js` をインストールし、`createClient` で接続する。
+4. Studio のテーブルエディタまたは SQL エディタでスキーマを定義し、RLS を有効化してポリシーを書く。
+5. Auth でユーザー登録フローを組み、JWT を経由したアクセスを RLS で制御する。
+
+JavaScript の最小コード例は以下のようになる。これは Supabase クライアントの初期化と、認証を経由したクエリの典型形である。
+
+```ts
+import { createClient } from '@supabase/supabase-js'
+
+// anon key はクライアントに埋め込んで良い公開鍵。RLS を前提に設計する。
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+// メール/パスワードでサインイン
+const { data: signInData, error: signInError } =
+  await supabase.auth.signInWithPassword({
+    email: 'user@example.com',
+    password: 'correct-horse-battery-staple',
+  })
+
+if (signInError) {
+  throw new Error(`サインイン失敗: ${signInError.message}`)
+}
+
+// RLS ポリシーが許可している自分の行だけが返ってくる
+const { data: posts, error: queryError } = await supabase
+  .from('posts')
+  .select('id, title, created_at')
+  .order('created_at', { ascending: false })
+  .limit(20)
+
+if (queryError) {
+  throw new Error(`クエリ失敗: ${queryError.message}`)
+}
+```
+
+Supabase を触り始める段階で最低限押さえるべき概念は三つに絞れる。
+
+- **Postgres**: テーブル・スキーマ・SQL・拡張機能。Supabase は Postgres を隠さないので、ここを避けて通れない。
+- **RLS（Row Level Security）**: テーブル単位ではなく行単位のアクセス制御。クライアントが anon key で直接 DB を叩くという設計上、RLS が事実上の認可機構になる。
+- **Auth**: ユーザーを発行し JWT を返す仕組み。発行された JWT のクレーム（特に `auth.uid()`）が RLS ポリシーから参照される。
+
+この三点が噛み合って初めて、「ブラウザから直接 DB にアクセスしても安全」という Supabase の前提が成立する。逆に言えば、ここを理解せずに anon key だけで動かすと、テーブルを全公開しているのと変わらない状態になりがちである。
+
+## 注意点・セキュリティ観点
+
+全体に共通する注意点を、章を跨いで何度も戻ってくることになる順に並べておく。詳細はそれぞれの専用章で扱う。
+
+- **anon key と service_role key の使い分け**: `anon` はクライアントに埋め込んで良い公開鍵で、必ず RLS によって守られる前提で設計する。`service_role` は RLS を完全にバイパスする管理者鍵であり、サーバーサイド（Edge Functions・自前バックエンド）からのみ使う。フロントエンドや Git リポジトリに混入させた時点で全データ流出と同義になる。
+- **RLS は「あとで有効化」が許されない**: テーブルを作った直後はデフォルトでアクセスがブロックされる挙動になっているが、ポリシーを書いて開けていく作業を怠ると「動かないからとりあえず無効化」が起きやすい。RLS を切ったテーブルは anon key で全件アクセス可能になるため、本番に出す前のチェックリストに必ず入れる。
+- **無料枠と一時停止**: Cloud の Free プランはアクティブでないプロジェクトを一定期間後に一時停止する仕様がある。学習プロジェクトでもデータ消失リスクを意識し、重要なものは Pro プランか Self-hosting に逃がす判断を持っておく。
+- **リージョン選択**: プロジェクト作成時に選んだリージョンは後から無料で変更できない。レイテンシは Edge Functions だけでなく DB クエリにも効くため、主要ユーザーの所在地と一致させる。
+- **拡張機能の有効化はダッシュボードから**: pgvector・PostGIS・pg_cron・pgmq などは標準では無効になっている。使う前に Database > Extensions で有効化する必要があり、これを忘れると後続章のサンプルが動かない。
+- **Self-hosting と Cloud の機能差**: 自動バックアップ、PITR、ブランチング、Vector バケット、高度なメトリクス、プラットフォーム管理 API は Self-hosting では提供されない。技術選定の段階で前提を揃える。
+
+これらは Supabase 全体に効く横断的な前提であり、後続章の各論（Auth / Storage / Realtime / Edge Functions など）は、いずれもこの前提のうえに立つ。
+
+## 一次ソース（原文）
+
+- Supabase Docs トップ — https://supabase.com/docs
+- Getting Started — https://supabase.com/docs/guides/getting-started
+- Architecture — https://supabase.com/docs/guides/getting-started/architecture
+- Database Overview — https://supabase.com/docs/guides/database/overview
+- Auth — https://supabase.com/docs/guides/auth
+- Storage — https://supabase.com/docs/guides/storage
+- Realtime — https://supabase.com/docs/guides/realtime
+- Edge Functions — https://supabase.com/docs/guides/functions
+- Data API — https://supabase.com/docs/guides/api
+- AI & Vectors — https://supabase.com/docs/guides/ai
+- Platform — https://supabase.com/docs/guides/platform
+- Self-hosting — https://supabase.com/docs/guides/self-hosting

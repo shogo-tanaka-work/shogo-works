@@ -1,0 +1,305 @@
+---
+title: "Supabase の RLS 深掘り — Row Level Security の設計パターンと落とし穴"
+description: "Postgres の Row Level Security を Supabase で正しく使うための設計パターン、auth.uid() の挙動、JOIN 越しの制御、パフォーマンス、典型的な漏れやすいポイントを実例つきで整理する。"
+category: "web-development"
+createdAt: 2026-05-08
+sortOrder: 31
+---
+
+## この章の要点
+
+- RLS（Row Level Security）は Supabase の安全性の中核であり、ここが崩れると即座にデータ流出につながる土台である。
+- anon key をフロントエンドに公開してよい唯一の理由は、Postgres 側で RLS が機能していて「行単位の認可」が効いているからである。
+- RLS は ENABLE しただけでは「全拒否」になり、`USING` / `WITH CHECK` ポリシーを書いて初めて意味のあるアクセス制御になる。
+- `auth.uid()` は未ログイン時に `null` を返すため、`null = user_id` が常に false になる挙動を踏まえた設計が必要である。
+- `service_role` は RLS を完全にバイパスするため、サーバーサイドで使う場合は別途アプリケーション側の認可が必須である。
+
+## Supabase の RLS とは
+
+RLS は Postgres ネイティブの行レベルセキュリティ機構であり、Supabase 固有の仕組みではない。クエリに対して暗黙的な `WHERE` 句を差し込むことで、「同じ SQL を実行しても、ユーザーごとに見える行が変わる」状態を作り出す。
+
+Supabase ではこの Postgres の RLS を、認証システム（GoTrue）と JWT で結びつけている。リクエストに含まれる JWT の `sub`（ユーザー ID）を、`auth.uid()` というヘルパー関数で取り出し、ポリシー内で参照できる。
+
+Supabase が公開する API キーは大きく 2 つある。
+
+- **anon key**：未ログインユーザー（Postgres ロール `anon`）として振る舞う。フロントに置いてよい。
+- **service_role key**：管理者権限。**RLS を完全にバイパスする**。サーバーサイド限定で扱う。
+
+公式ドキュメントは「公開スキーマに置くテーブルでは RLS を **必ず** 有効化せよ」と明言している。逆に言えば、ENABLE 忘れの 1 テーブルがあるだけで、anon key 経由で全件取得されかねない。
+
+## 何が解説されているか
+
+公式 RLS 関連の主要ページは以下の通りである。
+
+1. **Row Level Security**（`/guides/database/postgres/row-level-security`）  
+   ポリシーの基本構文、`auth.uid()` / `auth.jwt()` の使い方、パフォーマンス最適化（`(SELECT auth.uid())` のラップ、index、role 指定、JOIN 削減、SECURITY DEFINER 関数など）。
+2. **Column Level Security**（`/guides/database/postgres/column-level-security`）  
+   特定カラムのみ GRANT / REVOKE で制御する応用機能。RLS の上に重ねて使う。
+3. **Auth × RLS**（`/guides/auth/row-level-security`）  
+   認証ヘルパー、所有者ベースのポリシー、`app_metadata` を使った multi-tenant パターン。
+4. **Storage Access Control**（`/guides/storage/security/access-control`）  
+   `storage.objects` テーブルへの RLS ポリシーで、バケット・フォルダ単位の認可を行う。
+
+なお `rls-performance` 単独ページは存在せず、内容は Row Level Security ページ本体に統合されている。Testing 専用ページも今回は取得できなかったため、本章ではアプリ側からの動作確認手順までを扱う。
+
+## 使い方（最重要）
+
+### ENABLE ROW LEVEL SECURITY の必須化
+
+公開スキーマのテーブルでは RLS を必ず有効化する。
+
+```sql
+alter table public.posts enable row level security;
+```
+
+ENABLE しただけだとポリシーがゼロなので、**結果的に全行アクセス不可**になる。これは「セキュアな初期状態」だが、API が 404 や空配列を返して気づきにくいので、必ずポリシーをセットで書く運用にする。
+
+権限自体は GRANT で付与する。
+
+```sql
+grant select on public.posts to anon;
+grant select, insert, update, delete on public.posts to authenticated;
+grant select, insert, update, delete on public.posts to service_role;
+```
+
+### 基本的なポリシー（SELECT / INSERT / UPDATE / DELETE）
+
+ポリシーはオペレーションごとに分けて書くのが基本である。`USING` は「対象行を見せてよいか」、`WITH CHECK` は「書き込もうとしている行が条件を満たしているか」を判定する。
+
+| 操作 | 使う句 | 用途 |
+| --- | --- | --- |
+| SELECT | USING | 既存行の可視性 |
+| INSERT | WITH CHECK | これから挿入する行の妥当性 |
+| UPDATE | USING + WITH CHECK | 既存行の編集権限と更新後の状態 |
+| DELETE | USING | 削除対象行の権限 |
+
+### auth.uid() を使った owner ベースのポリシー
+
+最も典型的なパターンは「自分の行だけ操作できる」設計である。
+
+```sql
+create policy "Users see their own profile"
+on public.profiles
+for select
+to authenticated
+using ( (select auth.uid()) = user_id );
+
+create policy "Users insert their own profile"
+on public.profiles
+for insert
+to authenticated
+with check ( (select auth.uid()) = user_id );
+
+create policy "Users update their own profile"
+on public.profiles
+for update
+to authenticated
+using ( (select auth.uid()) = user_id )
+with check ( (select auth.uid()) = user_id );
+
+create policy "Users delete their own profile"
+on public.profiles
+for delete
+to authenticated
+using ( (select auth.uid()) = user_id );
+```
+
+ポイントは 3 点。
+
+1. `to authenticated` を必ず付ける。これにより `anon` ロールに対してはポリシーが評価対象から外れ、無駄な実行がなくなる。
+2. `auth.uid()` を裸で書かず `(select auth.uid())` でラップする（後述のパフォーマンス節を参照）。
+3. UPDATE は USING と WITH CHECK の両方を書く。片方だけだと、他人の行を「自分のもの」に書き換える経路が残る。
+
+### JOIN 越しに紐付くテーブルへのアクセス制御
+
+たとえば `posts`（投稿）と `comments`（コメント）があり、コメントは「自分の投稿に紐付くコメントだけ削除できる」としたい場合。
+
+素直に書くと JOIN になる。
+
+```sql
+-- 非推奨：ポリシー内 JOIN は重い
+create policy "Delete comments on own posts"
+on public.comments for delete to authenticated
+using (
+  exists (
+    select 1 from public.posts p
+    where p.id = comments.post_id
+      and p.user_id = (select auth.uid())
+  )
+);
+```
+
+公式ベンチマークでは、ポリシー内 JOIN を `IN`/`ANY` のセット化に書き換えるだけで 9000ms → 20ms（99.78% 改善）の事例がある。改良版は次のようになる。
+
+```sql
+create policy "Delete comments on own posts"
+on public.comments for delete to authenticated
+using (
+  post_id in (
+    select id from public.posts
+    where user_id = (select auth.uid())
+  )
+);
+```
+
+さらに重い場合は、後述の SECURITY DEFINER 関数に逃がす。
+
+### multi-tenant パターン（tenant_id ベース）
+
+SaaS 的な設計では「あるユーザーは複数の組織に所属している」状態が普通である。所属情報は **JWT の `app_metadata`** に持たせる。
+
+```sql
+create policy "Members can read tenant rows"
+on public.tenant_resources
+for select to authenticated
+using (
+  tenant_id in (
+    select jsonb_array_elements_text(
+      (select auth.jwt() -> 'app_metadata' -> 'tenants')
+    )::uuid
+  )
+);
+```
+
+注意点として、`app_metadata` は **ユーザー側から書き換え不可** で認可向き、`user_meta_data` は **ユーザー側から書き換え可能** なので認可には使ってはいけない。また JWT は更新があるまで「古い」値を保持し続けるため、メンバーシップ変更が即座には反映されない。即時性が必要な場合は、後述の SECURITY DEFINER 関数で DB を都度参照する形に切り替える。
+
+### Public / Private データの混在テーブル
+
+「公開フラグが立っている記事は誰でも読めて、それ以外は所有者のみ」というケース。
+
+```sql
+create policy "Public posts readable by everyone"
+on public.posts for select
+to anon, authenticated
+using ( is_public = true );
+
+create policy "Owners read their own posts"
+on public.posts for select
+to authenticated
+using ( (select auth.uid()) = user_id );
+```
+
+複数ポリシーは **OR 結合** されるので、「公開フラグが立っている」または「自分のもの」のどちらかを満たせば見えるという挙動になる。AND を効かせたい場合は `as restrictive` 句を使う。
+
+```sql
+create policy "MFA required to update"
+on public.profiles
+as restrictive
+for update to authenticated
+using ( (select auth.jwt() ->> 'aal') = 'aal2' );
+```
+
+`restrictive` ポリシーは AND で重ねがけされ、すべてを満たしたものだけが許可される。MFA 強制のような追加条件に向いている。
+
+### Realtime / Storage / Functions と RLS の関係
+
+- **Realtime**：購読も RLS の対象になる。`SELECT` ポリシーで見えない行は、変更通知も配信されない。逆に言えば「Realtime に流れない＝ポリシーが効きすぎている」可能性がある。`supabase_realtime` publication にテーブルが追加されているかも合わせて確認する。
+- **Storage**：実体は `storage.objects` テーブルに対する RLS で制御する。バケット単位、フォルダ単位（`(storage.foldername(name))[1]` でパスの最初の階層を取る）で書ける。
+
+```sql
+create policy "Users upload to their own folder"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'user-uploads'
+  and (storage.foldername(name))[1] = (select auth.jwt() ->> 'sub')
+);
+```
+
+- **Edge Functions / DB Functions**：通常の関数は呼び出した role で実行されるため RLS が効く。`SECURITY DEFINER` を付けると **関数作成者の権限で実行され、RLS をバイパス**する。便利だが危険でもあるので、後述の注意点を参照。
+
+### ポリシーの単体テスト方法
+
+公式の専用ページは取得できなかったが、現実的な確認手段は以下である。
+
+1. **pgTAP**：Postgres 用のテストフレームワークで、`set local role authenticated` と `set local request.jwt.claim.sub = '...'` を組み合わせて、特定ユーザーとして発行したクエリの結果を検証する。
+2. **Supabase CLI**：`supabase test db` でマイグレーションを当てた状態のローカル DB に対して SQL テストを流せる。CI に組み込むのが望ましい。
+3. **クライアント経由の手動テスト**：実際に anon key でアクセスして 0 件になること、別ユーザーの JWT で他人のデータが見えないことを 1 ケースずつ確認する。RLS は「漏れていることに気づかない」のが最悪のケースなので、必ず「**見えてはいけない**」テストを書く。
+
+## 注意点・セキュリティ観点（落とし穴セクション）
+
+### RLS を ENABLE してもポリシーがないと全拒否
+
+`alter table ... enable row level security` を実行しただけだと、`anon` も `authenticated` も 0 件しか返らない。アプリ側からは「なぜか空配列」「なぜか insert が無視される（権限エラーは出るがログを見ないと気づかない）」という挙動になり、原因究明に時間がかかりやすい。「ENABLE と最初のポリシーは同じマイグレーションで書く」を運用ルールにすると安全である。
+
+### service_role はすべてバイパスする
+
+`service_role` キーで作った Supabase クライアントは、すべての RLS を素通りする。Edge Functions や Next.js のサーバー側で `service_role` を使う場合、**アプリ側の認可ロジック（誰がリクエストしているか・その人が当該リソースにアクセスしてよいか）を別途実装する必要がある**。RLS に頼らない経路を新設したという認識を持たないと、API 経由で他人のデータを書き換えられる事故に直結する。
+
+また `service_role` キーの取り扱いは厳格にする。`.env` の取り違えで Next.js の `NEXT_PUBLIC_*` 変数に入れてしまうと、ブラウザに露出する。
+
+### views は SECURITY DEFINER に注意
+
+ビューはデフォルトで「ビュー作成者の権限」で動作するため、ベーステーブルに RLS が効いていてもビュー越しでは無視されることがある。Postgres 15 以降は `security_invoker = true` を付けることで、呼び出し元の権限で評価できる。
+
+```sql
+create view public.recent_posts
+with (security_invoker = true)
+as
+select id, title, user_id, created_at
+from public.posts
+where created_at > now() - interval '7 days';
+```
+
+古い Postgres で動かしている場合や、`security_invoker` を付け忘れたビューは、RLS バイパスの温床になる。
+
+### Realtime publication と RLS の関係
+
+Realtime 配信は `supabase_realtime` publication にテーブルが含まれているかと、`SELECT` ポリシーの両方を満たして初めて流れる。「ポリシーは正しいのに Realtime にイベントが来ない」場合は publication の追加漏れ、「不要な変更まで全員に配信されている」場合は SELECT ポリシーが緩すぎる、と切り分けると良い。
+
+### パフォーマンス：auth.uid() のラップと index
+
+公式ベンチマークで効果が大きい順に並べると以下になる。
+
+1. **`auth.uid()` を `(select auth.uid())` でラップ**：Postgres が結果を 1 ステートメント内でキャッシュし、行ごとの再評価がなくなる。94〜99% の改善。
+2. **ポリシーで参照するカラムに index を張る**：`user_id` に btree index を張るだけで、171ms → 0.1ms 未満になった例がある。
+3. **`to authenticated` でロールを限定**：`anon` リクエストでポリシーが評価されなくなる。
+4. **クライアント側でも明示的に `.eq('user_id', userId)` を付ける**：プランナにヒントが伝わりやすく、94% 程度の改善が報告されている。
+5. **JOIN を `IN` / `ANY` のセット化に書き換える**：99.78% の改善ケースあり。
+6. **複雑な認可は `SECURITY DEFINER` 関数に逃がす**：内部参照で RLS をバイパスし、結果だけポリシーで使う。
+
+```sql
+create function private.has_role(target_role text)
+returns boolean
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  return exists (
+    select 1 from public.user_roles
+    where user_id = (select auth.uid())
+      and role = target_role
+  );
+end;
+$$;
+
+create policy "Admins can read everything"
+on public.posts for select to authenticated
+using ( (select private.has_role('admin')) );
+```
+
+`security definer` を使うときは `set search_path = ''` を必ず付け、関数内のオブジェクトはすべてスキーマ修飾する。これを怠ると、search_path 経由で意図しない関数に差し替えられる攻撃面ができる。
+
+### Storage RLS は storage.objects テーブルへのポリシー
+
+Storage はファイルストレージに見えるが、認可は **`storage.objects` テーブルへの RLS** で実装されている。バケット作成だけして RLS ポリシーを書かないと、デフォルトで誰もアップロードできない（これは安全な初期状態）。逆に `for select to anon using (true)` のような雑なポリシーを書くと、すべてのファイルが公開状態になる。
+
+公式が示す典型パターンは以下である。
+
+- **ユーザー専用フォルダ**：`(storage.foldername(name))[1] = (select auth.jwt() ->> 'sub')` でパスの最初の階層を JWT の `sub`（ユーザー ID）と一致させる。
+- **所有者のみ操作可**：`owner_id = (select auth.jwt() ->> 'sub')::uuid` でアップロード者のみが更新・削除できる。
+- **upsert する場合**：INSERT だけでなく SELECT と UPDATE のポリシーも必要になる。Storage の挙動として上書き時にこれらが評価されるため、欠けていると 403 が返る。
+
+## 一次ソース（原文）
+
+- Row Level Security（基本構文・パフォーマンス・SECURITY DEFINER・MFA 強制）  
+  <https://supabase.com/docs/guides/database/postgres/row-level-security>
+- Column Level Security（カラム単位の GRANT / REVOKE）  
+  <https://supabase.com/docs/guides/database/postgres/column-level-security>
+- Auth × Row Level Security（`auth.uid()` / `auth.jwt()`、所有者ベース、multi-tenant）  
+  <https://supabase.com/docs/guides/auth/row-level-security>
+- Storage Access Control（`storage.objects` への RLS、フォルダ単位の制御）  
+  <https://supabase.com/docs/guides/storage/security/access-control>
+
+なお `https://supabase.com/docs/guides/database/postgres/testing` は取得時点で 404 を返したため、テスト手法は pgTAP / Supabase CLI（`supabase test db`）の一般的な利用方法のみを記載した。`rls-performance` 単独ページは存在せず、パフォーマンス節は Row Level Security 本体ページの記述に基づく。
