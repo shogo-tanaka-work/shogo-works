@@ -8,7 +8,11 @@ interface Props {
 }
 
 const { status } = Astro.props;
-const meta = getAiNewsStatusMeta(status);
+
+const hiddenStatuses: AiNewsStatus[] = ["candidate"];
+const isHidden = hiddenStatuses.includes(status);
+
+const meta = isHidden ? null : getAiNewsStatusMeta(status);
 
 const variants: Record<AiNewsStatus, "default" | "blue" | "emerald"> = {
   captured: "default",
@@ -17,4 +21,4 @@ const variants: Record<AiNewsStatus, "default" | "blue" | "emerald"> = {
 };
 ---
 
-<Badge variant={variants[status]}>{meta.label}</Badge>
+{meta && <Badge variant={variants[status]}>{meta.label}</Badge>}
