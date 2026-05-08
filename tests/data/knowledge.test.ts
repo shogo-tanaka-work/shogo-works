@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { categories } from "@/data/knowledge";
+import { categories, subcategories } from "@/data/knowledge";
 
 describe("knowledge カテゴリデータ", () => {
   it("8つのカテゴリが定義されていること", () => {
@@ -37,5 +37,40 @@ describe("knowledge カテゴリデータ", () => {
     const aiGovernance = categories.find((c) => c.slug === "ai-governance");
     expect(aiGovernance).toBeDefined();
     expect(aiGovernance?.label).toBe("AI Governance");
+  });
+});
+
+describe("knowledge サブカテゴリデータ", () => {
+  it("ai-tools / web-development の 2 カテゴリにサブカテゴリが定義されていること", () => {
+    expect(Object.keys(subcategories).sort()).toEqual([
+      "ai-tools",
+      "web-development",
+    ]);
+  });
+
+  it("web-development サブカテゴリに supabase / vercel / gas が含まれていること", () => {
+    const webDev = subcategories["web-development"];
+    expect(webDev).toBeDefined();
+    const slugs = webDev?.map((s) => s.slug).sort();
+    expect(slugs).toEqual(["gas", "supabase", "vercel"]);
+  });
+
+  it("すべてのサブカテゴリに slug / label / description が存在すること", () => {
+    for (const list of Object.values(subcategories)) {
+      for (const sub of list ?? []) {
+        expect(sub.slug).toBeTruthy();
+        expect(sub.label).toBeTruthy();
+        expect(sub.description).toBeTruthy();
+      }
+    }
+  });
+
+  it("サブカテゴリの slug が kebab-case 形式であること", () => {
+    const kebabCasePattern = /^[a-z]+(-[a-z]+)*$/;
+    for (const list of Object.values(subcategories)) {
+      for (const sub of list ?? []) {
+        expect(sub.slug).toMatch(kebabCasePattern);
+      }
+    }
   });
 });
