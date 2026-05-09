@@ -1,0 +1,163 @@
+---
+title: "Codex Config Basics：設定ファイルの場所・優先順位・初期セットアップ"
+description: "Codex の設定ファイル（config.toml）の入門ガイドを 2026 年 5 月時点の公式仕様で整理。ユーザー / プロジェクト / システムレベルの 3 階層、優先順位、初期セットアップ、主要キー（model / approval_policy / sandbox_mode / web_search / personality）と、Enterprise の `requirements.toml` による追加制約までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Configuration", "config.toml", "setup"]
+sortOrder: 21
+createdAt: 2026-05-10
+updatedAt: 2026-05-10
+author: "田中省伍"
+---
+
+## 要点
+
+- 設定ファイルは 3 階層（ユーザー / プロジェクト / システム）で読み込まれる
+- 優先順位（高い順）: CLI フラグ → プロファイル → プロジェクト → ユーザー → システム → デフォルト
+- 主要キー: `model` / `approval_policy` / `sandbox_mode` / `web_search` / `personality`
+- IDE の歯車アイコンから「Codex Settings → Open config.toml」で編集できる
+- 企業環境では `requirements.toml` による追加制約が上乗せされる場合がある
+
+公式ドキュメントは [`developers.openai.com/codex/config-basic`](https://developers.openai.com/codex/config-basic)。
+
+---
+
+## ファイルの場所
+
+| 階層 | パス | 用途 |
+|---|---|---|
+| ユーザー | `~/.codex/config.toml` | 個人の常用設定 |
+| プロジェクト | `<repo>/.codex/config.toml` | リポジトリ固有設定（信頼済みプロジェクトのみ） |
+| システム | `/etc/codex/config.toml`（Unix）| 組織配布の固定値 |
+
+**信頼済みプロジェクト**: プロジェクト直下の `.codex/config.toml` は、ユーザーがそのプロジェクトを「信頼する」と明示した場合だけ読み込まれます。クローンしたばかりの未知のリポジトリで悪意ある設定が自動適用されないようにする保護機構です。
+
+---
+
+## 優先順位
+
+設定値は次の順で評価され、上位の値で下位を上書きします。
+
+1. **CLI フラグ・オーバーライド**: `--model gpt-5.4` など実行時指定
+2. **プロファイル**: `--profile work` で選んだ `[profiles.work]` セクションの値
+3. **プロジェクト設定**: `<repo>/.codex/config.toml`（ルートから現在ディレクトリへ向かって積み重ね）
+4. **ユーザー設定**: `~/.codex/config.toml`
+5. **システム設定**: `/etc/codex/config.toml`
+6. **デフォルト値**: 何も指定がない場合の Codex 内部既定
+
+たとえば、ユーザー設定で `model = "gpt-5.4"` 、プロジェクト設定で `model = "gpt-5.5"` の場合、プロジェクト設定が優先されて `gpt-5.5` で動きます。CLI で `--model gpt-5.3-codex` を渡せばさらに上書きされます。
+
+---
+
+## 主要キー
+
+```toml
+# ~/.codex/config.toml
+
+model           = "gpt-5.5"           # 既定モデル
+approval_policy = "on-request"        # 実行前の承認タイミング
+sandbox_mode    = "workspace-write"   # ファイル/ネットワーク権限レベル
+web_search      = "cached"            # 検索モード
+personality     = "pragmatic"         # 通信スタイル
+```
+
+### `model`
+
+実行時の既定モデル。`gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini` / `gpt-5.3-codex` / `gpt-5.3-codex-spark` などが指定可能。詳細は [Codex のモデル選択ガイド](/knowledge/ai-tools/codex/models)。
+
+### `approval_policy`
+
+ツール実行前の承認タイミング:
+
+- `untrusted`: 信頼済みコマンド以外はすべて承認要求
+- `on-request`: モデルが必要と判断したときだけ承認要求（既定）
+- `never`: 承認要求しない（自動化・無人実行向け）
+
+詳細は [Codex 承認モード&サンドボックス](/knowledge/ai-tools/codex/approval-modes-sandbox)。
+
+### `sandbox_mode`
+
+ファイル / ネットワークアクセスの境界:
+
+- `read-only`: 読み取り専用
+- `workspace-write`: ワークスペース内のみ書き込み可（既定）
+- `danger-full-access`: 制限なし（注意）
+
+### `web_search`
+
+Web 検索モード:
+
+- `disabled`: 無効
+- `cached`: キャッシュ済み結果のみ（既定）
+- `live`: 都度ライブ検索（コスト・レイテンシー増）
+
+### `personality`
+
+通信スタイル:
+
+- `friendly`: 親しみやすい応答
+- `pragmatic`: 簡潔で実務寄り
+- `none`: 装飾なし
+
+---
+
+## 初期セットアップ
+
+### IDE 拡張から
+
+1. IDE で Codex 拡張を開く
+2. 歯車アイコン → **Codex Settings → Open config.toml**
+3. 主要キーを編集
+4. 保存（Codex は次のセッションから読み込み）
+
+### 手動で
+
+```bash
+mkdir -p ~/.codex
+cat > ~/.codex/config.toml <<'TOML'
+model = "gpt-5.5"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"
+TOML
+```
+
+その後 `codex` を起動すれば設定が反映されます。
+
+---
+
+## Enterprise 環境での追加制約
+
+組織が Codex を管理する場合、`requirements.toml` で **管理者強制の制約**が上乗せされます。
+
+```toml
+# 例: /etc/codex/requirements.toml
+allowed_sandbox_modes = ["read-only", "workspace-write"]
+allowed_approval_policies = ["untrusted", "on-request"]
+allowed_web_search_modes = ["disabled", "cached"]
+```
+
+ユーザーが `sandbox_mode = "danger-full-access"` を設定しても、`allowed_sandbox_modes` に含まれていないと適用されません。
+
+詳細は [Codex Enterprise 管理者セットアップ](/knowledge/ai-tools/codex/enterprise-admin)。
+
+---
+
+## 次に読むもの
+
+入門が終わったら、用途に応じて次へ進みます。
+
+- **詳細キーをすべて確認したい**: [Codex config.toml リファレンス](/knowledge/ai-tools/codex/config-reference)
+- **プロファイル・カスタムプロバイダー・OTel など**: [Codex Advanced Config](/knowledge/ai-tools/codex/config-advanced)
+- **完全なサンプル設定を見たい**: [Codex Sample Config](/knowledge/ai-tools/codex/config-sample)
+- **応答速度の調整**: [Codex Speed](/knowledge/ai-tools/codex/speed)
+- **コマンド実行の許可ルール**: [Codex Rules](/knowledge/ai-tools/codex/rules)
+
+---
+
+## 関連リンク
+
+- [Codex Config Basics（公式）](https://developers.openai.com/codex/config-basic)
+- [Codex 承認モード&サンドボックス（本サイト）](/knowledge/ai-tools/codex/approval-modes-sandbox)
+- [Codex のモデル選択ガイド（本サイト）](/knowledge/ai-tools/codex/models)
+- [Codex Enterprise 管理者セットアップ（本サイト）](/knowledge/ai-tools/codex/enterprise-admin)
