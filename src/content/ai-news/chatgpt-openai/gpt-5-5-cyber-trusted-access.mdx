@@ -1,0 +1,40 @@
+---
+title: "OpenAIがGPT-5.5-Cyberを限定プレビュー、Trusted Access for Cyberで承認組織だけが使える"
+tool: "chatgpt-openai"
+toolLabel: "ChatGPT / OpenAI"
+date: 2026-05-08
+sourceUrl: "https://openai.com/index/gpt-5-5-with-trusted-access-for-cyber/"
+summary: "OpenAI はサイバーセキュリティ業務向けに調整した GPT-5.5-Cyber を限定プレビューで公開。能力は GPT-5.5 と同等で、認可されたレッドチームやペネトレーションテスト、脆弱性検証など「公開モデルが断る種類の高リスク作業」を扱える許容幅にチューニングされている。アクセスは Trusted Access for Cyber プログラムの最高ティアに承認された組織と防衛者に限定される。"
+impact: "セキュリティベンダー・赤チーム・SOC・CSIRT は、これまで公開モデルでは断られていたワークロードを LLM に任せられる選択肢ができた。逆に「公開モデルで全部やる」発想だったチームは、この層と公開層で扱う仕事の線引きを設計し直す必要がある。"
+tags: ["openai", "gpt-5-5", "security", "limited-preview", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/chatgpt-openai/models"
+  - "/knowledge/ai-tools/chatgpt-openai/safety-policy"
+draft: false
+---
+
+## 要約
+
+OpenAI が 2026-05-08 に GPT-5.5-Cyber の限定プレビュー提供を発表しました。サイバーセキュリティ業務向けにセーフガードを再調整した GPT-5.5 派生モデルで、Trusted Access for Cyber プログラムの最高ティアに承認された組織だけがアクセスできます。
+
+## 何が変わったか
+
+- 正式名称は GPT-5.5-Cyber。能力面はベースの GPT-5.5 と同等で、サイバー業務向けに「許容範囲」を広げたバリエーションという位置付け
+- 認可されたレッドチーム、ペネトレーションテスト、脆弱性検証、攻撃シナリオ分析など、公開モデルが断る種類の高リスクワークフローを扱える
+- アクセスは Trusted Access for Cyber プログラムの最高ティア承認組織・防衛者に限定
+- 個人アカウントで利用する場合、2026-06-01 以降は Advanced Account Security の有効化が必須
+
+## 業務インパクト
+
+セキュリティ事業者にとって、これまで「公開モデルでは断られて成立しなかったタスク」を LLM 側に寄せられる選択肢ができました。レッドチーム演習のシナリオ生成、脆弱性 PoC の補助、ログから攻撃手法を逆算する分析などが現実的な対象です。
+
+ただし「能力が劇的に上がるモデル」ではなく「許容範囲を広げるモデル」である点が重要です。GPT-5.5 と同等の推論能力で、検閲側の挙動が業務向けに緩んでいる、という構成です。能力アップを期待して入れると評価がズレます。
+
+導入する側は、Trusted Access for Cyber の承認プロセスと、利用範囲を明示する内部ポリシーの整備がまず先になります。CSIRT / SOC / レッドチームを抱えている組織は、ワークフローのどこを GPT-5.5-Cyber に寄せ、どこを公開モデル・社内モデルに残すかを線引きするタイミングです。
+
+## 教材化メモ
+
+- 「LLM の許容範囲とポリシー設計」教材で、能力ではなくセーフガード側を調整するアプローチの実例として扱う
+- セキュリティ業務向け LLM 比較（GPT-5.5-Cyber / Claude / オープンモデル）の章
+- Trusted Access for Cyber の承認プロセスと、組織側で必要な利用ポリシー整備の流れ
