@@ -1,0 +1,127 @@
+---
+title: "Codex のモデル選択ガイド：GPT-5.5 / 5.4 / 5.3-Codex / Spark の使い分け"
+description: "Codex で使えるモデル一覧と用途別の選び方を整理。GPT-5.5（フロンティア）・GPT-5.4 / 5.4-mini（推論・低コスト）・GPT-5.3-Codex（コーディング特化）・GPT-5.3-Codex-Spark（リアルタイム）と前世代 GPT-5.2 までを 2026 年 5 月時点の公式仕様で解説。`-m` フラグと `config.toml` の `model` キーでの切り替え方も含めてまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Models", "GPT-5.5", "GPT-5.4", "GPT-5.3-Codex", "GPT-5.3-Codex-Spark"]
+sortOrder: 11
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- 推奨モデルは **GPT-5.5 / GPT-5.4 / GPT-5.4-mini / GPT-5.3-Codex / GPT-5.3-Codex-Spark** の 5 種
+- GPT-5.5 は最新フロンティア、GPT-5.3-Codex はコーディング特化、5.4-mini はサブエージェント向けの低コスト
+- GPT-5.3-Codex-Spark は **テキストのみ**のリアルタイム特化リサーチプレビュー（ChatGPT Pro 限定）
+- 切り替えは CLI フラグ `codex -m <name>` または `config.toml` の `model = "<name>"`
+
+---
+
+## Codex のモデル構成
+
+Codex は OpenAI の汎用フロンティアモデル（GPT-5 系）と、コーディング特化派生モデル（5.3-Codex 系）を選んで使えます。タスクの種類とコスト感度に合わせて切り替えるのが基本戦略です。
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/models` では、推奨モデル群（GPT-5.5 / 5.4 / 5.4-mini / 5.3-Codex / 5.3-Codex-Spark）と前世代の GPT-5.2、各モデルの想定用途、CLI / 設定ファイル / IDE 拡張からの選択方法が定義されています。
+
+---
+
+## 切り替え方法
+
+### モデル早見表
+
+| モデル | 主な用途 | 提供面 | 備考 |
+|---|---|---|---|
+| GPT-5.5 | 複雑なコーディング・Computer Use・知識/リサーチ系の長尺タスク | CLI / SDK / App / IDE / Cloud / ChatGPT クレジット（**API キー認証は現時点で不可**） | 現行の最新フロンティア。API では GPT-5.4 を代替に |
+| GPT-5.4 | プロフェッショナル向けの主力。推論・ツール使用・エージェントが強化 | CLI / SDK / App / IDE / Cloud / ChatGPT クレジット / API | GPT-5.5 が選べない場合の代替推奨 |
+| GPT-5.4-mini | 応答性重視のコーディング、サブエージェントのワーカー | CLI / SDK / App / IDE / Cloud / API / ChatGPT クレジット | 低コスト・高速 |
+| GPT-5.3-Codex | 複雑なソフトウェアエンジニアリング | CLI / SDK / App / IDE / Cloud / API / ChatGPT クレジット | コーディング特化モデル |
+| GPT-5.3-Codex-Spark | リアルタイム・コーディング反復（テキストのみ） | ChatGPT Pro 限定リサーチプレビュー | ほぼ即時応答 |
+| GPT-5.2 | 深い検討が必要なデバッグなど（前世代汎用） | — | 必要に応じてフォールバック |
+
+### CLI での切り替え
+
+```bash
+# モデルを指定して起動（短縮形）
+codex -m gpt-5.5
+
+# 長い形
+codex --model gpt-5.4
+```
+
+### config.toml での既定値
+
+```toml
+# ~/.codex/config.toml
+model = "gpt-5.5"
+```
+
+### サブエージェントごとに切り替え
+
+サブエージェント（「Codex CLI サブエージェント」の章）の TOML で個別指定できます。
+
+```toml
+# .codex/agents/explorer.toml
+model = "gpt-5.4-mini"
+model_reasoning_effort = "low"
+```
+
+### IDE 拡張
+
+入力ボックス下のモデルセレクタから切り替えます（VS Code / Cursor / Windsurf / JetBrains 系）。
+
+---
+
+## 用途別の選び方
+
+| 状況 | 推奨モデル | 理由 |
+|---|---|---|
+| 複雑な実装・大規模リファクタ | GPT-5.5 または GPT-5.3-Codex | 推論深さ・コーディング精度の両立 |
+| デイリー作業（普段使い） | GPT-5.4 | 主力モデルとして安定 |
+| 探索・検索・要約系のサブエージェント | GPT-5.4-mini | 低コスト・高速 |
+| ペアプロや短いやり取りの反復 | GPT-5.3-Codex-Spark（Pro 限定） | 即時応答 |
+| 長尺の研究やレポート、ブラウザ操作 | GPT-5.5 | フロンティア性能 |
+| 深い検討が必要なデバッグ（旧世代向け） | GPT-5.2 | 前世代の堅実な選択肢 |
+
+---
+
+## ベンチマークの参考値
+
+- **GPT-5.3-Codex**: SWE-bench Pro（汚染耐性版・4 言語）56.8%、Terminal-Bench 2.0 77.3%（OpenAI 公式ブログ）
+- **Claude Opus 4.7**: SWE-bench Verified 87.6%（参考。別系統のベンチで直接比較は不可）
+
+ベンチマークはモデル・条件によって変わるため、自プロジェクトでの実測も併用してください。
+
+---
+
+## 注意点
+
+**GPT-5.3-Codex-Spark は ChatGPT Pro 限定**
+無料・Plus・API 単独では使えません。Pro プランかつ Codex 経由のリサーチプレビューでのみ利用できます。
+
+**API 経由とサブスク経由でモデルの可用性が異なる**
+API キー認証では一部モデルが使えないことがあり、Spark のようにサブスク経由でしか提供されないモデルもあります。目的のモデルに届かない場合はサインイン方法を見直してください。
+
+**サブエージェントは小型モデルでコストを抑える**
+親セッションは GPT-5.5、サブは GPT-5.4-mini（`reasoning_effort: low`）のように分けるとコスト面で有利です。
+
+**`config.toml` の直接指定を環境固有設定にしない**
+チーム共有の `.codex/config.toml` で `model` を固定すると、メンバーの API 環境によって動作が変わることがあります。共通設定は基準モデルにとどめ、個別設定は `~/.codex/config.toml` で管理するのが安全です。
+
+**前世代モデルへのフォールバックは明示的に**
+特定タスクで GPT-5.2 や 5.3-Codex に固定する場合は、使い分けの基準（タスク種別・許容時間）をメモしておくと運用が安定します。
+
+---
+
+## 一次ソース
+
+- [Models — Codex Docs](https://developers.openai.com/codex/models)
+- [Pricing — Codex Docs](https://developers.openai.com/codex/pricing)
+- [Introducing GPT-5.3-Codex — OpenAI](https://openai.com/index/introducing-gpt-5-3-codex/)
+- [Introducing GPT-5.5 — OpenAI](https://openai.com/index/introducing-gpt-5-5/)
+- [Configuration reference — Codex Docs](https://developers.openai.com/codex/config-reference)

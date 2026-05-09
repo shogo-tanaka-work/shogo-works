@@ -1,0 +1,221 @@
+---
+title: "Codex Memories と Chronicle ガイド：過去スレッドと画面文脈をローカル記憶として活かす"
+description: "Codex の Memories（過去スレッドからの自動抽出）と Chronicle（画面文脈からのメモリ生成）を 2026 年 5 月時点の公式仕様で整理。有効化、保存場所、threadごとの制御、設定キー、プライバシー注意点、AGENTS.md との使い分けまでを 1 ページにまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Memories", "Chronicle", "context", "AGENTS.md", "privacy"]
+sortOrder: 25
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- **Memories** は過去の eligible なスレッドから有用な文脈を抽出し、ローカルの Markdown ファイルに保存する仕組み
+- **Chronicle** は最近の画面文脈を使って Memories を補強する research preview（macOS Codex App + ChatGPT Pro 限定、EU/UK/Switzerland は未対応）
+- いずれもデフォルトオフ。`[features].memories = true` などで有効化
+- 保存先は `~/.codex/memories/`（Memories）、`~/.codex/memories_extensions/chronicle/`（Chronicle）
+- **チームで必ず守るルールは Memories ではなく AGENTS.md に置く**
+- Chronicle は Screen Recording / Accessibility 権限を要求し、prompt injection リスクが高まる点に注意
+
+---
+
+## Memories と Chronicle の違い
+
+| 観点 | Memories | Chronicle |
+|---|---|---|
+| 起源 | 過去のスレッドから自動抽出 | 最近の画面文脈から生成 |
+| 提供範囲 | Codex 全般 | macOS Codex App + ChatGPT Pro |
+| 地域制限 | EEA / UK / Switzerland 未対応 | EU / UK / Switzerland 未対応 |
+| 必要権限 | なし | macOS Screen Recording + Accessibility |
+| ステータス | 一般機能（feature flag 制） | research preview（opt-in） |
+
+Memories が「過去スレッドからの記憶」だとすると、Chronicle は「最近画面で見ていたものを使った記憶生成」という関係です。
+
+公式ドキュメントは [`developers.openai.com/codex/memories`](https://developers.openai.com/codex/memories) と [`developers.openai.com/codex/memories/chronicle`](https://developers.openai.com/codex/memories/chronicle)。
+
+---
+
+## Memories
+
+### 有効化
+
+Codex App では Settings から有効化できます。設定ファイルで有効化する場合は `~/.codex/config.toml`:
+
+```toml
+[features]
+memories = true
+```
+
+### 何が記憶されるか
+
+公式が想定する用途は次のような情報です。
+
+- よく使う開発手順
+- 個人の応答スタイルの好み
+- プロジェクトで繰り返し出る注意点
+- 技術スタック
+- 過去作業で見つかった既知の落とし穴
+
+逆に、**チームで必ず守る必要があるルールは Memories ではなく `AGENTS.md` やリポジトリ内ドキュメントに置きます**。Memories は便利なローカル補助記憶であって、永続ルールの代替ではありません。
+
+### 生成の流れ
+
+公式本文では次のような挙動が説明されています。
+
+- active なセッションや短命のセッションはスキップ
+- 生成される memory フィールドからは secrets が redact される
+- スレッド終了直後にすぐ更新されるわけではなく、background で更新
+- スレッドが十分 idle になるまで作業内容をまとめない
+- Codex の rate-limit 残量が設定したしきい値を下回ると、background pass がスキップされる場合がある
+
+つまり Memories は即時反映ではありません。しばらくしてから有効になります。
+
+### 保存場所
+
+Memories は Codex home directory 配下に保存されます。
+
+```text
+~/.codex/memories/
+```
+
+ここには summary、durable entries、recent inputs、prior threads の supporting evidence などが含まれます。生成された state として扱い、手動編集を主な制御手段にしないのが安全です。トラブルシュートや共有前の確認で読むのは問題ありません。
+
+### スレッドごとの制御
+
+Codex App と Codex TUI では、`/memories` で現在のスレッドにおける memory behavior を制御できます。
+
+スレッド単位では次の方針を選べます。
+
+- 既存 memories を現在のスレッドで使うか
+- 現在のスレッドを将来の memory 生成に使うか
+
+このスレッド単位の選択は global な memory 設定を変更しません。特定の作業だけ記憶に使いたくない、あるいは既存 memory を使いたくない場面に便利です。
+
+### 主な設定キー
+
+| キー | 意味 |
+|---|---|
+| `memories.generate_memories` | 新しいスレッドを memory 生成入力として保存できるか |
+| `memories.use_memories` | 既存 memories を将来のセッションへ注入するか |
+| `memories.disable_on_external_context` | MCP tool calls / web search / tool search など外部 context を使ったスレッドを memory 生成から除外 |
+| `memories.no_memories_if_mcp_or_web_search` | 旧キー。`disable_on_external_context` のエイリアス |
+| `memories.min_rate_limit_remaining_percent` | memory 生成を始めるために必要な Codex rate-limit 残量 |
+| `memories.extract_model` | スレッド単位の memory 抽出に使うモデルの override |
+| `memories.consolidation_model` | global memory 統合に使うモデルの override |
+
+外部 context を含むスレッドを memory 化したくない場合は `disable_on_external_context` が重要です。
+
+---
+
+## Chronicle
+
+### Chronicle が役立つ場面
+
+- **画面上の情報を使う**: Codex が「さっきの件」「このエラー」のような曖昧な参照を理解しやすくなる
+- **足りない context を補う**: 毎回背景を説明しなくても、画面文脈から不足を補う
+- **ツールや workflow を覚える**: どのツールを使ってどんな流れで進めるかを学習し、説明の手間を減らす
+
+ただし、具体的なファイル / Slack thread / Google Doc / dashboard / pull request を読むほうが適切な場面では、Codex は Chronicle だけに頼らず、Chronicle を手がかりに直接の情報源を使うことがあります。
+
+### 有効化手順
+
+Codex App で次の手順を実行します。
+
+1. Settings を開く
+2. **Personalization** へ移動し、**Memories** が有効であることを確認
+3. Memories 設定の下にある **Chronicle** をオンにする
+4. consent dialog を確認して **Continue**
+5. macOS の Screen Recording と Accessibility permission を許可
+6. **Try it out** を選ぶか、新しいスレッドを始める
+
+macOS が権限を拒否している場合は System Settings > Privacy & Security から Codex を有効にします。組織ポリシーで権限が制限されている場合は、制限解除と権限付与を経て初めて Chronicle が動作します。
+
+### 一時停止と無効化
+
+会議中や機密情報を表示しているときは、メニューバーアイコンから **Pause Chronicle** を選びます。完全無効化は **Settings > Personalization > Memories > Chronicle** をオフ。
+
+### 保存場所
+
+Chronicle が扱う screen capture は一時的にローカルへ保存されます。
+
+```text
+$TMPDIR/chronicle/screen_recording/
+```
+
+6 時間より古い screen captures は Chronicle 実行中に削除されます。
+
+生成された memories は他の Codex memories と同じ Markdown files として:
+
+```text
+$CODEX_HOME/memories_extensions/chronicle/
+# 多くの場合: ~/.codex/memories_extensions/chronicle
+```
+
+screen captures と generated memories の両方に機密情報が含まれる可能性があるため、共有時は注意が必要です。他のプログラムからもアクセス可能である点も理解しておきましょう。
+
+### Rate limits
+
+Chronicle は captured screen images から memories を生成するため、background で sandboxed agents を実行します。公式本文では **rate limits を速く消費する**と説明されています。利用上限に余裕がないとき、長時間の画面作業を続けるときは要注意です。
+
+### OpenAI へ共有されるデータ
+
+Chronicle は画面文脈をローカルで capture したあと、Codex を使って最近の活動を memories へ要約します。memory 生成のために Chronicle は ephemeral Codex session を開始し、選択された screenshot frames、OCR で抽出された text、timing information、関連する local file paths が処理される場合があります。
+
+公式本文では、**法的に必要な場合を除き、処理後の screenshots を server に保存せず、training にも使わない**と説明されています。
+
+ただし生成された memories は local の Markdown files として保存され、将来 Codex が memories を使うときに session context に含まれることがあります。ChatGPT 設定で許可されている場合はモデル改善に使われる可能性もあります。
+
+### Prompt injection リスク
+
+Chronicle を使うと、画面内容からの prompt injection リスクが高まります。悪意ある agent instructions を含む Web サイトを表示していた場合、それが画面文脈として取り込まれて Codex の判断に影響する可能性があります。
+
+対策:
+
+- 信頼できないページや機密資料を表示している間は **Pause**
+- memory files を定期的に確認
+- 重要な作業では Codex の提案を慎重にレビュー
+
+### Chronicle に使うモデル
+
+```toml
+[memories]
+consolidation_model = "gpt-5.4-mini"
+```
+
+特定のモデルを設定していない場合は default Codex model が使われます。
+
+---
+
+## AGENTS.md との使い分け
+
+| 目的 | 置き場所 |
+|---|---|
+| チームで必ず守るルール（必須） | `AGENTS.md`（リポジトリにチェックイン） |
+| プロジェクト方針・コーディング規約 | `AGENTS.md` |
+| 個人の好み・繰り返す手順 | Memories |
+| その日の画面文脈・直近の作業 | Chronicle |
+| ツール固有の暗黙慣習 | Memories（または `AGENTS.md`） |
+
+Memories / Chronicle は補助記憶、AGENTS.md は規範文書、と覚えておくと迷いません。
+
+---
+
+## 注意点まとめ
+
+- 秘密情報を memories に保存しないよう運用ルールを定める
+- 共有前に memory files を確認する
+- Chronicle は会議中・機密表示中は Pause
+- チームの必須ルールは AGENTS.md に置く
+- Memories は即時反映でないため、設定変更後すぐに反映を期待しない
+
+---
+
+## 関連リンク
+
+- [Codex Memories（公式）](https://developers.openai.com/codex/memories)
+- [Codex Memories / Chronicle（公式）](https://developers.openai.com/codex/memories/chronicle)
+- [AGENTS.md 設定ガイド（本サイト）](/knowledge/ai-tools/codex/agents-md)
+- [Codex App ガイド（本サイト）](/knowledge/ai-tools/codex/codex-app)
+- [Codex config.toml リファレンス（本サイト）](/knowledge/ai-tools/codex/config-reference)

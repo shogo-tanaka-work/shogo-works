@@ -1,0 +1,161 @@
+---
+title: "Codex CLI スラッシュコマンド一覧：セッション内で使える 30 以上の組み込みコマンド"
+description: "Codex CLI のセッション内で `/` から始まるスラッシュコマンドを公式ドキュメントに沿って整理。モデル切替・セッション管理・権限・ワークフロー・MCP/プラグイン・診断系を機能別に分類し、Skills（`$skill-name`）との使い分けまで 2026 年 5 月時点でまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "スラッシュコマンド", "/review", "/permissions", "/agent", "Skills"]
+sortOrder: 15
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- Codex セッションで `/` を入力するとコマンドメニューが開く（多数の組み込みコマンド）
+- モデル・パーソナリティ・パーミッション・サンドボックス・MCP・プラグイン・診断系を 1 ストロークで切り替え
+- 実行中のタスクがある間は `Tab` で次ターンにキューイング可能
+- カスタムワークフローは Skills（`$skill-name`）やプラグイン経由が中心
+- `/init` で AGENTS.md の雛形を生成、`/review` で作業ツリーをレビュー、`/permissions` で権限切替
+
+---
+
+## スラッシュコマンドとは
+
+セッション内で `/` を入力すると、コマンドメニューが開きます。よく使う操作（モデル変更・権限切替・セッションフォークなど）をプロンプトを書かずに実行できます。スラッシュコマンドは Codex CLI の組み込み機能で、ユーザー独自のショートカットは Skills（`$skill-name`）やプラグイン経由で追加するのが基本パターンです。
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/cli/slash-commands` には多数の組み込みコマンドが分類されています。公式の機能分類に沿って整理し、関連章へのリンクを補足します。
+
+---
+
+## モデル・実行モード
+
+| コマンド | 役割 |
+|---|---|
+| `/model` | モデル切替（最新の選択肢は Codex Models ページで確認） |
+| `/fast` | 対応モデルで Fast モードをオン／オフ |
+| `/personality` | 応答スタイル切替（friendly / pragmatic / none） |
+
+---
+
+## セッション管理
+
+| コマンド | 役割 |
+|---|---|
+| `/new` | 同じセッション内で会話をリセット |
+| `/clear` | 端末をクリアして新しい会話を始める |
+| `/resume` | 保存済みセッションを再開 |
+| `/fork` | 現在の会話を別スレッドに複製 |
+| `/side` | 一時的なサイド会話を起動 |
+| `/title` | ターミナルタイトルの項目を設定 |
+| `/statusline` | フッターに表示する項目を設定 |
+
+長尺の調査をしながら別線を試したいときは `/fork` か `/side` が便利です。`/fork` は派生スレッドが残り、`/side` は破棄前提の一時会話です。
+
+---
+
+## 権限とサンドボックス
+
+| コマンド | 役割 |
+|---|---|
+| `/permissions` | 承認モードとサンドボックスの切替（read-only / workspace-write など） |
+| `/sandbox-add-read-dir` | サンドボックスに読み取り専用ディレクトリを追加（Windows のみ） |
+| `/status` | 現在のモデル・トークン消費・サンドボックス・モードを表示 |
+| `/debug-config` | 設定レイヤーの診断情報を出力 |
+| `/experimental` | 実験機能のオン／オフ |
+
+詳細な意味は「承認モード&サンドボックス」章を参照してください。
+
+---
+
+## ワークフロー
+
+| コマンド | 役割 |
+|---|---|
+| `/plan` | Plan モードに移行（任意のプロンプト付き） |
+| `/goal` | 実験的なタスク目標を設定 |
+| `/diff` | 未追跡ファイル含めた Git diff を表示 |
+| `/mention` | 特定ファイルを会話に添付 |
+| `/review` | 作業ツリーのレビューを実行 |
+| `/copy` | 直近の完了応答をコピー（`Ctrl+O` でも可） |
+| `/compact` | 会話を要約してトークンを節約 |
+
+`/review` はベースブランチや特定コミットとの比較も指定可能です。
+
+---
+
+## ナビゲーション（MCP・プラグイン・スキル・サブエージェント）
+
+| コマンド | 役割 |
+|---|---|
+| `/agent` | アクティブなサブエージェントスレッドを切替 |
+| `/apps` | コネクタの一覧と接続 |
+| `/plugins` | インストール済み／公開中プラグインを表示 |
+| `/mcp` | 構成済みの MCP ツールを列挙 |
+| `/skills` | 利用可能なスキルを一覧 |
+
+スキルの実行は `/skills` で一覧を確認したのち、`$skill-name` を入力して呼び出します（章「Agent Skills」参照）。
+
+---
+
+## システム・診断・終了
+
+| コマンド | 役割 |
+|---|---|
+| `/init` | AGENTS.md の雛形を生成 |
+| `/ps` | バックグラウンド端末の状態確認 |
+| `/stop` | バックグラウンド端末の処理を停止 |
+| `/feedback` | 診断データを開発元へ送信 |
+| `/keymap` | キーボードショートカットの再割当 |
+| `/logout` | Codex からサインアウト |
+| `/quit` または `/exit` | セッションを終了 |
+
+---
+
+## 入力パターン
+
+タスク実行中でも `/` を打ち、コマンドを選んで `Tab` を押すと次ターンにキューイングされます。現在のタスクが終わったタイミングで Codex が拾って実行します。
+
+---
+
+## Skills・プラグインとの違い
+
+カスタムショートカットを増やしたい場合は、組み込みコマンドではなく次のいずれかを使います。
+
+- **Skills**: `SKILL.md` を `.agents/skills/<name>/` などに置き、`$skill-name` で呼び出す
+- **プラグイン**: `marketplace.json` 経由で配布。プラグインがスラッシュコマンドや機能を提供する場合あり
+
+Skills の作り方は「Codex Agent Skills」章、プラグインは「Codex Marketplace」章を参照してください。
+
+---
+
+## 注意点
+
+**実験的コマンドの挙動変更に注意**
+`/goal` や `/experimental` 系は Experimental 表示のものがあり、CLI バージョンアップで挙動が変わる可能性があります。本番ワークフローに組み込む前に CLI バージョンをピン留めしておくのが安全です。
+
+**`/sandbox-add-read-dir` は Windows 専用**
+他の OS では効きません。macOS / Linux で類似の効果を得たい場合は `--add-dir` フラグや `sandbox_workspace_write.writable_roots` などで設定してください。
+
+**`/permissions` の降格はサブエージェントに伝播しない**
+親セッションを read-only に下げても、サブエージェントごとの設定が優先されます。サブのサンドボックス指定は別途確認してください。
+
+**`/compact` は要約による情報ロスに注意**
+長期セッションでトークン上限が近づいたときに有効ですが、要約で漏れる情報があり得ます。重要な決定事項は別途メモに残しておくと安全です。
+
+**プラグイン由来コマンドは別系統**
+プラグインがスラッシュコマンドを追加する場合、表記やプレフィックスはプラグイン側の規約に従います（例: `/codex:setup` などコロン区切り）。組み込みコマンドと混同しないよう注意してください。
+
+---
+
+## 一次ソース
+
+- [Slash Commands — Codex Docs](https://developers.openai.com/codex/cli/slash-commands)
+- [CLI Features — Codex Docs](https://developers.openai.com/codex/cli/features)
+- [CLI Reference — Codex Docs](https://developers.openai.com/codex/cli/reference)
+- [Agent Skills — Codex Docs](https://developers.openai.com/codex/skills)
+- [Build plugins — Codex Docs](https://developers.openai.com/codex/plugins/build)
