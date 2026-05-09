@@ -6,8 +6,10 @@ import SectionHeader from "@/components/ui/SectionHeader.astro";
 import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import ArticleCard from "@/components/knowledge/ArticleCard.astro";
 import { categories, subcategories } from "@/data/knowledge";
+import { getTiersFor } from "@/data/knowledgeTiers";
 import {
   getArticlesByCategoryAndSubcategory,
+  groupArticlesByTier,
   toUnifiedFromInternal,
 } from "@/utils/knowledge";
 import type { CategoryMeta, SubcategoryMeta } from "@/types";
@@ -42,6 +44,8 @@ const entries = getArticlesByCategoryAndSubcategory(
   subcategory.slug,
 );
 const articles = entries.map(toUnifiedFromInternal);
+const tiers = getTiersFor(category.slug, subcategory.slug);
+const groups = tiers ? groupArticlesByTier(articles, tiers) : null;
 ---
 
 <BaseLayout
@@ -64,7 +68,59 @@ const articles = entries.map(toUnifiedFromInternal);
       />
 
       {
-        articles.length > 0 ? (
+        articles.length === 0 ? (
+          <div class="text-center py-16 animate-on-scroll">
+            <p class="text-muted-foreground text-lg">
+              このサブカテゴリにはまだ記事がありません。
+            </p>
+            <a
+              href={`/knowledge/${category.slug}`}
+              class="inline-block mt-4 text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              ← {category.label} に戻る
+            </a>
+          </div>
+        ) : groups ? (
+          <div class="space-y-12">
+            {groups.map((group) =>
+              group.articles.length > 0 ? (
+                <div>
+                  {group.tier && (
+                    <div class="mb-6">
+                      <h2 class="text-xl font-bold text-foreground flex items-baseline gap-3">
+                        <span class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-teal-500/10 text-teal-600 text-sm font-semibold">
+                          {group.tier.order}
+                        </span>
+                        <span>{group.tier.label}</span>
+                      </h2>
+                      {group.tier.description && (
+                        <p class="text-sm text-muted-foreground mt-2 ml-12">
+                          {group.tier.description}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {group.articles.map((article, i) => (
+                      <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                        <ArticleCard
+                          title={article.title}
+                          description={article.description}
+                          categoryLabel={subcategory.label}
+                          tags={article.tags}
+                          createdAt={article.createdAt}
+                          href={article.href}
+                          isExternal={article.isExternal}
+                          platform={article.platform}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null,
+            )}
+          </div>
+        ) : (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {articles.map((article, i) => (
               <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
@@ -80,18 +136,6 @@ const articles = entries.map(toUnifiedFromInternal);
                 />
               </div>
             ))}
-          </div>
-        ) : (
-          <div class="text-center py-16 animate-on-scroll">
-            <p class="text-muted-foreground text-lg">
-              このサブカテゴリにはまだ記事がありません。
-            </p>
-            <a
-              href={`/knowledge/${category.slug}`}
-              class="inline-block mt-4 text-teal-600 hover:text-teal-700 transition-colors"
-            >
-              ← {category.label} に戻る
-            </a>
           </div>
         )
       }
