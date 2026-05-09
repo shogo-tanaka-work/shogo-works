@@ -1,13 +1,22 @@
 ---
 import type { KnowledgeCategory } from "@/types";
+import type { KnowledgeTier } from "@/data/knowledgeTiers";
 
 interface SidebarArticle {
   slug: string;
   title: string;
+  sortOrder: number;
+}
+
+interface SidebarGroup {
+  /** null は tier 未割当（または tier 定義のないサブカテゴリのフォールバック）を意味する */
+  tier: KnowledgeTier | null;
+  articles: SidebarArticle[];
 }
 
 interface Props {
-  articles: SidebarArticle[];
+  /** tier グループ化済みの記事リスト */
+  groups: SidebarGroup[];
   currentSlug: string;
   categoryLabel: string;
   categorySlug: KnowledgeCategory;
@@ -16,7 +25,7 @@ interface Props {
 }
 
 const {
-  articles,
+  groups,
   currentSlug,
   categoryLabel,
   categorySlug,
@@ -31,6 +40,7 @@ const headingHref = subcategorySlug
 const articleBasePath = subcategorySlug
   ? `/knowledge/${categorySlug}/${subcategorySlug}`
   : `/knowledge/${categorySlug}`;
+const hasTiers = groups.some((g) => g.tier !== null);
 ---
 
 <nav class="text-sm" aria-label={`${headingLabel} の記事一覧`}>
@@ -40,27 +50,69 @@ const articleBasePath = subcategorySlug
   >
     {headingLabel}
   </a>
-  <ol class="space-y-1 border-l border-border">
-    {
-      articles.map((article) => {
-        const isCurrent = article.slug === currentSlug;
-        return (
-          <li>
-            <a
-              href={`${articleBasePath}/${article.slug}`}
-              class:list={[
-                "block px-3 py-1.5 -ml-px border-l transition-colors leading-snug",
-                isCurrent
-                  ? "border-teal-500 text-teal-600 font-semibold bg-teal-50/50"
-                  : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40",
-              ]}
-              aria-current={isCurrent ? "page" : undefined}
-            >
-              {article.title}
-            </a>
-          </li>
-        );
-      })
-    }
-  </ol>
+  {
+    hasTiers ? (
+      <div class="space-y-5">
+        {groups.map((group) =>
+          group.articles.length > 0 ? (
+            <div>
+              {group.tier && (
+                <h3 class="text-[11px] font-bold uppercase tracking-wide text-foreground/80 mb-2 flex items-center gap-2">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/10 text-teal-600 text-[10px] font-semibold">
+                    {group.tier.order}
+                  </span>
+                  {group.tier.label}
+                </h3>
+              )}
+              <ol class="space-y-1 border-l border-border">
+                {group.articles.map((article) => {
+                  const isCurrent = article.slug === currentSlug;
+                  return (
+                    <li>
+                      <a
+                        href={`${articleBasePath}/${article.slug}`}
+                        class:list={[
+                          "block px-3 py-1.5 -ml-px border-l transition-colors leading-snug",
+                          isCurrent
+                            ? "border-teal-500 text-teal-600 font-semibold bg-teal-50/50"
+                            : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40",
+                        ]}
+                        aria-current={isCurrent ? "page" : undefined}
+                      >
+                        {article.title}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          ) : null,
+        )}
+      </div>
+    ) : (
+      <ol class="space-y-1 border-l border-border">
+        {groups
+          .flatMap((g) => g.articles)
+          .map((article) => {
+            const isCurrent = article.slug === currentSlug;
+            return (
+              <li>
+                <a
+                  href={`${articleBasePath}/${article.slug}`}
+                  class:list={[
+                    "block px-3 py-1.5 -ml-px border-l transition-colors leading-snug",
+                    isCurrent
+                      ? "border-teal-500 text-teal-600 font-semibold bg-teal-50/50"
+                      : "border-transparent text-muted-foreground hover:text-foreground hover:border-muted-foreground/40",
+                  ]}
+                  aria-current={isCurrent ? "page" : undefined}
+                >
+                  {article.title}
+                </a>
+              </li>
+            );
+          })}
+      </ol>
+    )
+  }
 </nav>
