@@ -1,0 +1,349 @@
+---
+title: "Codex Workflows ガイド：IDE / CLI / Cloud を使い分ける開発ワークフロー集"
+description: "Codex の代表的な開発ワークフローを 2026 年 5 月時点の公式仕様で整理。コードベース理解、バグ修正、テスト追加、UI 試作、live updates、Cloud への refactor 委任、ローカル `/review`、GitHub `@codex review`、ドキュメント更新まで、IDE / CLI / Cloud の使い分けと実用 prompt 例をまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Workflows", "IDE", "CLI", "Cloud", "review"]
+sortOrder: 26
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- Codex は IDE / CLI / Cloud のどれで使っても同じエージェントを呼ぶが、**何をどこから渡すか**が変わる
+- IDE では開いているファイルや選択範囲が自動的に context に入る
+- CLI ではパス明示や `@` / `/mention` のファイル添付が中心
+- Cloud は長い実装や並列作業を委任するのに向く
+- どのワークフローでも **「最後にどう検証するか」を先に伝える**のが品質を上げる近道
+- レビューは local では `/review`、GitHub PR では `@codex review` の 2 系統
+
+---
+
+## ワークフローの読み方
+
+公式 [Workflows ページ](https://developers.openai.com/codex/workflows) の各ワークフローは次の観点で整理されています。
+
+- いつ使うか
+- IDE / CLI / Cloud のどれが向いているか
+- 手順と prompt 例
+- Codex が自動で見る context と、ユーザーが明示すべき context
+- 検証方法
+
+IDE 拡張では開いているファイルが自動で context に含まれますが、CLI では通常パス明示か `/mention` / `@` の path autocomplete でファイルを添付します。
+
+---
+
+## コードベースを理解する
+
+新規プロジェクトに入るとき、既存サービスを引き継ぐとき、protocol や data model を理解したいときに使います。
+
+### IDE 拡張
+
+関連ファイルを開き、必要なら対象コードを選択してから依頼:
+
+```text
+選択したコードを通って request がどのように流れるか説明してください。
+
+含めてほしい内容:
+- 関係する各 module の責務
+- どこでどの data が validation されるか
+- 変更時に注意すべき gotchas を 1〜2 個
+```
+
+レビューしやすくしたい場合は番号付き手順 + 関連ファイル一覧を頼みます。
+
+```text
+request flow を番号付きの手順でまとめ、その後に関係する files を一覧化してください。
+```
+
+### CLI
+
+```bash
+codex
+```
+
+```text
+このサービスで使われている protocol を理解したいです。
+@foo.ts と @schema.ts を読み、schema と request/response flow を説明してください。
+required fields、optional fields、backward compatibility rules に注目してください。
+```
+
+---
+
+## バグを修正する
+
+「壊れている」だけでなく、Codex が再現と検証をできる情報を渡すのが効果的です。
+
+### CLI
+
+```bash
+codex
+```
+
+```text
+Bug: settings 画面で Save を押すと、Saved と表示されるのに変更が保存されないことがあります。
+
+Repro:
+1) Start the app: npm run dev
+2) Go to /settings
+3) Toggle the alerts setting
+4) Click Save
+5) Refresh the page and confirm the setting resets
+
+Constraints:
+- Do not change the API shape.
+- Keep the fix minimal and add a regression test if feasible.
+
+Start by reproducing the bug locally, then propose a patch and run checks.
+```
+
+修正後には最小限の test suite や lint を依頼:
+
+```text
+After the fix, run lint + the smallest relevant test suite. Report the commands and results.
+```
+
+### IDE 拡張
+
+疑わしいファイルと呼び出し元を開いてから:
+
+```text
+Saved と表示されるのに変更が保存されない原因を探してください。
+修正案を出した後、UI での確認方法も教えてください。
+```
+
+---
+
+## テストを書く
+
+scope を明確にするのがコツです。
+
+### IDE 拡張
+
+関数定義の行を選択し command palette から Codex thread に追加してから:
+
+```text
+Write a unit test for this function. Follow conventions used in other tests.
+```
+
+### CLI
+
+```bash
+codex
+```
+
+```text
+Add a test for the invert_list function in @transform.ts. Cover the happy path plus edge cases.
+```
+
+「既存テストの書き方に合わせる」と一文付け加えるだけで、プロジェクトに馴染む出力になりやすくなります。
+
+---
+
+## スクリーンショットから UI を試作する
+
+デザインモック / スクリーンショット / UI 参照から prototype を作るワークフローです。
+
+### CLI
+
+画像を保存しておき、Codex を起動して `-i` で添付。prompt は実装条件と成果物を明示:
+
+```text
+添付画像をもとに、新しい dashboard を作成してください。
+
+Constraints:
+- React、Vite、Tailwind を使い、TypeScript で実装してください。
+- spacing、typography、layout をできるだけ近づけてください。
+
+Deliverables:
+- UI を表示する新しい route/page
+- 必要な小さな components
+- ローカルで確認するための実行手順
+```
+
+画像は visual requirements を伝えますが、framework / routing / component style / hover states / validation rules / keyboard interactions などはテキストで補足したほうが確実です。
+
+最後に確認のための情報をもらいます:
+
+```text
+dev server を起動し、prototype を確認する local URL または route を教えてください。
+```
+
+---
+
+## live updates で UI を反復する
+
+UI を見ながら細かく調整する場合は、dev server を別ターミナルで動かし、小さな prompt で反復します。
+
+```bash
+# Terminal 1
+codex
+
+# Terminal 2
+npm run dev
+```
+
+最初に方向性の選択肢を出してもらう:
+
+```text
+landing page の styling improvement を 2〜3 個提案してください。
+```
+
+選んだら範囲を絞って依頼:
+
+```text
+2 つ目の案で進めてください。
+
+変更範囲は header だけにしてください:
+- typography をより editorial にする
+- whitespace を増やす
+- mobile でも見た目が崩れないようにする
+```
+
+さらに反復する場合も対象を絞ります:
+
+```text
+次の iteration では visual noise を減らしてください。
+layout は維持し、colors を単純化して不要な borders を削除してください。
+```
+
+気に入った変更は **commit**、戻した変更は Codex に伝えると次の prompt で再上書きされにくくなります。
+
+---
+
+## refactor を Cloud へ委任する
+
+大きな refactor は **「local で計画、Cloud で実装」** が有効です。
+
+### IDE で計画を作る
+
+```text
+$plan
+
+auth subsystem を次の方向で refactor したいです:
+- token parsing、session loading、permissions の責務を分ける
+- circular imports を減らす
+- testability を改善する
+
+Constraints:
+- user-visible behavior は変えない
+- public APIs は維持する
+- step-by-step の migration plan を含める
+```
+
+計画を見直したら具体化:
+
+```text
+plan を修正してください:
+- milestone ごとに、どの files を移動するか具体的に書く
+- rollback strategy を含める
+```
+
+### Cloud で実装
+
+Codex Cloud environment を設定し、cloud icon から環境を選んで:
+
+```text
+plan の Milestone 1 を実装してください。
+```
+
+cloud diff を確認し、必要なら反復して PR 作成、または local へ pull して検証します。
+
+---
+
+## ローカルでコードレビューする
+
+commit 前や PR 作成前に、working tree をレビューしてもらうワークフローです。
+
+```bash
+codex
+```
+
+```text
+/review
+```
+
+観点を追加することもできます:
+
+```text
+/review edge cases と security issues を重点的に見てください
+```
+
+指摘を修正したら、再度 `/review` を実行して解消状況を確認します。
+
+---
+
+## GitHub Pull Request をレビューする
+
+GitHub 上の PR を local に pull せずレビューしたい場合は、Codex Code review をリポジトリで有効化します。PR コメントで:
+
+```text
+@codex review
+```
+
+観点指定:
+
+```text
+@codex security vulnerabilities と security concerns を中心に review してください
+```
+
+---
+
+## ドキュメントを更新する
+
+正確で読みやすいドキュメント変更には、対象ファイルと検証条件を明示します。
+
+```text
+advanced features の documentation に authentication troubleshooting guidance を追加してください。
+すべての links が有効かも確認してください。
+```
+
+最終的には rendered page を読んで、構成やリンクが意図どおりか確認します。
+
+---
+
+## Goals（長期タスクの持続的ワークフロー）
+
+Codex App と CLI には、長期タスク用の Goals（永続化されたワークフロー単位）があります。`/goal` から開始し、複数セッションをまたいで進捗を管理できます。
+
+Goals の典型用途:
+
+- マイグレーション全体の進行管理（local では計画、Cloud では実装）
+- 大規模 refactor を milestone ごとに区切って進める
+- リリース前のチェックリスト消化
+
+`PLANS.md` をリポジトリに置いて Goals と組み合わせると、人間とエージェントが共通の進捗ドキュメントを参照しながら進められます。詳細は本サイトの「ExecPlan / PLANS.md」記事（公開予定）を参照してください。
+
+---
+
+## ワークフロー選定の早見表
+
+| 状況 | 向いている場所 | 理由 |
+|---|---|---|
+| 小さな修正・既存ファイルへの追記 | IDE | 開いているファイルが自動で context に入る |
+| 大きな実装・並列作業 | Cloud | 隔離環境で複数タスクを並列実行 |
+| コードベース調査・初見プロジェクト | IDE / CLI | ファイル参照が容易 |
+| UI 反復 | CLI + dev server | live update で素早い試行錯誤 |
+| PR レビュー | GitHub `@codex review` | local pull 不要 |
+| commit 前レビュー | CLI `/review` | 手元の差分をその場で見る |
+| 長期タスク | Goals + PLANS.md | セッションをまたいだ進捗管理 |
+
+---
+
+## まとめ
+
+Codex のワークフローは IDE / CLI / Cloud の特徴を活かして選びます。
+
+コード理解や小さな修正は IDE / CLI、大きな実装や並列作業は Cloud、と覚えておくと選択の迷いが減ります。どのワークフローでも、**context、制約、検証方法を具体的に伝える**ことが Codex を実務で使いやすくする近道です。
+
+---
+
+## 関連リンク
+
+- [Codex Workflows（公式）](https://developers.openai.com/codex/workflows)
+- [Codex プロンプト設計ガイド（本サイト）](/knowledge/ai-tools/codex/prompting-guide)
+- [Codex Cloud（Web）ガイド（本サイト）](/knowledge/ai-tools/codex/cloud-web)
+- [Codex CLI 主要機能（本サイト）](/knowledge/ai-tools/codex/cli-features)
+- [Codex IDE 拡張ガイド（本サイト）](/knowledge/ai-tools/codex/ide-extension)
