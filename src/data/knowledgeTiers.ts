@@ -1,7 +1,7 @@
 import type { KnowledgeCategory } from "@/types";
 
 /**
- * サブカテゴリ内の記事を読者導線に沿って tier 単位で見出し付き表示するためのレジストリ。
+ * サブカテゴリ内の記事を tier 単位でグループ化するためのレジストリ。
  *
  * 各 tier は `sortOrderStart` を持ち、その値以上で次の tier の `sortOrderStart` 未満の
  * sortOrder を持つ記事が、その tier に属する。最後の tier は `sortOrderStart` 以上の
@@ -27,52 +27,98 @@ export interface KnowledgeTier {
  */
 export type KnowledgeTierRegistry = Record<string, KnowledgeTier[]>;
 
+/**
+ * Codex の tier 構成は、公式ドキュメント（developers.openai.com/codex）の
+ * 左サイドバー構造に準拠している。
+ *
+ * 公式: Getting Started / Concepts / App / IDE / CLI / Web / Integrations / Security /
+ *       Configuration / Plugins / Administration & Enterprise / Automation / Learn / Releases
+ *
+ * 当サイトでは Releases 相当はナレッジに置かないため除外し、Learn を best-practices と
+ * Cookbook の 2 階層に分けて 14 tier 構成とする。
+ */
 export const knowledgeTiers: KnowledgeTierRegistry = {
   "ai-tools/codex": [
     {
       order: 1,
-      label: "入門・選択",
-      description: "Codex とは何か、自分に合うか、料金とモデルの選び方",
+      label: "Getting Started",
+      description: "Codex の全体像、料金、Claude Code との比較から始める入門編",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "各サーフェス",
-      description: "CLI / IDE / Codex App / Cloud / Chrome 拡張 / Computer Use",
-      sortOrderStart: 6,
+      label: "Concepts",
+      description: "プロンプト・ワークフロー・モデル・サンドボックス・サブエージェント・メモリの中核概念",
+      sortOrderStart: 5,
     },
     {
       order: 3,
-      label: "コア機能・概念",
-      description: "プロンプト・ワークフロー・設定・安全制御・拡張機構",
-      sortOrderStart: 12,
+      label: "App",
+      description: "Codex App（Desktop / Web）と Chrome 拡張・Computer Use",
+      sortOrderStart: 11,
     },
     {
       order: 4,
-      label: "リファレンス",
-      description: "config.toml / CLI コマンド / スラッシュコマンド",
-      sortOrderStart: 20,
+      label: "IDE Extension",
+      description: "VS Code / Cursor / Windsurf / JetBrains での使い方",
+      sortOrderStart: 14,
     },
     {
       order: 5,
-      label: "統合・拡張",
-      description: "MCP / Marketplace / SDK / GitHub Action / Slack / Linear",
-      sortOrderStart: 23,
+      label: "CLI",
+      description: "Codex CLI の機能・コマンドリファレンス・スラッシュコマンド",
+      sortOrderStart: 15,
     },
     {
       order: 6,
-      label: "エンタープライズ",
-      description: "管理者セットアップ・Codex Security と脅威モデル",
-      sortOrderStart: 29,
+      label: "Web (Cloud)",
+      description: "ブラウザから動かす並列タスク環境",
+      sortOrderStart: 18,
     },
     {
       order: 7,
-      label: "ベストプラクティス",
-      description: "プロンプト設計・運用設計・段階解放",
-      sortOrderStart: 31,
+      label: "Integrations",
+      description: "Slack / Linear などの外部サービス連携",
+      sortOrderStart: 19,
     },
     {
       order: 8,
+      label: "Security",
+      description: "Codex Security と脅威モデル",
+      sortOrderStart: 20,
+    },
+    {
+      order: 9,
+      label: "Configuration",
+      description: "config.toml / AGENTS.md / Hooks / MCP の設定",
+      sortOrderStart: 21,
+    },
+    {
+      order: 10,
+      label: "Plugins & Skills",
+      description: "Marketplace / Agent Skills による拡張",
+      sortOrderStart: 25,
+    },
+    {
+      order: 11,
+      label: "Administration & Enterprise",
+      description: "Workspace 管理者向けセットアップとガバナンス",
+      sortOrderStart: 27,
+    },
+    {
+      order: 12,
+      label: "Automation",
+      description: "Automations / GitHub Action / SDK による自動化",
+      sortOrderStart: 28,
+    },
+    {
+      order: 13,
+      label: "Learn (Best Practices)",
+      description: "現場で効くベストプラクティス",
+      sortOrderStart: 31,
+    },
+    {
+      order: 14,
       label: "Cookbook 実践レシピ",
       description: "実装シナリオ別のレシピ集",
       sortOrderStart: 32,

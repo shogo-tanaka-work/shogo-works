@@ -3,10 +3,12 @@ import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
 import { getCollection, render } from "astro:content";
 import KnowledgeLayout from "@/layouts/KnowledgeLayout.astro";
 import { categories, subcategories } from "@/data/knowledge";
+import { getTiersFor } from "@/data/knowledgeTiers";
 import {
   getPublishedArticles,
   getArticlesByCategoryAndSubcategory,
   getAdjacentArticles,
+  groupArticlesByTier,
 } from "@/utils/knowledge";
 import type { KnowledgeCategory } from "@/types";
 
@@ -34,7 +36,12 @@ export const getStaticPaths = (async () => {
       const sidebarArticles = sameSubArticles.map((e) => ({
         slug: e.id.split("/").pop() as string,
         title: e.data.title,
+        sortOrder: e.data.sortOrder,
       }));
+      const tiers = getTiersFor(category, subcategory);
+      const sidebarGroups = tiers
+        ? groupArticlesByTier(sidebarArticles, tiers)
+        : [{ tier: null, articles: sidebarArticles }];
       const { previous, next } = getAdjacentArticles(
         allEntries,
         entry.id,
@@ -55,7 +62,7 @@ export const getStaticPaths = (async () => {
           currentSlug: slug,
           subcategorySlug: subcategory,
           subcategoryLabel: subcategoryMeta?.label ?? subcategory,
-          sidebarArticles,
+          sidebarGroups,
           previous: previous
             ? {
                 slug: previous.id.split("/").pop() as string,
@@ -80,7 +87,7 @@ const {
   currentSlug,
   subcategorySlug,
   subcategoryLabel,
-  sidebarArticles,
+  sidebarGroups,
   previous,
   next,
 } = Astro.props as Props;
@@ -98,7 +105,7 @@ const { Content } = await render(entry);
   updatedAt={entry.data.updatedAt}
   author={entry.data.author}
   currentSlug={currentSlug}
-  sidebarArticles={sidebarArticles}
+  sidebarGroups={sidebarGroups}
   previous={previous}
   next={next}
 >

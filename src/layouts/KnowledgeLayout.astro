@@ -4,11 +4,18 @@ import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import Badge from "@/components/ui/Badge.astro";
 import ArticleSidebar from "@/components/knowledge/ArticleSidebar.astro";
 import { categories } from "@/data/knowledge";
+import type { KnowledgeTier } from "@/data/knowledgeTiers";
 import type { KnowledgeCategory } from "@/types";
 
 interface SidebarArticle {
   slug: string;
   title: string;
+  sortOrder: number;
+}
+
+interface SidebarGroup {
+  tier: KnowledgeTier | null;
+  articles: SidebarArticle[];
 }
 
 interface AdjacentArticle {
@@ -27,7 +34,7 @@ interface Props {
   updatedAt?: Date;
   author: string;
   currentSlug: string;
-  sidebarArticles: SidebarArticle[];
+  sidebarGroups: SidebarGroup[];
   previous: AdjacentArticle | null;
   next: AdjacentArticle | null;
 }
@@ -43,7 +50,7 @@ const {
   updatedAt,
   author,
   currentSlug,
-  sidebarArticles,
+  sidebarGroups,
   previous,
   next,
 } = Astro.props;
@@ -109,7 +116,7 @@ const jsonLd = JSON.stringify({
           class="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
         >
           <ArticleSidebar
-            articles={sidebarArticles}
+            groups={sidebarGroups}
             currentSlug={currentSlug}
             categoryLabel={categoryLabel}
             categorySlug={category}

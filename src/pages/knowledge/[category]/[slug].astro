@@ -32,12 +32,11 @@ export const getStaticPaths = (async () => {
       const sidebarArticles = sameCategoryArticles.map((e) => ({
         slug: e.id.split("/").pop() as string,
         title: e.data.title,
+        sortOrder: e.data.sortOrder,
       }));
-      const { previous, next } = getAdjacentArticles(
-        allEntries,
-        entry.id,
-        category,
-      );
+      // カテゴリ直下記事には tier 定義を持たせていないので 1グループにまとめる
+      const sidebarGroups = [{ tier: null, articles: sidebarArticles }];
+      const { previous, next } = getAdjacentArticles(allEntries, entry.id, category);
       return {
         params: {
           category,
@@ -46,7 +45,7 @@ export const getStaticPaths = (async () => {
         props: {
           entry,
           currentSlug: slug,
-          sidebarArticles,
+          sidebarGroups,
           previous: previous
             ? {
                 slug: previous.id.split("/").pop() as string,
@@ -66,7 +65,7 @@ export const getStaticPaths = (async () => {
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
-const { entry, currentSlug, sidebarArticles, previous, next } =
+const { entry, currentSlug, sidebarGroups, previous, next } =
   Astro.props as Props;
 const { Content } = await render(entry);
 ---
@@ -80,7 +79,7 @@ const { Content } = await render(entry);
   updatedAt={entry.data.updatedAt}
   author={entry.data.author}
   currentSlug={currentSlug}
-  sidebarArticles={sidebarArticles}
+  sidebarGroups={sidebarGroups}
   previous={previous}
   next={next}
 >
