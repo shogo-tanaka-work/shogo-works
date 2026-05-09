@@ -1,0 +1,25 @@
+---
+title: "Claude Code v2.1.136 / 137 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-136"
+date: 2026-05-09
+tags: ["claude-code", "mcp", "oauth", "auto-mode", "windows"]
+---
+
+Claude Code 教材の「実務運用・トラブルシューティング」と「Enterprise 運用設計」へ反映する。
+
+優先反映先:
+
+- `/knowledge/ai-tools/claude-code/daily-operations`
+- `/knowledge/ai-tools/claude-code/mcp`
+- `/knowledge/ai-tools/claude-code/auto-mode`
+
+教材化ポイント:
+
+- `/clear` 実行が `.mcp.json` ・プラグイン・claude.ai コネクタ MCP に与える影響と、v2.1.136 以前 / 以降の挙動差
+- 複数 MCP サーバーを同時に動かす場合の OAuth リフレッシュ競合パターン（チェックリスト化）
+- `settings.autoMode.hard_deny` の使い所：分類器の出力を信用しきれない業務（本番 DB / 決済 API / 顧客データ）の絶対ブロックルール例
+- redacted thinking ブロックが API 400 に化けるケースの再現条件と、Anthropic SDK 側の thinking ブロック仕様への接続
+- Windows + VSCode 利用者向けの「v2.1.136 をスキップして v2.1.137 へ直接更新する」運用ノート
+- WSL2 で Windows クリップボード画像 paste が PowerShell フォールバックを通る理屈（クロスバウンダリの仕組みを軽く解説）
+
+単独記事にするなら「Claude Code 自動モードを Enterprise で安全に動かす設計」を `hard_deny` 起点で書ける。

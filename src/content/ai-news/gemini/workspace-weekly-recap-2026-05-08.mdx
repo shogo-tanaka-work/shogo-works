@@ -1,0 +1,51 @@
+---
+title: "Google Workspace 5月8日週次まとめ：管理コンソールにAI制御センター、Docs Geminiが持続カスタム指示、Meet録画に同意設定"
+tool: "gemini"
+toolLabel: "Gemini / Google Workspace"
+date: 2026-05-08
+sourceUrl: "https://workspaceupdates.googleblog.com/2026/05/weekly-recap-05-08-2026.html"
+summary: "Google Workspace Updates の週次リキャップ（2026-05-08）に9件のアップデートがまとまった。組織での AI 運用に直結するのは、管理コンソールの「AI 制御センター」追加、Google Docs の Gemini への持続的カスタム指示、Google Meet の録画 / 文字起こし / Gemini 利用時の参加者同意設定の3点。"
+impact: "Workspace を全社で使う組織の管理者は、AI ガバナンス設定の一段強化として「AI 制御センター」と「Meet 同意設定」を入口にレビューする価値がある。"
+tags: ["gemini", "workspace", "admin-console", "google-docs", "google-meet", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/gemini/workspace-admin"
+  - "/knowledge/ai-tools/gemini/google-docs"
+  - "/knowledge/ai-tools/gemini/google-meet"
+draft: false
+---
+
+## 要約
+
+Google Workspace Updates の週次まとめ（2026-05-08 公開）で、AI 関連を中心に9件のアップデートが一気にロールアップされました。組織で Workspace AI を運用している側から見ると、特に効くのは管理コンソール側の機能と、Docs / Meet の Gemini 連携の挙動変更です。
+
+## 何が変わったか
+
+管理者・セキュリティ系
+
+- 管理コンソールに「AI 制御センター」が追加。生成 AI / エージェントの Workspace データアクセスを管理者がポリシーで制御
+- クライアント側暗号化（CSE）を使った Drive API バルクインポートが GA
+- Google Meet で録画 / 文字起こし / Gemini 利用時に参加者の明示同意を要求できる管理者設定
+
+エディタ / 会議 / コラボ系
+
+- Google Docs で Gemini への「カスタム指示」が会話間で持続適用される
+- Chrome の「スキル」機能でよく使うプロンプトを保存しワンクリック実行
+- Workspace Studio の Meet 開始ステップが拡張
+- 定員超過の Meet に新規参加者を自動でライブストリームへリダイレクト
+- Workspace Studio が7言語に拡張
+- Gmail「Help me write」がユーザーの文体・コンテキストを反映して強化
+
+## 業務インパクト
+
+「AI 制御センター」は、組織で生成 AI を扱うときの「入口の一本化」が前進しました。これまで Workspace の AI 関連設定は機能ごとに散らばっていましたが、エージェントを含めて Workspace データへどこまでアクセスさせるかをポリシーとして集約できる方向です。コンプライアンス・情報システム部門のレビュー対象になります。
+
+Meet の同意設定は、生成 AI 録画ポリシーを正面から議論したい組織にとって、技術的な裏付けになる機能です。録画・文字起こし・Gemini 利用時に「明示同意を要求」を設定できるので、社内ルールと UI 動作を整合させやすくなります。
+
+Docs の Gemini カスタム指示が「持続」になった点は、ChatGPT / Claude のシステムプロンプト相当が Google Docs にも入ってきた、と捉えると比較しやすい変化です。文書編集のルール（用語・トーン・テンプレート）を会話のたびに伝え直す必要がなくなります。
+
+## 教材化メモ
+
+- 「組織で生成 AI を扱う管理者の設定」教材で「AI 制御センター」を主軸に再構成
+- 「生成 AI 録画と同意」教材に Meet の同意設定を実装事例として追加
+- ChatGPT / Claude のシステムプロンプトと Docs Gemini のカスタム指示を比較する章
