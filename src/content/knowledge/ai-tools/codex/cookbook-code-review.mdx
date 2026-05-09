@@ -1,0 +1,241 @@
+---
+title: "Codex Cookbook: Codex SDKでコードレビューをCI/CDに組み込む"
+description: "OpenAI 公式 Cookbook のコードレビュー例をもとに、Codex SDK を使った自動コードレビューの組み立て方を 2026 年 5 月時点の仕様で整理。レビュー観点の定義、構造化出力、GitHub Actions / GitLab / Azure DevOps / Jenkins への組み込み、段階的導入のコツまでをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "cookbook", "code review", "SDK", "CI/CD", "automation"]
+sortOrder: 33
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- Codex SDK でレビュー処理をプログラムから呼び出し、CI/CD に組み込める
+- レビュー用プロンプトは **対象差分 / 重視する観点 / 出力形式**を明確にする
+- 構造化出力（severity / file / line / summary / rationale / suggested_fix）で CI と PR コメントへの統合が楽
+- GitHub Actions / GitLab / Azure DevOps / Jenkins すべてに応用可
+- **自動レビューは人間レビューの代替ではなく、見落としを減らす補助**として導入する
+
+このレシピの一次ソースは OpenAI Cookbook の [Build Code Review with Codex SDK 例](https://developers.openai.com/cookbook/examples/codex/build_code_review_with_codex_sdk) です。
+
+---
+
+## なぜコードレビューを自動化するのか
+
+コードレビューでは設計意図、仕様、テスト、セキュリティ、可読性など多くの観点を見ます。すべての PR に同じ粒度で目を通すのは大変です。
+
+Codex SDK で **定型チェックや危険箇所の洗い出し**を自動化すれば、人間は重要な設計判断やチーム固有の文脈に集中できます。
+
+---
+
+## レビュー用プロンプトの作り方
+
+レビュー用プロンプトでは「何を見てほしいか」を具体的に伝えます。
+
+### 観点の例
+
+- バグになりそうなロジック
+- セキュリティ上の懸念（入力検証 / 認可 / 機密情報のログ出力）
+- テスト不足（新規ロジックに対応するテストがあるか）
+- 破壊的変更（API シグネチャ / DB スキーマ）
+- 既存設計との不一致
+- エラーハンドリングの漏れ
+
+### 良い指示の書き方
+
+「良いところも褒めて」ではなく、**「重大度、対象ファイル、理由、修正案を返して」**のように出力単位を決めます。
+
+```text
+あなたはこのリポジトリのシニアエンジニアです。
+以下の差分をレビューし、問題点を JSON 配列で返してください。
+
+差分:
+[diff 貼付]
+
+各指摘は次のフィールドを含めてください:
+- severity: critical | high | medium | low | info
+- file: 相対パス
+- line: 行番号 or 範囲
+- summary: 1 行サマリ
+- rationale: なぜ問題か（2-3 文）
+- suggested_fix: 修正案のコードまたは方針
+
+重大度の判断基準:
+- critical: 本番障害・データ損失・セキュリティ漏洩につながる
+- high: バグ確実、修正必須
+- medium: 改善が望ましい
+- low: スタイル・命名
+- info: 補足情報
+```
+
+---
+
+## 構造化出力を使う
+
+自動化では自然文だけのレビューより構造化結果が便利です。
+
+### TypeScript SDK での実装例
+
+```ts
+import { Codex } from "@openai/codex-sdk";
+import { z } from "zod";
+
+const ReviewItemSchema = z.object({
+  severity: z.enum(["critical", "high", "medium", "low", "info"]),
+  file: z.string(),
+  line: z.union([z.number(), z.string()]),
+  summary: z.string(),
+  rationale: z.string(),
+  suggested_fix: z.string(),
+});
+type ReviewItem = z.infer<typeof ReviewItemSchema>;
+
+async function reviewDiff(diff: string): Promise<ReviewItem[]> {
+  const codex = new Codex();
+  const thread = codex.startThread();
+  const result = await thread.run(buildReviewPrompt(diff));
+
+  // 結果から JSON を抽出してパース
+  const jsonMatch = result.match(/\[[\s\S]*\]/);
+  if (!jsonMatch) return [];
+
+  const parsed = JSON.parse(jsonMatch[0]);
+  return z.array(ReviewItemSchema).parse(parsed);
+}
+```
+
+これにより、CI で失敗扱いにする条件（`critical` が 1 件以上あれば fail など）や、PR コメントへの整形が容易になります。
+
+---
+
+## CI/CD への組み込み
+
+### GitHub Actions
+
+```yaml
+# .github/workflows/codex-review.yml
+name: Codex Code Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: npm ci
+      - name: Run Codex review
+        run: node scripts/codex-review.mjs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+```
+
+スクリプト側では:
+
+1. `git diff origin/main...HEAD` で差分取得
+2. Codex SDK でレビュー実行
+3. 結果を PR コメントとして投稿
+4. `critical` があれば exit 1 で CI を fail
+
+### GitLab CI
+
+```yaml
+codex_review:
+  stage: review
+  image: node:20
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  script:
+    - npm ci
+    - node scripts/codex-review.mjs
+  variables:
+    OPENAI_API_KEY: $OPENAI_API_KEY
+    CI_MERGE_REQUEST_IID: $CI_MERGE_REQUEST_IID
+```
+
+GitLab API で MR コメントを投稿します。
+
+### Azure DevOps Pipelines / Jenkins
+
+基本構造は同じで、各環境の API（Pull Request コメント投稿）に合わせて出力先を変えるだけです。
+
+---
+
+## 段階的導入
+
+最初から厳しすぎる運用にしないのがコツです。段階を 3 つに分けます。
+
+### Stage 1: 警告コメントだけ
+
+- レビュー結果を PR にコメント投稿
+- CI の fail 条件にはしない
+- チームが結果を見て「精度感」を確認する期間
+
+### Stage 2: critical のみブロッカー
+
+- `critical` レベルが 1 件以上あれば CI fail
+- それ以外は警告のみ
+
+### Stage 3: 観点を増やす / カスタムプロンプトを差し替え
+
+- セキュリティスキャン特化の review job を追加
+- 言語/フレームワーク固有のチェックを別 prompt として切り出し
+- リポジトリの `AGENTS.md` を読み込んでプロジェクト固有のルール反映
+
+---
+
+## 既存の `@codex review` との使い分け
+
+Codex には GitHub PR 上で `@codex review` とコメントするだけのレビュー機能もあります（[integrations-slack-linear](/knowledge/ai-tools/codex/integrations-slack-linear) と関連）。
+
+| 観点 | `@codex review` | SDK 自動化 |
+|---|---|---|
+| 起動 | 人間が PR にコメントしたとき | PR open/update で自動 |
+| 観点の固定 | 都度 prompt 指定 | スクリプトで一定 |
+| 出力形式 | PR コメント（自然文） | 構造化（JSON）→ CI 連携可 |
+| カスタマイズ | 限定的 | 自由 |
+| 適性 | スポット利用、開発者主導 | 全 PR に統一基準を適用したい組織 |
+
+両方併用も可能です。「日常は SDK で機械的に。深掘りしたい PR は人間が `@codex review` を手で叩く」のような運用が現実的です。
+
+---
+
+## 落とし穴
+
+- **大きな差分**: context window を超える可能性。チャンクに分割して順に投げる
+- **誤検出**: 厳しめのプロンプトは誤検出も増える。チームの合意ベースで観点を絞る
+- **依存ファイル**: 差分だけ見ても判断できないケース（呼び出し元など）。Codex に「必要なら関連ファイルも読んで」と指示
+- **API コスト**: 全 PR で実行すると無視できない。最初は draft PR を除外、ラベル制御するなど
+- **シークレット流出**: 差分にシークレットが含まれていた場合、Codex への入力 → 監査ログに残る。pre-process で sanitize
+
+---
+
+## まとめ
+
+Codex SDK を使うとコードレビューをワークフローに組み込めます。
+
+- レビュー観点と出力形式を明確にする
+- 構造化出力で CI / PR コメントへの統合を容易に
+- 段階導入：警告のみ → critical ブロック → カスタム観点拡張
+- 人間レビューの**補助**として導入する
+
+---
+
+## 関連リンク
+
+- [OpenAI Cookbook: Build Code Review with Codex SDK](https://developers.openai.com/cookbook/examples/codex/build_code_review_with_codex_sdk)
+- [Codex SDK ガイド（本サイト）](/knowledge/ai-tools/codex/codex-sdk)
+- [Codex × GitHub Action（本サイト）](/knowledge/ai-tools/codex/github-action-cicd)
+- [Codex セキュリティと脅威モデル（本サイト）](/knowledge/ai-tools/codex/security-threat-model)

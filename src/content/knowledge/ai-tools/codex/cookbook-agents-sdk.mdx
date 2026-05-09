@@ -1,0 +1,197 @@
+---
+title: "Codex Cookbook: Codex CLIをMCPサーバー化してAgents SDKから一貫した開発ワークフローを作る"
+description: "OpenAI 公式 Cookbook の Agents SDK 連携例をもとに、Codex CLI を MCP サーバーとして起動し、Agents SDK から呼び出す構成を 2026 年 5 月時点の仕様で整理。単一エージェントから始める導入、PM/実装/レビュー/検証の役割分担、運用上の注意点までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "cookbook", "Agents SDK", "MCP", "multi-agent", "workflow"]
+sortOrder: 35
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- Codex CLI を **MCP サーバー**として起動し、Agents SDK 側から開発作業ツールとして呼び出せる
+- 単一エージェントから始めて、必要に応じて PM / 実装 / レビュー / 検証へ役割分担
+- 同じプロンプト・同じ手順・同じ検証を通すことで **再現性のある開発ワークフロー**を作れる
+- チームの標準ワークフローをコードとして定義したい組織に向く
+- 最初から複雑にせず、単一ワークフローから段階的に組み立てる
+
+このレシピの一次ソースは OpenAI Cookbook の [Building Consistent Workflows with Codex CLI + Agents SDK 例](https://developers.openai.com/cookbook/examples/codex/codex_mcp_agents_sdk/building_consistent_workflows_codex_cli_agents_sdk) です。
+
+---
+
+## なぜ「一貫したワークフロー」が必要か
+
+AI エージェントを個別に使うだけでも便利ですが、チーム開発では **「誰が実行しても同じ品質で進む」**ことが重要です。
+
+- レビュー観点が人によって違う
+- テスト実行のコマンドが揃わない
+- 完了報告のフォーマットが個人差
+- 失敗時のリカバリ手順が口伝
+
+これらを Codex CLI + Agents SDK で **アプリケーションとして定義**すれば、属人性を減らせます。
+
+---
+
+## 構成イメージ
+
+```
+┌─────────────────────────┐
+│   ユーザー（Web/CLI）   │
+└────────────┬────────────┘
+             │
+             ▼
+┌─────────────────────────┐
+│   Agents SDK エージェント │ ← 全体の進行役
+│  （Python / TypeScript）  │
+└────────────┬────────────┘
+             │ MCP 経由
+             ▼
+┌─────────────────────────┐
+│  Codex CLI（MCP server） │ ← 実作業（コード変更）
+└─────────────────────────┘
+```
+
+Agents SDK 側のエージェントが「全体の進行役」、Codex CLI が「コードベース上の実作業」を担います。
+
+---
+
+## Codex CLI を MCP サーバーとして起動する
+
+```bash
+codex mcp-server
+```
+
+これで Codex CLI が MCP プロトコル経由で他のエージェントから呼び出される MCP サーバーとして動作します。Agents SDK 側からは `codex` を 1 つのツールとして利用できます。
+
+詳細は [Codex MCP 連携](/knowledge/ai-tools/codex/mcp-integration) と [Codex SDK ガイド](/knowledge/ai-tools/codex/codex-sdk) を参照。
+
+---
+
+## Phase 1: 単一エージェントから始める
+
+最初は単一エージェントの構成から始めると理解しやすくなります。
+
+### 流れ
+
+1. ユーザーが開発タスクを依頼する
+2. Agents SDK のエージェントがタスクを整理する
+3. Codex CLI を呼び出して実装や調査を進める
+4. 結果を受け取り、要約して返す
+
+この段階でも、**作業の入口と出口を統一できる**メリットがあります。チャット UI からタスクを受け取り、Codex を経由して結果を返すアプリケーションのプロトタイプとして使えます。
+
+### 実装イメージ（疑似コード）
+
+```python
+from openai_agents import Agent, MCPServer
+
+codex_server = MCPServer(command="codex mcp-server")
+
+dev_agent = Agent(
+    name="dev-assistant",
+    instructions="""
+あなたは開発タスクの進行役です。ユーザーから依頼を受け、Codex を使って
+コードベース上の実作業を行い、結果をユーザーに要約して返します。
+
+ルール:
+- Codex に依頼する前にタスクを明確化する
+- 結果は変更ファイル一覧と検証結果を含めて報告する
+- 失敗した場合は原因仮説を 2-3 個出す
+""",
+    tools=[codex_server],
+)
+
+result = dev_agent.run("auth/login.ts に rate limit を追加してください")
+```
+
+---
+
+## Phase 2: 複数エージェントで役割分担
+
+より高度な構成では、複数エージェントに役割を分けます。
+
+| エージェント | 役割 |
+|---|---|
+| **PM エージェント** | 要件整理、タスク分割、進行管理 |
+| **実装エージェント** | Codex CLI を使ってコード変更 |
+| **レビューエージェント** | 差分確認、リスク指摘、テスト要否判断 |
+| **検証エージェント** | テスト実行、結果確認、ロールバック判断 |
+
+各エージェントが Codex を必要に応じて呼び出します。
+
+### メリット
+
+- 複雑なタスクでも見通しを保ちやすい
+- 役割ごとにプロンプトとモデルを最適化できる（PM は推論重視、実装は速度重視など）
+- 失敗時のリカバリ責任が明確
+
+### デメリット
+
+- 構成が複雑になる
+- ハンドオフのオーバーヘッド
+- ログ・監査が増える
+
+最初から複数エージェントにせず、**単一エージェントで運用が安定してから役割分割**するのが安全です。
+
+---
+
+## 運用上の注意点
+
+### 最初は複雑にしすぎない
+
+単一ワークフローを作って、ログ、失敗時の扱い、権限、レビューの場所を確認します。複雑な multi-agent 構成は学習コストが高く、デバッグも難しくなります。
+
+### 人間の承認ポイントを明確に
+
+特にコード変更や外部サービス連携がある場合は、**どこで人間が承認するか**をワークフローに組み込みます。
+
+- 計画 → 人間レビュー → 実装
+- 実装 → 人間レビュー → マージ
+- 外部 API 呼び出し前に承認
+
+`requirements.toml` の `approval_policy` や Hooks の `PermissionRequest` と組み合わせると、ガードレールを多層化できます。
+
+### ログと監査
+
+各エージェントの依頼・応答・Codex への入出力をログに残します。Compliance API や社内ログ収集パイプラインへの転送を最初から組み込んでおくと、後から運用問題が起きても追跡できます。
+
+### 権限スコープ
+
+エージェントが叩ける範囲を絞ります。
+
+- どのリポジトリにアクセスできるか
+- どの環境（dev / staging / prod）に反映できるか
+- どの API キーで動くか
+- 並列実行の上限
+
+---
+
+## 適性のあるユースケース
+
+- **開発支援チャットボット**: Slack / Teams からタスクを受け、Codex で実装、PR を返す
+- **オンコール対応の自動化**: 障害アラートを受けてエージェントが調査 → 修正候補を提示
+- **コード品質の継続改善**: 定期的に脆弱性レポートを読み、Codex に修正を依頼
+- **新人サポート**: Q&A 受付 → コード調査 → 説明返信
+
+逆に、**1 回限りの自動化**や **単純な CLI スクリプトで足りるケース**は、Agents SDK を使う必要はありません。`codex exec` で十分な場合がほとんどです。
+
+---
+
+## まとめ
+
+Codex CLI と Agents SDK を組み合わせると、Codex を **チームの標準ワークフロー**に組み込めます。
+
+単発の AI 利用から一歩進んで「再現性のある開発プロセス」を作りたい場合に有効です。最初は単一エージェント・単一ワークフローから始め、運用が安定してから役割分割や複雑化へ進めるのが現実的なルートです。
+
+---
+
+## 関連リンク
+
+- [OpenAI Cookbook: Building Consistent Workflows](https://developers.openai.com/cookbook/examples/codex/codex_mcp_agents_sdk/building_consistent_workflows_codex_cli_agents_sdk)
+- [Codex MCP 連携（本サイト）](/knowledge/ai-tools/codex/mcp-integration)
+- [Codex SDK ガイド（本サイト）](/knowledge/ai-tools/codex/codex-sdk)
+- [Codex サブエージェント（本サイト）](/knowledge/ai-tools/codex/subagents)
+- [Codex Hooks（本サイト）](/knowledge/ai-tools/codex/hooks)
