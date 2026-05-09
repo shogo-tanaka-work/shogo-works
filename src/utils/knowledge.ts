@@ -170,6 +170,51 @@ export function getSubcategories(
   return subcategories[category] ?? [];
 }
 
+/**
+ * UnifiedArticle 配列を tier 単位でグループ化する。
+ * tier 定義の各エントリの `sortOrderStart` をしきい値にして区切る。
+ *
+ * tier 定義に該当しない sortOrder の記事（最初の tier の start より小さい場合のみ）は
+ * 先頭の `null` グループに入れる。
+ */
+export function groupArticlesByTier<T extends Pick<UnifiedArticle, "sortOrder">>(
+  articles: T[],
+  tiers: import("@/data/knowledgeTiers").KnowledgeTier[],
+): Array<{ tier: import("@/data/knowledgeTiers").KnowledgeTier | null; articles: T[] }> {
+  if (tiers.length === 0) {
+    return [{ tier: null, articles }];
+  }
+
+  // tier 定義は order 昇順とは限らないので sortOrderStart 昇順でソート
+  const sorted = [...tiers].sort((a, b) => a.sortOrderStart - b.sortOrderStart);
+
+  const groups: Array<{
+    tier: import("@/data/knowledgeTiers").KnowledgeTier | null;
+    articles: T[];
+  }> = [];
+
+  // 最初の tier より前の sortOrder を持つ記事は null グループに
+  const beforeFirst = articles.filter(
+    (a) => a.sortOrder < sorted[0].sortOrderStart,
+  );
+  if (beforeFirst.length > 0) {
+    groups.push({ tier: null, articles: beforeFirst });
+  }
+
+  for (let i = 0; i < sorted.length; i++) {
+    const tier = sorted[i];
+    const next = sorted[i + 1];
+    const inTier = articles.filter(
+      (a) =>
+        a.sortOrder >= tier.sortOrderStart &&
+        (next === undefined || a.sortOrder < next.sortOrderStart),
+    );
+    groups.push({ tier, articles: inTier });
+  }
+
+  return groups;
+}
+
 /** 全タグと出現回数を取得する（公開記事のみ、件数降順→タグ名昇順） */
 export function getAllTags<T extends KnowledgeEntry>(
   entries: T[],
