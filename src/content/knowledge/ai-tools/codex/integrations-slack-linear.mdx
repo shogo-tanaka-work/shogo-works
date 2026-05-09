@@ -1,0 +1,207 @@
+---
+title: "Codex × Slack / Linear 連携ガイド：会話とチケットから直接Codexにタスクを渡す"
+description: "Codex の Slack 連携と Linear 連携を 2026 年 5 月時点の公式仕様で整理。`@Codex` メンションでのタスク開始、issue assign による委任、Triage rules による自動 assign、Enterprise のデータ制御、Linear MCP でのローカル接続まで、チームのワークフローへの組み込み方をまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Slack", "Linear", "integration", "triage", "MCP"]
+sortOrder: 30
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- **Slack**: チャンネルやスレッドで `@Codex` メンション → クラウドタスク開始。スレッド履歴を文脈として使える
+- **Linear**: issue を Codex に assign、または `@Codex` でメンション。Triage rules で新規 issue の自動 assign も可能
+- どちらも前提: Codex Cloud を有効化し、GitHub 接続と少なくとも 1 つの environment が必要
+- Enterprise はワークスペース設定で **完了時の回答投稿の可否**を制御できる
+- Codex App / CLI / IDE から Linear issue を参照したい場合は **Linear MCP** を別途設定
+
+---
+
+## 利用前の共通前提
+
+両連携とも次が必要です。
+
+1. **Codex Cloud tasks** を利用できるプラン
+2. **GitHub** が接続済みで、対象リポジトリ用の **environment** が少なくとも 1 つ存在
+3. Enterprise の場合: ChatGPT ワークスペース管理者が Codex cloud tasks と connector を有効化
+
+セットアップ起点は [`chatgpt.com/codex/settings/connectors`](https://chatgpt.com/codex/settings/connectors)。
+
+---
+
+## Slack 連携
+
+### セットアップ
+
+1. Codex settings → Connectors から Slack app をインストール（ワークスペースのポリシーによっては管理者承認が必要）
+2. 利用したいチャンネルへ `@Codex` を追加
+3. 初回は Slack 内でアカウントリンクを実行
+
+### タスクの開始
+
+チャンネルまたはスレッドで `@Codex` をメンションし、依頼内容を書きます。Codex は **スレッドの過去メッセージも文脈として参照**できるため、議論を踏まえた依頼ができます。
+
+```text
+@Codex 上のエラーについて原因を調査して、必要なら修正案を作ってください。
+```
+
+対象リポジトリを明示する場合:
+
+```text
+@Codex openai/codex でこの不具合を修正してください。
+```
+
+Codex はリアクションでタスク受付を示し、タスクへのリンクを返します。完了後は設定に応じて要約や差分をスレッドに返します。
+
+### environment と repository の選ばれ方
+
+Codex は、ユーザーがアクセスできる environment の中から依頼に最も合うものを選びます。曖昧な場合は **最近使った environment** にフォールバックします。
+
+タスクは選ばれた environment の repo map の **先頭リポジトリのデフォルトブランチ**に対して実行されます。意図しない選択になる場合は、environment の repo map を見直すか、依頼文で明示します。
+
+---
+
+## Linear 連携
+
+### セットアップ
+
+1. Codex settings → Connectors から Codex for Linear をインストール
+2. Linear issue のコメントスレッドで `@Codex` メンションし、Linear アカウントをリンク
+
+### 委任の 2 つの方法
+
+**1. Issue を Codex に assign**
+
+通常のチームメイトに assign するのと同じ感覚で Codex を選ぶと、Codex が作業を開始し、issue に進捗を投稿します。
+
+**2. コメントで `@Codex` メンション**
+
+```text
+@Codex この issue の内容を実装して、必要なテストも確認してください。
+```
+
+返信後は同じスレッドで追加指示を出してセッションを継続できます。リポジトリ固定は明示が確実:
+
+```text
+@Codex openai/codex でこの不具合を修正してください。
+```
+
+### 進捗確認
+
+issue の Activity から確認できます。詳しく追いたい場合は Codex が投稿するタスクリンクを開きます。完了後、Codex は要約と完了タスクへのリンクを投稿し、そこから Pull Request 作成に進めます。
+
+### Triage rules で自動 assign
+
+新しく triage に入った issue を自動で Codex に割り当てるには:
+
+1. Linear の Settings を開く
+2. Your teams から対象チームを選択
+3. Workflow settings の Triage をオン
+4. Triage rules でルールを作り、Delegate から Codex を選択
+
+triage rules によるタスクは **issue 作成者のアカウントを使って実行**される、と公式に説明されています。権限・利用枠が誰のものになるかをチーム運用上確認しておきましょう。
+
+### Linear MCP（ローカルからの参照）
+
+Codex App / CLI / IDE Extension から **ローカルに Linear issue を参照したい**場合は Linear MCP server を設定します。
+
+```bash
+codex mcp add linear --url https://mcp.linear.app/mcp
+```
+
+実行すると Linear アカウントでのサインインと Codex への接続が求められます。手動設定する場合は `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.linear]
+url = "https://mcp.linear.app/mcp"
+```
+
+その後ログイン:
+
+```bash
+codex mcp login linear
+```
+
+これで CLI セッション中に「Linear の issue ABC-123 を読んで」のような依頼が通るようになります。
+
+---
+
+## Enterprise のデータ制御
+
+### Slack の回答投稿制限
+
+デフォルトでは、Codex はタスク完了時にスレッドへ回答を投稿できます。回答には実行 environment の情報に基づく内容が含まれる場合があります。
+
+Enterprise 管理者は **ChatGPT workspace settings で「Codex Slack app が完了時に回答を投稿する」設定をオフ**にできます。この場合、Codex はタスクへのリンクだけを返し、詳細はリンク先で確認する運用になります。
+
+機密性の高いチャンネルでは、回答投稿の可否、チャンネル参加者、タスクリンクの扱いをチームで確認しておくとよいです。
+
+### Linear の閲覧範囲
+
+Linear 連携でも、Codex が受け取るのは依頼された issue の内容と、必要に応じて関連 issue / コメントです。組織のセキュリティポリシーに合わせて、Codex を assign する issue の範囲を運用ルールで決めるのが推奨されます。
+
+---
+
+## 典型的なフロー
+
+### 例 1: Slack で議論 → Codex に修正委任 → PR 作成
+
+```
+[#dev-frontend]
+Alice: チェックアウトページで NaN が表示されることがある。再現できた？
+Bob: できた。`getTotalPrice()` が undefined を返すケースがあるみたい
+Alice: 原因と修正候補を Codex に投げてみよう
+
+@Codex このスレッドの bug を調査して修正案を作ってください。
+@codex repo は acme/storefront、対象は src/checkout/ です。
+```
+
+Codex がタスクリンクと要約を返し、最終的に PR を生成。チーム側はリンクから diff レビューに進みます。
+
+### 例 2: Linear で triage 自動 assign
+
+```
+新規 issue 「Mobile: avatar アップロードで 500」が triage に入る
+↓
+triage rule により Codex に自動 assign
+↓
+Codex が environment "storefront-staging" を選び、原因調査と修正案を投稿
+↓
+issue 担当者が PR をレビュー
+```
+
+---
+
+## トラブルシュート
+
+| 症状 | 確認ポイント |
+|---|---|
+| Codex が Slack/Linear に接続できない | 再接続用リンクから OAuth を完了 |
+| 意図しない environment が選ばれる | 依頼文で対象リポを明示 / repo map を更新 |
+| Slack に詳細回答が投稿されない | Enterprise の制限設定。タスクリンクから確認 |
+| Linear で Codex が assign できない | Connector の有効化、対象 team のワークフロー設定 |
+| Codex が古い情報を参照している | スレッド/issue の最終更新を確認、要約を再依頼 |
+
+---
+
+## まとめ
+
+Slack / Linear 連携は、**会話やチケットの場で出た開発タスクを、その場で Codex に渡す**ための機能です。
+
+- Slack は議論駆動。スレッド履歴をそのまま文脈にできる
+- Linear はチケット駆動。assign と triage rules で運用に組み込みやすい
+- どちらも environment と GitHub 接続の整備が前提
+- 結果は要約だけでなくタスクリンクから diff まで確認するのが安全運用
+
+---
+
+## 関連リンク
+
+- [Codex Slack 連携（公式）](https://developers.openai.com/codex/integrations/slack)
+- [Codex Linear 連携（公式）](https://developers.openai.com/codex/integrations/linear)
+- [Codex GitHub 連携（公式）](https://developers.openai.com/codex/integrations/github)
+- [Codex Cloud（Web）ガイド（本サイト）](/knowledge/ai-tools/codex/cloud-web)
+- [Codex MCP 連携（本サイト）](/knowledge/ai-tools/codex/mcp-integration)

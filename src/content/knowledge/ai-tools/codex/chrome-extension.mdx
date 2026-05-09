@@ -1,0 +1,139 @@
+---
+title: "Codex for Chrome 拡張ガイド：サインイン済みブラウザを使うタスクをCodexに任せる"
+description: "2026年5月7日に追加された Codex for Chrome 拡張の機能、セットアップ、対応サイト、権限、In-app browser との使い分けを 2026 年 5 月時点の公式仕様で整理。LinkedIn / Salesforce / Gmail など、サインイン済み状態が必要なタスクをブラウザ越しに Codex に任せる方法をまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Chrome", "Browser", "Computer Use", "Plugin", "release-2026-05-07"]
+sortOrder: 28
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- 2026-05-07 リリース。**Codex for Chrome** 拡張は、サインイン済みのブラウザ状態が必要なタスクを Codex に任せるための入口
+- 主な対象は LinkedIn / Salesforce / Gmail / 社内ツールなど、認証セッションを使うサイト
+- Codex の「プラグイン」から Chrome を追加してインストール・接続
+- ローカルサーバーや公開サイトは引き続き **in-app browser** が優先され、Chrome が必要なケースで自動切り替え
+- 権限はページデバッグ、全 Web サイトのデータ読取・変更、ブラウジング履歴アクセスなど広範。許可するサイトを限定する運用が前提
+
+---
+
+## なぜ Chrome 拡張が必要か
+
+Codex は元々、CLI / IDE / Codex App / Cloud の各サーフェスから動作しますが、**ブラウザ上のサインイン済み状態が必要なタスク**は別の問題です。たとえば次のようなケース:
+
+- LinkedIn で求人投稿の文面を整える
+- Salesforce のダッシュボードからデータを取得して整理する
+- Gmail の特定スレッドを要約してチームに展開する
+- 社内 SaaS の管理画面で設定を確認する
+
+これらはユーザーがログイン済みの Chrome セッションでしか踏めないため、Codex App の **in-app browser**（コンテナ起動の中立ブラウザ）では認証が通りません。Codex for Chrome 拡張は、ユーザーがすでにログインしている Chrome をそのままエージェントに使わせるためのブリッジです。
+
+公式ドキュメントは [`developers.openai.com/codex/app/chrome-extension`](https://developers.openai.com/codex/app/chrome-extension)。
+
+---
+
+## セットアップ
+
+1. Codex App を開き、**Plugins** から **Chrome** を追加
+2. Chrome に拡張機能をインストール（Chrome Web Store 経由）
+3. 拡張機能を Codex App に接続（OAuth 認可）
+4. 拡張機能から、Codex に許可するサイトを選択
+
+接続後は、Codex App の通常のスレッドから「Chrome を使ってこのページに行ってください」と指示するだけで、Codex が拡張経由でタブを操作します。
+
+---
+
+## In-app browser との使い分け
+
+| 状況 | 使うブラウザ |
+|---|---|
+| `localhost` の開発サーバーで UI 確認 | in-app browser |
+| 公開ページのスクレイピング・スクリーンショット | in-app browser |
+| LinkedIn / Salesforce / Gmail のような **認証セッションを使うサイト** | Chrome 拡張 |
+| 社内 SaaS（IdP 認証必須） | Chrome 拡張 |
+| 公開 API ドキュメントを参照 | in-app browser |
+
+Codex は依頼内容と対象 URL から **どちらを使うかを自動判断**します。明示的に「Use Chrome to ...」「Open in the in-app browser」と書くと選択を固定できます。
+
+---
+
+## 権限とリスク
+
+Chrome 拡張は次の権限を要求します。
+
+- ページのデバッグ（DOM・JS 実行制御）
+- 全 Web サイトのデータ読取・変更
+- ブラウジング履歴へのアクセス
+
+これらは Computer Use 系機能と同様、**広範な権限**です。セキュリティ運用としては:
+
+- 許可サイトをホワイトリストで絞る（拡張の設定 UI から）
+- 機密性の高い管理コンソール（本番 DB、決済管理画面など）は別ブラウザプロファイルで運用し、Codex 接続済みプロファイルからログインしない
+- 重要操作（データ削除、決済承認）は Codex に任せず人間が手動で実行する運用ルール
+- 監査ログ（Codex の操作履歴）を Compliance API 経由で定期レビュー
+
+---
+
+## 典型的な使い方
+
+### LinkedIn の DM 草稿
+
+```text
+Use Chrome to open LinkedIn and look at the latest 5 connection requests.
+For each accepted one, draft a brief intro DM in my voice.
+Don't send anything—leave the drafts in the message composer.
+```
+
+### Salesforce のレポート抽出
+
+```text
+Open the "Q2 Pipeline" Salesforce report in Chrome.
+Export the visible rows as CSV, save to ~/Downloads/q2-pipeline.csv,
+and summarize total ARR by stage.
+```
+
+### Gmail のスレッド要約
+
+```text
+Open Gmail in Chrome, find the thread "Project Phoenix Q3 Plan",
+and summarize the open questions and pending decisions.
+```
+
+いずれも **「読む / 草稿を作る」までを Codex に任せ、最終送信や確定操作は人間が行う**設計が安全です。
+
+---
+
+## トラブルシュート
+
+- **Chrome が起動しない**: 拡張機能が無効になっていないか、最新版か確認。Codex App を再起動
+- **特定サイトでブロックされる**: そのサイトが拡張からの操作を検出してブロックしている可能性。サイトの利用規約・bot 検出ポリシーを確認
+- **思っていない操作をされた**: prompt で対象 URL と操作範囲を限定する。「ページの一番上のセクションだけ」「Send ボタンは押さない」など
+- **権限を取り消したい**: 拡張機能の設定画面、または Chrome の `chrome://extensions/` から削除
+
+---
+
+## Computer Use（macOS）との関係
+
+Codex には別途、**Computer Use**（macOS で GUI 操作全般を任せる機能）があります。両者の違い:
+
+| 観点 | Chrome 拡張 | Computer Use |
+|---|---|---|
+| 対応 OS | Chrome が動く全 OS | macOS のみ |
+| 対象範囲 | Chrome タブのみ | デスクトップ全体（任意のアプリ） |
+| 認証セッション | 既存 Chrome セッション | 各アプリの状態をそのまま使える |
+| 権限粒度 | サイト単位 | アプリ単位 |
+| 主な用途 | Web SaaS / 社内 Web ツール | ネイティブアプリ込みのワークフロー |
+
+「Web で完結するタスクなら Chrome 拡張、ネイティブアプリ含めて任せたいなら Computer Use」と覚えるとよいです。
+
+---
+
+## 関連リンク
+
+- [Codex for Chrome 拡張（公式）](https://developers.openai.com/codex/app/chrome-extension)
+- [Codex App ガイド（本サイト）](/knowledge/ai-tools/codex/codex-app)
+- [Codex Computer Use ガイド（本サイト）](/knowledge/ai-tools/codex/computer-use)
+- [Codex セキュリティと脅威モデル（本サイト）](/knowledge/ai-tools/codex/security-threat-model)

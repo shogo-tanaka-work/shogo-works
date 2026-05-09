@@ -1,0 +1,180 @@
+---
+title: "Codex セキュリティと脅威モデル：リポジトリ固有の文脈で脆弱性を検出・優先度付けする"
+description: "Codex Security の動作原理（threat model 起点のスキャン）、脅威モデルの書き方、エージェント側の Approval / Sandbox / Rules との関係を 2026 年 5 月時点の公式仕様で整理。一般的な静的解析と何が違うのか、何を threat model に書くと結果が改善するのか、運用上の注意点までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Security", "threat model", "vulnerability", "compliance"]
+sortOrder: 31
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- **Codex Security** は GitHub リポジトリの脆弱性候補を検出・検証・修正提案する機能
+- 一般的な静的解析と違い、**リポジトリ固有の threat model** とコード文脈で優先度付けする
+- 高シグナルな finding は隔離環境で検証され、レビュー前のノイズが減る
+- **threat model は人間が編集する短いセキュリティ要約**。Codex Security の品質は threat model の品質で決まる
+- エージェント側の安全制御（Approval / Sandbox / Rules / Hooks）は **別レイヤー**。両方を組み合わせて多層防御
+
+---
+
+## Codex Security とは
+
+[Codex Security](https://developers.openai.com/codex/security) は、接続済みの GitHub リポジトリを対象に脆弱性候補を探し、優先度付きの finding と修正案を提示する機能です。
+
+従来のツール（Snyk / SonarQube / Semgrep など）は一般的な脆弱性パターンに基づく検出が中心ですが、Codex Security は次の点が異なります。
+
+- **threat model（脅威モデル）** をリポジトリごとに持ち、検出と優先度付けに使う
+- 高シグナルな finding を**隔離環境で検証**してから提示するため、ノイズが減る
+- 修正候補がコード文脈に沿った形で提案される
+
+公式ドキュメントは [`developers.openai.com/codex/security`](https://developers.openai.com/codex/security) と [`developers.openai.com/codex/security/threat-model`](https://developers.openai.com/codex/security/threat-model)。
+
+---
+
+## 仕組み
+
+Codex Security は接続されたリポジトリを **commit 単位**でスキャンします。流れはおおむね次のとおり:
+
+1. リポジトリからスキャン用の文脈（threat model + コード構造）を作る
+2. 脆弱性候補を文脈に照らして確認
+3. 高シグナルな問題は隔離環境で検証
+4. ランク付けされた結果、根拠、修正候補を提示
+5. 開発者が GitHub 上でレビューし、PR 化
+
+ユーザーが見る画面では、単なる検出結果ではなく **「なぜ問題か / どのファイルや commit に関係するか / どう検証されたか / どんな修正が考えられるか」**が追える形式になります。
+
+---
+
+## threat model の役割
+
+threat model は、**プロジェクトの構造とリスクを説明する短いセキュリティ要約**です。Codex Security ではこれを project overview として編集します。
+
+最初の draft はコードから自動生成されますが、コードだけではチームの優先度、業務上の重要性、運用前提までは分かりません。**人間が見直して、自分たちの実態に合わせる**ことが品質改善の中心です。
+
+### 書くとよい内容
+
+- 外部から入ってくる **entry point**
+- ユーザー入力 / Webhook / ファイルアップロードなど **非信頼入力**
+- 認証・認可の前提
+- サービス間通信や内部 API の **信頼境界**
+- 個人情報、課金、権限変更など **sensitive data path**
+- 管理者操作や **privileged action**
+- チームが優先して見たい領域
+
+### 例
+
+```text
+このサービスは、公開 REST API と管理画面を持つアカウント管理システムです。
+外部ユーザーは JSON リクエストとプロフィール画像アップロードを送信できます。
+認証は内部 auth service に委譲し、課金情報の変更は billing service 経由で行います。
+
+重点的に確認したいのは:
+- 認可漏れ（特にユーザー間データアクセス）
+- アップロード処理（MIME チェック・ファイルサイズ・シェル経由展開）
+- サービス間通信の信頼境界
+- 個人情報のログ出力
+```
+
+このように **entry point / 信頼境界 / 重要データ / 優先レビュー領域**を明示すると、Codex Security が「何を重く見るべきか」を判断しやすくなります。
+
+---
+
+## なぜ結果が改善するのか
+
+Codex Security は threat model を:
+
+- 今後のスキャン文脈
+- finding の優先度付け
+- レビュー支援
+
+に使います。**どの入力が危険か / どの処理が重要か / どの境界を越えると問題が大きいか**を伝えるほど、結果がチームの関心に近づきます。
+
+逆に、threat model が曖昧なままだと、一般的な問題に寄りすぎたり、チームにとって重要な attack surface の優先度が下がったりします。
+
+---
+
+## 見直すタイミング
+
+finding が期待した領域に出ない / 重要でない場所ばかり出る、と感じたら threat model を見直します。
+
+また次のような変更時も更新するとよいです。
+
+- 新しい外部 API や UI を追加した
+- 認証・認可の仕組みを変更した
+- ファイルアップロード / Webhook / 外部連携を追加した
+- 課金 / 権限 / 個人情報など重要な処理を変更した
+- リポジトリの責務やアーキテクチャが変わった
+
+threat model の変更は **今後の scan context に反映**されるので、過去の finding を眺めるだけでなく「今後の検出を良くするための入力」として扱うのがコツです。
+
+---
+
+## 編集場所
+
+[`chatgpt.com/codex/security/scans`](https://chatgpt.com/codex/security/scans) を開き、対象リポジトリを選んで Edit。
+
+実用的な進め方として、**現在の threat model を Codex に貼り付け、重点的に見たい領域を会話で整理してから、改善した文章を Web UI に戻す**やり方もあります。アーキテクチャ説明と「何を怖がっているか」を短く書くところから始めると進めやすいです。
+
+---
+
+## エージェント側の安全制御との関係
+
+Codex には複数の安全レイヤーがあります。それぞれ役割が違うので、両方を組み合わせて多層防御を組みます。
+
+| レイヤー | 役割 | 主な設定 |
+|---|---|---|
+| **Codex Security**（本記事） | 静的なリポジトリ脆弱性検出 | threat model |
+| **Approval Modes** | エージェント実行時の操作承認 | `approval_policy` |
+| **Sandbox** | エージェント実行時の権限境界 | `sandbox_mode`、`[permissions]` |
+| **Rules** | プロジェクト固有の禁止事項 | `.codex/rules.toml` |
+| **Hooks** | ライフサイクルイベントでのカスタム検査 | `[hooks]`、`requirements.toml` |
+| **Compliance API** | 監査・記録 | Enterprise 管理 |
+
+Codex Security が見るのは **「コードに潜む脆弱性」**、Approval/Sandbox/Rules/Hooks が見るのは **「エージェントが実行時にやろうとしていること」**。両者は補完関係にあります。
+
+---
+
+## 利用前の前提
+
+Codex Security は Codex Web を通じて接続された GitHub リポジトリで動作します。OpenAI がアクセスを管理しているため、利用したい場合や対象リポジトリが表示されない場合は OpenAI のアカウントチームに確認します。
+
+また、対象リポジトリが Codex Web ワークスペースから利用できる状態であることも必要です。先に Codex Cloud の GitHub 接続と environment を整えておくと、Security のセットアップに進みやすくなります。
+
+---
+
+## 注意点
+
+Codex Security は **セキュリティレビューを補助する**ものであって、人間の判断、コードレベルの確認、業務上の影響評価を置き換えるものではありません。
+
+- finding の証拠 / 再現手順 / 修正案を必ず確認する
+- 修正候補をそのまま取り込むのではなく、既存の設計、テスト、運用上の制約に合っているかをレビューする
+- threat model は機密度の高いドキュメントなので、共有範囲を運用ルールで決める
+- LLM ベースの検出には **誤検出と見落とし**の両方がある。最終判断は人間が行う
+
+---
+
+## まとめ
+
+Codex Security は、リポジトリ固有の文脈を使って脆弱性候補を探し、検証し、修正へつなげるための機能です。
+
+- **threat model** をチームの実態に合わせて継続的に磨く
+- 自動生成された内容をそのまま使わず、entry point / 信頼境界 / 重要データを書き加える
+- エージェント側の安全制御（Approval / Sandbox / Rules / Hooks）と組み合わせて多層防御
+- 提示された finding は人間がレビューして最終判断する
+
+「コード自体の脆弱性は Codex Security」「エージェントの実行時挙動は Approval/Sandbox/Rules/Hooks」と覚えると、両者の役割が混ざらずに整理できます。
+
+---
+
+## 関連リンク
+
+- [Codex Security（公式）](https://developers.openai.com/codex/security)
+- [Codex Threat Model（公式）](https://developers.openai.com/codex/security/threat-model)
+- [Codex Security Setup（公式）](https://developers.openai.com/codex/security/setup)
+- [Codex Security FAQ（公式）](https://developers.openai.com/codex/security/faq)
+- [Codex 承認モード&サンドボックス（本サイト）](/knowledge/ai-tools/codex/approval-modes-sandbox)
+- [Codex Hooks（本サイト）](/knowledge/ai-tools/codex/hooks)
+- [Codex Enterprise 管理者セットアップ（本サイト）](/knowledge/ai-tools/codex/enterprise-admin)
