@@ -1,0 +1,228 @@
+---
+title: "Codex SDK ガイド：TypeScript / Python から Codex をプログラム制御する"
+description: "Codex SDK（TypeScript / Python）と App Server / Non-interactive Mode の位置づけを 2026 年 5 月時点の公式仕様で整理。CI/CD 統合、独自エージェント開発、社内ポータル組み込みなど、`codex exec` の先にある統合パターンと導入判断基準をまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "SDK", "TypeScript", "Python", "App Server", "automation"]
+sortOrder: 29
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- **TypeScript SDK**（`@openai/codex-sdk`）: Node.js 18+ のサーバーサイド利用。安定提供
+- **Python SDK**（`codex_app_server`）: experimental。ローカル Codex App Server を JSON-RPC で制御
+- 単発の自動化なら `codex exec` が最も軽量。スレッド継続、状態保持、深い統合が必要な段階で SDK へ
+- v0.130.0（2026-05-08）で `codex remote-control` が追加され、ヘッドレス・リモート操作可能な App Server を簡単に立ち上げられるように
+- 統合の深さで「`codex exec` → SDK → app-server protocol」の順に選ぶ
+
+---
+
+## 何を選べばよいか
+
+| 要件 | 向いている選択 |
+|---|---|
+| 単発の要約や CI チェック | `codex exec` |
+| JSON 出力をパイプで受けたい | `codex exec --json` |
+| アプリからスレッドを開始・再開したい | Codex SDK |
+| 独自 UI や社内ポータルに組み込みたい | Codex SDK または app-server |
+| VS Code 拡張のような深いクライアント統合 | app-server protocol |
+
+SDK は便利ですが、`codex exec` で始められるならそちらが圧倒的に軽量です。**まず `codex exec` でワークフローを固め、継続的なスレッド制御やアプリ統合が必要になった段階で SDK へ進む**のが導入リスクを抑える進め方です。
+
+---
+
+## TypeScript SDK
+
+### インストール
+
+```bash
+npm install @openai/codex-sdk
+```
+
+Node.js 18 以降が必要です。サーバーサイドでの利用が想定されており、ブラウザ向けではありません。
+
+### 基本パターン
+
+```ts
+import { Codex } from "@openai/codex-sdk";
+
+const codex = new Codex();
+const thread = codex.startThread();
+
+const result = await thread.run(
+  "Make a plan to diagnose and fix the CI failures"
+);
+
+console.log(result);
+```
+
+同じ thread で続きの指示を出すこともできます。
+
+```ts
+const result = await thread.run("Implement the plan");
+console.log(result);
+```
+
+過去のスレッド ID を保存しておけば、後から再開できます。
+
+```ts
+const threadId = "<thread-id>";
+const thread2 = codex.resumeThread(threadId);
+
+const result2 = await thread2.run("Pick up where you left off");
+console.log(result2);
+```
+
+### 適している用途
+
+- **CI 失敗調査**: パイプラインから Codex を呼び、失敗ログを渡して修正案を生成
+- **長いリファクタの段階実行**: スレッドを保持しながら milestone を順に実装
+- **段階的レビュー支援**: PR ごとにスレッドを作り、コメントを返す
+- **社内開発ポータル**: ユーザーがブラウザから Codex に依頼を投げ、結果を UI に反映
+- **多ターン対話の bot**: Slack / Teams bot からスレッドを継続
+
+---
+
+## Python SDK（experimental）
+
+Python 3.10+ と、open-source Codex repo のローカル checkout が必要です。Codex repo 内で editable install します。
+
+```bash
+cd sdk/python
+python -m pip install -e .
+```
+
+### 同期 API
+
+```py
+from codex_app_server import Codex
+
+with Codex() as codex:
+    thread = codex.thread_start(model="gpt-5.4")
+    result = thread.run("Make a plan to diagnose and fix the CI failures")
+    print(result.final_response)
+```
+
+### 非同期 API
+
+既存アプリが async の場合:
+
+```py
+import asyncio
+
+from codex_app_server import AsyncCodex
+
+async def main() -> None:
+    async with AsyncCodex() as codex:
+        thread = await codex.thread_start(model="gpt-5.4")
+        result = await thread.run("Implement the plan")
+        print(result.final_response)
+
+asyncio.run(main())
+```
+
+### 注意
+
+experimental のため、本番導入では **API 変更の可能性とバージョン固定**を前提に設計してください。Python 系の社内ツール（Jupyter ノートブック自動化、Django/FastAPI への組み込み）に適しますが、production-grade SLA が必要なら TypeScript SDK が推奨されます。
+
+---
+
+## App Server と remote-control
+
+Codex は内部的に **App Server** を持ち、各サーフェス（CLI / IDE / Codex App）はこの App Server と JSON-RPC で通信します。SDK は App Server をプログラムから扱うためのラッパーです。
+
+v0.130.0（2026-05-08）で `codex remote-control` サブコマンドが追加されました。これは **ヘッドレスでリモート操作可能な App Server を簡単に立ち上げる**ためのエントリポイントです。
+
+```bash
+codex remote-control
+```
+
+これにより:
+
+- CI から Codex を別マシンで動かし、結果だけを受け取る構成
+- 開発マシン上の Codex を、別端末（タブレット、別 PC）から制御する構成
+- 社内に共有 Codex サーバーを立て、複数開発者が同じプロジェクトに対して並行で操作する構成
+
+が実現しやすくなりました。
+
+---
+
+## CI/CD への組み込み例
+
+### TypeScript SDK + GitHub Actions
+
+```yaml
+# .github/workflows/codex-investigate.yml
+name: Codex CI Failure Investigation
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+
+jobs:
+  investigate:
+    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: node scripts/codex-investigate.mjs
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+```
+
+```ts
+// scripts/codex-investigate.mjs
+import { Codex } from "@openai/codex-sdk";
+
+const codex = new Codex();
+const thread = codex.startThread();
+const result = await thread.run(
+  "The latest CI run failed. Read the recent commits and CI logs, " +
+  "explain what likely broke, and propose a minimal fix."
+);
+console.log(result);
+```
+
+`codex exec --json` で十分なら CI のシェルスクリプトだけで完結しますが、結果を構造化して別の処理に渡したい / スレッドを保持して人間が後から続きを実行したい、といった場面で SDK の効果が出ます。
+
+---
+
+## 認証と権限の運用
+
+SDK でも **認証、実行権限、サンドボックス、ログの扱い**は CLI 利用と同じく設計が必要です。特に社内ツールに組み込む場合は次を明確にしておきます。
+
+- **誰の権限で Codex が動くのか**: API キーの所有者 vs 実行を依頼したユーザー
+- **どのリポジトリへアクセスできるのか**: 環境変数や `config.toml` の制限
+- **承認モード**: SDK 経由でも承認 prompt は出る。CI のような無人実行では `--ask-for-approval never` 相当の設定が必要
+- **ログ・監査**: Compliance API への送信、社内ログ収集パイプラインへの転送
+
+`requirements.toml` の管理者強制（`allowed_sandbox_modes` / `allowed_approval_policies` 等）は SDK 経由でも適用されます。
+
+---
+
+## まとめ
+
+Codex SDK は、Codex を「開発者の手元」だけでなく「自社の自動化やアプリケーション」に組み込むための入口です。
+
+- **TypeScript SDK**: サーバーサイド統合の本命。Node.js から本番運用可能
+- **Python SDK**: experimental。app-server を試したい / Python 中心のツールチェーンと統合したい場合
+- **app-server protocol**: 深いクライアント統合。VS Code 拡張のような自前 UI 構築
+
+`codex exec` で始め、必要に応じて SDK、さらに必要なら app-server protocol へ。段階的に深めていくのが現実的です。
+
+---
+
+## 関連リンク
+
+- [Codex SDK（公式）](https://developers.openai.com/codex/sdk)
+- [Codex Non-interactive Mode（公式）](https://developers.openai.com/codex/noninteractive)
+- [Codex App Server（公式）](https://developers.openai.com/codex/app-server)
+- [Codex CLI 主要機能（本サイト）](/knowledge/ai-tools/codex/cli-features)
+- [Codex × GitHub Action（本サイト）](/knowledge/ai-tools/codex/github-action-cicd)
