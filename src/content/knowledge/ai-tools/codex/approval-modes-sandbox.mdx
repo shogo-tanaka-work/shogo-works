@@ -1,111 +1,114 @@
 ---
 title: "Codex CLI 承認モード&サンドボックス：安全制御の2層構造を理解する"
-description: "OpenAI Codex CLI の承認ポリシーとサンドボックスの2層構造を徹底解説。on-request・never・untrusted・granularの各モード、macOS/Linux/WindowsのOS別サンドボックス実装、ネットワーク制御まで2026年4月の最新仕様でまとめました。"
+description: "OpenAI Codex CLI の承認ポリシーとサンドボックスの2層構造を徹底解説。on-request・never・untrusted・granular の各モード、macOS/Linux/Windows の OS 別サンドボックス実装、ネットワーク制御を 2026 年 5 月時点の公式仕様に合わせてまとめました。"
 category: "ai-tools"
 subcategory: "codex"
 tags: ["Codex CLI", "承認モード", "サンドボックス", "セキュリティ", "sandbox-exec", "bwrap"]
 sortOrder: 1
 createdAt: 2026-04-15
+updatedAt: 2026-05-08
 author: "田中省伍"
 ---
 
-## TL;DR
+## この章の要点
 
-Codex CLI の安全制御は**承認ポリシー**と**サンドボックス**の 2 層で独立して動作します。
+Codex CLI の安全制御は**承認ポリシー（approval_policy）**と**サンドボックス（sandbox_mode）**の 2 層で独立に動きます。
 
-- **承認ポリシー**: 「誰が何を承認するか」のルール（ユーザーに確認を求めるタイミング）
-- **サンドボックス**: 「OS レベルで技術的に何を許可するか」の制限（承認に関わらず実行できること）
+- **承認ポリシー**: 「いつユーザーに確認を求めるか」
+- **サンドボックス**: 「OS レベルで何を許可するか」
 
-2 層が独立しているため、「ファイル書き込みは承認なしで自動的に実行できるが、OS がネットワークアクセスを技術的に禁止している」のような組み合わせが可能です。
+2 層が独立しているため、「ワークスペース内のファイル編集は確認なしで進めるが、ネットワークアクセスは OS 側で禁止する」といった組み合わせができます。設定は `~/.codex/config.toml` または起動時のフラグで指定します。
 
 ---
 
-## 承認ポリシー（Approval Policy）
+## 承認ポリシー（approval_policy）
 
-承認ポリシーは、Codex エージェントが何かを実行しようとした際に「ユーザーへの確認が必要かどうか」を決定します。
+`config.toml` のトップレベル `approval_policy` か、CLI フラグ `--ask-for-approval`（短縮 `-a`）で指定します。
 
 ### ポリシーの種類
 
 | ポリシー | 確認が求められるタイミング |
 |---|---|
-| `on-request`（Auto のデフォルト） | ワークスペース外のファイル変更・ネットワークアクセス時のみ |
-| `never` | 承認プロンプトなし（サンドボックス制限は有効） |
-| `untrusted` | 状態を変更するすべての操作で確認 |
-| `granular` | 操作種別ごとに個別設定 |
+| `on-request`（推奨デフォルト） | サンドボックスを離れる操作・ネットワークアクセス・副作用のある MCP ツール呼び出しなどで確認 |
+| `never` | 承認プロンプトを無効化（サンドボックス制限は残る） |
+| `untrusted` | 信頼済みコマンドセット外の操作で確認を求める |
+| `granular` | カテゴリごとに boolean で個別制御 |
 
-### on-request（推奨・デフォルト）
-
-```bash
-codex --approval-policy on-request
-```
-
-ワークスペース（プロジェクトディレクトリ）内の変更は自動的に実行されます。外部リソース（他のディレクトリ・ネットワーク）への操作のみ確認が求められます。
-
-日常的な開発作業（コード編集・テスト実行）をスムーズにしつつ、意図しない外部操作を防げる最もバランスの良いモードです。
-
-### never（完全自律）
+### CLI フラグでの指定
 
 ```bash
-codex --approval-policy never
+codex --sandbox workspace-write --ask-for-approval on-request
+codex --sandbox read-only --ask-for-approval untrusted
+codex -a never
 ```
 
-すべての操作を自動実行します。サンドボックスによる OS レベルの制限は維持されるため、技術的に実行不可能な操作（ネットワーク禁止時のアウトバウンド通信など）は引き続きブロックされます。
+### config.toml での指定
 
-### untrusted（保守的）
-
-```bash
-codex --approval-policy untrusted
+```toml
+# ~/.codex/config.toml
+approval_policy = "on-request"
+sandbox_mode    = "workspace-write"
 ```
-
-ファイル書き込み・コマンド実行など、状態を変更するあらゆる操作で確認を求めます。信頼性の低いリポジトリや学習目的での実行に使います。
 
 ### granular（細かい制御）
 
-```json
-// ~/.codex/config.toml
-[permissions.default]
-approval = "granular"
+`granular` は boolean のキー集合で、それぞれのカテゴリで承認プロンプトを出すかどうかを切り替えます。
 
-[permissions.default.granular]
-sandbox_approval = "on-request"      # サンドボックスの変更
-rules = "never"                      # ルールベースの操作（定義済みルールに従う）
-mcp_elicitations = "on-request"      # MCP サーバーからのデータ収集
-request_permissions = "never"        # 追加権限の要求
-skill_approval = "on-request"        # スキルの実行
+```toml
+approval_policy = { granular = {
+  sandbox_approval    = true,   # サンドボックスエスカレーション
+  rules               = true,   # execpolicy ルール一致時のプロンプト
+  mcp_elicitations    = true,   # MCP サーバーからのプロンプト
+  request_permissions = false,  # 追加権限要求のプロンプト
+  skill_approval      = false,  # スキルスクリプトの承認
+} }
 ```
+
+`true` で確認プロンプトを表示し、`false` でプロンプトを省略します（自動的に拒否またはスキップ）。各キーの厳密な真理値表は公式に明記されていないため、運用前に対象環境で挙動を確認してください。
 
 ---
 
 ## セッション中の承認モード変更
 
-セッション中に `/permissions` コマンドでモードをインタラクティブに変更できます。
+セッション中に `/permissions` コマンドでモードをインタラクティブに切り替えられます。たとえばチャットや計画モードに入った時点で `read-only` に降格するといった運用が可能です。
 
-```bash
-# Codex セッション内で実行
+```text
+# Codex セッション内
 /permissions
-> 現在: on-request
-> 変更: never / untrusted / granular / on-request
 ```
+
+実行すると現在の承認ポリシーとサンドボックスモードが表示され、選択肢から切り替えられます。具体的な TUI の表示文言はバージョンによって変わる場合があります。
 
 ---
 
-## サンドボックス（Sandboxing）
+## サンドボックス（sandbox_mode）
 
-サンドボックスは承認ポリシーとは独立した「OS レベルの実行制限」です。承認ポリシーが「確認なし」であっても、サンドボックスが禁止している操作は技術的に実行できません。
+サンドボックスは承認ポリシーから独立した OS レベルの実行制限です。承認ポリシーが `never` でもサンドボックスが許さない操作は実行できません。
 
 ### サンドボックスモード
 
 | モード | 制限内容 |
 |---|---|
 | `read-only` | ファイル参照のみ。編集・コマンド実行は承認必須 |
-| `workspace-write`（デフォルト） | ワークスペース内の読み書き・基本コマンド実行が可能 |
+| `workspace-write`（既定の低摩擦モード） | ワークスペース内の読み書き・ローカルコマンド実行が可能 |
 | `danger-full-access` | サンドボックス制限を完全解除 |
 
 ```bash
-# サンドボックスモードを指定して起動
 codex --sandbox read-only
 codex --sandbox workspace-write
 codex --sandbox danger-full-access  # ⚠️ セキュリティ制限なし
+```
+
+### workspace-write の拡張キー
+
+ワークスペース外への書き込みやネットワーク利用を限定的に許可したい場合は `sandbox_workspace_write` ブロックで上書きできます。
+
+```toml
+[sandbox_workspace_write]
+writable_roots         = ["/var/log/myapp"]  # 追加で書込許可するルート
+network_access         = false               # ワークスペース書込時のネット可否
+exclude_slash_tmp      = false               # /tmp を書込対象から除外するか
+exclude_tmpdir_env_var = false               # TMPDIR を書込対象から除外するか
 ```
 
 ---
@@ -116,114 +119,115 @@ Codex CLI はプラットフォームごとに OS ネイティブのサンドボ
 
 ### macOS: Seatbelt（sandbox-exec）
 
-macOS では Apple の `sandbox-exec` を使います。Seatbelt プロファイル（`.sb` ファイル）で細かい制御が可能です。
+macOS では追加インストールなしで Apple の Seatbelt（`sandbox-exec`）が使われます。
 
-**実際の制限例（workspace-write モード）：**
-- ✅ ワークスペースディレクトリ内の読み書き
-- ✅ `/tmp`・`/var/tmp` への書き込み
-- ✅ `npm`・`git`・`node` などの基本コマンド
-- ❌ `~/.ssh`・`~/.gnupg` などの機密ディレクトリへのアクセス
-- ❌ システムディレクトリ（`/etc`・`/usr` など）への書き込み
+### Linux/WSL2: bubblewrap
 
-### Linux: bubblewrap + seccomp
-
-Linux では `bwrap`（bubblewrap）と `seccomp`（システムコールフィルタ）を組み合わせます。
+Linux と WSL2 では `bwrap`（bubblewrap）が必要です。AppArmor が有効な環境では追加設定が必要になることがあります。
 
 ```bash
-# bubblewrap がインストールされているか確認
-which bwrap
-
-# インストール（Ubuntu/Debian）
+# Ubuntu/Debian
 sudo apt install bubblewrap
 
-# インストール（Fedora/RHEL）
+# Fedora/RHEL
 sudo dnf install bubblewrap
+
+# 確認
+which bwrap
 ```
 
-### Windows: OS ネイティブサンドボックス + WSL2
+### Windows: ネイティブ Windows Sandbox + WSL2
 
-Windows では Windows Sandbox API を使います。WSL2 環境ではネットワークエグレスルールが OS レベルで制御されます（v0.118.0 以降）。
+Windows ではネイティブ Windows Sandbox と WSL2 の双方をサポートしています。プロファイル単位で挙動を上書きする場合は `profiles.<name>.windows.sandbox` を指定します。
+
+> 2026 年 5 月（v0.129.0）の更新で Windows サンドボックスは名前付きパイプアクセス、ConPTY 終了、PowerShell の allow ルール、worktree の `safe.directory` などの信頼性が改善されました。Linux 側でも古い `bwrap`・シンボリンク保護・共有 `/tmp` の取り回しが安定化しています。
 
 ---
 
-## 常にread-onlyな保護ディレクトリ
+## 機密ディレクトリの保護
 
-以下のディレクトリはサンドボックスモードに関わらず**常に書き込み禁止**です。
+サンドボックスはデフォルトで OS の機密領域（システムディレクトリや SSH/GPG の鍵置き場など）への書き込みをブロックします。読み取りをさらに禁止したい場合は `permissions.filesystem.deny_read` でパス・glob を明示的に指定できます（管理者強制設定は `requirements.toml`）。
 
-| ディレクトリ | 理由 |
-|---|---|
-| `.git/` | Git 履歴の改ざん防止 |
-| `.agents/` | エージェント設定の保護 |
-| `.codex/` | Codex 設定の保護 |
+```toml
+# requirements.toml（管理者強制）
+[permissions.filesystem]
+deny_read = ["~/.ssh/**", "~/.gnupg/**"]
+```
 
 ---
 
 ## ネットワーク制御
 
-デフォルトではネットワークアクセスは**無効**です。有効にするには `config.toml` で許可ルールを定義します。
+サンドボックスはデフォルトでネットワークアクセスを禁止します。許可する場合は名前付きの permissions プロファイルでドメインや UNIX ソケットを列挙します。
 
 ```toml
 # ~/.codex/config.toml
 
 [permissions.default.network]
-# 許可するドメインを列挙
-allow = [
-  { domain = "api.github.com" },
-  { domain = "registry.npmjs.org" },
-  { domain = "*.anthropic.com" },
-]
+enabled = true
+mode    = "limited"   # limited | full
 
-# 特定の IP への接続を許可
-# allow = [{ ip = "192.168.1.0/24" }]
+[permissions.default.network.domains]
+"api.github.com"     = "allow"
+"registry.npmjs.org" = "allow"
+"*.anthropic.com"    = "allow"
+"*.internal.example" = "deny"
 
-# UNIXソケット（ローカルプロセス間通信）
-# allow = [{ unix_socket = "/tmp/my-service.sock" }]
+[permissions.default.network.unix_sockets]
+"/tmp/my-service.sock" = "allow"
 ```
 
-**ネットワーク有効化の例（npm install が必要な場合）：**
-
-```toml
-[permissions.development.network]
-allow = [
-  { domain = "registry.npmjs.org" },
-  { domain = "registry.yarnpkg.com" },
-]
-```
+プロキシを必須化したい場合は同セクションに `proxy_url` / `socks_url` / `enable_socks5` を指定します。
 
 ---
 
 ## プロファイルによる環境別設定
 
-作業内容に応じて複数の権限プロファイルを定義できます。
+作業内容ごとに複数の権限プロファイルを定義し、起動時に切り替えられます。
 
 ```toml
 # ~/.codex/config.toml
 
-# デフォルトプロファイル（通常の開発作業）
-[permissions.default]
-approval = "on-request"
-sandbox = "workspace-write"
+approval_policy = "on-request"
+sandbox_mode    = "workspace-write"
 
-# 厳格プロファイル（信頼性の低いコード実行時）
-[permissions.strict]
-approval = "untrusted"
-sandbox = "read-only"
+[profiles.strict]
+approval_policy = "untrusted"
+sandbox_mode    = "read-only"
 
-# 自律プロファイル（信頼済みの自動化タスク）
-[permissions.autonomous]
-approval = "never"
-sandbox = "workspace-write"
+[profiles.autonomous]
+approval_policy = "never"
+sandbox_mode    = "workspace-write"
 
 [permissions.autonomous.network]
-allow = [
-  { domain = "api.github.com" },
-]
+enabled = true
+mode    = "limited"
+
+[permissions.autonomous.network.domains]
+"api.github.com" = "allow"
 ```
 
 ```bash
-# プロファイルを指定して起動
 codex --profile strict
 codex --profile autonomous
+```
+
+---
+
+## 管理者強制設定（requirements.toml）
+
+組織で配布する設定では、ユーザーが選択できる値を絞り込めます。
+
+```toml
+# requirements.toml
+allowed_sandbox_modes     = ["read-only", "workspace-write"]
+allowed_approval_policies = ["on-request", "untrusted"]
+allowed_web_search_modes  = ["disabled", "cached"]
+
+[[rules.prefix_rules]]
+pattern       = [{ token = "rm" }, { token = "-rf" }]
+decision      = "forbidden"
+justification = "破壊的削除を禁止"
 ```
 
 ---
@@ -232,34 +236,37 @@ codex --profile autonomous
 
 | 観点 | Codex CLI | Claude Code |
 |---|---|---|
-| サンドボックス | OS レベル（sandbox-exec / bwrap） | プロセスレベル（Hooks によるブロック） |
+| サンドボックス | OS レベル（Seatbelt / bubblewrap / Windows Sandbox） | プロセスレベル（Hooks によるブロック） |
 | ネットワーク制御 | OS レベルで制限（デフォルト無効） | Hooks で制限（デフォルト有効） |
-| 権限モデル | 承認ポリシー × サンドボックスの 2 層 | パーミッションモード × Hooks の 2 層 |
-| 設定の粒度 | ドメイン・IP・UNIX ソケット単位 | ツール名・コマンドパターン単位 |
+| 権限モデル | approval_policy × sandbox_mode の 2 層 | パーミッションモード × Hooks の 2 層 |
+| 設定の粒度 | ドメイン・UNIX ソケット・glob 単位 | ツール名・コマンドパターン単位 |
 
-Codex CLI は OS レベルのサンドボックスが標準であるため、想定外の操作をより確実にブロックできます。一方、Claude Code は Hooks による柔軟なカスタマイズが強みです。
+Codex CLI は OS レベルのサンドボックスが標準のため、想定外の操作をより確実に遮断できます。Claude Code は Hooks による柔軟なカスタマイズが強みです。
 
 ---
 
-## ハマりポイント・注意事項
+## 注意点・セキュリティ観点
 
-**`workspace-write` はデフォルトだが「何でもできる」ではない**
-`workspace-write` は承認なしで実行できる範囲を広げますが、OS サンドボックスによる制限（機密ディレクトリへのアクセス禁止・ネットワーク無効）は維持されます。
+**`workspace-write` は「何でもできる」ではない**
+書込許可の範囲が広がるだけで、機密ディレクトリやネットワークは引き続き制限されます。`sandbox_workspace_write.network_access` を明示的に `true` にしない限り、外部通信は通りません。
 
-**ネットワークはデフォルト無効なので `npm install` が失敗する**
-Codex CLI でパッケージのインストールが必要なタスクを実行する場合は、事前に `config.toml` でネットワーク許可ルールを設定してください。
+**ネットワーク既定無効で `npm install` が失敗する**
+パッケージ取得が必要なタスクは事前に `[permissions.default.network.domains]` で `registry.npmjs.org` などを `allow` してから起動してください。
 
-**Linux では bwrap のインストールが必要**
-`bwrap` がない環境では `workspace-write` サンドボックスが機能しません。CI 環境では事前インストールを確認してください。
+**Linux/WSL2 では `bwrap` のインストールが必須**
+未導入の環境では `workspace-write` サンドボックスが立ち上がりません。CI イメージにも `bubblewrap` を追加する必要があります。
 
 **`danger-full-access` は最終手段**
-サンドボックスを完全解除するため、悪意のあるコードや予期しない副作用が発生する可能性があります。テスト・研究目的以外では使用しないことを推奨します。
+サンドボックスが完全に外れるため、悪意のあるコードや予期しない副作用が直接ホストに到達します。テスト・研究目的以外では避けてください。
+
+**granular は boolean のみ**
+`granular` のキーは `true`（プロンプトを出す）／`false`（プロンプトを出さない＝自動拒否相当）の 2 値で、`on-request` のような文字列は受け付けません。
 
 ---
 
-## 参考リンク
+## 一次ソース
 
-- [Agent approvals & security — Codex CLI Docs](https://developers.openai.com/codex/agent-approvals-security)
-- [Sandbox — Codex CLI Docs](https://developers.openai.com/codex/concepts/sandboxing)
-- [Configuration reference — Codex CLI Docs](https://developers.openai.com/codex/config-reference)
-- [GitHub: openai/codex](https://github.com/openai/codex)
+- [Agent approvals & security — Codex Docs](https://developers.openai.com/codex/agent-approvals-security)
+- [Sandboxing — Codex Docs](https://developers.openai.com/codex/concepts/sandboxing)
+- [Configuration reference — Codex Docs](https://developers.openai.com/codex/config-reference)
+- [openai/codex Releases（v0.129.0 など）](https://github.com/openai/codex/releases)

@@ -1,0 +1,106 @@
+---
+title: "Codex Computer Use ガイド：Codex に GUI を操作させるための設計と権限"
+description: "Codex App の Computer Use を 2026 年 5 月時点の公式仕様で整理。対応 OS（macOS のみ、EEA / UK / CH は launch 時点では未提供）、`@Computer` / `@AppName` での呼び出し、スクリーンショット・クリック・タイピングの操作範囲、必要な Screen Recording / Accessibility 権限、ターゲット明示・「常に許可しない」運用などのセキュリティ観点をまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Computer Use", "GUI 自動化", "macOS", "Accessibility", "Screen Recording"]
+sortOrder: 18
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- **macOS 専用**（launch 時点では EEA / UK / Switzerland では未提供）
+- Codex App の設定から **Computer Use プラグイン**を導入し、`@Computer` または `@AppName` で呼び出し
+- できることは **スクリーンショット・クリック・タイピング・GUI 自動化**（ウィンドウ／メニュー／クリップボード操作）
+- 動作には **Screen Recording** と **Accessibility** の OS 権限が必要
+- 機密タスクでは「常に許可」を使わず、毎回明示的に承認するのが安全。**ターミナルアプリと Codex 自身は対象外**
+
+---
+
+## Codex Computer Use とは
+
+Codex に「画面を見て」「クリックして」「タイプして」もらうための機能です。GUI でしか操作できないアプリ・iOS シミュレータ・プラグイン未対応の Web サービスに対し、ヒューマンライクな操作を肩代わりさせます。GUI 自動化が前提のテストや、ブラウザ操作が必要な調査タスクで特に有効です。
+
+---
+
+## 公式仕様の概要
+
+公式ドキュメント `/codex/app/computer-use` では、対応 OS・プラグインのインストール手順・`@Computer` / `@AppName` の呼び出し方・Screen Recording / Accessibility 権限・ターミナルや Codex 自身への非対応・機密情報を扱うタスクでの承認方針が説明されています。
+
+---
+
+## 使い方
+
+### 前提
+
+- Codex App（macOS 版）
+- macOS の Screen Recording 権限と Accessibility 権限を Codex に付与
+- 対象アプリは macOS のネイティブ／サポート対象の GUI アプリ（ターミナル系と Codex 自身は対象外）
+
+### 有効化
+
+1. Codex App の設定で **Computer Use** を開く
+2. Computer Use プラグインをインストール
+3. macOS の「システム設定 → プライバシーとセキュリティ」で Codex に Screen Recording と Accessibility を許可
+
+### 呼び出し方
+
+```text
+@Computer Slack の #engineering チャンネルに今日のリリース note を投稿して
+@Safari Stripe ダッシュボードの最新インボイスをスクショで取得して
+```
+
+`@Computer` で OS 全体、`@AppName` で特定アプリを指定すると、Codex がスクリーンショットと操作で目的を達成します。「Slack を開いて投稿して」のように直接指示する形でも動作します。
+
+---
+
+## できる操作
+
+- **スクリーンショット**: ターゲットアプリの画面内容を視認
+- **クリック / ダブルクリック**: UI 要素の操作
+- **タイピング**: キーボード入力
+- **ウィンドウ・メニュー操作**: アクティブ化、最小化、メニュー選択
+- **クリップボード**: コピー＆ペースト、ペーストでの長文入力
+- **ブラウザ**: Web アプリの自動操作（プラグイン未提供サービスでも GUI 経由で操作可能）
+
+---
+
+## 想定ユースケース
+
+- デスクトップアプリの **手動テストの自動化**
+- **GUI でしか再現しないバグ**の再現手順を試行
+- アプリ設定変更（プラグイン未提供のサービス）
+- データソース検査（API が無いダッシュボード等）
+
+---
+
+## 注意点・セキュリティ観点
+
+**ターゲットを 1 つずつ明示する**
+複数アプリにまたがる作業を一度に依頼すると、操作ミスや予期しない動作の原因になります。「まず A を開く → 次に B」のようにステップを区切って指示してください。
+
+**機密性の高いアプリは閉じてから依頼する**
+公式は「機密性の高いアプリは閉じておく」「機密操作は自分が傍にいる状態で各ステップを承認する」運用を推奨しています。「always allow」は信頼できる一般アプリに限定し、パスワードマネージャ・銀行アプリ・本番データベースには設定しないでください。
+
+**対応外: ターミナルと Codex 自身**
+セキュリティ上、シェル（Terminal.app / iTerm2 等）と Codex 自体の UI は Computer Use の操作対象から除外されています。シェル操作は通常の `codex exec` などを使ってください。
+
+**地域制限**
+launch 時点で **EEA・UK・Switzerland では未提供**です。利用可否は随時公式の更新を確認してください。
+
+**OS 権限の扱い**
+Screen Recording と Accessibility は強力な権限です。付与後は Codex がローカルの画面・操作を自動実行できるため、意図しない操作を防ぐためにアイドル時はセッションを閉じておくのが安全です。
+
+**スクリーンショットは個人情報を含み得る**
+画面に映っているものすべてが Codex のコンテキストに渡ります。背景に SNS やメールが見えていると意図せずモデルに送信されるため、不要なウィンドウは閉じてから依頼してください。
+
+---
+
+## 一次ソース
+
+- [Computer Use — Codex App Docs](https://developers.openai.com/codex/app/computer-use)
+- [Codex App — Codex Docs](https://developers.openai.com/codex/app)
+- [Codex for (almost) everything — OpenAI Blog](https://openai.com/index/codex-for-almost-everything/)

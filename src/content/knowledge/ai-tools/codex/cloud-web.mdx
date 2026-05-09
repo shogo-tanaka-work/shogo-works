@@ -1,0 +1,109 @@
+---
+title: "Codex Cloud（Web）ガイド：ブラウザから走らせる並列タスクと GitHub 連携"
+description: "Codex Cloud（Web 版）の現行仕様を 2026 年 5 月時点の公式仕様で整理。`chatgpt.com/codex` でのアクセスと GitHub 連携、Codex Environments の構成、`@codex` メンションでの Issue/PR 起動、IDE / App との連携、`codex cloud exec` での CLI 委譲、Plus / Pro / Business / Edu / Enterprise サブスクの必要要件までまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex Cloud", "Web", "GitHub 連携", "Environments", "@codex"]
+sortOrder: 19
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- アクセス先は [`chatgpt.com/codex`](https://chatgpt.com/codex)。GitHub アカウントを連携してリポジトリ操作を許可
+- Cloud のタスク機能は **ChatGPT Plus / Pro / Business / Edu / Enterprise** が必要（Free / Go でも Codex 自体は利用可。Enterprise は管理者の有効化が前提）
+- バックグラウンドのクラウド環境で動き、ローカルマシンを止めずに並列タスクを処理できる
+- **`@codex`** を Issue / PR に書くと、Codex がタスクを開始して提案・PR 作成まで進める
+- IDE 拡張・Codex App から Cloud にタスクを委譲し、結果をローカルに取り込める。CLI からは `codex cloud exec` で起動
+
+---
+
+## Codex Cloud とは
+
+ブラウザだけで動く Codex のリモート実行環境です。GitHub と連携してリポジトリの中身を読み・変更し、PR を作成するところまで一気に進められます。手元のマシンを起動しっぱなしにする必要がないため、長尺タスクや並列実行に向いています。
+
+---
+
+## 公式仕様の概要
+
+公式ドキュメント `/codex/cloud` には、アクセス方法、必要プラン、GitHub 連携、Codex Environments の構成、`@codex` メンションによる起動、IDE 拡張・App とのタスク連携、インターネットアクセス制御が記載されています。
+
+---
+
+## 使い方
+
+### アクセスと初期設定
+
+1. ブラウザで [`chatgpt.com/codex`](https://chatgpt.com/codex) を開く
+2. ChatGPT アカウント（Plus / Pro / Business / Edu / Enterprise）でサインイン
+3. GitHub アカウントを連携し、Codex に対象リポジトリへのアクセスを許可
+
+Enterprise 環境では、管理者がワークスペース側で Codex を事前に有効化しておく必要があります。
+
+### Environments（実行環境）
+
+リポジトリごとにクラウド実行環境を構成します。
+
+- **対象リポジトリの選択**
+- **セットアップステップの定義**: 依存パッケージのインストール・初期化スクリプトなど
+- **使用するツール / コマンドの宣言**
+- **インターネットアクセス制御**: 管理者がパブリックインターネットへの接続可否を絞り込み
+
+ここで定義した環境は、後段の Cloud タスクや CLI からの呼び出しで共通に使われます。
+
+### タスクの起動
+
+- **Web UI から**: `chatgpt.com/codex` で対象リポジトリを選び、自然言語でタスクを依頼
+- **GitHub の `@codex` メンション**: Issue や PR コメントに `@codex` を含めると Codex がタスクを開始し、必要に応じて PR で提案
+- **IDE 拡張 / Codex App から委譲**: 重い処理を Cloud 側にオフロードし、結果をローカルへ取り込む
+- **CLI から**: `codex cloud exec --env <ENV_ID> "..."`、Best-of-N の `--attempts N` も併用可能
+
+### 結果の受け取り
+
+- Cloud タスクの完了は IDE 拡張・App・Web のいずれにも通知され、生成された diff をローカルに適用できます
+- GitHub 経由起動の場合は PR としてリポジトリに直接出ます
+- `codex apply <TASK_ID>` で Cloud タスクの最新 diff を手元のワーキングツリーに取り込めます
+
+---
+
+## CLI / IDE / App との関係
+
+| 起動元 | 主な使い方 |
+|---|---|
+| Web（`chatgpt.com/codex`） | リポジトリ選択 → 自然言語でタスク依頼 |
+| GitHub | Issue/PR で `@codex` メンション |
+| IDE 拡張 | スレッド内でタスクを Cloud 委譲 |
+| Codex App | Local / Worktree / Cloud の 3 モードから選択 |
+| CLI | `codex cloud exec --env <ENV_ID> "..."`（Best-of-N は `--attempts 1-4`） |
+
+いずれも認証情報・Skills・AGENTS.md などはリポジトリ＋ホーム配下を共通利用するため、起動経路を変えても同じ前提で動きます。
+
+---
+
+## 注意点・セキュリティ観点
+
+**プラン要件と組織側の有効化**
+Codex CLI / IDE 拡張は Free / Go でも使えますが、**Cloud のクラウドタスク機能（GitHub コードレビュー・Slack 連携を含む）は ChatGPT Plus 以上が必要**です。Enterprise の場合はワークスペース管理者による有効化が前提のため、利用できない場合は社内の設定状況を確認してください。
+
+**インターネットアクセスは Environments で制御**
+クラウド実行環境はパブリックインターネットへの接続が既定で制限されています。`npm install` や外部 API 呼び出しが必要なタスクは、Environments の設定でドメイン許可を明示してください。
+
+**`@codex` の権限スコープに注意**
+GitHub アカウント連携時に付与する権限スコープ（リポジトリ書き込みなど）は最小限から始めてください。社外向け公開リポジトリでは、`@codex` が想定外のユーザーから呼ばれるリスクも考慮が必要です。
+
+**Cloud 結果のレビューは必ずローカルで**
+`codex apply` で diff を取り込む際は、そのままマージせず手元で内容を確認してからコミットしてください。Cloud 環境は隔離されているため、ローカル固有の前提が反映されていない場合があります。
+
+**料金は ChatGPT サブスクの利用枠を消費**
+Cloud タスクも他の Codex 利用と同様にクレジットを消費します（章「Codex の料金体系」参照）。長尺タスクや高頻度の Automations と組み合わせるとクレジットが急減する点に注意してください。
+
+---
+
+## 一次ソース
+
+- [Codex Cloud — Codex Docs](https://developers.openai.com/codex/cloud)
+- [Codex（chatgpt.com/codex）](https://chatgpt.com/codex)
+- [Codex App — Codex Docs](https://developers.openai.com/codex/app)
+- [Pricing — Codex Docs](https://developers.openai.com/codex/pricing)

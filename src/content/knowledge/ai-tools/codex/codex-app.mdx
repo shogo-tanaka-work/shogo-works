@@ -1,0 +1,139 @@
+---
+title: "Codex App ガイド：Desktop / Web / Cloud で動くマルチスレッド作業環境"
+description: "Codex App（Desktop / Web）の現行仕様を 2026 年 5 月時点の公式仕様で整理。Local / Worktree / Cloud の 3 実行モード、マルチスレッド、Git 統合、Skills と Automations、Computer Use、画像生成、IDE 拡張との同期、ChatGPT サブスクでの提供範囲までを 1 ページに集約しました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex App", "Desktop", "Web", "Computer Use", "Threads", "Worktree"]
+sortOrder: 17
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- 提供は **Desktop（macOS / Windows）** と **Web（Codex Cloud）**。Linux Desktop は予告のみ
+- 1 ウィンドウで **マルチスレッド** 並走、プロジェクト横断切替、3 つの実行モード（**Local / Worktree / Cloud**）
+- Git diff・コミット・プッシュ・PR 作成が UI から完結、Codex IDE 拡張ともスレッド共有
+- **Skills / Automations / Computer Use / 画像生成 / 音声入力（Ctrl+M）** などのワークフロー機能
+- 認証は ChatGPT アカウントまたは OpenAI API キー（Cloud 機能は ChatGPT 推奨）
+
+---
+
+## Codex App とは
+
+Codex のコーディングエージェントを GUI で操作するためのデスクトップ／ウェブクライアントです。CLI と同じエージェントを呼び出しつつ、複数スレッドの同時進行・Git 操作・Computer Use（画面操作）などを GUI で扱えます。VS Code 等の IDE 拡張と組み合わせると、ターミナル・エディタ・GUI のどこで開いても同じスレッドを継続できます。
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/app` には対応 OS と提供形態、`/codex/app/features` には Local / Worktree / Cloud の 3 モード、マルチスレッド、Git 統合、Skills、Automations、Computer Use、画像生成、IDE 同期などが定義されています。Linux Desktop は通知登録のみ案内されています。
+
+---
+
+## 提供面と認証
+
+| 提供面 | 対応 OS | 備考 |
+|---|---|---|
+| Desktop | macOS（Apple Silicon / Intel）、Windows（Microsoft Store） | Linux は将来提供（通知受付中） |
+| Web | ブラウザ（`/codex/cloud` 配下） | 主に Cloud タスク向け |
+
+認証：
+
+- **ChatGPT アカウント**: ChatGPT サブスクの利用枠を消費（Plus / Pro / Business / Edu / Enterprise に Codex が含まれる。Free / Go も期間限定で対象）
+- **OpenAI API キー**: Codex は使えるが Cloud 機能の一部が制限される
+
+---
+
+## 実行モード（Local / Worktree / Cloud）
+
+| モード | 振る舞い | 向いているタスク |
+|---|---|---|
+| Local | プロジェクトディレクトリ上で直接編集 | 通常の実装作業 |
+| Worktree | Git worktree を切って隔離編集 | 並列ブランチ実験、リファクタの試行 |
+| Cloud | Codex Cloud のリモート環境で実行 | ローカルマシンを止めずに長尺タスク・並列実行 |
+
+---
+
+## マルチスレッドとプロジェクト横断
+
+1 つのウィンドウで複数のスレッドを並走させ、プロジェクトをまたいで素早く切り替えられます。長時間タスクをバックグラウンドで実行しながら、別プロジェクトを調査するといった使い方も可能です。
+
+スレッドは IDE 拡張側とも同期するため、ターミナル・エディタ・App のいずれから入っても続きから作業できます（章「Codex IDE 拡張」参照）。
+
+---
+
+## Git 統合
+
+- diff 表示・インラインコメント
+- ステージング・コミット・プッシュ
+- プルリクエスト作成
+- リモートとの同期確認
+
+CLI で `git` を操作する手順を GUI 内で完結できます。
+
+---
+
+## ワークフロー機能
+
+- **Skills**: 再利用可能な定型ワークフロー（章「Codex Agent Skills」）
+- **Automations**: 定期実行・ハートビート型（章「Codex Automations」）
+- **Computer Use**: スクリーンショット取得・クリック・タイピングで GUI アプリを操作（章「Computer Use」で詳述）
+- **画像生成**: `gpt-image-2` でアセット作成
+- **アーティファクトプレビュー**: PDF・スプレッドシート・スライド等の生成物を App 内で可視化
+- **音声入力**: `Ctrl+M` でプロンプトの音声転写
+- **In-app ブラウザ**: 開発サーバのプレビューと自動操作
+
+---
+
+## ターミナル統合
+
+スレッドごとにスコープされたターミナルが付き、スクリプト実行・Git 操作・サーバの稼働状況確認ができます。Codex がコマンドの結果を読み取って次のアクションを判断する流れも機能します。
+
+---
+
+## IDE 拡張との同期
+
+- スレッドの開始・継続・参照は VS Code / Cursor / Windsurf / JetBrains の Codex 拡張から共有
+- 認証情報・Skills・AGENTS.md はリポジトリ＋ホーム配下を共通利用
+- App 側で開いたスレッドを IDE で続行する／その逆も可能
+
+---
+
+## 安全制御と通知
+
+- **承認モード（Approvals）**: 危険操作前に確認ダイアログ
+- **サンドボックス**: ディレクトリ・ネットワーク境界をエージェントに強制
+- **通知設定**: タスク完了・承認待ちのアラートをカスタマイズ
+
+CLI と概念は共通で、UI から細かく切り替えられます。
+
+---
+
+## 注意点
+
+**ChatGPT サブスクのプラン依存機能あり**
+Cloud 機能・Computer Use・画像生成などは ChatGPT サブスクのプラン（Plus / Pro / Business / Edu / Enterprise、および期間限定で Free / Go）でカバーされる範囲が異なります。API キー単独運用では Cloud 系機能が制限されることがあります。
+
+**Linux Desktop は未提供**
+Linux ユーザーは Web 版（Codex Cloud）か CLI を主軸に使う構成になります。
+
+**Worktree モードはディスクと Git 状態に注意**
+Worktree を多用するとローカルの Git 状態が複雑化します。不要なツリーは `git worktree prune` などで定期的に整理してください。
+
+**Computer Use はホスト OS の操作権限が必要**
+画面操作・キー入力を行うため、macOS のアクセシビリティ許可など OS 側の権限設定が必要です（章「Computer Use」参照）。
+
+**Skills と Automations は CLI と同じ定義**
+ファイル配置（`.agents/skills/`）、`marketplace.json` のスキーマなどは共通です。App 側だけで動く独自フォーマットは存在しません。
+
+---
+
+## 一次ソース
+
+- [Codex App — Codex Docs](https://developers.openai.com/codex/app)
+- [App Features — Codex Docs](https://developers.openai.com/codex/app/features)
+- [Computer Use — Codex Docs](https://developers.openai.com/codex/app/computer-use)
+- [Automations — Codex Docs](https://developers.openai.com/codex/app/automations)
+- [Cloud / Web — Codex Docs](https://developers.openai.com/codex/cloud)

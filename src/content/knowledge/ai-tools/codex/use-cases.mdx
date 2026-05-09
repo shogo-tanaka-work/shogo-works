@@ -1,0 +1,140 @@
+---
+title: "Codex のユースケース集：開発・QA・運用・ドキュメントの実例カタログ"
+description: "OpenAI 公式 `/codex/use-cases` を 2026 年 5 月時点で再構成した実例カタログ。コード生成（iOS / モバイル / Web / CLI）、コード品質（PR レビュー・リファクタ・移行）、QA（Promptfoo eval / Computer Use 自動 QA）、デバッグ、データ分析、ドキュメント、運用自動化、コラボレーションまで、Skills / MCP / Agent Builder と組み合わせる設計指針もまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Use Cases", "ユースケース", "Skills", "MCP", "Computer Use"]
+sortOrder: 22
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- 公式 Use Cases は **コード生成 / 品質・保守 / テスト・QA / デバッグ / データ分析 / ドキュメント / 運用自動化 / 生産性** の 8 系統
+- ベタなコーディングだけでなく、**Computer Use ＋ Skills** で QA・運用まで広がる
+- 反復作業は **Skills**、外部データは **MCP**、定型フローは **Agent Builder** で組み合わせる
+- 「Codex に頼める範囲」を可視化することで、**チームのオンボーディング素材**にも使える
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/use-cases` には Codex を使って実現できるタスクのカタログが、開発・品質・QA・分析・運用・コラボレーションのカテゴリで列挙されています。本章はそれを実務目線で再分類し、各カテゴリで「典型タスク」「Codex 側の前提」「組み合わせるツール」をひとまとめにしたガイドです。
+
+---
+
+## 1. コード生成・新規開発
+
+| 例 | 補足 |
+|---|---|
+| iOS / macOS アプリ（SwiftUI） | Xcode シミュレータと組み合わせ |
+| React Native + Expo モバイルアプリ | Expo CLI を Codex セッションから操作 |
+| Web フロントエンド（Figma → コード） | Figma MCP や画像入力と併用 |
+| ブラウザゲーム | 1 ファイル試作から段階的に拡張 |
+| CLI ツール作成 | 既存スクリプト群の置き換え |
+
+---
+
+## 2. コード品質・保守
+
+- **PR コードレビュー**: GitHub 統合または `/review` スラッシュコマンド
+- **リファクタリング**: SwiftUI ビューの分割、レガシーコードの近代化
+- **コード移行**: スタック全体（ライブラリ / 言語 / フレームワーク）の段階的更新
+- **デッドコード削除**: 未使用関数・モジュールの検出と除去
+
+---
+
+## 3. テスト・QA
+
+- **AI アプリ向け eval**: Promptfoo を使ったプロンプト評価スイートの自動生成
+- **Computer Use による自動 QA**: 実際の UI 操作で挙動を検証
+- **バグトリアージ自動化**: Issue 一覧をラベリングし担当者候補をコメント
+
+---
+
+## 4. デバッグ・分析
+
+- **iOS シミュレータでのデバッグ補助**
+- **macOS テレメトリ／ロギング実装**
+- **大規模コードベース理解**: GPT-5.5 の長尺コンテキストで起点ファイルから読み解き
+
+---
+
+## 5. データ・分析作業
+
+- データセットを分析・可視化に変換
+- CSV / スプレッドシートのクエリ
+- キャッシュフロー予測・DCF バリュエーション
+- 予算 vs 実績レビュー（差異要因の抽出）
+
+---
+
+## 6. ドキュメント・知識管理
+
+- コードと既存ドキュメントを参照したドキュメント更新の自動化
+- 複雑な仕様書・調査資料を読みやすいレポートに整形
+- PRD（製品要件書）の起案テンプレート
+
+---
+
+## 7. ワークフロー・運用自動化
+
+- Slack スレッドから開発タスクを起票
+- メール優先度判定＋返信案作成
+- Slack のアクションアイテムを優先順位付け
+- 新入社員オンボーディングの調整
+- 検証済み操作の繰り返し実行
+
+---
+
+## 8. 生産性・コラボレーション
+
+- iMessage を起点にマルチアプリでタスク完了
+- ChatGPT 内でアプリ化（Apps）
+- Figma デザイン → レスポンシブ UI（ビジュアル比較で確認）
+- スライドデッキ生成（PowerPoint 操作＋画像生成）
+
+---
+
+## ツールの組み合わせ方
+
+| 目的 | 推奨される組み合わせ |
+|---|---|
+| 同じプロンプトを毎回打っている | **Skills** に切り出す（章「Codex Agent Skills」） |
+| 外部 API・社内 DB をエージェントから読む | **MCP サーバ**を追加（章「MCP 連携」） |
+| 定期実行・継続監視 | **Automations** に Skills を載せる（章「Codex Automations」） |
+| 並列タスク・大規模調査 | **サブエージェント**で並列化（章「サブエージェント」） |
+| GUI が必要な QA / 操作 | **Computer Use**（章「Computer Use」） |
+| 重い処理を手元から逃がす | **Cloud / Worktree モード**（章「Codex Cloud / Web」） |
+| CI / 自動マージ系 | **`openai/codex-action@v1`**（章「GitHub Action」） |
+
+---
+
+## 注意点
+
+**ユースケースは「現状できること」のスナップショット**
+公式の Use Cases ページは更新が頻繁です。本章のラインナップも 2026-05 時点のものです。最新情報は公式ページとリリースノートで確認してください。
+
+**業務適用の前にスコープを絞る**
+「全部任せる」より「1 つの繰り返し作業」から始めて Skill 化し、安定したら Automations へ移行する順番が安全です。Best Practices 章の段階解放と同じ考え方です。
+
+**機密データは MCP 経由でも要注意**
+社内 API を MCP で繋ぐとモデル側にデータが渡ります。法務・情報セキュリティチームの確認を取り、必要なドメインだけ allow リストに入れてください。
+
+**Computer Use を運用に組み込むなら明示承認を残す**
+GUI 自動化の自動承認は事故が大きくなりがちです。本番系 GUI には always allow を付けない運用を前提としてください。
+
+**生成物のファイル形式に注意**
+PowerPoint・PDF などの生成物が壊れているケースもあります。重要な共有前にプレビューでチェックしてください。
+
+---
+
+## 一次ソース
+
+- [Use Cases — Codex Docs](https://developers.openai.com/codex/use-cases)
+- [Best Practices — Codex Docs](https://developers.openai.com/codex/learn/best-practices)
+- [Codex App Features — Codex Docs](https://developers.openai.com/codex/app/features)
+- [Skills — Codex Docs](https://developers.openai.com/codex/skills)
+- [MCP integration — Codex Docs](https://developers.openai.com/codex/mcp)

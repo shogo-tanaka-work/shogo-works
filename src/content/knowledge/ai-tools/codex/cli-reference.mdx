@@ -1,0 +1,342 @@
+---
+title: "Codex CLI コマンドリファレンス：サブコマンドとフラグの実用早見表"
+description: "Codex CLI のサブコマンド・グローバルフラグ・サブコマンド固有オプション・環境変数を 2026 年 5 月時点の公式 Reference に揃えて整理。codex / exec / resume / fork / cloud / mcp / mcp-server / app / app-server / plugin / sandbox / execpolicy / login / completion / features / update の主要オプションを一望できます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "Reference", "コマンドラインオプション", "exec", "サブコマンド"]
+sortOrder: 14
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- `codex` 単体で対話 TUI、`codex exec` で非対話実行、`codex resume` / `codex fork` でセッション再開
+- 共通フラグ：`--model / -m`、`--sandbox / -s`、`--ask-for-approval / -a`、`--profile / -p`、`--cd / -C`、`--image / -i`、`--search`、`-c key=value`
+- リモートは `codex app-server` ＋ `--ws-auth`、Cloud は `codex cloud exec --env <ENV_ID>`
+- MCP は `codex mcp add|list|get|login|logout|remove`、Codex 自体の MCP 化は `codex mcp-server`
+- 認証は `codex login [--device-auth | --with-api-key]`、設定ホームは `CODEX_HOME` で切り替え
+
+---
+
+## サブコマンド一覧
+
+| コマンド | 役割 | 成熟度 |
+|---|---|---|
+| `codex` | TUI を起動 | Stable |
+| `codex exec` / `codex e` | 非対話実行 | Stable |
+| `codex resume` | 直前の対話セッションを再開 | Stable |
+| `codex fork` | 既存セッションを新スレッドにフォーク | Stable |
+| `codex app` | Codex Desktop を起動 | Stable |
+| `codex app-server` | ローカル開発用の app server を起動 | Experimental |
+| `codex cloud` | Cloud タスクの参照・実行 | Experimental |
+| `codex mcp` | 外部 MCP サーバを管理 | Experimental |
+| `codex mcp-server` | Codex 自体を MCP サーバ（stdio）として公開 | Experimental |
+| `codex plugin marketplace` | プラグインマーケットプレイスの管理 | Experimental |
+| `codex sandbox` | Codex サンドボックス内でコマンド実行 | Experimental |
+| `codex execpolicy` | execpolicy ルールの検証 | Experimental |
+| `codex apply <TASK_ID>` | Codex Cloud タスクが生成した最新 diff をローカルワーキングツリーに適用 | Stable |
+| `codex login` / `codex logout` | 認証管理 | Stable |
+| `codex completion` | シェル補完スクリプト生成 | Stable |
+| `codex features` | 実験機能フラグの管理 | Stable |
+| `codex update` | CLI のアップデート確認 | Stable |
+
+---
+
+## グローバルフラグ
+
+```bash
+# モデル指定
+codex -m gpt-5.5
+codex --model gpt-5.4-mini
+
+# サンドボックス（read-only / workspace-write / danger-full-access）
+codex -s workspace-write
+codex --sandbox read-only
+
+# 承認ポリシー（on-request / never / untrusted / granular）
+codex -a on-request
+codex --ask-for-approval untrusted
+
+# プロファイル切替
+codex -p staging
+codex --profile production
+
+# 作業ディレクトリ
+codex -C ~/workspace
+codex --cd /path/to/project
+
+# 画像添付
+codex -i screenshot.png "このエラー画面を解析"
+codex --image diagram.png
+
+# Web 検索を live に切替
+codex --search
+
+# 任意の設定値を一時上書き
+codex -c web_search="live"
+codex --config model=gpt-5.5
+
+# 追加の書込許可ディレクトリ
+codex --add-dir /mnt/shared
+
+# リモート接続
+codex --remote wss://host:port
+codex --remote-auth-token-env AUTH_TOKEN_VAR
+
+# ローカル OSS モデル（Ollama 等）— 全サブコマンドで利用可能
+codex --oss
+codex exec --oss "..."
+```
+
+---
+
+## 非対話実行（`codex exec`）
+
+```bash
+# 基本
+codex exec "fix the CI failure"
+
+# JSON 出力
+codex exec --json "list TODO comments in src/"
+
+# 出力ファイル
+codex exec -o final.txt "summarize today's diffs"
+codex exec --output-last-message results.txt "..."
+
+# 構造化出力（スキーマ強制）
+codex exec --output-schema schema.json "extract issue summary"
+
+# 標準入力からプロンプト
+echo "fix the bug" | codex exec -
+
+# サンドボックス指定
+codex exec --sandbox read-only "audit only"
+
+# 危険：承認とサンドボックスを無効化（別名 --yolo）
+codex exec --dangerously-bypass-approvals-and-sandbox "..."
+codex exec --yolo "..."
+
+# その他
+codex exec --ephemeral "..."
+codex exec --skip-git-repo-check "..."
+codex exec --ignore-rules "..."
+codex exec --ignore-user-config "..."
+codex exec --color always "..."
+```
+
+`exec resume` によるフォローアップ実行もできます。
+
+```bash
+codex exec resume --last "次のステップを進めて"
+codex exec resume --all <SESSION_ID> "続きから検証して"
+```
+
+---
+
+## Cloud タスク（`codex cloud`）
+
+```bash
+# タスク実行
+codex cloud exec --env ENV_ID "deploy the staging branch"
+
+# Best-of-N（複数試行）— exec ではなく cloud exec 専用
+codex cloud exec --env staging --attempts 3 "minimal diff to make tests green"
+
+# タスク一覧
+codex cloud list --env production
+codex cloud list --json --limit 10
+codex cloud list --cursor <next_cursor>
+```
+
+---
+
+## セッション管理（`resume` / `fork`）
+
+```bash
+codex resume --last                                # 直近セッション
+codex resume 550e8400-e29b-41d4-a716-446655440000  # 特定セッション
+
+codex fork --last     # 直近を別スレッドへ
+codex fork --all      # 全ディレクトリの履歴から選択
+```
+
+---
+
+## MCP 管理（`codex mcp`）
+
+```bash
+# stdio サーバを追加
+codex mcp add my-server -- python -m my_server
+codex mcp add my-server --env VAR=value -- cmd
+
+# Streamable HTTP サーバを追加
+codex mcp add http-server --url https://example.com/mcp
+codex mcp add auth-server --url https://api.example.com \
+  --bearer-token-env-var AUTH_TOKEN
+
+# OAuth ログイン / ログアウト
+codex mcp login http-server --scopes "read,write"
+codex mcp logout http-server
+
+# 一覧・詳細
+codex mcp list
+codex mcp list --json
+codex mcp get my-server --json
+
+# 削除
+codex mcp remove my-server
+```
+
+Codex 自体を MCP サーバ化：
+
+```bash
+codex mcp-server   # stdio で待ち受け
+```
+
+---
+
+## プラグインマーケットプレイス
+
+```bash
+# GitHub の owner/repo
+codex plugin marketplace add owner/repo
+codex plugin marketplace add owner/repo@v1.0
+
+# git URL（HTTPS / SSH）
+codex plugin marketplace add https://github.com/owner/repo.git
+codex plugin marketplace add ssh://git@github.com/owner/repo.git
+
+# ローカル / sparse-checkout
+codex plugin marketplace add /local/marketplace/path
+codex plugin marketplace add owner/repo --sparse plugins --sparse themes
+
+# 更新・削除
+codex plugin marketplace upgrade
+codex plugin marketplace upgrade <name>
+codex plugin marketplace remove <name>
+```
+
+---
+
+## App Server（リモート TUI）
+
+```bash
+# stdio
+codex app-server --listen stdio://
+
+# WebSocket（無認証は非推奨）
+codex app-server --listen ws://127.0.0.1:8080
+
+# 署名付き bearer token
+codex app-server \
+  --listen wss://0.0.0.0:8443 \
+  --ws-auth signed-bearer-token \
+  --ws-issuer "https://issuer.example.com" \
+  --ws-audience "https://api.example.com" \
+  --ws-shared-secret-file /path/to/secret \
+  --ws-max-clock-skew-seconds 30
+
+# capability token（ファイルから読み込み）
+codex app-server \
+  --listen ws://localhost:8080 \
+  --ws-auth capability-token \
+  --ws-token-file /path/to/token
+```
+
+---
+
+## サンドボックス内コマンド実行（`codex sandbox`）
+
+```bash
+codex sandbox \
+  --cd /project \
+  --permissions-profile my-profile \
+  --allow-unix-socket /tmp/socket \
+  -- bash -c "echo hello"
+
+codex sandbox \
+  --include-managed-config \
+  --permissions-profile enterprise \
+  -- make test
+```
+
+---
+
+## execpolicy ルールの検証
+
+```bash
+codex execpolicy check -r ~/.codex/rules/strict.rules rm -rf /
+codex execpolicy check -r rules1.rules -r rules2.rules git push origin main
+codex execpolicy check --pretty -r policy.rules ls -la
+```
+
+---
+
+## 認証（`codex login`）
+
+```bash
+codex login                  # ブラウザフロー（ChatGPT OAuth 推奨）
+codex login --device-auth    # デバイスコード
+codex login --with-api-key   # 標準入力から API キー読込
+
+codex login status           # 認証状態
+codex logout                 # 認証情報削除
+```
+
+---
+
+## 補完・実験機能・アップデート
+
+```bash
+codex completion bash > ~/.bash_completion.d/codex
+codex completion zsh > ~/.zsh/completions/_codex
+codex completion fish
+codex completion powershell
+
+codex features list
+codex features enable <flag>
+codex features disable <flag>
+
+codex update    # 新しい CLI バージョンの確認・適用
+```
+
+---
+
+## 環境変数
+
+| 環境変数 | 用途 |
+|---|---|
+| `CODEX_HOME` | 設定とプロファイルの保存先（既定 `~/.codex/`） |
+| `OPENAI_API_KEY` | API キー認証用（`codex login --with-api-key` で書き込みも可） |
+| `--remote-auth-token-env` で指定した変数 | リモート接続時の認証トークン |
+
+---
+
+## 注意点
+
+**`exec --dangerously-bypass-approvals-and-sandbox` は最終手段**
+名前のとおり承認とサンドボックスを丸ごとオフにします。CI でも乱用は危険なため、対象タスクと信頼境界が明確な場合のみ使ってください。
+
+**`codex sandbox` と `codex exec --sandbox` は別物**
+前者は任意コマンドを Codex のサンドボックス機構の中で実行する低レベルツール、後者は Codex セッション全体のサンドボックスモード切替です。混同に注意してください。
+
+**Experimental サブコマンドは互換性が変わる**
+`app-server` / `cloud` / `mcp` / `mcp-server` / `sandbox` は Experimental 表示があり、フラグ仕様が将来変わる可能性があります。スクリプト化する際は CLI バージョンをピン留めしておくのが安全です。
+
+**`-c key=value` は最後に勝つ**
+`config.toml` の値を一時的に上書きするための簡便フラグです。プロファイルや profile-level の設定と競合する場合の優先関係は「CLI フラグ > プロファイル > グローバル」になります。
+
+**`codex update` は自動実行しない**
+本番運用中の環境で勝手にアップデートすると Experimental の挙動変化を踏みやすいため、メンテ枠で実行するのが安全です。
+
+---
+
+## 一次ソース
+
+- [CLI Reference — Codex Docs](https://developers.openai.com/codex/cli/reference)
+- [CLI Features — Codex Docs](https://developers.openai.com/codex/cli/features)
+- [Configuration reference — Codex Docs](https://developers.openai.com/codex/config-reference)
+- [Slash Commands — Codex Docs](https://developers.openai.com/codex/cli/slash-commands)
+- [openai/codex Releases](https://github.com/openai/codex/releases)

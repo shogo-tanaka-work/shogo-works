@@ -1,0 +1,207 @@
+---
+title: "Codex プロンプト設計ガイド：thread・context・検証可能性で品質を上げる"
+description: "Codex への効果的なプロンプトの書き方を 2026 年 5 月時点の公式仕様で整理。prompt / thread / context の基本概念、local thread と cloud thread の違い、検証可能性を上げるプロンプト設計、コンテキストウィンドウとcompaction、複雑タスクの分割方針までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Prompting", "thread", "context", "best practices"]
+sortOrder: 27
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- Codex への依頼は **prompt** として送り、Codex はモデル呼び出しと tool 操作を繰り返して完了またはキャンセルまで作業する
+- 品質を決めるのは **検証可能性**: 再現手順 / 期待挙動 / 制約 / 検証コマンドが揃っているプロンプトは結果が安定する
+- **thread** は 1 つの作業セッション。複数 prompt を含み、local（自マシン）/ cloud（隔離環境）で動く
+- 複雑な作業は最初から一度に任せるより、小さな手順に分けるほうが安全
+- **context window** には上限があり、長い作業では Codex が自動で compaction する。重要な制約は明示し直す
+
+---
+
+## prompt とは
+
+Codex では、ユーザーが送るメッセージを **prompt** として扱います。prompt には Codex にしてほしい作業を自然言語で書きます。
+
+公式の例:
+
+```text
+Explain how the transform module works and how other modules use it.
+```
+
+```text
+Add a new command-line option `--json` that outputs JSON.
+```
+
+日本語でも同じ考え方で依頼できます:
+
+```text
+transform モジュールがどのように動き、他のモジュールからどう使われているか説明してください。
+```
+
+---
+
+## Codex が作業する流れ
+
+prompt を送ると、Codex はモデルを呼び出し、その出力に従ってファイル読み取り、ファイル編集、tool 呼び出しを行います。タスクが完了するか、ユーザーがキャンセルするまでこのループが続きます。
+
+「単に回答を返す」のではなく「実際にプロジェクトを調べ、変更し、検証する」点が、Codex を含むエージェント型ツールの特徴です。
+
+---
+
+## 検証可能性を上げる 4 要素
+
+Codex は **検証できる作業ほど高品質な結果を出しやすい**傾向があります。バグ修正なら次の 4 要素を含めると安定します。
+
+1. **再現手順** — どうやってバグを再現するか（環境セットアップ、操作、期待される失敗の出方）
+2. **期待挙動 vs 実際の挙動** — どこにギャップがあるか
+3. **変更してよい範囲** — API shape を変えていいか、最小修正にすべきか、リグレッションテスト追加の希望
+4. **検証コマンド** — 実行してほしい lint / test / pre-commit hook の具体名
+
+例:
+
+```text
+Bug: settings 画面で Save を押すと、Saved と表示されるのに変更が保存されないことがあります。
+
+Repro:
+1) Start the app: npm run dev
+2) Go to /settings
+3) Toggle the alerts setting
+4) Click Save
+5) Refresh the page and confirm the setting resets
+
+Constraints:
+- Do not change the API shape.
+- Keep the fix minimal and add a regression test if feasible.
+
+Validation:
+- Run `npm run lint` and `npm run test:settings` after the fix.
+- Report commands and results.
+```
+
+「壊れている」だけ伝えるのと、上記の 4 要素を含むのでは、Codex の挙動と最終成果物の質が大きく変わります。
+
+---
+
+## 複雑な作業は分割する
+
+複雑な作業は最初から一度に任せず、小さな手順に分けるほうが安全です。分け方が判断できないときは、**まず Codex に計画を提案させる**のも有効です。
+
+```text
+この変更を安全に進めるための実装計画を出してください。
+変更対象、検証方法、リスクを分けて説明してください。
+まだファイルは編集しないでください。
+```
+
+「まだファイルは編集しないでください」の一文は、計画段階で勝手に着手させないために重要です。CLI なら `$plan` プレフィックスで明示的に planning mode に入る使い方もあります。
+
+---
+
+## thread とは
+
+**thread** は 1 つの作業セッションです。最初の prompt、Codex の出力、tool 呼び出し、続きの prompt がまとまって 1 つの流れになります。
+
+たとえば「機能を実装して」→「テストも追加して」→「ドキュメント更新して」と続ける場合、それらは同じ thread の中で進みます。
+
+thread が running の状態にあるとき、Codex は能動的に作業しています。複数の thread を同時に走らせることもできますが、**同じファイルを複数 thread が同時に編集すると衝突しやすい**ため注意が必要です。
+
+---
+
+## Local thread と Cloud thread
+
+| 観点 | Local thread | Cloud thread |
+|---|---|---|
+| 実行場所 | 自分のマシン | 隔離された Codex Cloud 環境 |
+| ファイル操作 | 直接 read/write | リポを clone して branch を checkout |
+| 既存開発ツール | そのまま使える | container image に依存 |
+| 並列性 | 制限的（マシン資源） | 高い（複数タスクを並走） |
+| 別デバイスからの委任 | 不可 | 可能 |
+| 安全性 | sandbox 制御 | container 隔離 |
+| 適性 | 短い作業・調査・ローカル検証 | 長い実装・並列作業・refactor |
+
+Cloud thread を使うには対象リポを GitHub に push しておく必要があります。
+
+---
+
+## プロジェクトなしの chat
+
+Codex App ではプロジェクトを選ばずに chat を始めることもできます。chat は保存済みリポジトリやプロジェクトフォルダに紐づきません。**調査、計画、接続ツールを使ったワークフロー、コードベースに依存しない作業**に向きます。
+
+この場合、Codex は Codex home 配下の `threads` ディレクトリを作業場所として使います。デフォルトは:
+
+```text
+~/.codex/threads
+```
+
+ベースの場所を変える場合は `CODEX_HOME` を設定します。
+
+---
+
+## context
+
+prompt を送るときは、関係するファイル / 画像 / ログなどの context を含めると効果的です。
+
+| 入口 | context の入り方 |
+|---|---|
+| IDE 拡張 | 開いているファイル一覧と選択範囲が自動 |
+| CLI | `@<path>` / `/mention` でファイル添付、または prompt 本文にパス記述 |
+| Cloud | リポ全体が clone される（環境設定のスクリプトでさらに準備可） |
+
+作業中、Codex は **ファイル内容、コマンド出力、これまでに行ったこと、残っている作業**を context として蓄積します。
+
+---
+
+## context window と compaction
+
+thread 内の情報はモデルの context window に収まる必要があります。context window のサイズはモデルによって異なります。
+
+長い作業では、Codex が残り容量を監視し、必要に応じて context を自動で compaction します。compaction では重要な情報を要約し、関連性の低い詳細を捨てます。
+
+この仕組みのおかげで、複雑なタスクでも何段階にもわたって作業を続けられます。ただし以下に注意:
+
+- **重要な制約や決定事項は prompt で明示し直す** — compaction で落ちた情報を再注入する意味
+- 長い thread が続いたら、節目で「これまでの決定事項」を Codex にまとめさせて確認する
+- どうしても context を残したい場合は AGENTS.md / Memories / SessionStart hook など別レイヤーに置く
+
+---
+
+## 良いプロンプトのチェックリスト
+
+依頼前に次を確認すると、結果が安定します。
+
+- [ ] **作業内容** が一文で言えるか
+- [ ] **再現/前提条件** が含まれているか
+- [ ] **制約**（変えないところ、最小化、API 互換性）が明示されているか
+- [ ] **検証方法**（コマンド、確認すべき URL/route）が伝わっているか
+- [ ] **完了の定義** が明確か（テスト通過？ PR 作成？ レビュー依頼？）
+- [ ] **context** が必要なファイル/画像で揃っているか
+- [ ] **複雑なら分割するか、計画を先に作らせるか** を選んだか
+
+---
+
+## アンチパターン
+
+- 「いい感じに直して」だけ — 検証可能性ゼロ
+- 「全部書き直して」 — scope が広すぎて compaction でブレる
+- 制約を後から追加 — 最初の context に含めず途中で「あ、API は変えないで」と言うと、戻し作業が発生
+- 同じファイルを複数 thread で同時編集 — 衝突
+- 機密情報を prompt に直接貼る — Memories / Chronicle / 監査ログに残る可能性
+
+---
+
+## まとめ
+
+Codex をうまく使うには、**prompt / thread / context の三要素を意識し、検証可能性を上げる**のが最短ルートです。
+
+依頼するときは作業内容、制約、検証方法を具体的に伝え、複雑な作業は小さく分け、同じファイルを複数 thread で同時に編集しない。これだけで結果は大きく安定します。
+
+---
+
+## 関連リンク
+
+- [Codex Prompting（公式）](https://developers.openai.com/codex/prompting)
+- [Codex Workflows ガイド（本サイト）](/knowledge/ai-tools/codex/workflows-goals)
+- [Codex AGENTS.md 設定ガイド（本サイト）](/knowledge/ai-tools/codex/agents-md)
+- [Codex Memories と Chronicle（本サイト）](/knowledge/ai-tools/codex/memories-chronicle)
+- [Codex ベストプラクティス（本サイト）](/knowledge/ai-tools/codex/best-practices)
