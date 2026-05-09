@@ -1,0 +1,205 @@
+---
+title: "Codex CLI 主要機能ガイド：interactive・resume・review・exec・search を一気に把握"
+description: "Codex CLI の主要機能を 2026 年 5 月時点の公式仕様で整理。インタラクティブ TUI、`codex resume` のセッション再開、`/review` でのコードレビュー、`codex exec` の非対話実行、Web 検索（cached / live / disabled）、画像入力と画像生成、`codex app-server` のリモート接続、`codex features enable` の実験機能、シェル補完までをまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "Features", "exec", "resume", "review", "web search", "image"]
+sortOrder: 13
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- インタラクティブ TUI（`codex` または `codex "<prompt>"`）が中心
+- セッション再開は `codex resume`／`codex resume --last`
+- コードレビューはセッション内 `/review`、非対話実行は `codex exec`
+- Web 検索は cached（既定）／live（`--search`）／disabled、画像添付は `-i` / `--image`、画像生成は `$imagegen` スキル経由
+- `codex app-server` でリモート接続、`codex features enable|disable` で実験機能を切替
+
+---
+
+## Codex CLI の機能セット
+
+`codex` ひとつで「対話起動・非対話実行・セッション再開・リモート接続・補完・実験機能切替」までを賄います。本記事は公式 `/codex/cli/features` をベースに、コマンド単位で整理します。詳細なフラグ仕様は次章「CLI Reference」で扱います。
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/cli/features` には、インタラクティブ TUI、セッション管理、リモート接続、`/review`、Web 検索、画像入出力、`codex exec` での自動化、サブエージェント・MCP・スラッシュコマンド・シェル補完・スクリプト連携などが定義されています。
+
+---
+
+## 主要機能
+
+### インタラクティブ TUI
+
+```bash
+codex                              # 起動
+codex "このリポジトリの概要を教えて"   # 初期プロンプト付き起動
+```
+
+シンタックスハイライト・Markdown レンダリング・diff 表示・テーマ切替（`/theme`）に対応しています。
+
+### セッション再開
+
+```bash
+codex resume          # セッションピッカーから選んで再開
+codex resume --last   # 直近セッションを即再開
+```
+
+ローカルにトランスクリプトを保持しているため、コンテキストを復元して続きから作業できます。
+
+### コードレビュー（`/review`）
+
+セッション中に `/review` を入力すると、コードレビュー専用フローに移行します。
+
+- 未コミット変更のレビュー
+- 任意のベースブランチや特定コミットとの比較
+- カスタムレビュー指示の差し込み
+
+### 非対話実行（`codex exec`）
+
+CI・スクリプト・Cron などから実行したい場合は `exec` サブコマンドを使います。
+
+```bash
+# 単発実行
+codex exec "fix the CI failure"
+
+# JSON 出力で後段に流す
+codex exec --json "list TODO comments in src/"
+
+```
+
+Cloud タスクと連携する場合は `codex cloud exec` を使います。Best-of-N（複数試行）の `--attempts` は `cloud exec` 専用のオプションです。
+
+```bash
+codex cloud exec --env ENV_ID "deploy the staging branch"
+codex cloud exec --env ENV_ID --attempts 3 "minimal diff to make tests green"
+```
+
+### Web 検索
+
+Codex の Web 検索はファーストパーティ実装で、3 段階に切り替えられます。
+
+```bash
+codex --search "latest TypeScript 5.x release notes"
+```
+
+```toml
+# config.toml
+web_search = "cached"   # cached（既定）/ live / disabled
+```
+
+`live` は遅延と外部呼び出しが増えるため、検証・調査時に限定してオンにする運用が現実的です。
+
+### 画像入力・画像生成
+
+画像をプロンプトに添付するには `-i`（長形式 `--image`）を使います。`-i` / `--image` は入力画像の添付専用フラグで、画像生成のコマンドではありません。
+
+```bash
+# 画像をプロンプトに添付（複数指定可）
+codex -i screenshot.png "このエラー画面を解析して"
+codex --image diagram.png "図の構成を要約して"
+```
+
+画像生成は `$imagegen` スキル、または自然言語プロンプト経由で呼び出します（既定モデルは `gpt-image-2`）。
+
+```text
+$imagegen ヒーローセクション用のイラストを 1024x1024 で作って
+```
+
+### リモート接続（`codex app-server`）
+
+```bash
+# WebSocket で受け付けてリモート TUI を提供
+codex app-server --listen ws://127.0.0.1:4500
+```
+
+認証は capability token または署名付き bearer token のいずれかを選びます。リモートマシンから手元の TUI を操作する際の定番パターンです。
+
+### スラッシュコマンド
+
+セッション内のスラッシュコマンドは挙動切替の入り口です。代表例：
+
+```text
+/review       # コードレビューモード
+/theme        # テーマ切替
+/fork         # 別ブランチでサブセッションを切る
+/side         # サイドビュー
+/permissions  # 承認ポリシー / サンドボックスの切替
+/agent        # サブエージェントスレッドの切替
+/skills       # 利用可能スキルの一覧
+```
+
+詳細は次章「Slash Commands」で扱います。
+
+### サブエージェントと MCP
+
+詳細は専用章で扱います。CLI 機能としては `[agents]`（`max_threads` / `max_depth`）と `[mcp_servers.<name>]` を `config.toml` で定義し、セッション中に `/agent` で切り替え、`$skill-name` で Skills を呼び出します。
+
+### 承認モードとサンドボックス
+
+CLI 起動時に `--ask-for-approval`（短縮 `-a`）と `--sandbox` を指定できます。
+
+```bash
+codex --sandbox read-only --ask-for-approval untrusted
+codex -a never
+```
+
+詳細は「承認モード&サンドボックス」章を参照してください。
+
+### シェル補完
+
+```bash
+codex completion bash    # bash 補完
+codex completion zsh     # zsh 補完
+codex completion fish    # fish 補完
+```
+
+シェルの設定ファイルに読み込ませて有効化します。
+
+### 実験機能フラグ
+
+```bash
+codex features            # 一覧
+codex features enable <flag>
+codex features disable <flag>
+```
+
+リサーチプレビュー段階の機能を試す入口です。
+
+### スクリプト・他ツール連携
+
+`codex exec --json` で構造化出力を取り、jq などで後処理できます。Agents SDK と組み合わせる場合は `codex mcp-server`（MCP サーバ化）が中心になります（章「MCP 連携」参照）。
+
+---
+
+## 注意点
+
+**`exec` は対話なし＝確認できない**
+`--ask-for-approval never` を指定すると未承認の操作も素通りします。CI 用途では `--sandbox read-only` の併用や `safety-strategy: drop-sudo`（GitHub Action 経由の場合）など、別レイヤで安全を担保してください。
+
+**Web 検索 `live` はコストとレイテンシ増**
+デフォルトは `cached` です。常時 `live` に切り替えるとコスト・遅延ともに増えるため、必要なときだけ `--search` で明示することをおすすめします。
+
+**画像生成は OAuth ログイン or API キー認証で利用**
+`gpt-image-2` は ChatGPT サブスクのログイン経由でも、API キー経由でも利用できます。プランや地域で機能差が出る場合があるため、利用前に Pricing / Models で確認してください。
+
+**`app-server` は認証なしで起動しない**
+TUI を外部公開する形になるため、capability token または bearer token の運用は必須です。SSH トンネル経由で localhost のみに公開する構成が安全です。
+
+**実験機能は壊れる前提**
+`codex features enable` で有効化したフラグはバージョンアップで挙動が変わったり廃止されたりする可能性があります。本番環境では使わないでください。
+
+---
+
+## 一次ソース
+
+- [CLI Features — Codex Docs](https://developers.openai.com/codex/cli/features)
+- [CLI Reference — Codex Docs](https://developers.openai.com/codex/cli/reference)
+- [Slash Commands — Codex Docs](https://developers.openai.com/codex/cli/slash-commands)
+- [Configuration reference — Codex Docs](https://developers.openai.com/codex/config-reference)
+- [openai/codex Releases](https://github.com/openai/codex/releases)

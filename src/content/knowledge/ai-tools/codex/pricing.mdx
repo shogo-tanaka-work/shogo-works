@@ -1,0 +1,139 @@
+---
+title: "Codex の料金体系：ChatGPT サブスク・トークン課金・クレジットの読み解き方"
+description: "Codex の料金体系を 2026 年 5 月時点の公式仕様で整理。ChatGPT Free / Go / Plus / Pro / Business / Enterprise の各プランで使えるモデルと用途、Business / 新規 Enterprise のトークンベース料金（GPT-5.5 / 5.4 / 5.4-mini / 5.3-Codex の 1M トークン単価）、メッセージ単位のクレジット概算、Pro プロモーション期限までを Help Center Rate Card 参照とあわせてまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Pricing", "クレジット", "ChatGPT Plus", "ChatGPT Pro", "Rate Card"]
+sortOrder: 12
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- 入口は ChatGPT サブスクリプション（Free / Go / Plus / Pro / Business / Enterprise / Edu）
+- Plus / Pro / Business / 新規 Enterprise は 2026-04-02 から **トークンベース課金**（1M トークン単価）に移行（既存 Enterprise は 2026-04-23 移行）
+- 移行前のメッセージ単位概算は参考値として残るが、現行課金はトークン単価で計算される
+- Pro $100 は **2026-05-31 まで Plus の 10x プロモ**（終了後 5x）
+- 詳細レートは Help Center の Rate Card で随時更新される
+
+---
+
+## Codex の料金構造
+
+Codex は ChatGPT サブスクリプションに含まれる利用枠を消費するのが基本です。利用枠を超えた分はクレジットで補い、Business / 新規 Enterprise ではクレジットがトークン基準で計算されます。
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/pricing` には、ChatGPT 各プランの月額・利用可能モデル・含まれる用途、Business / 新規 Enterprise 向けトークン課金表、既存 Plus / Pro のメッセージ単価概算、Help Center Rate Card への導線、Pro プロモーション期限がまとめられています。
+
+---
+
+## ChatGPT サブスクリプション別
+
+| プラン | 月額（USD） | 主な使い方 / モデル |
+|---|---|---|
+| Free | $0 | クイックなコーディングタスク |
+| Go | $8 | 軽量なコーディングタスク |
+| Plus | $20 | GPT-5.5 / 5.4 / 5.4-mini / 5.3-Codex を Web / CLI / IDE 拡張 / iOS で利用、自動コードレビュー・Slack 連携などのクラウド統合 |
+| Pro $100 | $100（標準 5x、**プロモ中 10x**） | Plus の全機能 ＋ GPT-5.3-Codex-Spark アクセス |
+| Pro $200 | $200（20x） | Plus の全機能 ＋ GPT-5.3-Codex-Spark アクセス |
+| Business | 従量課金 | Plus 全機能 ＋ エンタープライズ機能（トークンベース課金へ移行） |
+| Enterprise / Edu | 要問い合わせ | 固定レート制限なしのクレジットベース |
+
+> Pro $100 は **2026-05-31 まで Plus の 10 倍（標準 5x の 2 倍）使用量**のプロモ中で、終了後は 5x に戻ります。Pro $200 は引き続き 20x です。
+
+---
+
+## トークンベース料金
+
+2026-04-02 から、Plus / Pro / Business / 新規 Enterprise がトークン課金へ移行しました（既存 Enterprise は 2026-04-23 移行）。下表は **1M トークンあたりのクレジット**です。
+
+| モデル | 入力 | キャッシュ入力 | 出力 |
+|---|---:|---:|---:|
+| GPT-5.5 | 125 | 12.5 | 750 |
+| GPT-5.4 | 62.5 | 6.25 | 375 |
+| GPT-5.4-mini | 18.75 | 1.875 | 113 |
+| GPT-5.3-Codex | 43.75 | 4.375 | 350 |
+
+> GPT-5.3-Codex-Spark / その他派生の単価は公式 Pricing ページと Help Center の Rate Card で都度確認してください。
+
+「キャッシュ入力」はプロンプトキャッシュ・コンテキスト再利用時の割引単価です。同じシステムプロンプトで連続実行する場合、キャッシュヒット率を高めるとコストが大きく下がります。
+
+---
+
+## メッセージ単位のクレジット概算（移行前の参考値）
+
+2026-04-02 のトークン課金移行前は、メッセージ単位の概算でクレジットが消費されていました。下表は移行前の暫定レート（参考値）であり、現行はトークン課金に置き換わっています。
+
+| モデル | 1 メッセージあたり概算（クレジット） |
+|---|---:|
+| GPT-5.5 | 約 14 |
+| GPT-5.4 | 約 7 |
+| GPT-5.3-Codex | 約 5 |
+| GPT-5.4-mini | 約 2 |
+
+公式は「順次トークン基準に統合する」と明示しており、この単価表は将来廃止されます。最新値は Help Center の Rate Card で確認してください。
+
+---
+
+## クレジットの考え方
+
+> Credits let you continue using Codex after you reach your included usage limits. Usage draws down from your available credits based on the models and features you use.（公式 Pricing ページより）
+
+- プランに含まれる利用枠を超過した分はクレジットで継続利用可能
+- Business / Enterprise / Edu はクレジット購入や柔軟な料金交渉ができる
+- 実際の消費は「入力 ＋ キャッシュ入力 ＋ 出力」の組み合わせで決まる
+
+---
+
+## 含まれる用途
+
+ChatGPT サブスクリプションの各プランに含まれる用途は以下のとおりです。
+
+- **ローカルメッセージ**: CLI / IDE 拡張
+- **Cloud タスク**: GitHub のコードレビュー、Slack 連携
+- **GitHub コードレビュー**: 公式統合経由の自動レビュー
+- **API キー認証**: CI など共有環境での自動化はトークンベース課金が前提
+
+---
+
+## コスト最適化のヒント
+
+- **モデルを使い分ける**: 探索や要約は GPT-5.4-mini、複雑な実装は GPT-5.3-Codex / GPT-5.5。同じタスクでも単価は数倍〜十数倍の差
+- **キャッシュ入力を活かす**: 同一プロンプトで複数ファイルを処理する場合、キャッシュヒット率が高いほど安い
+- **サブエージェントは小型モデル**: 親セッションを 5.5 にしてサブを 5.4-mini にすると、品質を保ちながら消費を抑えられる
+- **`reasoning_effort: low` を活用**: 単純なタスクで `medium` を回すのは過剰。`low` で十分な処理は明示的に下げる
+- **Cloud タスクの自動化頻度**: 分単位の Automations は積み上がりやすい。トリガー条件を厳しくする
+
+---
+
+## 注意点
+
+**料金は頻繁に変わる**
+プラン体系・単価・モデル提供状況はアップデートで随時更新されます。本記事の数値は 2026-05-08 時点の公式記載のスナップショットです。実額は公式 Pricing ページと Help Center の Rate Card で必ず確認してください。
+
+**メッセージ単位の概算は近似値**
+1 メッセージのクレジット消費はプロンプト長や出力長に左右されます。表中の値はあくまで目安で、実際は ±数倍の幅があります。
+
+**Pro プロモは期限あり**
+Pro $100 の「2 倍使用量」は 2026-05-31 で終了します。長期で消費が大きい個人利用は Pro $200 か Business を検討してください。
+
+**API キー認証はサブスク外の課金**
+ChatGPT アカウントではなく API キーで Codex を起動すると、ChatGPT サブスクの利用枠ではなく OpenAI Platform の API 課金が発生します。GitHub Actions や CI 用途で混在させないよう注意してください。
+
+**Spark などサブスク限定モデルは API では呼べない**
+GPT-5.3-Codex-Spark は ChatGPT Pro 限定のリサーチプレビューで、API 単独では利用できません。
+
+---
+
+## 一次ソース
+
+- [Pricing — Codex Docs](https://developers.openai.com/codex/pricing)
+- [Models — Codex Docs](https://developers.openai.com/codex/models)
+- [ChatGPT Plus and Pro のクレジット — Help Center](https://help.openai.com/en/articles/12642688)
+- [Business / Enterprise / Edu の柔軟価格 — Help Center](https://help.openai.com/en/articles/11487671-flexible-pricing-for-the-enterprise-edu-and-business-plans)
+- [Codex Rate Card — Help Center](https://help.openai.com/en/articles/20001106-codex-rate-card)
