@@ -1,0 +1,151 @@
+---
+title: "Codex CLI Quickstart：インストールから初回タスク実行まで 5 分で動かす"
+description: "OpenAI Codex CLI を最短で動かすためのクイックスタート。対応 OS、npm / Homebrew でのインストール、ChatGPT アカウントまたは API キーでのサインイン、初回タスクの依頼、Git チェックポイントの取り方まで 2026 年 5 月時点の公式手順に揃えてまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex CLI", "Quickstart", "インストール", "セットアップ", "Codex"]
+sortOrder: 10
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## この章の要点
+
+- 対応 OS は macOS / Linux / Windows
+- インストールは `npm install -g @openai/codex` または `brew install --cask codex`
+- 起動は `codex`。初回はブラウザで ChatGPT アカウントにサインインするか API キーを入力
+- 最初は Git でチェックポイントを切ってから依頼するのが安全
+
+---
+
+## Codex CLI とは
+
+ターミナルで動く OpenAI 公式のコーディングエージェントです。プロジェクトディレクトリで `codex` を起動し、自然言語で「このバグを直して」「Snake ゲームを作って」のように頼むと、コードを読み・編集し・コマンドを走らせて結果を返します。OS レベルのサンドボックスを備えているため、初期設定でもワークスペース外のファイルや無断ネットワークアクセスは抑制されます。
+
+---
+
+## 何が解説されているか（公式仕様）
+
+公式 `/codex/quickstart` には、対応 OS、`npm` と `brew` のインストール手段、起動と認証フロー、最初に試すプロンプト例、Git チェックポイント推奨が定義されています。本章ではそれらを踏まえつつ、実機で詰まりやすい点を補足します。
+
+---
+
+## 使い方
+
+### 1. 前提を満たす
+
+- 対応 OS: macOS / Linux / Windows
+- Linux / WSL2 を使う場合は `bubblewrap`（`bwrap`）が必要（サンドボックス用）
+- `npm` 経由でインストールする場合は **Node.js 22 以上**が必要（`package.json` の `engines` で `>=22` 指定）
+
+### 2. インストール
+
+npm 経由：
+
+```bash
+npm install -g @openai/codex
+```
+
+Homebrew 経由（macOS 等）：
+
+```bash
+brew install --cask codex
+```
+
+> 公式リポジトリの Issue #5317 でフォーミュラから cask に移行済みです。古い `brew install codex` の表記は使わないでください。
+
+インストール確認：
+
+```bash
+codex --version
+```
+
+### 3. サインイン
+
+プロジェクトディレクトリに移動して起動します。
+
+```bash
+cd /path/to/your/project
+codex
+```
+
+初回起動でサインイン方法を聞かれます。
+
+- **ChatGPT アカウント**: ブラウザが開くので、ChatGPT Plus / Pro / Business / Enterprise などのプランで認証
+- **API キー**: OpenAI Platform の API キーを貼り付け（個別請求になる）
+
+ChatGPT アカウントを推奨します。サブスクリプションのレートリミット内で利用できます。
+
+### 4. 最初のタスクを依頼
+
+起動した TUI でそのまま自然言語で頼みます。公式が例示しているプロンプト：
+
+```text
+Tell me about this project
+Build a classic Snake game in this repo
+Find and fix bugs in my codebase with minimal, high-confidence changes
+```
+
+日本語でも問題ありません。
+
+```text
+このプロジェクトの概要を教えて。主要な依存と起動方法を README から要約して。
+src/auth 配下のテストが落ちている。最小修正で直して、変更点を要約して。
+```
+
+### 5. Git チェックポイントを取る
+
+公式は「タスクの前後で Git チェックポイントを作っておく」ことを推奨しています。Codex はファイル編集まで行うため、戻せる状態を確保してから依頼してください。
+
+```bash
+# タスク前
+git status
+git stash push -u -m "before-codex"   # もしくはクリーンな状態でスタート
+
+# タスク後に変更を確認
+git diff
+git add -p
+git commit -m "feat: Codex でリファクタした内容"
+```
+
+### 6. 任意：承認モードとサンドボックスの調整
+
+既定でもワークスペース外には簡単に手を出せませんが、用途に応じて起動時に切り替えられます（詳細は「承認モード&サンドボックス」章）。
+
+```bash
+# 読み取り専用で調査だけさせる
+codex --sandbox read-only --ask-for-approval untrusted
+
+# CI など完全自動で進めたい場合
+codex --ask-for-approval never -a never
+```
+
+---
+
+## 注意点・トラブルシュート
+
+**Linux で `bwrap` が無い**
+`workspace-write` サンドボックスが立ち上がりません。`sudo apt install bubblewrap`（Debian/Ubuntu）か `sudo dnf install bubblewrap`（Fedora/RHEL）で導入してください。WSL2 でも同様に必要です。
+
+**`codex` が見つからない**
+npm のグローバルインストール先が PATH に入っていない可能性があります。`npm config get prefix` で出るパスの `bin/` を PATH に追加するか、`brew install --cask codex` に切り替えてください。
+
+**サインインがうまくいかない**
+ブラウザフローが失敗する環境（リモートサーバー等）では API キー認証に切り替えます。`codex` 起動後のメニューから選び直せます。
+
+**ネットワークが繋がらない**
+既定でネットワークアクセスが絞られています。`npm install` などを Codex 内から走らせたい場合は `config.toml` の `[permissions.<name>.network]` でドメインを `allow` にしてください。
+
+**最初は小さなタスクから**
+いきなり「全体をリファクタして」と頼むより、ファイル単位の小さな変更から始めると差分が読みやすく、戻しやすくなります。
+
+---
+
+## 一次ソース
+
+- [Quickstart — Codex Docs](https://developers.openai.com/codex/quickstart)
+- [Codex CLI 概要 — Codex Docs](https://developers.openai.com/codex/cli)
+- [openai/codex Releases](https://github.com/openai/codex/releases)
+- [Homebrew package is now a cask（Issue #5317）](https://github.com/openai/codex/issues/5317)
+- [codex — Homebrew Formulae（cask）](https://formulae.brew.sh/cask/codex)

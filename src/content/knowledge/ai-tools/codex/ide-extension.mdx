@@ -1,0 +1,135 @@
+---
+title: "Codex IDE 拡張ガイド：VS Code・Cursor・Windsurf・JetBrains での使い方"
+description: "Codex IDE 拡張を 2026 年 5 月時点の公式仕様で整理。VS Code / Cursor / Windsurf 用拡張と JetBrains（IntelliJ・PyCharm・WebStorm・Rider 系）AI Assistant 経由のネイティブ統合、3 段階の権限モード（Chat / Agent / Agent Full Access）、ChatGPT アカウント・API キー・JetBrains AI サブスクでの認証、Skills や `@file` 参照などの IDE 内ワークフローまでまとめました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "IDE 拡張", "VS Code", "Cursor", "Windsurf", "JetBrains"]
+sortOrder: 16
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- 対応 IDE は **VS Code / Cursor / Windsurf / JetBrains 系**（IntelliJ・PyCharm・WebStorm・Rider など）
+- VS Code 等は拡張機能として、JetBrains は AI Assistant の中の Codex Agent としてネイティブ統合
+- 権限モードは **Chat（読取のみ）/ Agent（ワークスペース編集）/ Agent Full Access（システム全体）** の 3 段階
+- 認証は **ChatGPT アカウント / OpenAI API キー / JetBrains AI サブスクリプション** から選択（CLI と共通の OAuth が再利用される）
+- Skills や `@file` 参照、画像入力・生成、Cloud 委譲、ロールバックなど IDE 内ワークフローに対応
+
+---
+
+## Codex IDE 拡張とは
+
+Codex のコーディングエージェントを IDE のサイドバーから直接呼び出すための拡張です。エディタで開いているファイル・選択範囲・`@file` 参照をそのままコンテキストに使え、モデル切替や承認モードの操作が IDE 内で完結します。CLI とは認証情報や Skills が共有されるため、ターミナルと IDE で同じワークフローを使い回せます。
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/ide` には対応 IDE と各 IDE のインストール経路、3 段階の権限モード、推論レベル切替、画像入出力、Cloud 委譲などが記載されています。JetBrains 統合は `jetbrains.com/help/ai-assistant/codex-agent.html` に詳細があり、AI Assistant のバージョン要件・認証フロー・制限事項が定義されています。
+
+---
+
+## 対応 IDE とインストール
+
+| IDE | インストール経路 | 備考 |
+|---|---|---|
+| VS Code | Marketplace から「Codex」拡張を導入 | 既定で右サイドバー |
+| Cursor | 公式ダウンロードリンク経由 | VS Code 派生のためほぼ同じ UX |
+| Windsurf | 公式ダウンロードリンク経由 | VS Code 派生 |
+| JetBrains（IntelliJ / PyCharm / WebStorm / Rider 等） | IDE バージョン 2025.3 以降＋最新の AI Assistant プラグインで Codex Agent を選択 | DataGrip ほか「Database Tools and SQL」プラグインで DB 系操作も対応 |
+
+対応 OS は macOS / Windows / Linux です。Windows ではネイティブサンドボックスか WSL2 を利用します。JetBrains 統合は WSL 上では動作しません。
+
+---
+
+## 起動と権限モード
+
+拡張をインストールするとエディタのサイドバーに Codex が表示されます。チャット入力欄の上部に **Chat / Agent / Agent Full Access** の選択肢があります。
+
+| モード | 動作 | 想定用途 |
+|---|---|---|
+| Chat（Read-only） | コードの参照・説明のみ。書き込み不可 | 読み解き・レビュー・調査 |
+| Agent | ワークスペース内のファイルを編集。外部操作は承認を求める | 通常の実装作業 |
+| Agent Full Access | システム全域のファイル編集・コマンド実行 | 限定的に・自己責任で |
+
+CLI 側の `--ask-for-approval` / `--sandbox` と同じ概念ですが、IDE では UI から選択します。
+
+---
+
+## 主な機能
+
+- **エディタコンテキスト**: 開いているファイル・選択範囲・`@file` 参照を自動的にプロンプトへ含める
+- **モデル切替**: 入力欄下のモデルセレクタで `gpt-5.5` / `gpt-5.4` / `gpt-5.4-mini` / `gpt-5.3-codex` / `gpt-5.3-codex-spark` などを切替（最新の選択肢は Codex Models ページで確認）
+- **推論レベル**: low / medium / high を IDE から指定
+- **画像入力**: スクリーンショットや図を添付して質問
+- **画像生成**: `gpt-image-2` 経由でアセット生成（プラン依存）
+- **Skills**: `$skill-name` で呼び出し（CLI と共有）
+- **Cloud 委譲**: 重いタスクを Codex Cloud にオフロード
+- **承認フロー**: 危険操作で確認ダイアログ
+- **ロールバック**: 会話チェックポイントへ戻る機能（JetBrains 系）
+
+---
+
+## JetBrains Codex Agent
+
+JetBrains IDE 2025.3 以降で最新の AI Assistant プラグインを導入し、AI Chat で「Codex Agent」を選択すると有効化できます。
+
+### 認証
+
+- **ChatGPT アカウント**: ChatGPT サブスクの利用枠を消費
+- **OpenAI API キー**: OpenAI Platform 直接発行のキー（サードパーティ発行のキーは非対応）
+- **JetBrains AI サブスクリプション**: JetBrains 側のクレジットを消費
+
+### 権限モード
+
+CLI と同じ 3 段階（Chat / Agent / Agent Full Access）で、IDE のチャット欄から切り替えます。
+
+### 制限事項
+
+- `.aiignore` の設定は反映されません
+- WSL（Windows Subsystem for Linux）上では動作しません
+- BYOK 認証は OpenAI 公式発行の API キーのみ
+
+### 主な機能
+
+Skills 呼び出し・モデル切替（推論レベル含む）・操作承認・ロールバック（会話チェックポイントへ戻る）が利用できます。DataGrip など「Database Tools and SQL」プラグインを併用すると DB 操作系ワークフローでも有効です。
+
+---
+
+## CLI との関係
+
+- 認証情報（ChatGPT OAuth トークン）は共通で、`codex login` を済ませると IDE 拡張側にも反映される
+- Skills（`.agents/skills/`）と AGENTS.md はリポジトリ配下を共有
+- `~/.codex/config.toml` のモデル既定値や承認ポリシーは IDE 側のセレクタで上書きされる
+
+---
+
+## 注意点
+
+**`Agent Full Access` は最小限に**
+システム全域に手を出せるため、ホストマシンの設定・他プロジェクトに影響する可能性があります。普段は Agent、危険な操作はターミナル側で `codex --sandbox read-only` 等を使う運用が安全です。
+
+**JetBrains 統合は WSL 非対応**
+Windows ネイティブのサンドボックスを使うか、JetBrains 統合を諦めて Codex CLI を WSL 内で使うか、いずれかになります。
+
+**Cursor / Windsurf は派生だが微差あり**
+基本は VS Code 拡張と同等ですが、設定 UI の場所やショートカットが異なることがあります。同期されない設定（テーマ・キーマップ）は別途調整してください。
+
+**画像生成はプラン依存**
+`gpt-image-2` の利用は ChatGPT サブスクや API プランによって制限されることがあります。`/skills` で `$imagegen` の有無を確認してください。
+
+**`@file` 参照は IDE のファイル単位**
+ディレクトリ全体を貼ると入力が長くなりすぎます。必要なファイルだけ参照するか、Skills で前処理させてください。
+
+---
+
+## 一次ソース
+
+- [IDE — Codex Docs](https://developers.openai.com/codex/ide)
+- [IDE Features — Codex Docs](https://developers.openai.com/codex/ide/features)
+- [JetBrains AI Assistant: Codex Agent](https://www.jetbrains.com/help/ai-assistant/codex-agent.html)
+- [Codex in JetBrains IDEs（公式ブログ）](https://blog.jetbrains.com/ai/2026/01/codex-in-jetbrains-ides/)
+- [Models — Codex Docs](https://developers.openai.com/codex/models)

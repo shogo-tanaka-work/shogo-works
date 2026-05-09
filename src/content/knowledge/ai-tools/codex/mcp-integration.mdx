@@ -1,221 +1,155 @@
 ---
 title: "Codex CLI × MCP：カスタムツール・APIの接続方法と活用パターン"
-description: "Codex CLI の MCP（Model Context Protocol）連携を徹底解説。config.tomlでのサーバー設定、MCP Apps対応（v0.119.0以降）、Codex CLI自体をMCPサーバーとして使う方法、おすすめサーバーの設定例まで2026年4月の最新仕様でまとめました。"
+description: "Codex CLI の MCP（Model Context Protocol）連携を徹底解説。`[mcp_servers.<name>]` の TOML キー（command/args/url/http_headers/bearer_token_env_var/enabled_tools 等）、stdio と Streamable HTTP の判別、`codex mcp-server` での自身の MCP 化、おすすめサーバーの設定例を 2026 年 5 月時点の公式仕様に揃えてまとめました。"
 category: "ai-tools"
 subcategory: "codex"
 tags: ["Codex CLI", "MCP", "Model Context Protocol", "ツール連携", "config.toml", "カスタムツール"]
 sortOrder: 6
 createdAt: 2026-04-15
+updatedAt: 2026-05-08
 author: "田中省伍"
 ---
 
-## TL;DR
+## この章の要点
 
-Codex CLI は MCP（Model Context Protocol）を通じて外部ツール・API・データベースを接続できます。設定は `~/.codex/config.toml` または `.codex/config.toml` に書きます。
+Codex CLI は MCP（Model Context Protocol）経由で外部ツール・API・データベースに接続できます。設定は `~/.codex/config.toml` または `.codex/config.toml` の `[mcp_servers.<name>]` テーブルに書きます。
 
-v0.119.0（2026年3月）以降、MCP Apps として以下の機能が強化されました：
-- **リソース読取**: MCP サーバーが提供するファイル・ドキュメントを Codex が参照
-- **ツールコールメタデータ**: 実行履歴・コスト情報の追跡
-- **サーバー駆動エリシテーション**: MCP サーバーが Codex にユーザーへの確認を要求できる
-- **ファイルパラメータアップロード**: MCP ツールに直接ファイルを渡せる
-
----
-
-## MCP サーバーの設定
-
-### config.toml での設定（推奨）
-
-```toml
-# ~/.codex/config.toml または .codex/config.toml
-
-# HTTP トランスポート（クラウドサービス向け）
-[mcp_servers.github]
-type = "http"
-url = "https://api.githubcopilot.com/mcp/"
-
-[mcp_servers.github.headers]
-Authorization = "Bearer ${GITHUB_TOKEN}"
-
-# Stdio トランスポート（ローカルプロセス向け）
-[mcp_servers.filesystem]
-type = "stdio"
-command = "npx"
-args = ["@modelcontextprotocol/server-filesystem", "/path/to/allowed/dir"]
-
-[mcp_servers.postgres]
-type = "stdio"
-command = "npx"
-args = ["@modelcontextprotocol/server-postgres", "${DATABASE_URL}"]
-```
-
-### プロジェクト別設定（チーム共有）
-
-```toml
-# .codex/config.toml（Git 管理）
-
-[mcp_servers.github]
-type = "http"
-url = "https://api.githubcopilot.com/mcp/"
-
-[mcp_servers.github.headers]
-Authorization = "Bearer ${GITHUB_TOKEN}"   # 環境変数で参照
-
-[mcp_servers.playwright]
-type = "stdio"
-command = "npx"
-args = ["@playwright/mcp@latest"]
-```
+- トランスポートは **stdio**（`command` キーあり）と **Streamable HTTP**（`url` キーあり）の 2 種類
+- HTTP のヘッダは `http_headers` / `env_http_headers` / `bearer_token_env_var` で指定
+- `enabled_tools` / `disabled_tools` で個別ツールの公開可否を制御
+- `codex mcp` でサーバの追加・ログイン・一覧、`codex mcp-server` で Codex 自体を MCP（stdio）として公開
+- グローバル OAuth は `mcp_oauth_callback_port` / `mcp_oauth_callback_url` / `mcp_oauth_credentials_store` で管理
 
 ---
 
-## トランスポートの種類
+## MCP とは
 
-| トランスポート | 設定キー | 用途 |
+LLM ツール拡張の業界標準仕様で、外部のサーバが「ツール」「リソース」を公開し、Codex 側がそれを呼び出すクライアントになります。Codex CLI は標準で stdio と Streamable HTTP の双方をサポートします。
+
+---
+
+## 公式仕様の概要
+
+公式の `/codex/mcp` と config-reference では、`[mcp_servers.<name>]` の各キー（stdio 系・HTTP 系・共通系）、トランスポート判定、グローバル OAuth 設定、`codex mcp` サブコマンドが定義されています。
+
+---
+
+## 使い方
+
+### `[mcp_servers.<name>]` のキー一覧
+
+| 区分 | キー | 説明 |
 |---|---|---|
-| HTTP | `type = "http"` | クラウド API・SaaS ツール（GitHub、Slack など） |
-| Stdio | `type = "stdio"` | ローカルプロセス・DB・自作ツール |
+| stdio | `command`（必須） | サーバを起動するコマンド |
+| stdio | `args` | コマンド引数の配列 |
+| stdio | `cwd` | 作業ディレクトリ |
+| stdio | `env` | サーバプロセスに渡す環境変数のマップ |
+| stdio | `env_vars` | ホスト環境からホワイトリスト渡しする変数名（`source = "local" / "remote"` 指定可） |
+| HTTP | `url`（必須） | Streamable HTTP エンドポイント |
+| HTTP | `http_headers` | 静的 HTTP ヘッダ |
+| HTTP | `env_http_headers` | 環境変数で値を埋めるヘッダ |
+| HTTP | `bearer_token_env_var` | Bearer トークンを取得する環境変数名 |
+| 共通 | `enabled` | false でこのサーバを無効化 |
+| 共通 | `required` | true で初期化失敗時に Codex 起動を中止 |
+| 共通 | `startup_timeout_sec` | 起動タイムアウト（既定 10 秒） |
+| 共通 | `tool_timeout_sec` | ツール 1 回の実行タイムアウト（既定 60 秒） |
+| 共通 | `enabled_tools` | 公開を許可するツール名の配列 |
+| 共通 | `disabled_tools` | 公開を拒否するツール名の配列（`enabled_tools` の後に適用） |
+| 共通 | `experimental_environment` | 実行配置の指定（`local` または `remote`） |
+| OAuth | `scopes` | 認証時に要求するスコープ |
+| OAuth | `oauth_resource` | RFC 8707 の OAuth resource パラメータ |
 
----
+トランスポートは「`command` があれば stdio、`url` があれば Streamable HTTP」で自動判別されます。`type` キーは指定しません。
 
-## 主要な MCP サーバー設定例
+### グローバル OAuth 設定
 
-### GitHub
+```toml
+# ~/.codex/config.toml
+mcp_oauth_callback_port      = 5555           # 既定はエフェメラルポート
+mcp_oauth_callback_url       = "https://devbox.example.internal/callback"
+mcp_oauth_credentials_store  = "auto"         # auto | file | keyring
+```
+
+### stdio サーバの設定例
+
+```toml
+# ~/.codex/config.toml
+
+[mcp_servers.filesystem]
+command = "npx"
+args = ["@modelcontextprotocol/server-filesystem", "/Users/user/Projects"]
+
+[mcp_servers.postgres]
+command = "npx"
+args = ["@modelcontextprotocol/server-postgres"]
+env = { DATABASE_URL = "postgresql://user:password@localhost:5432/mydb" }
+enabled_tools = ["query", "list_tables", "describe_table"]
+
+[mcp_servers.playwright]
+command = "npx"
+args = ["@playwright/mcp@latest"]
+env = { PLAYWRIGHT_HEADLESS = "true" }
+
+[mcp_servers.context7]
+command = "npx"
+args = ["-y", "@upstash/context7-mcp"]
+env_vars = ["LOCAL_TOKEN"]   # ホストの LOCAL_TOKEN を引き継ぐ
+```
+
+### Streamable HTTP サーバの設定例
+
+```toml
+# GitHub MCP（HTTP）
+[mcp_servers.github]
+url = "https://api.githubcopilot.com/mcp/"
+bearer_token_env_var = "GITHUB_TOKEN"   # Authorization: Bearer ${GITHUB_TOKEN}
+
+# 静的ヘッダと環境変数ヘッダの併用例
+[mcp_servers.internal-docs]
+url = "https://internal-mcp.example.com/mcp"
+http_headers     = { "X-Tenant" = "shogo-works" }
+env_http_headers = { "Authorization" = "INTERNAL_MCP_TOKEN" }   # 値を環境変数から取得
+startup_timeout_sec = 20
+tool_timeout_sec    = 90
+required = true
+```
+
+### プロジェクト共有
+
+`.codex/config.toml` を Git 管理すれば、チーム全員が同じ MCP サーバ構成で Codex を使えます。シークレットは TOML には書かず、`bearer_token_env_var` か `env_http_headers` で参照する環境変数名だけを定義しておくのが定石です。
+
+### 個別ツールの絞り込み
+
+破壊的なツールだけ無効化したい場合は `disabled_tools` を使います。
 
 ```toml
 [mcp_servers.github]
-type = "http"
 url = "https://api.githubcopilot.com/mcp/"
-
-[mcp_servers.github.headers]
-Authorization = "Bearer ${GITHUB_TOKEN}"
+bearer_token_env_var = "GITHUB_TOKEN"
+disabled_tools = ["delete_repository", "merge_pull_request"]
 ```
 
-提供ツール：`create_issue`・`list_pull_requests`・`search_code`・`merge_pull_request` など
+`enabled_tools` を指定すると、列挙したものだけが Codex から呼べます（`disabled_tools` は `enabled_tools` の後に適用される）。
 
-### PostgreSQL
+### `codex mcp` サブコマンド
 
-```toml
-[mcp_servers.postgres]
-type = "stdio"
-command = "npx"
-args = ["@modelcontextprotocol/server-postgres", "${DATABASE_URL}"]
-```
-
-`DATABASE_URL` 例: `postgresql://user:password@localhost:5432/mydb`
-
-提供ツール：`query`（SELECT のみ）・`list_tables`・`describe_table`
-
-### Playwright（ブラウザ自動操作）
-
-```toml
-[mcp_servers.playwright]
-type = "stdio"
-command = "npx"
-args = ["@playwright/mcp@latest"]
-
-# ヘッドレスモード設定
-[mcp_servers.playwright.env]
-PLAYWRIGHT_HEADLESS = "true"
-```
-
-**活用例：**
-- E2E テストのシナリオを Codex に作成・実行させる
-- スクリーンショットを撮って UI バグを自動検出
-- Web アプリのフォームテスト自動化
-
-### Filesystem（ローカルファイルアクセス）
-
-```toml
-[mcp_servers.filesystem]
-type = "stdio"
-command = "npx"
-args = [
-  "@modelcontextprotocol/server-filesystem",
-  "/Users/user/Documents",
-  "/Users/user/Projects"
-]
-```
-
-アクセスを許可するディレクトリのみ列挙してください。
-
----
-
-## MCP Apps の新機能（v0.119.0 以降）
-
-### リソース読取
-
-MCP サーバーがファイル・ドキュメント・データを「リソース」として提供できるようになりました。
-
-```toml
-# 社内ドキュメントサーバー（カスタム実装例）
-[mcp_servers.internal-docs]
-type = "http"
-url = "https://internal-mcp.example.com/mcp"
-
-[mcp_servers.internal-docs.headers]
-Authorization = "Bearer ${INTERNAL_MCP_TOKEN}"
-```
-
-```
-Codex: 「認証フローについての社内ドキュメントを確認してから実装してください」
-→ internal-docs MCP サーバーから認証仕様ドキュメントを取得
-→ ドキュメントに基づいた実装を提案
-```
-
-### サーバー駆動エリシテーション
-
-MCP サーバーが Codex に「ユーザーへの確認を求める」よう要請できます。
-
-```toml
-# 本番 DB サーバー（書き込み前に確認を強制する）
-[mcp_servers.production-db]
-type = "http"
-url = "https://db-mcp.example.com/mcp"
-
-[mcp_servers.production-db.headers]
-Authorization = "Bearer ${DB_MCP_TOKEN}"
-
-# このサーバーからのエリシテーションは必ず表示する
-elicitation_policy = "always-show"
-```
-
-### ファイルパラメータアップロード
-
-```toml
-[mcp_servers.image-analysis]
-type = "http"
-url = "https://vision-api.example.com/mcp"
-# ファイルを直接ツールに渡せる
-supports_file_params = true
-```
-
-```
-Codex: スクリーンショット（screenshot.png）を image-analysis に送って UI バグを分析してください
-→ ファイルを直接 MCP ツールにアップロード
-```
-
----
-
-## Codex CLI を MCP サーバーとして公開する
-
-Codex CLI 自体を MCP サーバーとして起動すると、他のクライアント（Claude Desktop・Cursor など）から Codex のファイル操作・コマンド実行機能を使えます。
+外部 MCP サーバを CLI から管理するサブコマンド群です。OAuth が必要なサーバへのログインや一覧表示に使います。
 
 ```bash
-# MCP サーバーとして起動
-codex mcp-server
-
-# ポートを指定
-codex mcp-server --port 3000
-
-# 承認ポリシーを設定して起動
-codex mcp-server --approval-policy on-request
+codex mcp --help    # サブコマンド一覧
+codex mcp add ...   # サーバ追加（対話）
+codex mcp login ... # OAuth ログイン
 ```
 
-提供ツール：
-- `codex()`：新規タスクを Codex に委譲する
-- `codex-reply()`：既存の Codex セッションに続きを依頼する
+### Codex CLI 自体を MCP サーバとして公開する
 
-### Claude Desktop との連携
+`codex mcp-server` を起動すると、Claude Desktop や Cursor などの他クライアントから Codex の機能を呼び出せます。トランスポートは stdio です。
+
+```bash
+codex mcp-server
+```
+
+Claude Desktop 側の設定例:
 
 ```json
 // ~/Library/Application Support/Claude/claude_desktop_config.json
@@ -229,17 +163,19 @@ codex mcp-server --approval-policy on-request
 }
 ```
 
-これで Claude Desktop から「このリポジトリのバグを Codex で修正して」のような指示が出せます。
+提供される MCP ツール：
+
+- `codex` … 新しい Codex セッションをタスク委譲で起動
+- `codex-reply` … 既存の Codex セッションへ続きを依頼
 
 ---
 
-## 自作 MCP サーバーの接続
+## 自作 MCP サーバの接続例
 
-社内 API・独自データベースを Codex に接続したい場合は MCP サーバーを自作します。
-
-### Python SDK を使った最小実装
+社内 API・独自データベースを Codex に接続する場合は、MCP SDK でサーバを実装します。
 
 ```python
+# /path/to/deploy-mcp-server.py
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("社内デプロイメント API")
@@ -247,7 +183,6 @@ mcp = FastMCP("社内デプロイメント API")
 @mcp.tool()
 def get_deployment_status(service: str) -> str:
     """指定したサービスのデプロイ状況を取得する"""
-    # 実際の API 呼び出し
     return fetch_from_deploy_api(f"/services/{service}/status")
 
 @mcp.tool()
@@ -260,11 +195,10 @@ if __name__ == "__main__":
 ```
 
 ```toml
-# config.toml への接続設定
+# config.toml への接続設定（stdio）
 [mcp_servers.internal-deploy]
-type = "stdio"
 command = "python"
-args = ["/path/to/deploy-mcp-server.py"]
+args    = ["/path/to/deploy-mcp-server.py"]
 ```
 
 ---
@@ -274,44 +208,45 @@ args = ["/path/to/deploy-mcp-server.py"]
 | 観点 | Codex CLI | Claude Code |
 |---|---|---|
 | 設定ファイル | `config.toml`（TOML） | `.mcp.json`（JSON）または `settings.json` |
-| トランスポート | HTTP・Stdio | HTTP・Stdio |
-| Tool Search | 常に全ツールロード | v2.1.76 以降は遅延ロード（Tool Search） |
-| 公式レジストリ | 未提供（2026年4月時点） | `api.anthropic.com/mcp-registry` |
-| MCP サーバーとして公開 | `codex mcp-server` | `claude mcp serve` |
+| トランスポート | stdio・Streamable HTTP | stdio・HTTP・SSE |
+| 公式レジストリ | 未提供（2026-05 時点） | あり（`api.anthropic.com/mcp-registry/v0/servers`） |
+| MCP サーバとして公開 | `codex mcp-server`（stdio） | `claude mcp serve` |
 | プロジェクト共有 | `.codex/config.toml` を Git 管理 | `.mcp.json` を Git 管理 |
+| ツール絞り込み | `enabled_tools` / `disabled_tools` | 設定 UI / Hooks |
 
 ---
 
-## ハマりポイント・注意事項
+## 注意点・セキュリティ観点
 
-**環境変数の展開は起動時**
-`${ENV_VAR}` は Codex CLI の起動時に展開されます。起動後に環境変数を変更しても反映されません。
+**シークレットを TOML に直書きしない**
+`http_headers` にトークンを直書きすると Git に含まれた時点で流出します。`bearer_token_env_var` か `env_http_headers` で「環境変数名」を渡してください。
 
-**ネットワークはデフォルト無効**
-MCP サーバーへの接続もネットワーク制限の影響を受けます。HTTP 型 MCP サーバーへの接続には `config.toml` でネットワーク許可ルールを設定してください。
+**ネットワークはサンドボックス側で許可が必要**
+Streamable HTTP の MCP サーバへ接続するには、`config.toml` 側のネットワーク許可（`[permissions.<name>.network.domains]`）でドメインを `allow` に設定しておく必要があります（詳細は「承認モード&サンドボックス」章）。
 
-```toml
-[permissions.default.network]
-allow = [
-  { domain = "api.githubcopilot.com" },
-  { domain = "internal-mcp.example.com" },
-]
-```
+**`required = true` の使い分け**
+業務上必須のサーバは `required = true` にしておくと、起動失敗時に Codex 全体を停止できます。補助的なサーバまで `required` にすると、不安定な MCP が原因で Codex が起動しなくなる場合があります。
 
-**Stdio 型サーバーのデバッグ**
-Stdio 型サーバーが起動しない場合は、コマンドを直接実行して確認してください。
+**`enabled_tools` / `disabled_tools` で破壊的ツールを抑える**
+GitHub MCP の `merge_pull_request` のように取り消せない操作は、明示的に `disabled_tools` に入れておくと事故を防げます。
+
+**stdio サーバが起動しないときは単体実行で確認**
 
 ```bash
 npx @modelcontextprotocol/server-filesystem /tmp 2>&1
 ```
 
+依存パッケージや環境変数の不足はここで切り分けられます。
+
+**Codex を MCP として公開するときは承認設定を確認**
+`codex mcp-server` で公開した Codex は、別クライアントの指示でファイル変更やコマンド実行を行います。サンドボックス・承認ポリシーは `config.toml` で適切に絞っておいてください。
+
 ---
 
-## 参考リンク
+## 一次ソース
 
-- [MCP integration — Codex CLI Docs](https://developers.openai.com/codex/mcp)
-- [Configuration reference — Codex CLI Docs](https://developers.openai.com/codex/config-reference)
-- [Use Codex with the Agents SDK — Codex CLI Docs](https://developers.openai.com/codex/guides/agents-sdk)
+- [MCP integration — Codex Docs](https://developers.openai.com/codex/mcp)
+- [Configuration reference — Codex Docs](https://developers.openai.com/codex/config-reference)
+- [Use Codex with the Agents SDK — Codex Docs](https://developers.openai.com/codex/guides/agents-sdk)
 - [Model Context Protocol 公式サイト](https://modelcontextprotocol.io)
-- [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk)
-- [MCP Python SDK](https://github.com/modelcontextprotocol/python-sdk)
+- [openai/codex リポジトリ（mcp-server クレート）](https://github.com/openai/codex/tree/main/codex-rs/mcp-server)

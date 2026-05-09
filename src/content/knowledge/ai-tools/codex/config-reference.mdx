@@ -1,0 +1,278 @@
+---
+title: "Codex config.toml リファレンス：トップレベルキーから profiles・requirements まで一望"
+description: "Codex の `~/.codex/config.toml`（および `requirements.toml`）で設定できる主要キーを 2026 年 5 月時点の公式仕様で整理。`model` / `approval_policy` / `sandbox_mode` / `web_search` / `[agents]` / `[mcp_servers]` / `[permissions]` / `[sandbox_workspace_write]` / `[profiles]` / `project_doc_*` / MCP OAuth、管理者強制の `allowed_*` 系まで一覧で参照できます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "config.toml", "Reference", "permissions", "agents", "mcp_servers", "profiles"]
+sortOrder: 20
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- 設定の主役は **`~/.codex/config.toml`**（プロジェクトは `.codex/config.toml`）。組織配布の固定値は **`requirements.toml`**
+- トップレベル：`model` / `approval_policy` / `sandbox_mode` / `web_search` / `service_tier` / `profile`
+- セクション：`[agents]`、`[mcp_servers.<id>]`、`[permissions.<name>]`、`[sandbox_workspace_write]`、`[profiles.<name>]`、AGENTS.md 系の `project_doc_*`
+- MCP OAuth：`mcp_oauth_callback_port` / `mcp_oauth_credentials_store`
+- 管理者強制：`allowed_sandbox_modes` / `allowed_approval_policies` / `allowed_web_search_modes` / `allowed_approvals_reviewers` / `[features]` / `guardian_policy_config`
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/config-reference` には、コア設定（モデル・承認・サンドボックス・Web 検索）、サブエージェント・MCP・パーミッション・サンドボックス書き込み・プロファイル・AGENTS.md 関連・MCP OAuth、管理者強制（`requirements.toml`）の各キーが定義されています。本記事は同ページを再構成した一覧リファレンスです。各機能の詳細は対応する章（承認モード&サンドボックス／サブエージェント／MCP 連携／AGENTS.md など）で扱います。
+
+---
+
+## コア設定（トップレベル）
+
+```toml
+# ~/.codex/config.toml
+
+model           = "gpt-5.5"           # 既定モデル
+model_provider  = "openai"            # プロバイダ ID（既定 openai）
+service_tier    = "fast"              # fast / flex
+approval_policy = "on-request"        # untrusted | on-request | never | { granular = { ... } }
+sandbox_mode    = "workspace-write"   # read-only | workspace-write | danger-full-access
+web_search      = "cached"            # disabled | cached（既定）| live
+default_permissions = ":workspace"    # :read-only | :workspace | :danger-no-sandbox など
+profile         = "default"           # 起動時に適用するプロファイル名
+
+[tools]
+view_image = true                     # ローカル画像添付ツール
+```
+
+`approval_policy` の granular 形式：
+
+```toml
+approval_policy = { granular = {
+  sandbox_approval    = true,
+  rules               = true,
+  mcp_elicitations    = true,
+  request_permissions = false,
+  skill_approval      = false,
+} }
+```
+
+詳細は「承認モード&サンドボックス」章を参照してください。
+
+---
+
+## サブエージェント
+
+```toml
+[agents]
+max_threads             = 6     # 同時実行スレッド数（既定 6）
+max_depth               = 1     # 子エージェントのネスト上限（既定 1）
+job_max_runtime_seconds = 1800  # 各ジョブの既定タイムアウト
+
+[agents.explorer]
+description       = "コードベース探索の専門エージェント"
+config_file       = ".codex/agents/explorer.toml"   # レイヤー用の設定ファイル
+nickname_candidates = ["Scout", "Pathfinder"]
+```
+
+サブエージェント単体の TOML フィールド（`name` / `description` / `developer_instructions` / `model` / `model_reasoning_effort` / `sandbox_mode` / `mcp_servers` / `skills.config` など）は「Codex CLI サブエージェント」章を参照。
+
+---
+
+## MCP サーバ
+
+```toml
+# stdio
+[mcp_servers.filesystem]
+command = "npx"
+args    = ["@modelcontextprotocol/server-filesystem", "/Users/me/Projects"]
+env     = { NODE_ENV = "production" }
+
+[mcp_servers.context7]
+command  = "npx"
+args     = ["-y", "@upstash/context7-mcp"]
+env_vars = ["LOCAL_TOKEN"]   # ホスト環境変数のホワイトリスト
+cwd      = "/path/to/cwd"
+
+# Streamable HTTP
+[mcp_servers.github]
+url                  = "https://api.githubcopilot.com/mcp/"
+bearer_token_env_var = "GITHUB_TOKEN"
+
+[mcp_servers.internal]
+url              = "https://internal-mcp.example.com/mcp"
+http_headers     = { "X-Tenant" = "shogo-works" }
+env_http_headers = { "Authorization" = "INTERNAL_MCP_TOKEN" }
+
+# 共通オプション
+[mcp_servers.github]
+enabled              = true
+required             = false
+startup_timeout_sec  = 10
+tool_timeout_sec     = 60
+enabled_tools        = ["search_code", "list_pull_requests"]
+disabled_tools       = ["delete_repository"]
+experimental_environment = "remote"   # remote エクゼキュータ環境向け
+scopes               = ["read", "write"]   # OAuth スコープ
+oauth_resource       = "https://api.example.com"
+```
+
+詳細は「MCP 連携」章を参照。
+
+---
+
+## パーミッション
+
+```toml
+# 名前付きパーミッションプロファイル
+[permissions.default.network]
+enabled = true
+mode    = "limited"   # limited | full
+
+[permissions.default.network.domains]
+"api.github.com"     = "allow"
+"registry.npmjs.org" = "allow"
+
+[permissions.default.network.unix_sockets]
+"/tmp/my-service.sock" = "allow"
+
+# ファイル系（主に requirements.toml 側で管理者強制として使う）
+[permissions.filesystem]
+deny_read = ["~/.ssh/**", "~/.gnupg/**"]
+```
+
+---
+
+## ワークスペース書き込みサンドボックス
+
+```toml
+[sandbox_workspace_write]
+writable_roots         = ["/var/log/myapp"]
+network_access         = false
+exclude_slash_tmp      = false
+exclude_tmpdir_env_var = false
+```
+
+---
+
+## プロファイル
+
+```toml
+# 起動時に切替
+profile = "default"
+
+[profiles.strict]
+approval_policy = "untrusted"
+sandbox_mode    = "read-only"
+web_search      = "disabled"
+
+[profiles.autonomous]
+approval_policy = "never"
+sandbox_mode    = "workspace-write"
+service_tier    = "fast"
+
+[permissions.autonomous.network]
+enabled = true
+mode    = "limited"
+
+[permissions.autonomous.network.domains]
+"api.github.com" = "allow"
+```
+
+`codex --profile strict` のようにフラグで切り替えられます。
+
+---
+
+## AGENTS.md 関連
+
+```toml
+# AGENTS.md が無い場合のフォールバック
+project_doc_fallback_filenames = ["TEAM_GUIDE.md", ".agents.md"]
+
+# AGENTS.md 群の合計取込上限（既定 32 KiB = 32768）。引き上げる場合のみ明示
+project_doc_max_bytes = 32768
+
+# プロジェクトルート検出用マーカー
+project_root_markers  = [".git", "package.json"]
+```
+
+---
+
+## MCP OAuth（グローバル）
+
+```toml
+mcp_oauth_callback_port      = 5555           # 既定はエフェメラル
+mcp_oauth_callback_url       = "https://devbox.example.internal/callback"
+mcp_oauth_credentials_store  = "auto"         # auto | file | keyring
+```
+
+---
+
+## 管理者強制（requirements.toml）
+
+```toml
+# requirements.toml
+allowed_sandbox_modes      = ["read-only", "workspace-write"]
+allowed_approval_policies  = ["on-request", "untrusted"]
+allowed_web_search_modes   = ["disabled", "cached"]
+allowed_approvals_reviewers = ["user", "auto_review"]
+
+[features]
+computer_use   = false
+browser_use    = false
+in_app_browser = false
+unified_exec   = false
+codex_hooks    = false
+personality    = "pragmatic"
+
+# 管理者配布の Markdown ガード
+guardian_policy_config = "/etc/codex/guardian.md"
+
+# 強制ルール
+[rules]
+prefix_rules = [
+  { pattern = [{ token = "rm" }, { token = "-rf" }], decision = "forbidden", justification = "破壊的削除を禁止" },
+  { pattern = [{ token = "git" }, { token = "push" }], decision = "prompt", justification = "push 前に必ず確認" },
+]
+```
+
+---
+
+## 設定ファイルの優先順位
+
+1. CLI フラグ（`-c key=value` を含む）
+2. プロファイル（`[profiles.<name>]`）
+3. `~/.codex/config.toml` のトップレベル
+4. `.codex/config.toml`（プロジェクト）
+5. `requirements.toml`（管理者強制 — `allowed_*` の上限を超えるユーザー設定は弾かれる）
+
+---
+
+## 注意点
+
+**`requirements.toml` の `allowed_*` は上限**
+ユーザー側 `config.toml` で `allowed_*` の範囲外の値を入れても適用されません。Enterprise 配布ではここで安全境界を固定するのが定石です。
+
+**`profile` はトップレベル設定で固定できる**
+コマンド単位で `--profile` を毎回指定するより、`profile = "..."` をホーム配下に書いておくと事故を防ぎやすくなります。
+
+**`mcp_oauth_credentials_store = "keyring"` が便利**
+OS のキーチェーン／資格情報マネージャに OAuth トークンを保存できるため、トークン漏えいリスクを下げられます。
+
+**`web_search = "live"` は意識して使う**
+既定は `cached` です。`live` に常時設定するとコスト・レイテンシが上がります。
+
+**`agents.max_depth = 1` は明示しておく**
+既定値ですが、明示しておくとレビュー時に意図が伝わりやすくなります。
+
+**`tools.view_image` を無効化するとローカル画像添付が無効**
+画像入力を禁止したい組織配布で活用できます。
+
+---
+
+## 一次ソース
+
+- [Configuration reference — Codex Docs](https://developers.openai.com/codex/config-reference)
+- [Configuration advanced — Codex Docs](https://developers.openai.com/codex/config-advanced)
+- [Sample configuration — Codex Docs](https://developers.openai.com/codex/config-sample)
+- [Sandboxing — Codex Docs](https://developers.openai.com/codex/concepts/sandboxing)
+- [MCP integration — Codex Docs](https://developers.openai.com/codex/mcp)
