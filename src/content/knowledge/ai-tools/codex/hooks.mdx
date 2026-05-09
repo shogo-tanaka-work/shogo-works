@@ -1,0 +1,353 @@
+---
+title: "Codex Hooks ガイド：6種ライフサイクルイベントとmanaged hooksでエージェント動作に処理を差し込む"
+description: "Codex Hooks の 6 種イベント（SessionStart / PreToolUse / PermissionRequest / PostToolUse / UserPromptSubmit / Stop）と matcher、JSON I/O プロトコル、Enterprise の managed hooks までを 2026 年 5 月時点の公式仕様で整理。プロンプト検査、監査ログ、ポリシー強制、終了前検証など実用パターンも収録します。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Hooks", "lifecycle", "managed hooks", "Enterprise", "policy"]
+sortOrder: 24
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- Hooks は Codex のライフサイクル 6 イベントに自前のスクリプトを差し込む拡張点。`[features].codex_hooks = true` で有効化
+- 設定は `~/.codex/hooks.json` / `~/.codex/config.toml` / リポ直下の `.codex/hooks.json` / `.codex/config.toml` の4箇所。プラグインからもバンドルされる
+- イベントは `SessionStart` / `PreToolUse` / `PermissionRequest` / `PostToolUse` / `UserPromptSubmit` / `Stop` の 6 種
+- `matcher` は regex。tool 名や起動理由に対して条件付き発火
+- Enterprise は `requirements.toml` から **managed hooks** を一元配布できる（スクリプト本体は MDM 配布）
+- 完全なセキュリティ境界ではなく、sandbox / approval / rules と組み合わせる多層防御の一層として使う
+
+---
+
+## Hooks とは
+
+Codex Hooks は、エージェントのライフサイクルイベントに合わせて決定的なスクリプトを実行する仕組みです。プロンプト検査、監査ログ、独自ポリシー、会話要約、終了前チェックなどを Codex の流れに組み込めます。
+
+Claude Code の hooks（`settings.json` + `.claude/hooks/`）と発想は近いですが、Codex は `config.toml` インライン記述または `hooks.json` ファイルの 2 形式が選べる点と、Enterprise 向けの **managed hooks** を `requirements.toml` から配布できる点が違います。
+
+公式ドキュメントは [`developers.openai.com/codex/hooks`](https://developers.openai.com/codex/hooks)。
+
+---
+
+## 有効化
+
+`config.toml` で機能フラグを立てます。
+
+```toml
+[features]
+codex_hooks = true
+```
+
+設定の置き場所は次の 4 箇所が読み込まれます。
+
+```text
+~/.codex/hooks.json
+~/.codex/config.toml
+<repo>/.codex/hooks.json
+<repo>/.codex/config.toml
+```
+
+プラグインが hooks をバンドルする場合もあります（v0.130.0 以降、プラグイン詳細でバンドルされた hooks が表示されるようになりました）。複数のソースに該当する hooks があると、Codex は高優先度の設定で置き換えるのではなく、条件に合うものをすべて読み込みます。
+
+---
+
+## 設定の基本構造
+
+Hooks は 3 段階で考えます。
+
+1. **イベント**: `PreToolUse`、`PostToolUse`、`Stop` などのライフサイクル
+2. **matcher group**: どの tool や開始理由に反応するか
+3. **hook handler**: 実際に実行するコマンド
+
+`hooks.json` の例:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 \"/repo/.codex/hooks/pre_tool_use.py\"",
+            "timeout": 30,
+            "statusMessage": "Checking command"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+inline TOML の例:
+
+```toml
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '/usr/bin/python3 "$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use.py"'
+timeout = 30
+statusMessage = "Checking command"
+```
+
+`timeout` は秒単位、未指定時の既定は 600 秒です。リポローカルの hooks は、Codex がサブディレクトリから起動されるケースを考慮して、相対パスより `git rev-parse --show-toplevel` 経由の絶対パスで書く方が安定します。
+
+---
+
+## 6 種のイベント
+
+| イベント | 発火タイミング | matcher が見る対象 |
+|---|---|---|
+| `SessionStart` | セッション開始・再開・クリア時 | 起動理由（`startup` / `resume` / `clear`） |
+| `PreToolUse` | tool 実行直前 | tool 名 |
+| `PermissionRequest` | 承認要求の直前 | tool 名 |
+| `PostToolUse` | tool 実行直後 | tool 名 |
+| `UserPromptSubmit` | プロンプト送信直前 | matcher 未対応 |
+| `Stop` | ターン停止時 | matcher 未対応 |
+
+matcher は regex 文字列です。`"*"`、空文字、または省略で対応イベントすべてに一致します。
+
+tool 名の例:
+
+```text
+Bash
+^apply_patch$
+Edit|Write
+mcp__filesystem__read_file
+mcp__filesystem__.*
+startup|resume|clear
+```
+
+`apply_patch` は内部的に `Edit` / `Write` のエイリアスとしても matcher に書ける場合がありますが、入力上の `tool_name` フィールドは `apply_patch` として渡されます。
+
+---
+
+## hook に渡される入力
+
+command hook は標準入力で 1 つの JSON オブジェクトを受け取ります。共通フィールドは次のとおりです。
+
+| フィールド | 意味 |
+|---|---|
+| `session_id` | 現在のセッション/スレッド ID |
+| `transcript_path` | transcript file path（ない場合は null） |
+| `cwd` | セッションの作業ディレクトリ |
+| `hook_event_name` | イベント名 |
+| `model` | 使用中のモデル slug |
+
+ターンに関係するイベントでは `turn_id` などの追加フィールドも渡されます。
+
+---
+
+## 各イベントの使い方
+
+### SessionStart
+
+セッション開始時に追加の developer context を注入します。
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SessionStart",
+    "additionalContext": "Load repository conventions before editing."
+  }
+}
+```
+
+標準出力に plain text を出した場合も追加 developer context として扱われます。プロジェクト固有の注意点や、外部から生成した短い状態メモを渡す用途に向きます。
+
+### PreToolUse
+
+tool 実行前に動きます。Bash、`apply_patch` による編集、MCP tool call などを対象にできます。
+
+Bash コマンドを拒否する例:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "Destructive command blocked by repository policy."
+  }
+}
+```
+
+exit code `2` と標準エラーに理由を書く方式もあります。
+
+注意点として、`PreToolUse` は完全な強制境界ではありません。公式本文では、すべての shell call や Web Search などを捕捉するわけではないと明示されています。重要なセキュリティ境界は sandbox / rules / 管理設定と組み合わせてください。
+
+### PermissionRequest
+
+Codex が承認を求めようとする直前に実行されます。承認不要の処理では動きません。
+
+許可する例:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PermissionRequest",
+    "decision": { "behavior": "allow" }
+  }
+}
+```
+
+拒否する例:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PermissionRequest",
+    "decision": {
+      "behavior": "deny",
+      "message": "Blocked by approval policy."
+    }
+  }
+}
+```
+
+複数 hooks の判断が衝突した場合は **deny が優先**されます。allow が返り deny がなければ、通常の承認 prompt を出さずに進みます。判断しなかった場合は通常の承認フローに戻ります。
+
+### PostToolUse
+
+tool 実行後に動きます。Bash では非ゼロ終了の後にも動きます。すでに副作用は出ているので巻き戻しはできませんが、結果を Codex に返してフィードバックループを作ることはできます。
+
+```json
+{
+  "decision": "block",
+  "reason": "The command output needs review before continuing.",
+  "hookSpecificOutput": {
+    "hookEventName": "PostToolUse",
+    "additionalContext": "Generated files changed; inspect them before the next edit."
+  }
+}
+```
+
+このイベントの `decision: "block"` は実行済みコマンドを取り消す意味ではなく、tool 結果を hook フィードバックに置き換えて Codex に再考させる挙動です。
+
+### UserPromptSubmit
+
+ユーザーの prompt が送信される直前に動きます。matcher は未対応です。プロンプト検査、秘密情報らしき文字列の検出、追加コンテキスト生成に向きます。
+
+追加コンテキストを返す例:
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "UserPromptSubmit",
+    "additionalContext": "Ask for reproduction steps before editing files."
+  }
+}
+```
+
+prompt を止める場合は block decision または exit code `2`:
+
+```json
+{
+  "decision": "block",
+  "reason": "Please remove secrets before sending this prompt."
+}
+```
+
+### Stop
+
+ターン停止時に動きます。matcher は未対応です。終了前にチェックし、必要なら Codex に続行させる用途に使えます。
+
+Stop では正常終了時の標準出力は **JSON である必要**があります。plain text は無効です。
+
+```json
+{
+  "decision": "block",
+  "reason": "Run one more validation pass before finishing."
+}
+```
+
+ここでの `block` はターンを拒否するというより「もう一度続けて」という継続指示として扱われます。複数の Stop hooks がある場合、`continue: false` が優先される挙動もあります。
+
+---
+
+## Managed hooks（Enterprise）
+
+Enterprise 環境では `requirements.toml` から managed hooks を定義し、Codex 全体に強制適用できます。スクリプト本体は MDM など別の仕組みで配布し、Codex には実行ディレクトリと hook 定義だけを渡す考え方です。
+
+```toml
+[features]
+codex_hooks = true
+
+[hooks]
+managed_dir = "/enterprise/hooks"
+windows_managed_dir = 'C:\enterprise\hooks'
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "python3 /enterprise/hooks/pre_tool_use_policy.py"
+timeout = 30
+statusMessage = "Checking managed command"
+```
+
+`managed_dir` は macOS / Linux 向け、`windows_managed_dir` は Windows 向けです。Codex 自体はスクリプトを配布しないため、配置と更新は管理者側のオペレーションになります。
+
+---
+
+## 実用例
+
+### 危険な Bash コマンドを止める
+
+`pre_tool_use.py` のような hook script で、標準入力 JSON の `tool_input.command` を見て禁止語を検出します。
+
+```python
+#!/usr/bin/env python3
+import json
+import sys
+
+payload = json.load(sys.stdin)
+command = payload.get("tool_input", {}).get("command", "")
+
+if "rm -rf" in command:
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "permissionDecision": "deny",
+            "permissionDecisionReason": "rm -rf is blocked by repository policy."
+        }
+    }))
+    sys.exit(0)
+
+sys.exit(0)
+```
+
+実運用では文字列一致だけに頼らず、rules / sandbox と組み合わせる多層構成にするのが安全です。
+
+### セッション開始時にチームコンベンションを注入
+
+`SessionStart` で `additionalContext` に開発ルールサマリを返すと、Codex が毎セッションでチームの暗黙ルールを踏まえて動きます。AGENTS.md と組み合わせると、AGENTS.md は静的な規則集、SessionStart hook は動的な状況依存メモという使い分けにできます。
+
+### Stop hook で最終チェックを強制
+
+`Stop` で `decision: "block"` を返すと Codex が「もう一度続けて」と判断します。テスト未実行ならテストを走らせる、未コミットの危険な変更があれば差し戻す、といったゲートに使えます。
+
+---
+
+## 注意点
+
+- Hooks は強力ですが完全なセキュリティ境界ではありません
+- 複数 hooks が一致すると **並行実行**されるため、ある hook が別 hook の開始を防ぐことはできません
+- イベントごとに対応する出力フィールドが異なります（公式ページのテーブル参照）
+- project-local hooks は **信頼済みプロジェクト**でだけ読み込まれます
+- hook script 自体の配布、権限、更新も運用対象に含める必要があります
+
+---
+
+## 関連リンク
+
+- [Codex Hooks（公式）](https://developers.openai.com/codex/hooks)
+- [Codex 承認モード&サンドボックス（本サイト）](/knowledge/ai-tools/codex/approval-modes-sandbox)
+- [Codex Enterprise 管理者セットアップ（本サイト）](/knowledge/ai-tools/codex/enterprise-admin)
+- [Codex MCP 連携（本サイト）](/knowledge/ai-tools/codex/mcp-integration)
