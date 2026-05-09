@@ -1,0 +1,226 @@
+---
+title: "Codex Cookbook: GitLab CIでCodex CLIを使い品質改善とセキュリティ修正を自動化する"
+description: "OpenAI 公式 Cookbook の GitLab 例をもとに、GitLab CI から Codex CLI を呼び出してコード品質レポートの分析やセキュリティ修正案の作成を自動化する流れを 2026 年 5 月時点の仕様で整理。CI 変数管理、protected branches、段階的導入、PR/MR レビューの運用までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "cookbook", "GitLab", "CI/CD", "code quality", "security"]
+sortOrder: 36
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- GitLab CI から Codex CLI を呼び出し、品質レポート分析・セキュリティ修正案作成を自動化できる
+- コード品質: 複雑関数 / 重複 / 命名 / テスト難易度 などの観点で Codex に整理させる
+- セキュリティ: 検査結果から問題説明・影響範囲・修正方針・パッチを順に作らせる
+- 自動修正は **必ずレビュー前提**。protected variables、ブランチ制限、token 権限最小化が重要
+- 最初は要約・提案のみ、次に限定的修正 MR、と段階的に範囲を広げる
+
+このレシピの一次ソースは OpenAI Cookbook の [Secure Quality with GitLab 例](https://developers.openai.com/cookbook/examples/codex/secure_quality_gitlab) です。
+
+---
+
+## なぜ GitLab + Codex か
+
+GitLab CI ではテスト、Lint、Code Quality、Security Scan など多くのチェックを実行できます。ただし**レポートを読んで優先順位をつけ、修正方針を考える作業は手間がかかります**。
+
+Codex CLI を組み込むと、これらの結果を読み取り、修正案や実装パッチの作成を支援できます。GitHub Actions に比べて GitLab + Codex の事例は少なめなので、最低限の構成例を用意しておくと社内展開しやすいです。
+
+---
+
+## レシピ 1: コード品質レポートの分析
+
+GitLab Code Quality レポートが JSON で出力されることを利用し、Codex に読ませて整理させます。
+
+### `.gitlab-ci.yml`
+
+```yaml
+stages:
+  - quality
+  - codex
+
+code_quality:
+  stage: quality
+  script:
+    - npx eslint --format json --output-file gl-code-quality-report.json src/ || true
+  artifacts:
+    paths:
+      - gl-code-quality-report.json
+
+codex_quality_review:
+  stage: codex
+  image: node:20
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  needs:
+    - code_quality
+  script:
+    - npm install -g @openai/codex
+    - codex exec --json --read-only "Read gl-code-quality-report.json
+        and produce a Markdown summary grouped by severity. For each top
+        item, suggest a minimal refactor without changing public APIs."
+        > codex-quality-summary.md
+    - cat codex-quality-summary.md
+  variables:
+    OPENAI_API_KEY: $OPENAI_API_KEY
+  artifacts:
+    paths:
+      - codex-quality-summary.md
+```
+
+### Codex に依頼する観点
+
+```text
+gl-code-quality-report.json を読み、以下の観点で整理してください:
+
+- 複雑すぎる関数（cyclomatic complexity > 10）
+- 重複コード
+- 命名や構造の問題
+- テストしづらい実装
+- 小さく分割できる改善箇所
+
+各項目を severity 別にグループ化し、対象ファイル・行・短い理由・修正方針を
+表形式の Markdown でまとめてください。修正パッチはまだ作成しないでください。
+```
+
+いきなり大規模リファクタリングを任せるより、まずレポート要約と修正計画から。
+
+---
+
+## レシピ 2: セキュリティ修正
+
+GitLab の SAST / Dependency Scanning / Secret Detection の出力を Codex に渡します。
+
+### 流れ
+
+1. SAST が `gl-sast-report.json` を生成
+2. Codex に問題の意味を説明させる
+3. 影響範囲を調べさせる
+4. 修正方針を提案させる
+5. テストや確認手順を作らせる
+6. 必要に応じてパッチを作成させる
+
+### Codex への依頼例
+
+```text
+gl-sast-report.json の High / Critical を対象に、各 finding について
+次の観点で整理してください:
+
+1. 何が問題か（1-2 文）
+2. このリポジトリでの影響範囲（呼び出し元の調査結果も含めて）
+3. 修正方針（コード変更 + 必要なテスト）
+4. 検証手順（実行コマンド、確認ポイント）
+5. ロールバック手段
+
+実装変更はせず、レポートを security-fix-plan.md に出力してください。
+```
+
+承認後、別 stage で実装を依頼:
+
+```text
+security-fix-plan.md の 1 番目の finding について、修正パッチを作って
+新しいブランチで MR を起票してください。コミットメッセージは
+"security: <短い説明> (refs SAST-<id>)" 形式で。
+```
+
+セキュリティ修正は影響が大きいため、**人間のレビューを必ず挟む**運用にします。
+
+---
+
+## CI 変数と権限管理
+
+GitLab CI で Codex CLI を使う場合、API キーやトークンを CI 変数として管理します。
+
+### 注意点
+
+- **protected variables を使う**: 保護ブランチ（`main`, `production` 等）でのみ参照可能に
+- **実行対象ブランチを制限**: `rules:` で fork や外部 MR を除外
+- **fork や外部 MR で実行するか慎重に決める**: 攻撃ベクトルになる
+- **ログに秘密情報を出さない**: スクリプトで `OPENAI_API_KEY` を echo しない
+- **token の権限を最小限に**: 書き込み不要なら read-only API キー
+
+### 安全な構成例
+
+```yaml
+codex_quality_review:
+  stage: codex
+  image: node:20
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: manual  # 手動承認
+    - if: $CI_MERGE_REQUEST_SOURCE_PROJECT_ID == $CI_MERGE_REQUEST_TARGET_PROJECT_ID
+      # 同一プロジェクト内 MR のみ自動。fork からの MR は手動
+  variables:
+    OPENAI_API_KEY: $OPENAI_API_KEY  # protected variable
+```
+
+---
+
+## 段階的導入
+
+### Stage 1: レポート要約だけ
+
+- Codex に分析させる
+- 結果を MR コメント or アーティファクトに出すだけ
+- 自動修正は **しない**
+- チームが結果を見て「精度感」を確認する期間
+
+### Stage 2: 提案 MR の起票
+
+- High / Critical 限定で修正案 MR を自動起票
+- ブランチ名規則: `codex/sast-fix/<id>`
+- ラベル `auto-generated` を付与
+- レビュー必須
+
+### Stage 3: ルーチン化
+
+- 観点を増やす（ライセンスチェック、依存更新など）
+- 失敗時のオンコール通知
+- 月次のメトリクス収集
+
+---
+
+## 落とし穴
+
+- **MR が大量に作られる**: 自動化を一気に有効化すると、レビュー負荷が爆発する。Stage 1 → 2 を分けて感覚を掴む
+- **Codex の context 不足**: SAST レポートだけ渡しても、関連ファイルの参照が要る。`--read-only` でリポジトリ全体を読めるようにする
+- **誤検出のループ**: SAST の誤検出を Codex がそのまま「修正」してしまう。最初は High/Critical 限定が安全
+- **シークレット流出**: レポート内にトークンらしい文字列があると、Codex の入力に混じる。pre-process で sanitize
+- **CI コスト**: Codex 呼び出しを毎 MR で実行するとコストがかさむ。draft MR や特定ラベル限定で発火させる
+
+---
+
+## 他 CI/CD への応用
+
+基本構造は GitHub Actions / Azure DevOps Pipelines / Jenkins でも同じです。
+
+- 入力: 各 CI のスキャンレポート（JSON or SARIF）
+- 処理: `codex exec` または Codex SDK 呼び出し
+- 出力: コメント / アーティファクト / 自動 MR/PR
+
+詳細は本サイトの [Codex × GitHub Action](/knowledge/ai-tools/codex/github-action-cicd) と [Codex Cookbook: コードレビュー](/knowledge/ai-tools/codex/cookbook-code-review) も参照。
+
+---
+
+## まとめ
+
+GitLab CI と Codex CLI を組み合わせると、品質改善やセキュリティ修正の **初動を効率化**できます。
+
+ただし、CI 上で動く自動修正は権限と安全性が重要です。
+
+- まず要約・提案から始める
+- レビュー前提で少しずつ自動化範囲を広げる
+- protected variables、ブランチ制限、token 権限最小化を徹底
+
+を守れば、Codex を社内 GitLab に安全に組み込めます。
+
+---
+
+## 関連リンク
+
+- [OpenAI Cookbook: Secure Quality with GitLab](https://developers.openai.com/cookbook/examples/codex/secure_quality_gitlab)
+- [Codex × GitHub Action（本サイト）](/knowledge/ai-tools/codex/github-action-cicd)
+- [Codex Cookbook: コードレビュー（本サイト）](/knowledge/ai-tools/codex/cookbook-code-review)
+- [Codex セキュリティと脅威モデル（本サイト）](/knowledge/ai-tools/codex/security-threat-model)

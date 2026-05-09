@@ -1,0 +1,283 @@
+---
+title: "Codex Cookbook: Jira × GitHubをCodexでつなぎチケット駆動で実装PRを自動化する"
+description: "OpenAI 公式 Cookbook の Jira-GitHub 連携例をもとに、Jira issue を起点に GitHub Actions を動かし Codex で実装 PR を作る流れを 2026 年 5 月時点の仕様で整理。Jira Automation Rule、GitHub Action 構成、issue 粒度の設計、PR レビューの運用までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "cookbook", "Jira", "GitHub Actions", "ticket-driven", "automation"]
+sortOrder: 37
+createdAt: 2026-05-09
+updatedAt: 2026-05-09
+author: "田中省伍"
+---
+
+## 要点
+
+- Jira issue にラベルを付けることをトリガーに、GitHub Actions が Codex を呼び出して実装 PR を作る
+- Jira / GitHub / Codex の役割分担: タスク管理 / 実装とレビュー / 作業補助
+- **Jira issue が曖昧だと Codex の作業も曖昧になる**。受け入れ条件を必ず書く
+- 実行条件と権限を絞る（特定ラベル、特定プロジェクト、特定リポ、最小トークン権限）
+- PR は人間がレビューしてマージする前提
+
+このレシピの一次ソースは OpenAI Cookbook の [Jira-GitHub 連携例](https://developers.openai.com/cookbook/examples/codex/jira-github) です。
+
+---
+
+## 何を自動化するのか
+
+Jira でタスクを管理し、GitHub で実装するチームでは、チケットと PR の行き来が多くなります。
+
+このレシピでは:
+
+```
+[Jira issue]
+    │ ラベル付与（例: codex-implement）
+    ▼
+[Jira Automation]
+    │ webhook
+    ▼
+[GitHub Actions]
+    │ codex 呼び出し
+    ▼
+[Codex]
+    │ 実装 + commit
+    ▼
+[GitHub PR]
+    │ レビュー
+    ▼
+[人間がマージ]
+```
+
+役割分担:
+
+| ツール | 役割 |
+|---|---|
+| Jira | タスク管理、要件定義、優先度付け |
+| GitHub | 実装、レビュー、マージ |
+| Codex | コードベース上の作業補助 |
+
+---
+
+## Step 1: Jira Automation Rule を作る
+
+「特定ラベルが付いた issue を検知したら GitHub Actions を呼び出す」ルールを設定します。
+
+### Jira Automation で送る情報
+
+Codex に渡す内容を webhook payload に含めます。
+
+- issue のタイトル
+- 詳細説明
+- 受け入れ条件
+- 関連リンク
+- 優先度
+- 対象リポジトリ・ブランチ
+
+```json
+{
+  "issue_key": "PROJ-1234",
+  "title": "Settings 画面で alerts toggle を保存できない",
+  "description": "...",
+  "acceptance_criteria": "...",
+  "priority": "high",
+  "target_repo": "acme/storefront",
+  "target_branch": "main"
+}
+```
+
+GitHub の `repository_dispatch` イベントとして送ると、`event_type` で受け取り側を分岐できます。
+
+---
+
+## Step 2: GitHub Actions を追加する
+
+```yaml
+# .github/workflows/codex-from-jira.yml
+name: Codex from Jira
+on:
+  repository_dispatch:
+    types: [jira-codex-implement]
+
+jobs:
+  implement:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Codex
+        run: npm install -g @openai/codex
+
+      - name: Run Codex
+        run: |
+          codex exec --json \
+            "Implement the change described in the Jira issue.
+
+            Issue: ${{ github.event.client_payload.issue_key }}
+            Title: ${{ github.event.client_payload.title }}
+            Description:
+            ${{ github.event.client_payload.description }}
+
+            Acceptance criteria:
+            ${{ github.event.client_payload.acceptance_criteria }}
+
+            Constraints:
+            - Keep the change minimal and reversible.
+            - Add or update tests covering the acceptance criteria.
+            - Do not change the public API shape.
+
+            After implementing, run lint and tests, and report the results."
+
+      - name: Create branch and PR
+        run: |
+          BRANCH="codex/${{ github.event.client_payload.issue_key }}"
+          git checkout -b "$BRANCH"
+          git config user.email "codex-bot@example.com"
+          git config user.name "Codex Bot"
+          git add -A
+          git commit -m "feat: ${{ github.event.client_payload.issue_key }} ${{ github.event.client_payload.title }}"
+          git push origin "$BRANCH"
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "${{ github.event.client_payload.issue_key }}: ${{ github.event.client_payload.title }}" \
+            --body "Auto-implemented from Jira ${{ github.event.client_payload.issue_key }}"
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+```
+
+### 実行条件と権限を絞る
+
+- すべての Jira issue で自動実行しない
+- 特定ラベル（例: `codex-implement`）または特定プロジェクトに限定
+- `repository_dispatch` を発火できるトークンを protected に
+- Codex 用の API キーは最小権限で
+
+---
+
+## Step 3: PR レビュー
+
+Codex が作った変更は GitHub PR として確認します。
+
+### レビュー観点
+
+- Jira issue の受け入れ条件を満たしているか
+- 余計な変更が入っていないか（scope creep）
+- テストが追加・更新されているか
+- セキュリティや権限周りに問題がないか
+- チームの実装方針に合っているか
+
+Codex に任せたとしても、**最終的な品質責任はチームに残ります**。レビューでブロックする条件を最初から決めておくと運用が安定します。
+
+---
+
+## Issue の書き方が決定的に重要
+
+Codex はチケット内容をもとに作業するため、issue が曖昧だと結果も曖昧になります。
+
+### 良い issue の例
+
+```text
+Title: Settings 画面で alerts toggle を保存できない
+
+Description:
+ユーザーが /settings ページで alerts トグルを変更し Save を押すと、
+"Saved" と表示されるがリロード後に変更が反映されていない。
+
+Acceptance criteria:
+- /settings の alerts toggle を変更して Save 後、リロードしても値が保持される
+- Save 失敗時はエラーメッセージを表示する
+- 既存の他の設定（notifications など）の挙動は変えない
+
+Repro:
+1. npm run dev
+2. /settings に移動
+3. alerts toggle を切り替え
+4. Save を押す → "Saved" 表示
+5. リロード → 元の値に戻っている
+
+Constraints:
+- API shape は変えない
+- DB スキーマも変えない
+- リグレッションテストを追加
+
+Target: acme/storefront#main
+```
+
+このレベルで具体的に書ければ、Codex が作る PR のレビューも短時間で済みます。
+
+### 悪い issue の例
+
+```text
+Title: 設定が保存されない件
+Description: お客さんから報告あった。直して
+```
+
+→ Codex は何をどう直せばいいか判断できず、的外れな PR を作ります。
+
+---
+
+## 適している issue の種類
+
+最初は次のような **小さく具体的なタスク**から始めるとよいです。
+
+- 小さなバグ修正
+- テスト追加
+- ドキュメント更新
+- 既存パターンに沿った UI 修正
+- 明確な受け入れ条件がある改善
+
+逆に避けるべき:
+
+- 設計判断が必要なリファクタ
+- 複数モジュールにまたがる大きな変更
+- 業務ロジックの新規実装で要件が固まっていないもの
+- セキュリティ・課金などビジネスクリティカルな領域
+
+---
+
+## 落とし穴
+
+- **大きな issue をそのまま渡す**: PR が肥大化、レビュー不能。チケットを小分けにする
+- **受け入れ条件がない**: Codex が「完了」を判断できない
+- **テストの方針がない**: テストコードまで Codex 任せだと品質がブレる
+- **マージ自動化**: PR の自動マージは絶対にしない。レビューは人間
+- **token 権限過剰**: write 権限のある token を repository_dispatch トリガーで雑に使うと事故る
+
+---
+
+## 拡張アイデア
+
+- **Linear / Asana 連携**: Jira と同じパターンで他のチケットツールにも応用可
+- **Slack 通知**: PR 作成時に Jira issue の URL とともに Slack へ通知
+- **Codex Linear 連携と組み合わせ**: Linear で `@Codex` 直接メンションするほうが軽量（[integrations-slack-linear](/knowledge/ai-tools/codex/integrations-slack-linear) 参照）
+- **MR review 自動化**: 別ジョブで `@codex review` 相当を自動実行
+
+---
+
+## まとめ
+
+Jira と GitHub を Codex でつなぐと、**チケットから PR 作成までの流れを効率化**できます。
+
+ポイント:
+
+- Jira issue を具体的に書く
+- GitHub Actions の権限を絞る
+- PR レビューを必ず挟む
+- 小さなタスクから始めて、運用が安定したら範囲拡大
+
+「人間が判断、Codex が実作業、チケットツールが進行管理」の役割分担を意識すると、過信も過小評価もせず使えます。
+
+---
+
+## 関連リンク
+
+- [OpenAI Cookbook: Jira-GitHub Integration](https://developers.openai.com/cookbook/examples/codex/jira-github)
+- [Codex × GitHub Action（本サイト）](/knowledge/ai-tools/codex/github-action-cicd)
+- [Codex Slack / Linear 連携（本サイト）](/knowledge/ai-tools/codex/integrations-slack-linear)
+- [Codex Cookbook: コードレビュー（本サイト）](/knowledge/ai-tools/codex/cookbook-code-review)
