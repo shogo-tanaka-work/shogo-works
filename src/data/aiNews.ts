@@ -17,6 +17,11 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     description: "Claude CodeのCLI、エージェント開発、開発ワークフロー更新",
   },
   {
+    slug: "codex",
+    label: "OpenAI Codex",
+    description: "OpenAI CodexのCLI、アプリ、Hooks、プラグインの公式アップデート",
+  },
+  {
     slug: "gemini",
     label: "Gemini",
     description: "Geminiアプリ、Google AI、Workspace連携の公式アップデート",

@@ -126,6 +126,7 @@ export type AiNewsTool =
   | "chatgpt-openai"
   | "claude"
   | "claude-code"
+  | "codex"
   | "gemini"
   | "github-copilot"
   | "n8n"
