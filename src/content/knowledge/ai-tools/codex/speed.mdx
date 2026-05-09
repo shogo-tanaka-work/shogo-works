@@ -1,0 +1,173 @@
+---
+title: "Codex Speed：Fast mode と Codex-Spark で応答速度を上げる"
+description: "Codex の応答速度を上げる仕組みを 2026 年 5 月時点の公式仕様で整理。Fast mode（標準の 1.5〜2.5 倍速、クレジット消費 2〜2.5 倍）と Codex-Spark（GPT-5.3-Codex-Spark、リアルタイム特化、ChatGPT Pro 限定）の使い分け、有効化方法、トレードオフ、API キー利用時の挙動までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Configuration", "Speed", "Fast mode", "Spark", "performance"]
+sortOrder: 25
+createdAt: 2026-05-10
+updatedAt: 2026-05-10
+author: "田中省伍"
+---
+
+## 要点
+
+- **Fast mode**: 既定モデルの応答速度を 1.5〜2.5 倍に。クレジット消費は 2〜2.5 倍
+- **Codex-Spark**: GPT-5.3-Codex-Spark という独立した軽量モデル。リアルタイムコード反復に特化、ChatGPT Pro 限定の研究プレビュー
+- 設定: `/fast on` コマンド or `service_tier = "fast"` + `[features].fast_mode = true`
+- API キー利用時は **標準価格設定**（クレジット倍率の話は ChatGPT サブスク利用時のみ）
+- 「速度 vs コスト vs 精度」のトレードオフを意識して使う
+
+公式ドキュメントは [`developers.openai.com/codex/speed`](https://developers.openai.com/codex/speed)。
+
+---
+
+## Fast mode
+
+通常の Codex セッションでも、必要な時だけ応答速度を上げられる仕組みです。
+
+### スループット倍率
+
+| モデル | 速度 | クレジット消費 |
+|---|---|---|
+| GPT-5.5（Fast mode） | 標準の 2.5 倍 | 2.5 倍 |
+| GPT-5.4（Fast mode） | 標準の 2 倍 | 2 倍 |
+| その他（Fast mode） | 標準の 1.5 倍 | 1.5 倍 |
+
+### 有効化
+
+**コマンドで一時的に**
+
+```text
+/fast on
+```
+
+セッション内で Fast mode を有効化。`/fast off` で無効化。
+
+**config.toml で恒常的に**
+
+```toml
+service_tier = "fast"
+
+[features]
+fast_mode = true
+```
+
+特定 profile だけで有効にしたい場合:
+
+```toml
+[profiles.rapid]
+service_tier = "fast"
+
+[profiles.rapid.features]
+fast_mode = true
+```
+
+そして `codex --profile rapid` で起動。
+
+### 利用面
+
+CLI / IDE 拡張 / Codex App の全サーフェスで利用できます。
+
+### トレードオフ
+
+- **速度 ↑**: 体感的に明らかに早くなる（特に大きなコード変更で効く）
+- **クレジット ↑**: ChatGPT サブスクの利用枠を 2〜2.5 倍消費する
+- **API キー利用時**: クレジット倍率の概念は適用されず、標準価格設定で課金される
+
+ChatGPT Pro $100 / Pro $200 のように利用枠の多いプランで、レビュー待ち時間を減らしたい場面に向きます。逆に Plus（$20）など利用枠の限られたプランでは、Fast mode を常用すると枠を早く使い切ります。
+
+---
+
+## Codex-Spark — リアルタイム特化モデル
+
+Fast mode が「同じモデルを高速ティアで動かす」のに対し、**Codex-Spark は別モデル**です。
+
+### 特徴
+
+- **モデル名**: GPT-5.3-Codex-Spark
+- **位置付け**: リアルタイムコード反復に最適化された軽量モデル
+- **コンテキスト**: 128k（GPT-5.5 などより小さい）
+- **提供範囲**: ChatGPT Pro サブスクライバー向けの **research preview**
+- **利用制限**: 独自の上限設定（通常モデルとは別枠）
+
+### 適性のあるユースケース
+
+- **UI 反復**: live updates 環境で「色を少し変えて」「余白を増やして」のような小修正を高速に重ねる
+- **小さな refactor**: 関数 1 つの改名・分割
+- **コメント追加・docstring 生成**: 1 ファイル単位の手早い編集
+
+### 適さないケース
+
+- **大規模 refactor**: コンテキストが小さいので全体を読み切れない
+- **複雑な推論**: 長時間タスクは GPT-5.5 / 5.4 のほうが向く
+- **重要な意思決定**: モデルが軽量な分、判断の精度は劣る
+
+### 設定
+
+```toml
+model = "gpt-5.3-codex-spark"
+```
+
+または profile で:
+
+```toml
+[profiles.spark]
+model = "gpt-5.3-codex-spark"
+```
+
+---
+
+## Fast mode と Codex-Spark の使い分け
+
+| 状況 | 選択 |
+|---|---|
+| 大規模実装を早く終わらせたい | **Fast mode + GPT-5.5** |
+| UI を細かく反復したい | **Codex-Spark** |
+| 小さなテキスト編集 | **Codex-Spark** |
+| 正確な推論が必要な調査 | Fast mode 使わず標準モデル |
+| クレジット節約したい | 標準モデル + 標準速度 |
+| API キーで運用 | Fast mode のクレジット倍率は無関係（速度だけ恩恵） |
+
+両方併用する設定例:
+
+```toml
+[profiles.fast-build]
+model = "gpt-5.5"
+service_tier = "fast"
+[profiles.fast-build.features]
+fast_mode = true
+
+[profiles.spark]
+model = "gpt-5.3-codex-spark"
+```
+
+タスク内容に応じて `--profile fast-build` / `--profile spark` を切り替えます。
+
+---
+
+## 速度を上げる前に確認すべきこと
+
+Fast mode / Codex-Spark に飛びつく前に、次を見直すと「速度問題」が解消することがあります:
+
+1. **プロンプトの曖昧さ**: 検証可能性が低いプロンプトは何度もやり直しになり、結果的に遅い。[Prompting Guide](/knowledge/ai-tools/codex/prompting-guide) 参照
+2. **大きすぎる scope**: タスクを分割して並列化（Cloud / 並列 thread）すると、Fast mode より効果的なこともある
+3. **Web search のライブモード**: `web_search = "live"` は速度を大幅に下げる。`cached` で十分な場合が多い
+4. **不必要な context**: 無関係な MCP サーバーや過剰な AGENTS.md は context を膨らませる
+
+---
+
+## まとめ
+
+「速度を上げたい」と思ったら、まず Fast mode を試す → 反復が多ければ Codex-Spark を併用、の順が現実的です。
+
+ChatGPT サブスクの利用枠と相談しながら、**全部に Fast mode を使うのではなく、ボトルネックの場面だけで切り替える**運用が長期的にコスパ良くなります。
+
+---
+
+## 関連リンク
+
+- [Codex Speed（公式）](https://developers.openai.com/codex/speed)
+- [Codex のモデル選択ガイド（本サイト）](/knowledge/ai-tools/codex/models)
+- [Codex の料金体系（本サイト）](/knowledge/ai-tools/codex/pricing)
+- [Codex プロンプト設計ガイド（本サイト）](/knowledge/ai-tools/codex/prompting-guide)
