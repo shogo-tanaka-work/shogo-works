@@ -1,0 +1,231 @@
+---
+title: "Codex Enterprise 管理者セットアップ：ワークスペース有効化から監査・ポリシーまで"
+description: "Codex Enterprise の管理者向け初期セットアップを 2026 年 5 月時点の公式仕様で整理。ChatGPT Enterprise ワークスペースでの Local / Cloud 有効化、GitHub Connector、RBAC（Codex Admin / Codex Users）、Managed Configuration（requirements.toml）、Cloud のコードレビューとインターネットアクセス制御、Codex Security、Analytics API / Compliance API、SSO・MFA、ロールアウト検証チェックリストまで網羅しました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Enterprise", "Admin", "RBAC", "Compliance API", "Analytics API"]
+sortOrder: 23
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- ChatGPT Enterprise ワークスペース所有者が Codex Local / Cloud を **Settings and Permissions** から有効化
+- Cloud 利用は GitHub クラウドリポジトリと **ChatGPT GitHub Connector** が前提（GitHub EMU は組織所有者が Codex GitHub App を導入）
+- **Codex Admin / Codex Users** の RBAC を SCIM で同期。Admin に分析・ポリシー・Cloud 環境管理権限を付与
+- Managed Configuration（**requirements.toml**）で `allowed_*` / `[features]` / `[rules]` を強制
+- 監査・分析は **Compliance API**（`scope: read,delete`）と **Analytics API**（`scope: codex.enterprise.analytics.read`）
+
+---
+
+## 公式仕様の概要
+
+公式 `/codex/enterprise/admin-setup` には、所有者の役割分担、Local / Cloud の有効化手順、RBAC、Managed Configuration、Cloud のコードレビュー・インターネットアクセス制御・GitHub IP 範囲、Codex Security、Analytics / Compliance API、ロールアウト検証チェックリストが定義されています。
+
+---
+
+## 1. 前提と所有者配置
+
+最初に役割を整理しておきます。
+
+| 役割 | 担当 |
+|---|---|
+| ワークスペース所有者 | ChatGPT Enterprise の設定変更 |
+| セキュリティ所有者 | エージェント権限・サンドボックス・ポリシーの最終承認 |
+| 分析所有者 | 監査・コンプライアンス統合（API キー発行など） |
+
+利用形態（Local / Cloud / 両方）も先に決めておきましょう。
+
+---
+
+## 2. ワークスペース有効化
+
+### Codex Local
+
+1. ChatGPT Enterprise の **Workspace Settings → Settings and Permissions**
+2. **Allow members to use Codex Local** を有効化
+
+無効のまま CLI / IDE 拡張を使うとユーザー側で `403 - Unauthorized` が返ります。
+
+### Codex Cloud
+
+前提：GitHub クラウドホストのリポジトリと ChatGPT GitHub Connector
+
+1. **Allow members to use Codex cloud** を有効化（最大 10 分で ChatGPT に表示）
+2. ChatGPT GitHub Connector をインストール
+3. リポジトリのアクセス許可を設定
+4. GitHub EMU の場合は組織所有者が Codex GitHub App を導入
+
+---
+
+## 3. RBAC（Codex Admin / Codex Users）
+
+専用グループを作成し、権限を分離します。
+
+| グループ | 主な権限 |
+|---|---|
+| Codex Users | Codex Local / Cloud の利用 |
+| Codex Admin | ワークスペース分析の閲覧、ポリシー管理ページ、Cloud 環境の管理・編集・削除 |
+
+SCIM で SSO 側のグループと同期しておくと、運用の手間が減ります。
+
+---
+
+## 4. Managed Configuration（requirements.toml）
+
+管理者は **Codex Policies** ページから配布する requirements.toml で、ユーザー側設定の上限を固定できます。グループごとに別ポリシーを当てることも可能です。
+
+```toml
+# requirements.toml（管理者配布）
+allowed_web_search_modes  = ["disabled", "cached"]
+allowed_sandbox_modes     = ["workspace-write"]
+allowed_approval_policies = ["on-request"]
+
+[features]
+browser_use    = false
+in_app_browser = false
+computer_use   = false
+
+[rules]
+prefix_rules = [
+  { pattern = [{ token = "git" }, { any_of = ["push", "commit"] }],
+    decision = "prompt",
+    justification = "Git 書込操作は確認" },
+]
+```
+
+ポリシー検索ツールでユーザーメールやグループから「現在適用されているポリシー」を確認できます。
+
+---
+
+## 5. ローカル設定の標準化（Team Config）
+
+各リポジトリの `.codex/` 配下にチーム設定をコミットしておくと、メンバー全員に同じ環境が配布できます。
+
+- `.codex/config.toml`: 既定設定
+- `.codex/rules/`: サンドボックス外コマンドの制御ルール
+- `.codex/skills/`: チーム共有スキル
+
+詳細は「config.toml リファレンス」「Codex Agent Skills」章を参照してください。
+
+---
+
+## 6. Codex Cloud の運用
+
+### コードレビュー設定
+
+**Settings → Code review** で以下を構成：
+
+- リポジトリ単位でのコードレビュー有効化
+- 自動レビューの ON/OFF
+- PR トリガーイベント（opened / synchronize など）
+
+### インターネットアクセス制御
+
+クラウド環境はデフォルトでインターネット接続不可。必要に応じて：
+
+- 依存ドメインのホワイトリスト
+- 信頼サイトの追加
+- 許可 HTTP メソッドの絞り込み
+
+### GitHub IP 許可リスト
+
+GitHub 組織が IP 制限を有効化している場合は、`openai.com/chatgpt-agents.json` で公開されている Codex の出力 IP 範囲を IP 許可リストに追加してください（定期的な更新推奨）。
+
+---
+
+## 7. Codex Security
+
+リポジトリのセキュリティスキャン機能。
+
+- コミット単位の脆弱性スキャン
+- 優先順位付けと確認フロー
+- 脅威モデルのカスタマイズ
+
+詳細は「Codex Security setup」のページを参照してください。
+
+---
+
+## 8. セキュリティ・プライバシー（Enterprise デフォルト）
+
+- **No training on enterprise data**（ChatGPT Enterprise の標準）
+- **Zero Data Retention**（App / CLI / IDE）
+- 居住地と保持期限は ChatGPT Enterprise ポリシーに準拠
+- 転送：TLS 1.2+、保存：AES-256
+- 監査ログは ChatGPT Compliance API 経由
+
+### 認証
+
+- MFA / SSO 要件はセットアップ検証時に確認
+- 非対話環境向けに CLI のデバイスコード認証（`codex login --device-auth`）を有効化可能
+
+---
+
+## 9. 監査・分析 API
+
+### Analytics API
+
+`platform.openai.com` で API キーを作成し、`codex.enterprise.analytics.read` スコープを付与。
+
+```text
+GET /workspaces/{workspace_id}/usage
+GET /workspaces/{workspace_id}/code_reviews
+GET /workspaces/{workspace_id}/code_review_responses
+```
+
+日時範囲フィルタに対応しており、利用状況・コードレビュー実績の可視化に使います。
+
+### Compliance API
+
+`platform.openai.com` で API キーを作成し、`read` / `delete` スコープを付与。
+
+```text
+GET /compliance/workspaces/{workspace_id}/logs
+GET /compliance/workspaces/{workspace_id}/codex_tasks
+GET /compliance/workspaces/{workspace_id}/codex_environments
+```
+
+主なイベント種別：`CODEX_LOG`、`CODEX_SECURITY_LOG` 等。
+
+---
+
+## 10. ロールアウト検証チェックリスト
+
+- Codex Local / Cloud それぞれでサインインが通るか
+- MFA・SSO ポリシーが Codex 経由でも適用されているか
+- RBAC とワークスペーストグルが期待通りに効くか
+- Managed Configuration（requirements.toml）の `allowed_*` / `[features]` / `[rules]` が反映されているか
+- 管理者向けに Analytics / Compliance データが取得できるか
+- Cloud 利用時、GitHub IP 許可リストに Codex の IP 範囲が入っているか
+- Codex Security のスキャン結果が確認できるか
+
+---
+
+## 注意点
+
+**有効化後の反映に最大 10 分**
+Cloud の Allow members 設定は ChatGPT ナビゲーションへの反映までタイムラグがあります。即座に表示されない場合は、問い合わせる前に 10 分待って再ログインを促してください。
+
+**`[features]` の無効化は「明示的に false」**
+Computer Use や In-app Browser を組織で禁止する場合は requirements.toml で false 固定するのが確実です。ユーザーの個別 ON を防げます。
+
+**監査ログの取得は API キーの権限設計が重要**
+Compliance API は `delete` スコープも持てるため、不用意に広い権限を付けないでください。読み取り専用ロールでの運用を推奨します。
+
+**GitHub IP 範囲は定期更新が必要**
+`chatgpt-agents.json` の IP 範囲は更新されます。CI で取得して許可リストに反映する仕組みを最初に組んでおくと、運用の手間が減ります。
+
+**ロールアウト前に 1 グループで試す**
+全社展開の前に Codex Admin / Codex Users を 1 部門で試運用し、ポリシー競合や予想外のブロックを洗い出してください。
+
+---
+
+## 一次ソース
+
+- [Enterprise Admin Setup — Codex Docs](https://developers.openai.com/codex/enterprise/admin-setup)
+- [Managed Configuration — Codex Docs](https://developers.openai.com/codex/enterprise/managed-configuration)
+- [Codex Security — Codex Docs](https://developers.openai.com/codex/enterprise/codex-security)
+- [Codex Compliance API（Help Center）](https://help.openai.com/en/articles/12130471-codex-compliance-api)
+- [Codex Analytics API（Help Center）](https://help.openai.com/en/articles/12130472-codex-analytics-api)

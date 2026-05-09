@@ -1,0 +1,212 @@
+---
+title: "Codex ベストプラクティス：プロンプト設計・AGENTS.md・サンドボックス・Skills の使い分け"
+description: "OpenAI 公式 `/codex/learn/best-practices` を 2026 年 5 月時点でまとめた実践ガイド。プロンプトの 4 要素（目標 / 文脈 / 制約 / 完了条件）、AGENTS.md レイヤー設計、Plan モードと PLANS.md、サンドボックス・承認の段階解放、テスト・レビュー、MCP / Skills / Automations の使い分け、避けたいアンチパターンまで具体的に整理しました。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Best Practices", "プロンプト", "AGENTS.md", "Skills", "Automations"]
+sortOrder: 21
+createdAt: 2026-05-08
+updatedAt: 2026-05-08
+author: "田中省伍"
+---
+
+## 要点
+
+- プロンプトは **目標 / 文脈 / 制約 / 完了条件** の 4 要素を入れる
+- AGENTS.md は **短く正確に**。長い vague なルールより 1 ページの実用ルール
+- 複雑タスクは **Plan モード（`/plan`）か PLANS.md** で先に計画
+- 承認とサンドボックスは **デフォルトを厳しく、信頼できる範囲だけ緩める**
+- Skills は **1 ジョブに集約**、繰り返すプロンプトを Skill 化、安定したら **Automations** で定期化
+
+---
+
+## Codex を運用する全体像
+
+公式は「明確な指示と適切な権限」「短く正確な AGENTS.md」「テストとレビューの徹底」「使えるツール（MCP / Skills / Automations）の段階導入」を軸にしたワークフロー設計を推奨しています。本章は公式 `/codex/learn/best-practices` を実務で踏みやすい順に整理した運用ガイドです。
+
+---
+
+## 1. プロンプトを設計する
+
+毎回のプロンプトに以下の 4 要素を入れてください。
+
+| 要素 | 例 |
+|---|---|
+| 目標 | 「ログイン失敗時のエラーメッセージを多言語化したい」 |
+| 文脈 | 関連ファイル・該当エラーログ・参照ドキュメント |
+| 制約 | コーディング規約・アーキテクチャ・セキュリティ要件 |
+| 完了条件 | 「`pnpm test` が緑、新言語のスナップショットが追加されている」 |
+
+公式によれば「明確なプロンプトは必須ではないが、特に大規模コードベースで結果の信頼性を上げる」とのことです。
+
+推論レベル（`reasoning_effort`）の選び方：
+
+- **low**: スコープの限定された変更、繰り返し作業
+- **medium**: 通常の実装・修正
+- **high**: 複雑な変更や設計判断
+- **extra high**: 推論重視タスクで時間をかけてよい場合
+
+---
+
+## 2. AGENTS.md を効かせる
+
+書くべき内容：
+
+- リポジトリレイアウトと重要ディレクトリ
+- ビルド／テスト／リントコマンド
+- エンジニアリング慣例と PR の期待値（命名規則・コミットメッセージ・レビュー手順）
+- 制約と禁止ルール
+
+レイヤー構成：
+
+- `~/.codex/AGENTS.md` … 個人デフォルト
+- `.codex/AGENTS.md` … リポジトリ標準
+- サブディレクトリの `AGENTS.md` … 局所ルール
+
+> 「短く正確な AGENTS.md は、長くて曖昧な AGENTS.md より価値が高い」（公式 Best Practices）
+
+詳細は「AGENTS.md 設定ガイド」章を参照。
+
+---
+
+## 3. 複雑なタスクは先に計画する
+
+公式では 3 つのアプローチを紹介しています。
+
+- **Plan モード**: `/plan` または Shift+Tab で切替。Codex に計画書だけ作らせ、人がレビューしてから実装に移る
+- **インタビュー形式**: Codex に質問させる。要件があいまいなときに有効
+- **PLANS.md**: 長期・多段階タスクのために PLANS.md を作り、Codex を都度参照させる
+
+---
+
+## 4. 承認とサンドボックスは段階解放
+
+公式は「デフォルト権限から始めること」を推奨しています。`approval_policy` と `sandbox_mode` は最初厳しく設定し、信頼できるリポジトリ・ワークフローが固まってから段階的に緩めます。
+
+```text
+未知のリポジトリ／信頼できないコード:
+  → sandbox_mode = "read-only" + approval_policy = "untrusted"
+通常開発:
+  → sandbox_mode = "workspace-write" + approval_policy = "on-request"
+信頼済み自動化（CI / Cloud）:
+  → approval_policy = "never" + 必要範囲のみ workspace-write
+```
+
+詳細は「承認モード&サンドボックス」章を参照。
+
+---
+
+## 5. テストとレビューを Codex に任せる
+
+タスク完了前に Codex 自身に次を実行させると品質が安定します。
+
+- テスト作成と実行
+- Lint・フォーマット・型チェック
+- 動作確認（必要なら手動シナリオ）
+- 自分の出した diff のセルフレビュー
+
+レビュー支援ツール：
+
+- IDE の diff パネル
+- `/review` スラッシュコマンド
+- `code_review.md` のレビューテンプレートを Skills 化
+
+GitHub の Cloud 統合では PR の自動レビューも設定できます。
+
+---
+
+## 6. MCP は「実ワークフローを解く」ものだけ
+
+MCP の導入判断：
+
+- リポジトリ外のコンテキストが要る
+- データが頻繁に変わる
+- 手動コピペを削減したい
+
+公式は「実ワークフローを解放するツールに限って追加」を推奨しています。最初から全部つなぐのではなく、Linear / GitHub / 社内 API など必要なものだけに絞ります。詳細は「MCP 連携」章を参照してください。
+
+---
+
+## 7. Skills は 1 ジョブに集約する
+
+Skill 化の目安：
+
+- 同じプロンプトを繰り返し使っている
+- 同じ修正指示を毎回 Codex に出している
+- ログ分類・リリースノート作成・PR レビュー・マイグレーション計画・標準デバッグフローなど
+
+「1 ジョブ・2〜3 ユースケース」のスコープから始め、運用しながら拡張するのが安全です。
+
+保存場所：
+
+- `~/.agents/skills/` … 個人用
+- `.agents/skills/` … チーム共有
+
+詳細は「Codex Agent Skills」章を参照してください。
+
+---
+
+## 8. Automations は安定した Skill を定期化する
+
+公式の表現を借りれば「Skills が方法を、Automations がスケジュールを定義する」。Skill として安定したものだけ Automations に乗せると暴走を防げます。
+
+候補タスク：
+
+- 日次コミット要約
+- バグスキャン
+- リリースノート起案
+- CI 失敗の自動チェック
+- スタンドアップサマリー
+
+---
+
+## 9. セッション管理
+
+- `/plan`: 計画モード切替
+- `/fork`: コンテキストを残したままスレッド分岐
+- `/compact`: 長尺スレッドを要約してトークン節約
+- `/agent`: サブエージェント切替
+
+> 「論理単位ごとに 1 スレッド」を保つと、後で見返したときに作業の流れが追いやすくなります。
+
+---
+
+## 10. 避けたいアンチパターン
+
+- **一時ルールをプロンプトに詰め込む** → 共通ルールは AGENTS.md へ
+- **ビルド・テストコマンドを略す** → AGENTS.md に正確に書く
+- **複雑タスクで計画をスキップ** → Plan モード or PLANS.md
+- **理解前にフルアクセス** → 段階解放、`Agent Full Access` は最小限
+- **並行実行を git worktrees なしで走らせる** → Worktree モード活用
+- **不安定なワークフローを Automations 化** → Skill として安定してから
+- **段階的実行を逐次監視** → サブエージェントで並列化
+- **プロジェクト単位で 1 スレッドを使い回す** → タスク単位で分ける
+
+---
+
+## 注意点
+
+**「ベストプラクティス」も自分の文脈で再評価する**
+公式の推奨は OpenAI 内部 / 大規模リポジトリを前提にした内容が混ざっています。個人開発・スタートアップ規模ではオーバースペックな項目もあるため、Plan モードや PLANS.md は実装規模に応じて使い分けてください。
+
+**AGENTS.md には容量上限がある**
+`project_doc_max_bytes`（既定 32 KiB）を超えると以降の AGENTS.md は読まれません。長くなりすぎないよう短文化を意識してください。
+
+**Skills は壊れやすいプロンプトの避難所**
+プロンプトが不安定・作業者によって精度にばらつきがある場合は、その時点で Skill 化を検討してください。属人化が最大のコスト要因になります。
+
+**`approval_policy: never` の前にテストする**
+完全自動運用に切り替える前は、`on-request` で同じタスクを流して挙動が想定通りか確認してください。
+
+**Automations の停止条件を決めておく**
+スレッド型 Automation は終了条件がないと回り続けます。コスト・通知の観点からも停止条件を必ず定義してください。
+
+---
+
+## 一次ソース
+
+- [Best Practices — Codex Docs](https://developers.openai.com/codex/learn/best-practices)
+- [AGENTS.md ガイド — Codex Docs](https://developers.openai.com/codex/guides/agents-md)
+- [Skills — Codex Docs](https://developers.openai.com/codex/skills)
+- [Automations — Codex Docs](https://developers.openai.com/codex/app/automations)
+- [Configuration reference — Codex Docs](https://developers.openai.com/codex/config-reference)
