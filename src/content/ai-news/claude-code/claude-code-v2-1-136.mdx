@@ -1,0 +1,60 @@
+---
+title: "Claude Code v2.1.136 / 137はMCP・OAuth・思考ブロックまわりの大型修正"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-09
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.136"
+summary: "Claude Code v2.1.136 では、`/clear` で MCP 設定が消える、複数 MCP 同時リフレッシュで OAuth トークンが落ちる、redacted thinking 後に 400 が出る、といった運用直撃のバグをまとめて修正。あわせて自動モード分類器の絶対ブロックを設定する `hard_deny` を追加。直後に出た v2.1.137 は Windows × VSCode 拡張のリグレッション修正。"
+impact: "MCP を使うチームと、Windows + VSCode で Claude Code を運用しているチームは、即時更新の価値がある。Enterprise 運用者は `hard_deny` で自動モードのガード設計を見直せる。"
+tags: ["claude-code", "mcp", "oauth", "extended-thinking", "windows", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/daily-operations"
+  - "/knowledge/ai-tools/claude-code/mcp"
+  - "/knowledge/ai-tools/claude-code/auto-mode"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.136 が 2026-05-09 03:39 JST に公開され、その約5時間半後の 09:11 JST に v2.1.137 がパッチとして出ました。
+
+v2.1.136 は新機能2点（`hard_deny` と OTel feedback survey）に加えて、MCP・OAuth・拡張思考・WSL2・パス・UI など、運用で直撃する種類のバグをまとめて潰した大型リリースです。v2.1.137 は Windows × VSCode で 2.1.136 が起動しなくなったリグレッションのみを直すパッチです。
+
+## 何が変わったか
+
+新機能 / 設定追加（v2.1.136）
+
+- `settings.autoMode.hard_deny` で自動モード分類器の判断を上書きする「絶対ブロックルール」を定義可能
+- `CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL` で OTel セッション品質調査をエンタープライズで再有効化
+
+主要バグ修正（v2.1.136）
+
+- `/clear` の後に `.mcp.json` ・プラグイン・claude.ai コネクタの MCP サーバー定義がサイレント消失する問題
+- 複数 MCP サーバーを同時にリフレッシュしたときに OAuth トークンが失われる問題
+- 拡張思考（extended thinking）でツール呼び出し後に redacted thinking ブロックが続くと API 400 になる問題
+- プロジェクトパスにアンダースコアを含む場合に `--resume` / `--continue` がセッションを発見できない問題
+- WSL2 で Windows クリップボードからの画像 paste が動かない問題（PowerShell フォールバック経由で対応）
+- `@` ファイルピッカーが100件超のディレクトリや新規作成ファイルを検出できない問題
+- スラッシュコマンドダイアログのフッターヒント・スペーシング・矢印キースタイルを標準化
+
+v2.1.137 のパッチ
+
+- Windows で VSCode 拡張機能が `activate` に失敗する問題を修正
+
+## 業務インパクト
+
+このリリースの中身は、Claude Code を「単発で触る」用途では気づきにくく、「日常運用」しているチームほど効くタイプです。
+
+特に大きいのは MCP 周辺。`.mcp.json` やプラグインで MCP を組んでいる環境で `/clear` を実行すると、入れていたサーバー定義が黙って外れていた、というのが直っています。複数サーバーで OAuth リフレッシュが衝突するとトークンが消える件と合わせて、これまで「MCP がたまに動かなくなる」と感じていたチームには明確な体感差が出るはずです。
+
+`hard_deny` は、自動モードを Enterprise で本格運用する場合のガードレール設計が一段引き締まります。auto-classifier の判断より優先する「絶対ブロックルール」を持てるので、業務的に絶対通したくない操作（本番 DB への破壊系、特定 API の呼び出しなど）を分類器のミスから守れます。
+
+Windows + VSCode 環境を使っているチームは、v2.1.136 を入れるとそもそも拡張が起動しないので、v2.1.137 まで一気に上げる前提です。
+
+## 教材化視点
+
+- 「Claude Code が壊れた時の見る場所」教材に、`/clear` × MCP の落とし穴ケースを追加
+- `hard_deny` と既存 deny ルールの違いを auto-mode 教材で整理
+- redacted thinking と 400 エラーの関係は Anthropic SDK の thinking ブロック解説と接続
+- WSL2 / Windows / VSCode の組み合わせのトラブル切り分けガイド
