@@ -24,15 +24,19 @@ window_end: YYYY-MM-DDTHH:mm:ss+09:00
 ## サマリー
 
 - 対象期間: ...
-- 更新あり: N件
+- 更新あり: N件（追補X件）  ※追補リサーチで追加した分は併記する
 - 更新なし: N件
 - 取得失敗: N件
 
 ## 更新あり
 
-| service | published_at | title | detail |
-| --- | --- | --- | --- |
-| n8n | 2026-05-04T04:52:26Z | n8n 2.18.6 | ../zenn-n8n-basic/official-updates/2026-05-04T045226-n8n-2-18-6.md |
+| service | published_at | title | category | detail |
+| --- | --- | --- | --- | --- |
+| n8n | 2026-05-04T04:52:26Z | n8n 2.18.6 | release | ../zenn-n8n-basic/official-updates/2026-05-04T045226-n8n-2-18-6.md |
+| OpenAI Codex | 2026-05-08T23:09:55Z | v0.130.0 — Plugin に bundled hooks 表示 | enhancement | ../openai-codex/official-updates/2026-05-08T230955-codex-v0-130-0.md |
+| Gemini / Workspace | 2026-05-07 (rollout 2026-05-08) | Workspace Studio 多言語対応 | rollout | ../zenn-gemini-release-basic/official-updates/2026-05-07T000000-workspace-studio-multilingual.md |
+
+`category` は次のいずれか: `release`（新規発表・新製品・新バージョン）、`enhancement`（既存機能の派生改善・対応拡大）、`rollout`（言語・地域・GA展開）、`policy`（料金・プラン・ポリシー変更）、`incident`（障害・廃止予告）。
 
 ## 更新なし
 
@@ -41,6 +45,12 @@ window_end: YYYY-MM-DDTHH:mm:ss+09:00
 ## 取得失敗・保留
 
 - Pika: 公式Blogが取得できなかったため、後で再確認。
+
+## 補足メモ
+
+ユーザー認識ギャップに該当があれば転記。例:
+
+- 「Claude Code → Codex 簡単移行」: 公式は逆方向のみ（`openai/codex-plugin-cc`）。詳細は `references/perception-gaps.md` 参照。
 
 ## チェック対象
 
@@ -71,6 +81,9 @@ source: https://...
 fetched_at: YYYY-MM-DDTHH:mm:ss+09:00
 published_at: YYYY-MM-DDTHH:mm:ssZ
 date_precision: timestamp
+# 任意フィールド（該当する場合のみ）
+rollout_date: YYYY-MM-DD          # ロールアウト/言語・地域展開の開始日が公開日と異なる場合
+category: enhancement              # release / enhancement / rollout / policy / incident のいずれか。release の場合は省略可
 ---
 
 # YYYY-MM-DD ...
