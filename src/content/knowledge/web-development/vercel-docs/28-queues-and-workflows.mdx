@@ -1,0 +1,210 @@
+---
+title: "Queues & Workflows — durable イベントストリームと多段ワークフローを Vercel で完結させる"
+description: "Vercel Queues は durable な append-only ログを軸にした event streaming 基盤であり、push/poll 両モード、fan-out consumers、idempotency キーによる重複排除を提供する。Vercel Workflows はその上に構築された多段オーケストレーション層であり、'use workflow' / 'use step' というディレクティブと Sleep / Hooks を用いて JS/TS/Python で durable application や AI エージェントを記述できる。本章では両者の中核機能、Functions / Fluid Compute との関係、料金構造、AI エージェント基盤としての位置付けまでを 1 章でカバーする。"
+category: "web-development"
+subcategory: "vercel"
+createdAt: 2026-05-10
+sortOrder: 28
+---
+
+## この章の要点
+
+- Vercel Queues は durable event streaming 基盤であり、トピックを永続的な append-only ログとして保持する。メッセージは複数の consumer group に fan-out され、TTL の範囲内であれば後から参加した consumer group が履歴を replay できる構造である。
+- Vercel Workflows は Queues の上に構築された higher-level の SDK であり、`'use workflow'` / `'use step'` という 2 つのディレクティブで通常の async 関数を durable に変換する。JavaScript / TypeScript に加え、`vercel` Python SDK でも同等の API が beta として提供されている。
+- Workflows は Sleep（数分から数か月の停止）と Hooks（外部イベントを待ち受ける human-in-the-loop 用 API）を備え、ステートマシンや YAML を書かずに event sourcing ベースの durable application を構築できる。
+- Functions / Fluid Compute とは独立した課金軸を持つ。Queues は Send / Receive / Delete / Visibility change / Notify の 5 種の operation 単位、Workflows は Steps と Storage（GB-Hour）単位で billing される。両者で起動される Function は従来どおり compute rates が課金される。
+- AI エージェント基盤としての位置付けが強い。公式ドキュメントは Workflows を「JavaScript / TypeScript / Python で durable applications and AI agents を構築する fully managed platform」と定義しており、Claude Managed Agent Guide や stateful Slack bot ガイドが Resources に並ぶ。
+- Workflows ではすべての state transition が event として記録され、デプロイ・クラッシュをまたいで決定的に replay される。観測性はダッシュボードの Observability → Workflows から確認でき、追加コードなしに run 単位で trace できる。
+
+## Vercel Queues / Vercel Workflows とは
+
+Vercel Queues は、サーバーレス向けに設計された durable event streaming システムである。プロデューサーはトピックにメッセージを publish し、独立した consumer group がそれぞれ並列にメッセージを消費する。各トピックは durable な append-only log として動作し、メッセージは TTL（最小 60 秒、最大 7 日、デフォルト 24 時間）が切れるまで保持される。後から参加した consumer group も、まだ expire していない履歴を replay できる構造であり、Kafka 的な fan-out モデルをマネージドかつサーバーレス前提で提供している点が特徴である。
+
+公式ドキュメント上、Queues の典型的なユースケースは次の 6 つに整理されている。重い処理（メール送信、PDF 生成、外部 API 呼び出し）の deferral、トラフィックスパイクの buffering、関数クラッシュやデプロイをまたいだ delivery guarantee、最大 retention までの delay scheduling、idempotency キーによる重複排除、そして同じメッセージを複数の独立したパイプラインで処理する consumer isolation である。これらはいずれも、従来は SQS や Kafka、あるいはサードパーティのワークフロー基盤を組み合わせて実現してきた領域である。
+
+Vercel Workflows は、その Queues を内部で活用しながら durable な多段処理を記述するための higher-level SDK である。公式の表現を借りれば、Workflows は「JavaScript、TypeScript、Python で durable applications と AI agents を構築する fully managed platform」であり、open-source の Workflow SDK（workflow-sdk.dev）と `vercel` Python SDK の上に成り立つ。Vercel Functions が workflow と step のコードを実行し、Vercel Queues がそれらのルートを reliability 付きで enqueue/execute し、managed persistence が state と event log を最適化されたデータベースに格納する、という三層構成になっている。
+
+両者の関係は明確である。Queues は低レベルのプリミティブで、メッセージの発行・消費・ルーティングを直接制御したいときに用いる。Workflows は durable steps、sleep、hooks を備えたより人間工学的な API であり、stateful な多段処理（AI エージェントのプランニング、人間の承認待ち、長時間のリトライなど）を記述する場合に用いる。公式ドキュメントは「stateful multi-step workflows を作るなら Workflows から始めよ」と明示的にガイドしている。
+
+## 何が解説されているか
+
+Queues 側のドキュメントは、Quickstart、Concepts、API reference、SDK Reference、Poll mode、Observability、Pricing and limits の 7 章で構成される。Concepts では durability、retries、visibility timeout、deployment behavior が扱われ、Poll mode では `PollingQueueClient` を使って自前のワーカーから消費する手順が示される。Observability ではキューのスループット、メッセージ age、consumer の性能が dashboard でモニタできる旨が述べられている。
+
+Workflows 側は Concepts、Python、Pricing and Limits を中心に、Workflow SDK の getting started、Slack bot guide、Claude Managed Agent guide が Resources として並ぶ。Concepts では Workflow / Step / Sleep / Hook の 4 つの抽象が、event sourcing の観点から説明されている。すなわち、`'use workflow'` 関数は内部的にルートにコンパイルされ、すべての input / output が event log に記録される。デプロイやクラッシュが発生すると、システムは event log を決定的に replay して停止位置から処理を再開する。`'use step'` 関数は isolated な API ルートにコンパイルされ、ビルトインのリトライを備える。step が実行している間、外側の workflow は資源を消費せずに suspend される。
+
+Queues と Workflows、そして従来の Cron や外部ワークフロー基盤との関係は次のように整理できる。
+
+| 観点 | Vercel Queues | Vercel Workflows |
+| --- | --- | --- |
+| レイヤー | 低レベル primitive（durable log + consumer group） | 高レベル SDK（durable function + step + sleep + hook） |
+| プログラミングモデル | publish / handleCallback or PollingQueueClient | `'use workflow'` / `'use step'` ディレクティブ、または Python の `@wf.workflow` / `@wf.step` |
+| 状態管理 | メッセージ単位（ステートレスな consumer 前提） | event sourcing による run 単位の状態 |
+| 主な用途 | fan-out 配信、重い処理の deferral、spike 吸収 | 多段オーケストレーション、AI エージェント、人間の承認待ち |
+| 課金軸 | API operation（Send/Receive/Delete/Visibility/Notify） | Workflow Steps と Storage（GB-Hour） |
+
+| 観点 | Vercel Cron Jobs | Vercel Queues | Vercel Workflows |
+| --- | --- | --- | --- |
+| トリガー | 時刻ベース | メッセージ ベース | プログラム的に start、Hook、Cron いずれも可 |
+| 配信保証 | best-effort | at-least-once、retry あり | event sourcing による決定的 replay |
+| ステート | なし | メッセージペイロードのみ | run ごとに event log を保持 |
+
+| 観点 | AWS Step Functions | Temporal | Vercel Workflows |
+| --- | --- | --- | --- |
+| 記述形式 | Amazon States Language（JSON / YAML 寄り） | TS/Python/Go の SDK | TS/JS/Python の async 関数＋ディレクティブ |
+| ホスティング | AWS マネージド | self-host or Temporal Cloud | Vercel フルマネージド |
+| Function 課金 | 別途 Lambda 課金 | 別途 worker 課金 | Functions / Fluid Compute と同じ compute rates |
+| AI エージェント | 別途設計が必要 | サポートあり | 公式ガイドで Claude Managed Agent / Slack bot を提示 |
+
+Queues 側のもう一つの重要な観点が retry policy と visibility timeout である。Queues SDK のデフォルトでは、`handleCallback` の visibility timeout は 5 分で、ハンドラ実行中は SDK 側で自動的に lease を再延長する。一方、Queues API そのものは visibility timeout のデフォルトが 60 秒で、自動延長は行わない。SDK 経由で扱う限り意識する必要は少ないが、PollingQueueClient で自前のワーカーを書く場合は、この差を踏まえて延長操作を組み込む必要がある。
+
+公式の retry behavior は「最初の 32 回は configured delay に従い、それを超えると forced backoff に切り替わる」と明記されている。アプリケーション側で `retry` コールバックを返せば、`afterSeconds` で次の試行までの delay を指定したり、`acknowledge: true` を返して poison message を切り離したりできる。
+
+## 使い方
+
+ここでは Queues の Producer / push Consumer、Workflows の TypeScript ワークフロー、そして Python ワークフローの 3 つの実装パターンを示す。いずれも公式 SDK ドキュメントの記法に揃えている。
+
+まず Queues で `orders` トピックに publish する Producer は次のように書ける。`@vercel/queue` から `send` を import するだけで済み、デフォルトクライアントは `VERCEL_REGION` から自動的にリージョンを判定し、未指定なら `iad1` にフォールバックする。
+
+```ts filename="app/api/orders/route.ts"
+import { send } from "@vercel/queue";
+
+export async function POST(request: Request) {
+  const body = await request.json();
+  const { messageId } = await send(
+    "orders",
+    { orderId: body.orderId, action: "process" },
+    {
+      idempotencyKey: `order-${body.orderId}`,
+      retentionSeconds: 3600,
+      delaySeconds: 60,
+    },
+  );
+  return Response.json({ messageId });
+}
+```
+
+Consumer は push mode の `handleCallback` を用いる。`vercel.json` の `experimentalTriggers` でルートをトピックに紐付け、ハンドラ内では通常の async 関数として処理を書けばよい。例外を throw すれば自動的に retry され、デフォルトでは 5 回を超えた段階で acknowledge して poison message として切り離している。
+
+```ts filename="app/api/queues/process-order/route.ts"
+import { handleCallback } from "@vercel/queue";
+
+export const POST = handleCallback(
+  async (message, metadata) => {
+    await processOrder(message);
+  },
+  {
+    visibilityTimeoutSeconds: 600,
+    retry: (error, metadata) => {
+      if (metadata.deliveryCount > 5) return { acknowledge: true };
+      const delay = Math.min(300, 2 ** metadata.deliveryCount * 5);
+      return { afterSeconds: delay };
+    },
+  },
+);
+```
+
+Workflows 側は、`'use workflow'` と `'use step'` を使って同等の処理をより宣言的に書ける。次の例は AI ドラフト生成、7 日のスリープ、人間の承認待ちまでを 1 関数で表現したものである。`sleep('7 days')` の間はインフラを一切消費せず、`approvalHook.create` は外部 API から `resume` が呼ばれるまでイベント受信を待ち続ける。
+
+```ts filename="app/workflows/ai-approval.ts"
+import { sleep, defineHook } from "workflow";
+
+const approvalHook = defineHook<{
+  decision: "approved" | "changes";
+  notes?: string;
+}>();
+
+async function generateDraft(topic: string) {
+  "use step";
+  return await aiGenerate({ prompt: `Write a blog post about ${topic}` });
+}
+
+async function publishDraft(draft: string) {
+  "use step";
+  await cms.publish(draft);
+}
+
+export async function aiApprovalWorkflow(topic: string) {
+  "use workflow";
+
+  const draft = await generateDraft(topic);
+  await sleep("7 days");
+
+  const events = approvalHook.create({ token: `draft-${topic}` });
+  for await (const event of events) {
+    if (event.decision === "approved") {
+      await publishDraft(draft);
+      break;
+    }
+  }
+
+  return { topic, status: "done" };
+}
+```
+
+Python SDK でも同じ思想が `@wf.workflow` / `@wf.step` という decorator として提供されている。`workflow.sleep("7 days")` の長時間スリープ、Pydantic と `workflow.BaseHook` を組み合わせた hook 定義まで、JS/TS 版とほぼ 1 対 1 で対応する。なお Python 対応は公式ドキュメント上で beta と明記されており、API は変更される可能性がある。
+
+```python filename="app/workflows/ai_content_workflow.py"
+from vercel import workflow
+from app.workflow import wf
+
+@wf.step
+async def generate_draft(*, topic: str):
+    return await ai_generate(prompt=f"Write a blog post about {topic}")
+
+@wf.step
+async def summarize_draft(*, draft: str):
+    return await ai_summarize(text=draft)
+
+@wf.workflow
+async def ai_content_workflow(*, topic: str):
+    draft = await generate_draft(topic=topic)
+
+    # 7 日間スリープしてフィードバックを集めてから要約に進む
+    await workflow.sleep("7 days")
+
+    summary = await summarize_draft(draft=draft)
+
+    return {"draft": draft, "summary": summary}
+```
+
+Python ワークフローを動かすには、`vercel.json` の `experimentalServices` にエントリポイントとサブスクライブする topic を宣言する必要がある。`__wkf_*` のようなワイルドカードを指定して Workflows ランタイムが内部的に使うトピックをまとめて受信する形が公式の例として示されている。
+
+```json filename="vercel.json"
+{
+  "experimentalServices": {
+    "ai_content_workflow": {
+      "type": "worker",
+      "entrypoint": "app/workflows/ai_content_workflow.py",
+      "topics": ["__wkf_*"]
+    }
+  }
+}
+```
+
+これらのコードは、Functions と Fluid Compute の章で扱った前提（`maxDuration`、Active CPU 課金、Optimized Concurrency）の上にそのまま乗る。Workflows のドキュメントでも「Fluid Compute の利用を推奨する」と明記されており、長時間アイドルになりやすいワークフローの性質と Active CPU 課金の相性が良い設計である。
+
+## 注意点・セキュリティ観点
+
+第 1 に、Queues は at-least-once delivery を前提としている。SDK 経由で `idempotencyKey` を付与すれば重複 publish は弾けるが、consumer 側のビジネスロジックは「同じメッセージが 2 回以上届く可能性」を許容する設計（例：DB に対する upsert、外部副作用の事前チェック）にしておく必要がある。retry は最初の 32 回までは設定どおりの delay で進み、それを超えると forced backoff に切り替わるため、無限ループ的な失敗が long-tail のコストを発生させない構造になっている。
+
+第 2 に、Workflows の state には明確なサイズ上限がある。1 run あたり events 25,000、steps 10,000、payload 50 MB、entity storage 合計 2 GB、replay duration 240 秒、hook token 255 バイト、workflow / step 名 255 バイトといった具体的な数値が公式に明示されている。とくに 2,000 events または 1 GB を超えると replay が遅くなることが docs で明言されており、長尺の処理は child workflow に分割するパターンが推奨されている。AI エージェントのように LLM 出力をそのまま log に残すと events 数が膨らみやすいため、step の粒度設計は意識的に行う必要がある。
+
+第 3 に、課金は Functions / Fluid Compute とは別軸で発生する。Workflows は Hobby プランで Workflow Steps が 50,000、Workflow Storage が 720 GB-Hours まで含まれ、超過分はそれぞれ 100,000 Steps あたり 2.50 ドル、GB-Hour あたり 0.00069 ドルが on-demand rate となる。Storage retention は run 完了後に Hobby で 1 日、Pro で 7 日、Enterprise で 30 日と plan ごとに固定で、配信レート上限も 1,000 runs/sec、Hobby 100,000 req/min、Pro 1,000,000 req/min、Enterprise 5,000,000 req/min と公式に定められている。Queues 側は 4 KiB チャンク単位で課金され、idempotency key 付き Send と max concurrency 付き push 配信は 2x で billing される点に注意が要る。
+
+第 4 に、AI エージェントへ渡す権限境界の設計である。Workflows は Claude Managed Agent や Slack bot のように外部権限と接続するユースケースを公式に推奨しており、Hook 経由で外部からワークフローを resume できる仕組みは強力である一方、`token` をそのまま URL や JSON に露出させると第三者がワークフローを進められてしまうリスクがある。`token` は 255 バイト以内で十分にエントロピーを持たせ、`/api/resume` のようなエンドポイントには認可レイヤーを必ず噛ませること。step が外部 API キーを読む場合は環境変数バリデーションを通し、step ごとに権限を最小化することが望ましい。
+
+第 5 に、observability の整え方である。Workflows ではすべての step、入力、出力、sleep、エラーが自動的に記録され、Vercel ダッシュボードの Observability → Workflows から run ごとに trace できる。追加コードは不要だが、step 名と workflow 名は 255 バイト以内で意味のあるものに揃えておくと、後からの failure 分析や AI エージェントのデバッグが格段に楽になる。Queues 側は dashboard でスループット、message age、consumer のパフォーマンスを確認できるため、push と poll を併用する設計でもボトルネックを掴みやすい。
+
+最後に、Queues と Workflows の双方が Vercel Functions の上で動く以上、関数本体の制限（Maximum bundle size 250 MB、step 単位の最大実行時間は Functions のリミット準拠）はそのまま適用される。長時間スリープを抱えるワークフローでも、step ひとつあたりの実行時間は Functions の `maxDuration` が上限になる点を忘れてはならない。
+
+## 一次ソース（原文）
+
+- Vercel Queues: https://vercel.com/docs/queues
+- Vercel Queues — Pricing and Limits: https://vercel.com/docs/queues/pricing
+- Vercel Queues — SDK Reference: https://vercel.com/docs/queues/sdk
+- Vercel Workflows: https://vercel.com/docs/workflows
+- Vercel Workflows — Concepts: https://vercel.com/docs/workflows/concepts
+- Vercel Workflows — Python: https://vercel.com/docs/workflows/python
+- Vercel Workflows — Pricing and Limits: https://vercel.com/docs/workflows/pricing
+- Workflow SDK 公式サイト: https://workflow-sdk.dev/
+- Vercel Changelog: https://vercel.com/changelog

@@ -1,0 +1,230 @@
+---
+title: "Flags — Vercel が提供する自社 Feature Flags プロバイダーと Flags Explorer"
+description: "Vercel Flags は Vercel 自社製のフィーチャーフラグ・プロバイダーであり、Flags SDK（@vercel/flags / flags パッケージ）と Flags Explorer による Toolbar 上の上書き、Boolean / String / Number に加え 2026-05-07 追加の JSON 値、ターゲティング・Segments・Progressive Rollouts、Edge Middleware / Server Components での評価、LaunchDarkly / Statsig / Hypertune / GrowthBook / Optimizely / Split / PostHog などの外部プロバイダー連携、Runtime Logs / Web Analytics による Observability までを単一ダッシュボードで束ねる。"
+category: "web-development"
+subcategory: "vercel"
+createdAt: 2026-05-10
+sortOrder: 37
+---
+
+## この章の要点
+
+Vercel Flags は Vercel が提供する自社製のフィーチャーフラグ・プロバイダーであり、外部 SaaS を増やさずに Dashboard 上でフラグの作成・ターゲティング・段階的ロールアウト・A/B テストまでを完結できる。アプリ側からの評価には `flags`（旧 `@vercel/flags`）パッケージを軸とする Flags SDK を使い、Next.js（App Router / Pages Router / Middleware）と SvelteKit に対しフレームワークネイティブの `flag()` API を提供する。Vercel Toolbar に組み込まれた Flags Explorer により、サインインしたチームメンバーは本番・Preview・ローカルのいずれの環境でもブラウザ上でフラグを上書きでき、上書きはブランチ単位や URL 単位で共有できる。値の型は Boolean / String / Number に加え 2026-05-07 のチェンジログで JSON 値が追加され、AI モデル設定など複数フラグを 1 つにまとめられるようになった。Flags SDK は Vercel 自社プロバイダーだけでなく LaunchDarkly / Statsig / Hypertune / GrowthBook / Optimizely / Split / PostHog / Flagsmith / Edge Config / OpenFeature 互換各社（AB Tasty / CloudBees / ConfigCat / DevCycle / FeatBit / flagd / Flipt / GO FeatureFlag / Kameloon / Tggl など）にもアダプター経由で接続可能で、Marketplace の課金・SSO に統合される。評価は Edge Middleware / Server Component で実行できるよう設計されており、`reportValue` 経由で Runtime Logs と Web Analytics に自動報告され、コンバージョンや Core Web Vitals との相関分析を Vercel ダッシュボード内で完結できる。
+
+## Vercel Flags とは
+
+フィーチャーフラグ（Feature Flag）はソースコードに条件分岐を埋め込み、その条件を実行時に外部から切り替えることで、デプロイと機能リリースを切り離すための仕組みである。トランクベース開発・カナリアリリース・A/B テスト・キルスイッチ・ベータユーザー限定公開といったユースケースを、長寿命のブランチや再デプロイなしで実現する道具で、近年は LaunchDarkly / Statsig / Optimizely / Split / Hypertune / GrowthBook / PostHog などが SaaS として競合する成熟領域になっている。
+
+Vercel Flags はこの領域に Vercel が自社プロバイダーとして参入したプロダクトで、構造としては三層に整理できる。第一に Vercel Dashboard 上のフラグ管理画面・Segments・Drafts・ロールアウト設定といったコントロールプレーン。第二に `flags` パッケージを起点とする Flags SDK で、Next.js / SvelteKit のためのフレームワーク統合と、各社プロバイダーへ接続するアダプター群を提供する。第三に Vercel Toolbar に同梱される Flags Explorer で、ブラウザ拡張的な UI からフラグの値を上書き・共有・推奨する。これらは「プロバイダーは Vercel 自社、または Marketplace 経由で接続した外部 SaaS のどちらでもよい」という前提で組まれており、Dashboard の `Flags` セクションには両者のフラグが横並びに表示される。
+
+歴史的経緯としては、Vercel は 2023 年から OSS の Flags SDK（当初パッケージ名 `@vercel/flags`、現在の正式名は `flags`）を提供しており、自社では長らく「他社プロバイダーのアダプターを束ねる SDK だけを提供する」中立的な立場を取っていた。一方、A/B テストと型安全フラグに強い Hypertune を Vercel は買収・深く統合し、その評価エンジンと UX をベースに Vercel Flags（自社プロバイダー）を立ち上げ、2026 年に GA 相当へと進化した。`flags-sdk.dev` が SDK のドキュメントポータル、`vercel.com/docs/flags` がプラットフォームとしての公式ドキュメントになっている。
+
+## 何が解説されているか
+
+### フラグ定義と評価コンテキスト
+
+Flags SDK では、フラグを 1 つの TypeScript シンボルとして「コードで定義」する。`flag()` ヘルパに `key`、`decide`（評価関数）、`identify`（コンテキスト取得関数）、`options`（取りうる値の集合）を渡し、エクスポートされたシンボルを呼び出すと評価結果が返る。フラグの所在をコード側に持つことで、ビルド時にディスカバリして Dashboard に Draft として登録する仕組みが成立する。`identify` で生成される評価コンテキストは、ユーザー ID・プラン・国・デバイスなどアプリが知っている属性をプロバイダーに渡す境界点であり、ターゲティングの粒度はこの設計に依存する。
+
+### 値の型と JSON 値（2026-05-07）
+
+Vercel Flags のフラグは Boolean / String / Number に加え、2026-05-07 のチェンジログで JSON 値に対応した。これにより、たとえば「AI モデル名・temperature・max tokens・system prompt」を別々のフラグにせず、1 つの JSON フラグの Variant としてまとめて切り替えられる。チェンジログは「これまで複数の関連フラグに分割していた構成を 1 つに集約できる」と表現しており、AI モデルの A/B 比較、漸進的トラフィックシフト、プロバイダー障害時のクイックスイッチといったユースケースを公式に挙げている。型安全のための JSON Schema 連携も Hypertune 由来の仕組みで提供される。
+
+### ターゲティング・Segments・Drafts・Per-environment
+
+Vercel Flags はデフォルトでは全ユーザーに同一値を返し、`Entities`（ユーザー・チーム・デバイスなどアプリが知っている対象）と、その属性を参照する `Targeting Rules` でパーソナライズを行う。`Segments` は属性ルールの再利用単位で、「Beta Testers」「Internal Team」のような名前付きグループを 1 か所で更新するとそれを参照する全フラグに即時反映される。`Drafts` はコード側で定義してデプロイすると Vercel が Flags Discovery エンドポイント経由で検知し、Dashboard にドラフトとして自動で並べる仕組みで、コードと UI の同期コストを下げる。`Per-environment configuration` により Production / Preview / Development で別々の値を設定できる。グローバル複製により設定変更はミリ秒オーダーで世界中に伝播するとドキュメントは説明している。
+
+### Server Components / Edge Middleware での評価
+
+Flags SDK は App Router / Pages Router / Middleware の各ランタイムで等しく動作するように設計されている。Server Component 内では `await flagShape()` のように非同期に呼び、結果に応じて JSX を分岐する。Middleware 上では Edge Runtime で評価し、`rewrite` でバリアントを別パスに振り分けたうえで、対応する静的キャッシュバケットを返す。`Precompute` パターンを使うと、起こりうるバリアントの組み合わせを事前計算してキャッシュキーに織り込み、Edge キャッシュヒットを保ちながら A/B 分岐を実現できる。
+
+### Embedded Definitions
+
+`Embedded definitions` はビルド時にフラグ定義を取得して Deployment にバンドルする機能で、すべての関数が同一スナップショットで動くことを保証し、Vercel Flags サービスが一時的に到達不能になっても評価が止まらないようランタイムフォールバックを提供する。エッジ評価のレイテンシと耐障害性を両立するための Vercel らしい設計である。
+
+### Flags Explorer / Vercel Toolbar
+
+Flags Explorer は Vercel Toolbar 内のパネルで、サインインしたチームメンバーが「Flags Explorer」権限のもと、現在のページで評価されているフラグを一覧・検索・上書きできる UI である。デフォルトでは上書きはブラウザセッション限定で、他のユーザーや自動テストに影響しない。共有方法は 2 通りある。`Save Recommendations` でブランチに紐づけた推奨上書きを保存すると、そのブランチを開いたチームメンバーに Preview デプロイメント上で適用ノーティスが表示される（Production には表示されない）。`Share` を選ぶと現在のページ URL に上書き内容を埋め込んだリンクが生成され、リンクを開いた人に適用ノーティスが出る。Toolbar をどの環境で有効にするかはチーム設定の `In production and localhost` で制御する。
+
+### 外部プロバイダーアダプター
+
+Flags SDK のもう一つの顔は「アダプター集」である。`flags-sdk.dev` のディレクトリには Vercel / Statsig / Hypertune / GrowthBook / Edge Config / LaunchDarkly / Reflag / PostHog / Flagsmith に加え、OpenFeature 互換として AB Tasty / CloudBees / ConfigCat / DevCycle / FeatBit / flagd / Flipt / GO FeatureFlag / Kameloon / Split / Tggl、その他 Optimizely / Split が並ぶ。アプリ側の `flag()` 呼び出しは変えず、`adapter` を差し替えるだけでバックエンドを切り替えられる設計で、Vercel Marketplace 経由で導入した SaaS は Vercel の請求・SSO・ダッシュボードに統合される。
+
+### Observability と Web Analytics 統合
+
+`reportValue(flagKey, flagValue)` を呼ぶと Vercel がそのリクエストやイベントに紐づけて評価値を記録し、Runtime Logs と Web Analytics で「どのフラグがどの値で、何回評価され、コンバージョンや Core Web Vitals にどう影響したか」を分析できる。Flags SDK 経由で評価した場合は手動 instrumentation 不要で自動報告される。これは外部 BI を経由せず Vercel 内部のテレメトリだけで A/B テストの一次評価が完結することを意味する。
+
+### Vercel Flags vs 外部プロバイダー比較
+
+| 観点 | Vercel Flags（自社） | LaunchDarkly | Statsig | Unleash（OSS） |
+| --- | --- | --- | --- | --- |
+| ホスト | Vercel Platform 内蔵 | 独立 SaaS | 独立 SaaS | OSS / セルフホスト or SaaS |
+| Vercel 課金統合 | あり（標準） | Marketplace 経由で可 | Marketplace 経由で可 | 直接統合は限定的 |
+| 評価ランタイム | Edge / Node / Browser、Embedded definitions あり | Edge / Server / Client SDK | Edge / Server / Client SDK | Server / Client SDK |
+| ターゲティング | Entities / Segments / Per-env | フラグ／セグメント／コホート | フラグ／実験／ホールドアウト | フラグ／戦略 |
+| 実験・統計 | A/B 対応、Web Analytics 連携 | Experimentation 製品あり | 実験プラットフォームが本業 | OSS 範囲では限定 |
+| JSON 値 | 対応（2026-05-07） | 対応 | 対応 | 対応 |
+| Toolbar / 上書き UI | Flags Explorer（標準） | LD UI / SDK Override | Statsig Console / Override API | Unleash UI |
+| Observability | Runtime Logs / Web Analytics 自動連携 | LD 内蔵分析 / 連携 | Statsig 内蔵分析 | 別途 |
+| OpenFeature | アダプター対応 | プロバイダーあり | プロバイダーあり | プロバイダーあり |
+
+## 使い方
+
+### 1. SDK のセットアップ
+
+`flags` パッケージ（旧 `@vercel/flags`）を導入し、必要に応じて `FLAGS_SECRET` を設定する。`FLAGS_SECRET` は Flags Explorer から渡されるオーバーライド Cookie の改ざんを検証するための共有秘密で、本番では必ず環境変数に格納する。
+
+```bash filename="terminal"
+pnpm add flags
+# Vercel Flags（自社プロバイダー）を使う場合
+pnpm add @flags-sdk/vercel
+# 例: LaunchDarkly アダプター
+pnpm add @flags-sdk/launchdarkly
+```
+
+### 2. フラグの定義（Next.js / App Router）
+
+```ts filename="flags.ts"
+import { flag } from 'flags/next';
+
+export const newCheckoutFlag = flag<boolean>({
+  key: 'new-checkout',
+  description: '新しいチェックアウト UI を有効にする',
+  defaultValue: false,
+  options: [
+    { value: false, label: 'Old' },
+    { value: true, label: 'New' },
+  ],
+  identify: async ({ headers, cookies }) => ({
+    visitorId: cookies.get('visitor_id')?.value ?? 'anon',
+    country: headers.get('x-vercel-ip-country') ?? 'JP',
+  }),
+  decide: async ({ entities }) => {
+    // Vercel Flags / 外部プロバイダーへ問い合わせる Adapter で置換可能
+    return entities.country === 'JP' && entities.visitorId.startsWith('beta_');
+  },
+});
+```
+
+### 3. Server Component で評価する
+
+```tsx filename="app/(shop)/checkout/page.tsx"
+import { newCheckoutFlag } from '@/flags';
+
+export default async function CheckoutPage() {
+  const isNew = await newCheckoutFlag();
+  return isNew ? <NewCheckout /> : <LegacyCheckout />;
+}
+```
+
+### 4. Edge Middleware で A/B 振り分け
+
+```ts filename="middleware.ts"
+import { NextResponse, type NextRequest } from 'next/server';
+import { newCheckoutFlag } from '@/flags';
+
+export const config = { matcher: ['/checkout/:path*'] };
+
+export async function middleware(req: NextRequest) {
+  const isNew = await newCheckoutFlag();
+  const url = req.nextUrl.clone();
+  url.pathname = isNew ? `/variants/new${url.pathname}` : `/variants/old${url.pathname}`;
+  return NextResponse.rewrite(url);
+}
+```
+
+### 5. JSON 値で AI モデル設定をひとまとめにする（2026-05-07 追加）
+
+```ts filename="flags/ai-model.ts"
+import { flag } from 'flags/next';
+
+type AIModelConfig = {
+  provider: 'anthropic' | 'openai' | 'xai';
+  model: string;
+  temperature: number;
+  maxTokens: number;
+  systemPrompt: string;
+};
+
+export const aiModelConfig = flag<AIModelConfig>({
+  key: 'ai-model-config',
+  defaultValue: {
+    provider: 'anthropic',
+    model: 'claude-sonnet-4.6',
+    temperature: 0.4,
+    maxTokens: 2048,
+    systemPrompt: 'You are a helpful assistant.',
+  },
+  options: [
+    {
+      label: 'Anthropic Sonnet',
+      value: {
+        provider: 'anthropic',
+        model: 'claude-sonnet-4.6',
+        temperature: 0.4,
+        maxTokens: 2048,
+        systemPrompt: 'You are a helpful assistant.',
+      },
+    },
+    {
+      label: 'xAI Grok Fast',
+      value: {
+        provider: 'xai',
+        model: 'grok-4.1-fast-non-reasoning',
+        temperature: 0.5,
+        maxTokens: 2048,
+        systemPrompt: 'You are a concise assistant.',
+      },
+    },
+  ],
+});
+```
+
+### 6. 外部プロバイダー（LaunchDarkly）への差し替え
+
+`adapter` を差し替えるだけで、アプリ側の呼び出しは変わらない。
+
+```ts filename="flags.ts"
+import { flag } from 'flags/next';
+import { ldAdapter } from '@flags-sdk/launchdarkly';
+
+export const newCheckoutFlag = flag<boolean>({
+  key: 'new-checkout',
+  defaultValue: false,
+  adapter: ldAdapter.variation<boolean>(),
+});
+```
+
+### 7. Toolbar / Flags Explorer の有効化
+
+Vercel Toolbar を Production・Preview・Localhost で有効化する設定をチームレベルで行ったうえで、Flags Explorer 権限を持つメンバーは Toolbar から `Flags Explorer` を開き、検索 → 値選択 → Apply で上書きできる。複数の上書きをチーム共有したい場合はブランチに `Save Recommendations` で紐づけ、単発で共有したい場合は `Share` で URL を生成する。
+
+### 8. Observability（Web Analytics 連携）
+
+Flags SDK で評価したフラグは自動的に `reportValue` 経由で Web Analytics に送られる。SDK を使わず手動で値を送りたい場合のみ `reportValue('new-checkout', true)` を呼ぶ。Web Analytics の Insights では「フラグ ON 群と OFF 群のコンバージョン差」「LCP / INP の差」を自動計算して並べて見られる。
+
+## 注意点・セキュリティ観点
+
+第一にキャッシュとの関係である。Edge Middleware で `rewrite` した先のページが ISR・SSG・Data Cache を持つ場合、フラグのバリアントごとにキャッシュキーを分離しないとバリアントが混線する。`Precompute` パターンや、URL を変える `rewrite` 経由の振り分けが推奨される理由はこれで、`cookies()` を読む Server Component に直接フラグを混ぜると Dynamic レンダリングに転落しがちな点も含めて、ランタイム特性を理解する必要がある。
+
+第二に Cookie / Identity の設計である。`identify` で参照する Cookie・ヘッダがログインユーザーに依存するか匿名訪問者に依存するかでバケッティングの安定性が変わる。匿名 A/B テストでは長命の `visitor_id` Cookie を Edge Middleware で発行し、ログイン後はユーザー ID へ滑らかに引き継ぐ二段構成が定石である。Cookie のドメインスコープ、SameSite、暗号化の有無を要件に合わせて設計しないと「再訪のたびにバリアントが揺れる」事故を起こす。
+
+第三に Stale フラグの整理である。Flags as Code 設計上、コードに残っているフラグだけが Drafts として Dashboard に上がる。逆に「コードからは消したのに Dashboard には残り続ける」「Dashboard では Off にしているのにコードからは参照され続ける」状態を放置するとロールバック・観測の整合が崩れる。リリース完了したフラグは「コード削除 → PR レビュー → Dashboard アーカイブ」の順序で確実に閉じる運用ルールを置くべきである。
+
+第四に不正な上書き防止である。Flags Explorer の上書きは `FLAGS_SECRET` で署名された Cookie に基づいて適用される。シークレットを公開リポジトリやログに漏らすと攻撃者が任意のフラグ値を強制できるため、シークレットローテーション手順とアクセス権限（Flags Explorer 権限）の付与レビューを定期化する。Production の Toolbar 利用は Vercel チームに所属しサインインした人のみであり、未認証ユーザーは Explorer を開けない設計だが、`Share` URL の流出にも注意する。
+
+第五に A/B 計測の観測偏りである。`reportValue` は評価したリクエストにのみ紐づくため、Server Component とクライアントの両方でフラグを評価していると二重カウントが起きる、あるいは評価せずにそのバリアントの UI を出すと未報告になり計測が歪む。1 つのバリアント決定につき 1 度だけ評価する規律と、Web Analytics 上のコンバージョン定義を SRM（Sample Ratio Mismatch）チェックで監視する運用を推奨する。
+
+第六に Edge での評価コストである。Vercel Flags はグローバル複製と Embedded Definitions により評価そのものは極めて軽いが、外部プロバイダー（LaunchDarkly / Statsig 等）を Edge から直接叩くアダプター構成では SaaS の SLA・地理レイテンシがクリティカルパスに入る。Edge Config 連携や、ビルド時に定義をプリフェッチして Edge にバンドルするアダプターを選ぶ、あるいはバックグラウンド更新型のアダプターを選ぶことで、評価レイテンシを Vercel ネットワーク内に閉じ込められる。
+
+第七に SLA とフォールバックである。`flag()` の `defaultValue` と Embedded Definitions のフォールバックを必ず設定し、フラグサービスへの到達不能時にもアプリが安全側に倒れる挙動を保証する。特にキルスイッチ用途のフラグは「Off が安全」になるよう論理を反転させて持っておくのが原則である。
+
+## 一次ソース（原文）
+
+- Flags（Vercel Docs トップ） — https://vercel.com/docs/flags
+- Vercel Flags（自社プロバイダー） — https://vercel.com/docs/flags/vercel-flags
+- Flags Explorer — https://vercel.com/docs/flags/flags-explorer
+- Flags Observability — https://vercel.com/docs/flags/observability
+- Flags SDK Reference — https://vercel.com/docs/flags/flags-sdk-reference
+- Flags SDK 公式ポータル（OSS） — https://flags-sdk.dev
+- Vercel Changelog（2026-05-07: JSON values for Vercel Flags 他） — https://vercel.com/changelog
+- Vercel Toolbar（Flags Explorer 連携元） — https://vercel.com/docs/vercel-toolbar

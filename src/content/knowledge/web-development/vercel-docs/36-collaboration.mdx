@@ -1,0 +1,205 @@
+---
+title: "Collaboration — Comments / Draft Mode / Edit Mode / Toolbar で Preview を共同レビューする"
+description: "Vercel Collaboration スイートの全体像を整理する章。Preview Deployment 上で UI に直接コメントを差し込む Comments、Headless CMS の下書きを実画面で確認する Draft Mode、CMS フィールドへ直接ジャンプできる Edit Mode、これらすべての入口となる Vercel Toolbar の役割をまとめる。Slack / Linear / Jira への連携、Preview Deployment Protection との関係、デザイナー・PM・外部レビュアーを巻き込むレビュー導線、認証境界とプラン依存の制限までを 1 章で扱う。"
+category: "web-development"
+subcategory: "vercel"
+createdAt: 2026-05-10
+sortOrder: 36
+---
+
+## この章の要点
+
+- Vercel Collaboration は、Comments / Draft Mode / Edit Mode / Toolbar の 4 機能から成る Preview Deployment 共同レビューの仕組みである。すべての操作は Vercel Toolbar から呼び出され、Preview Deployment と一体で動作する。
+- Comments は Preview Deployment 上の UI に対して要素ピンを打てる仕組みであり、Pull Request と紐付くため Vercel Bot のコメントから「Add your feedback」リンクで自動ログインできる。全プランで無料・既定有効である。
+- Draft Mode は Headless CMS の未公開コンテンツを実サイトのレイアウトで表示する仕組みであり、ISR の `bypassToken` と `__prerender_bypass` Cookie で実現される。Next.js では `next/headers` の `draftMode().enable()` を使い、Toolbar から切替できる。
+- Edit Mode は Content Source Maps を介して画面上の要素から CMS のフィールドへ直接ジャンプする仕組みである。Contentful / Sanity / Builder.io / TinaCMS / DatoCMS / Payload / Uniform / Strapi が公式対応する。
+- Vercel Toolbar は Comments / Feature Flags / Draft Mode / Edit Mode / Layout Shift / Interaction Timing / Accessibility Audit の入口であり、Preview では既定で挿入される。Production / localhost では `@vercel/toolbar` を明示導入する必要がある。
+- 権限境界は Preview Deployment Protection と SSO に依拠する。チーム外レビュアーへの共有は Pro / Enterprise の Sharable Links で行い、Production への混入を防ぐためにビルド時の Toolbar 注入条件を分離する。
+
+## Vercel Collaboration とは
+
+Vercel Collaboration は、Preview Deployment を「動くデザインモック」として扱うための機能群である。従来、Web サイトのレビューは Figma 上のスクリーンショットコメント、GitHub PR の差分コメント、Slack のスクリーンショット添付に分散していた。これらは「実際に動いている画面」と「議論が行われる場所」が一致しないため、PM やデザイナーが指摘する箇所をエンジニアが正確に再現するまでに往復が発生する。Vercel Collaboration は、この往復を Preview Deployment 上で完結させることを狙いにした仕組みである。
+
+中核となるのは Vercel Toolbar である。Preview Deployment にアクセスすると画面下部にツールバーが表示され、ここを起点として Comments（要素にピンを打つコメント）、Draft Mode（Headless CMS の下書きを表示）、Edit Mode（要素から CMS フィールドへジャンプ）、Feature Flags、Layout Shift / Interaction Timing / Accessibility Audit などの開発・レビュー支援ツールへアクセスできる。Toolbar は Preview では既定で挿入され、ログイン済みのチームメンバーであれば追加設定なしに利用できる。Production や localhost で使う場合は `@vercel/toolbar` パッケージを明示的にレイアウトへ埋め込む必要がある。
+
+Draft Mode と Preview Deployment は名前が似ているが別物である。Preview Deployment は「main 以外のブランチの動的なステージング URL」を指し、Draft Mode は「ISR で静的化されたページのキャッシュをリクエスト時にバイパスして CMS の最新（未公開）コンテンツを取得する」仕組みである。Next.js 13.4 以前は Preview Mode と呼ばれていたが、Preview Deployment との混同を避けるために Draft Mode に改名された経緯が公式ドキュメントに明記されている。
+
+Edit Mode はさらに上のレイヤーで動く仕組みで、ビルド時に挿入される Content Source Maps を解釈して、画面上の要素から対応する CMS のフィールドエディタへ直接遷移する Content Link を提供する。これは Visual Editing と呼ばれる潮流の Vercel 実装であり、PM・編集者が Web 開発者を介さずに本文や見出しの編集に到達できるようになる。
+
+## 何が解説されているか
+
+公式ドキュメントは Comments / Draft Mode / Edit Mode / Toolbar の 4 つを独立したセクションで扱いつつ、Toolbar をハブとして相互参照する構成になっている。それぞれの責務は次の表のとおりである。
+
+| 機能 | 役割 | プラン要件 | 主な依存 |
+| --- | --- | --- | --- |
+| Vercel Toolbar | 全機能の入口 UI。Preview で既定挿入、Production / localhost は `@vercel/toolbar` で導入 | 全プラン | ログイン済み Vercel アカウント |
+| Comments | Preview Deployment 上の要素にコメント・スレッドを紐付け、PR 連動・Slack / Linear / Jira 連携 | 全プラン無料、外部招待は Pro / Enterprise | Toolbar、Preview、Git 連携 |
+| Draft Mode | ISR の `bypassToken` と `__prerender_bypass` Cookie で CMS 下書きを表示 | 全プラン | ISR、Headless CMS |
+| Edit Mode | Content Source Maps で要素 → CMS フィールドへジャンプ（Content Link） | 全プラン（CMS 側の対応必須） | Toolbar、Visual Editing 対応 CMS |
+
+Comments は要素に対するピン留めが特徴で、矩形選択した部分やテキストレンジに紐付けてスレッドを開ける。Pull Request にデプロイが紐付いている場合は Vercel Bot が PR コメント上で「Add your feedback」URL と未解決コメント数を表示する。さらに、Comments には Git Provider のステータスチェックも用意されており、未解決コメントがある状態でのマージを止める運用が組める。GitHub / GitLab / BitBucket の必須チェック設定で「required」にすれば、Comments の解決をマージブロッカーにできる。
+
+Slack 連携は最も使われる外部統合である。`/vercel subscribe` コマンドでチャンネルとプロジェクトを紐付けると、新規コメントごとに Slack スレッドが自動生成され、Slack 側の返信は Vercel 側のスレッドに、Vercel 側の返信は Slack に双方向同期される。Slack 上でも `Resolve` ボタンでスレッドを解決できる。Linear / Jira / GitHub Issues はコメントスレッドからイシュー化する用途で、コメント上のアイコンから「Convert to Issue」を実行すると、コメント本文と添付画像がそのままイシュー本文に流し込まれ、元スレッドは自動 Resolve される（再オープン不可）点が運用上の注意点である。
+
+Comments・Figma Comments・GitHub PR Review の比較を整理する。
+
+| 比較軸 | Vercel Comments | Figma Comments | GitHub PR Review |
+| --- | --- | --- | --- |
+| コメント対象 | 動作中の Preview Deployment（実 HTML） | 静的なデザインカンバス | コードの差分（行単位） |
+| ピン位置 | DOM 要素に紐付き、レスポンシブ追従 | キャンバス座標 | ファイル × 行番号 |
+| 主な参加者 | デザイナー・PM・QA・エンジニア | デザイナー中心 | エンジニア中心 |
+| マージブロック | Git Provider のステータスチェックで強制可 | なし（外部運用） | レビュー必須化で強制可 |
+| 外部招待 | Pro / Enterprise の Sharable Links | Figma の閲覧/編集権限 | リポジトリ権限 |
+| 双方向同期 | Slack / Linear / Jira / GitHub Issues | なし | GitHub 内のみ |
+
+Draft Mode の挙動は ISR を前提にする。各 ISR ルートにはビルド時に暗号論的に強い `bypassToken` が割り当てられ、リクエストに `__prerender_bypass` Cookie が付与され、その値が `bypassToken` と一致した場合のみキャッシュをバイパスしてリクエスト時に CMS から最新データを取得する。Next.js では `next/headers` の `draftMode().enable()` で Cookie を設定する API ルートを書き、Toolbar から「Draft Mode」をトグルすると Toolbar が紫色に変化して有効状態であることを示す。Draft Mode を有効にできるのはチームメンバーのみであり、`?__vercel_draft=1` を付けたシェア URL もチーム外には開けない仕様となっている。
+
+Edit Mode（Content Link）は CMS 統合がインストールされ、かつ画面上の要素が CMS のコンテンツモデルに紐付いている場合のみ Toolbar メニューに表示される。Sanity・Contentful・Builder.io・TinaCMS・DatoCMS・Payload・Uniform・Strapi が公式対応 CMS として列挙されており、追加のコード変更なしに要素ホバーで右上に Content Link が現れ、クリックすると対応する CMS フィールドのエディタへ遷移する。
+
+## 使い方
+
+Vercel Toolbar は Preview Deployment では既定で挿入される。Production や localhost で使う場合は `@vercel/toolbar` パッケージを導入し、レイアウトに `<VercelToolbar />` を埋め込む。Next.js App Router での代表的な実装は次のとおりである。
+
+```tsx filename="app/layout.tsx"
+import { VercelToolbar } from "@vercel/toolbar/next";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const shouldInjectToolbar = process.env.NODE_ENV === "development";
+
+  return (
+    <html lang="ja">
+      <body>
+        {children}
+        {shouldInjectToolbar && <VercelToolbar />}
+      </body>
+    </html>
+  );
+}
+```
+
+`shouldInjectToolbar` の判定は環境ごとに切り替え、Production には条件付きでしか挿入しないのが定石である。Preview では Vercel が自動でツールバーを差し込むため、`<VercelToolbar />` を明示する必要はない。ローカルで Comments を試す場合は、コメント対象の URL がチーム配下のプロジェクトに紐付いていることが前提となる。
+
+Comments を投稿する手順は単純で、Toolbar を起動（ツールバーをクリック）したあと、メニューから「Comment」を選んでページ要素をクリックするか、テキストをハイライトすればスレッドが立ち上がる。スレッドはマークダウン記法と画像添付に対応し、解決済みは Resolve ボタンで閉じられる。Pull Request 作成者と当該スレッドの参加者にはメール通知が届き、Slack 連携を有効にしているチャンネルにはスレッドが転送される。
+
+Draft Mode を Next.js App Router で有効化する際は、まず ISR を有効化し、`draftMode()` を参照するルートを書く。`draftMode().enable()` を呼ぶ API ルートを Headless CMS の Preview ボタンから叩いてもらう構成が一般的である。
+
+```ts filename="app/api/draft/route.ts"
+import { draftMode } from "next/headers";
+import { redirect } from "next/navigation";
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const secret = searchParams.get("secret");
+  const slug = searchParams.get("slug");
+
+  if (secret !== process.env.DRAFT_MODE_SECRET || !slug) {
+    return new Response("Invalid token", { status: 401 });
+  }
+
+  const draft = await draftMode();
+  draft.enable();
+
+  redirect(`/posts/${slug}`);
+}
+```
+
+```tsx filename="app/posts/[slug]/page.tsx"
+import { draftMode } from "next/headers";
+
+async function getPost(slug: string) {
+  const { isEnabled } = await draftMode();
+  const endpoint = isEnabled
+    ? `https://draft.example.com/posts/${slug}`
+    : `https://cdn.example.com/posts/${slug}`;
+
+  const res = await fetch(endpoint, {
+    next: { revalidate: 120 },
+    headers: isEnabled
+      ? { Authorization: `Bearer ${process.env.CMS_DRAFT_TOKEN}` }
+      : {},
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch post: ${res.status}`);
+  }
+
+  return res.json();
+}
+
+export default async function PostPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const { slug } = await params;
+  const post = await getPost(slug);
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <div dangerouslySetInnerHTML={{ __html: post.body }} />
+    </article>
+  );
+}
+```
+
+`draftMode().enable()` は内部的に `__prerender_bypass` Cookie を設定する。CMS 側の Preview ボタンからこの API へ遷移させ、戻り先で下書きが表示されるという流れになる。Toolbar からの切替は `next/headers` の draftMode と同じ Cookie を扱う仕組みで、Toolbar が紫色になっていれば Draft Mode 中だと判別できる。
+
+SvelteKit の場合は `+page.server` の `config.isr.bypassToken` を `BYPASS_TOKEN` 環境変数から渡し、`__prerender_bypass` Cookie を発行する API を別途用意する。フレームワーク非依存で実装する場合は Build Output API v3 の prerender 関数に `bypassToken` を指定すれば同じ仕組みが利用できる。
+
+Edit Mode（Content Link）は CMS 側で Content Source Maps を有効にすれば、コード上の追加実装なしに利用できる。Sanity の場合は Visual Editing パッケージをインストールし、Studio の Presentation Tool と組み合わせる。Contentful は Content Source Maps をプロジェクト設定で有効化したうえで `@contentful/live-preview` を組み込む。Builder.io は Visual Editor からそのまま遷移できる。
+
+```ts filename="sanity.config.ts"
+import { defineConfig } from "sanity";
+import { presentationTool } from "sanity/presentation";
+
+export default defineConfig({
+  name: "default",
+  title: "shogo-works",
+  projectId: process.env.SANITY_PROJECT_ID!,
+  dataset: "production",
+  plugins: [
+    presentationTool({
+      previewUrl: {
+        origin: "https://preview.shogoworks.com",
+        previewMode: {
+          enable: "/api/draft",
+        },
+      },
+    }),
+  ],
+});
+```
+
+Slack 連携の初期設定は Vercel Marketplace の Slack アプリを Add Integration し、Slack ワークスペースを承認したあと、対象チャンネルで `/vercel login`・`/vercel subscribe` を実行する流れになる。プロジェクトとチャンネルを紐付け、ブランチやページパスでフィルタを掛けることで通知ノイズを抑えられる。Linear / Jira / GitHub の各 Issue Tracker は Marketplace から個別にインストールし、コメントスレッドの「Convert to Issue」ボタンで起動する。
+
+## 注意点・セキュリティ観点
+
+最大の注意点は権限境界の設計である。Comments は「Vercel アカウントを持つ全員」が既定でコメントできるが、これはチームメンバーが対象であり、外部レビュアーは Preview Deployment Protection の Sharable Links で個別に招待する必要がある。Sharable Links は Pro / Enterprise プランの機能であり、リンクごとに有効期限・パスワード・コメント可否を制御できる。Production の Deployment Protection を有効化していても、Sharable Links 経由のアクセスは Toolbar で正しく認証され、コメントを残せる。
+
+Draft Mode は「チームメンバーしか有効化できない」前提であるため、`?__vercel_draft=1` シェア URL を渡しても外部の人間が下書きを読むことはできない。一方、`__prerender_bypass` Cookie は値が `bypassToken` と一致しさえすれば成立するため、`bypassToken` を Git にコミットしてしまうと CDN キャッシュをバイパスして CMS へ無限にリクエストを発生させる経路を作りかねない。`bypassToken` は環境変数で管理し、Build Output API v3 を使う場合も生成済みトークンをログに出さないこと。Headless CMS との通信を Bearer 認証する場合の `CMS_DRAFT_TOKEN` も同じ要件になる。
+
+Production への Vercel Toolbar 混入は明示的にコントロールする必要がある。`@vercel/toolbar` を `<VercelToolbar />` として常時挿入してしまうと、未認証ユーザーには表示されないものの、スクリプトと CSS は配信される。CSP（Content Security Policy）を厳格化しているサイトでは Toolbar スクリプトのオリジンを `script-src` に許可する必要があり、CSP nonce を使う構成では Toolbar が読み込めず動作しないことがある。Production で Toolbar を使うのは「常時公開のデザインプレビュー環境」のような限定的な場面に絞り、通常は `process.env.VERCEL_ENV !== "production"` などで条件分岐するのが安全である。Toolbar はビルド時の環境変数で `VERCEL_TOOLBAR_DISABLED=1` を指定するか、ダッシュボードからチーム / プロジェクト / セッション粒度で無効化できるため、ステークホルダーごとに見せるかどうかを切り替えやすい。
+
+Edit Mode（Content Link）は Content Source Maps を本番ビルドに含める設定にすると、ソースマップが Production の HTML に挿入される。これは利便性のかわりに「CMS 側のフィールド構造」がクライアントに露出することを意味する。Sanity / Contentful などの公式 SDK は本番では Source Maps を出力しないことを推奨しており、Preview のみで有効にする条件付きビルドを行うのが定石である。
+
+Slack / Linear / Jira へのコメント変換は「便利だが取り返しがつかない」操作である。Issue Tracker への変換時にスレッドが自動 Resolve されたあと再オープンできない仕様であるため、議論途中のコメントを早まってイシュー化しないこと。Jira では「reporter」が変換した本人になるが「creator」は連携セットアップ時のアカウントになるため、専用 Bot アカウントで連携を組まないと監査ログ上の「誰が作ったか」が一人に偏る点も留意が必要である。
+
+プラン依存の制限は次のとおり整理できる。Comments 自体は全プラン無料・既定有効だが、外部コラボレーターを呼ぶ Sharable Links は Pro 以上、Enterprise では Audit Logs に共有元ユーザーが記録される。Toolbar・Draft Mode・Edit Mode の機能本体に対する課金はない一方、Edit Mode を支える CMS 側の Visual Editing 機能には CMS ベンダーごとの料金プランが影響する。Comments の Slack 連携は無料だが、`October 4, 2023` 以降の Slack アプリは追加権限を要求するため、それ以前にインストールしているチームは再設定が必要である。
+
+最後に運用面で押さえるべきは、Comments のステータスチェックを「required」にするかどうかの設計である。既定では未解決コメントがあっても PR をマージできるため、QA フェーズに合わせて Branch Protection で必須化し、リリース直前に解除するなどの運用ルールが必要になる。Preview Deployment Protection を有効にしているチームでは、Comments の通知メールに含まれる URL から自動ログインできるかどうかが体験を左右するため、外部レビュアーには事前に Sharable Link を発行しておくほうが摩擦が少ない。
+
+## 一次ソース（原文）
+
+- [Comments Overview](https://vercel.com/docs/comments)
+- [Integrations for Comments](https://vercel.com/docs/comments/integrations)
+- [Draft Mode](https://vercel.com/docs/draft-mode)
+- [Edit Mode](https://vercel.com/docs/edit-mode)
+- [Vercel Toolbar](https://vercel.com/docs/vercel-toolbar)
+- [Managing the Vercel Toolbar](https://vercel.com/docs/vercel-toolbar/managing-toolbar)
+- [Adding the Toolbar to Production and Localhost](https://vercel.com/docs/vercel-toolbar/in-production-and-localhost)
+- [Vercel Changelog](https://vercel.com/changelog)
