@@ -1,0 +1,255 @@
+---
+title: "Codex Advanced Config：profiles・custom providers・OTel・shell env までの応用設定"
+description: "Codex の高度な設定項目を 2026 年 5 月時点の公式仕様で整理。複数 profiles の切り替え、Ollama / LM Studio / Bedrock などカスタムモデルプロバイダー、Hooks / Permissions / MCP servers / OpenTelemetry / Shell環境ポリシー / TUI オプションまでを実用例とともにまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Configuration", "profiles", "providers", "OpenTelemetry", "MCP"]
+sortOrder: 22
+createdAt: 2026-05-10
+updatedAt: 2026-05-10
+author: "田中省伍"
+---
+
+## 要点
+
+- **Profiles** で「仕事用 / 個人用 / 自動化用」など複数設定を切り替え
+- **Custom model providers**: OpenAI 以外（Ollama / LM Studio / Bedrock / Azure）への接続
+- **MCP servers** / **Hooks** / **Permissions** で実行時挙動を細かく制御
+- **OpenTelemetry** でメトリクス・ログを社内基盤に転送
+- **Shell environment policy** でサブプロセスの環境変数を制限
+- 入門は [Config Basics](/knowledge/ai-tools/codex/config-basics)、全キー一覧は [Config Reference](/knowledge/ai-tools/codex/config-reference) を併用
+
+公式ドキュメントは [`developers.openai.com/codex/config-advanced`](https://developers.openai.com/codex/config-advanced)。
+
+---
+
+## Profiles — 複数設定の切り替え
+
+複数の設定セットを保存しておき、起動時に切り替えできます。
+
+```toml
+# ~/.codex/config.toml
+
+# デフォルト
+model = "gpt-5.5"
+approval_policy = "on-request"
+
+[profiles.work]
+model = "gpt-5.4"
+sandbox_mode = "read-only"
+web_search = "disabled"
+
+[profiles.automation]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[profiles.local]
+model_provider = "ollama"
+model = "qwen-coder-32b"
+```
+
+起動時に `--profile` で選択:
+
+```bash
+codex --profile work
+codex --profile automation
+codex --profile local
+```
+
+CI のようなヘッドレス用途は `automation` のような承認なし profile、対面開発は `work` のような厳しめ profile、と使い分けます。
+
+---
+
+## Custom model providers — OpenAI 以外への接続
+
+Codex は標準で OpenAI を呼びますが、`model_provider` で他プロバイダーに切り替えできます。
+
+### Ollama（ローカル LLM）
+
+```toml
+[model_providers.ollama]
+name = "Ollama Local"
+base_url = "http://localhost:11434/v1"
+api_key_env = "OLLAMA_API_KEY"  # Ollama は不要だが互換のため
+
+model_provider = "ollama"
+model = "qwen-coder-32b"
+```
+
+オフライン作業や、機密コードを外部に出さずに調査だけしたいケースに。
+
+### LM Studio
+
+```toml
+[model_providers.lm_studio]
+name = "LM Studio"
+base_url = "http://localhost:1234/v1"
+```
+
+### Amazon Bedrock
+
+```toml
+[model_providers.bedrock]
+name = "Bedrock"
+type = "bedrock"
+region = "us-east-1"
+# v0.130.0 以降、AWS SSO の console-login プロファイルも利用可能
+```
+
+### Azure OpenAI
+
+```toml
+[model_providers.azure]
+name = "Azure OpenAI"
+base_url = "https://<resource>.openai.azure.com/openai/deployments/<deployment>"
+api_key_env = "AZURE_OPENAI_KEY"
+api_version = "2024-12-01-preview"
+```
+
+組織のポリシーで「Azure 経由の OpenAI のみ許可」のような場合に使います。
+
+---
+
+## MCP servers — 外部ツール統合
+
+外部 MCP サーバーに接続して Codex がツールを使えるようにします。
+
+```toml
+[mcp_servers.filesystem]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/repos"]
+
+[mcp_servers.linear]
+type = "http"
+url = "https://mcp.linear.app/mcp"
+```
+
+詳細は [Codex MCP 連携](/knowledge/ai-tools/codex/mcp-integration)。
+
+---
+
+## Hooks — ライフサイクルイベントへの介入
+
+```toml
+[features]
+codex_hooks = true
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '/usr/bin/python3 "$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use.py"'
+timeout = 30
+```
+
+詳細は [Codex Hooks](/knowledge/ai-tools/codex/hooks)。
+
+---
+
+## Permissions — 名前付きサンドボックスプロファイル
+
+ファイル / ネットワークの細かい権限プロファイルを名前付きで定義し、再利用できます。
+
+```toml
+[permissions.read-only-net]
+sandbox_mode = "read-only"
+network_access = "allowed"
+
+[permissions.workspace-no-net]
+sandbox_mode = "workspace-write"
+network_access = "blocked"
+
+# CLI: codex --permissions read-only-net
+```
+
+業務領域ごとに「DB 検査用は read-only-net」「コード生成は workspace-no-net」のように使い分けやすくなります。
+
+---
+
+## OpenTelemetry — メトリクスとログの収集
+
+```toml
+[otel]
+enabled = true
+endpoint = "https://otel-collector.internal.example.com:4318"
+service_name = "codex-cli"
+exporter = "otlp"
+
+[otel.metrics]
+session_quality_survey = true  # CLAUDE_CODE_ENABLE_FEEDBACK_SURVEY_FOR_OTEL 相当
+```
+
+社内のオブザーバビリティ基盤に Codex の使用状況・エラー率・レイテンシーを送れます。Enterprise 運用ではほぼ必須の設定です。
+
+---
+
+## Shell environment policy — サブプロセス環境変数の制御
+
+Codex がシェルコマンドを実行するときに渡す環境変数を制限できます。
+
+```toml
+[shell_environment_policy]
+inherit = "core"  # all / core / none
+include = ["PATH", "HOME", "GITHUB_TOKEN"]
+exclude = ["AWS_*", "SECRET_*"]
+```
+
+`AWS_SECRET_ACCESS_KEY` や `OPENAI_API_KEY` のような秘密情報がサブプロセスに漏れないよう、`exclude` で明示的に除外します。
+
+---
+
+## TUI options — ターミナル UI の挙動
+
+```toml
+[tui]
+notifications = true
+animations = false
+clear_on_exit = true
+mouse_support = false
+```
+
+通知・アニメーション・マウス操作などを環境に合わせて。CI ログを汚さないために `animations = false` は実用的です。
+
+---
+
+## プロジェクト設定で repo スコープのオーバーライド
+
+`<repo>/.codex/config.toml` を信頼済みプロジェクトに置くと、その repo でのみ適用される設定を書けます。
+
+```toml
+# repo/.codex/config.toml
+model = "gpt-5.3-codex"  # この repo はコーディング特化モデルを使う
+
+[mcp_servers.repo_specific_tools]
+type = "stdio"
+command = "./scripts/mcp-server.sh"
+```
+
+repo 固有の MCP サーバーやモデルを切り替えたいときに有効です。チームメイトも同じ設定を git 経由で共有できます。
+
+---
+
+## まとめ
+
+Advanced Config は「Codex を**業務環境にフィットさせる**」ためのレイヤーです。
+
+- 複数 profile で用途別の切り替え
+- Custom provider で組織のモデル方針に合わせる
+- MCP / Hooks / Permissions でガードレールを設計
+- OTel で運用可視化
+- Shell env policy で機密漏洩を防止
+
+入門 → Advanced → Reference → Sample の順に読み進めるのがおすすめです。
+
+---
+
+## 関連リンク
+
+- [Codex Advanced Config（公式）](https://developers.openai.com/codex/config-advanced)
+- [Codex Config Basics（本サイト）](/knowledge/ai-tools/codex/config-basics)
+- [Codex config.toml リファレンス（本サイト）](/knowledge/ai-tools/codex/config-reference)
+- [Codex Sample Config（本サイト）](/knowledge/ai-tools/codex/config-sample)
+- [Codex Hooks（本サイト）](/knowledge/ai-tools/codex/hooks)
+- [Codex MCP 連携（本サイト）](/knowledge/ai-tools/codex/mcp-integration)

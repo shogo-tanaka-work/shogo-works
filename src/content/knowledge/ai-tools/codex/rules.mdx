@@ -1,0 +1,251 @@
+---
+title: "Codex Rules：シェルコマンドの実行可否を prefix_rule で制御する"
+description: "Codex Rules（実験的機能）の仕組みと書き方を 2026 年 5 月時点の公式仕様で整理。`~/.codex/rules/default.rules` での `prefix_rule()` 定義、3 つの decision（allow / prompt / forbidden）、シェルスクリプトの自動分解と複数コマンド評価、AGENTS.md / Hooks との役割分担までをまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Configuration", "Rules", "security", "shell", "policy"]
+sortOrder: 26
+createdAt: 2026-05-10
+updatedAt: 2026-05-10
+author: "田中省伍"
+---
+
+## 要点
+
+- Codex Rules は **シェルコマンドの実行可否を制御**する実験的機能
+- `~/.codex/rules/default.rules` に `prefix_rule()` を書く
+- decision は **`allow` / `prompt` / `forbidden`** の 3 種類
+- シェルスクリプトを自動解析し、複数コマンドを **個別に評価**
+- AGENTS.md（プロジェクト方針）/ Hooks（ライフサイクル介入）と **異なるレイヤー**
+
+公式ドキュメントは [`developers.openai.com/codex/rules`](https://developers.openai.com/codex/rules)。
+
+---
+
+## Rules で何ができるか
+
+サンドボックス外で実行可能なコマンドを **コマンド単位で許可・拒否・承認要求** できます。
+
+たとえば次のような運用が組めます:
+
+- `git pull` は自動許可、`git push` は毎回確認、`git push --force` は禁止
+- `docker run` は禁止、`docker ps` は許可
+- `gh pr view` は許可、`gh pr merge` は確認
+- `rm` 系は全部禁止
+
+---
+
+## ルールファイルの場所
+
+```text
+~/.codex/rules/default.rules
+```
+
+プロジェクト固有のルールも同様に `<repo>/.codex/rules/default.rules` に置けます。
+
+---
+
+## ルール記述: prefix_rule()
+
+`prefix_rule()` でコマンドの先頭部分（prefix）にマッチするルールを定義します。
+
+### 基本構文
+
+```text
+prefix_rule(
+  pattern = ["<arg1>", "<arg2>", ...],
+  decision = "allow" | "prompt" | "forbidden",
+  reason = "<理由>"  # optional
+)
+```
+
+### 例: GitHub PR 操作
+
+```text
+# git/gh の安全操作は自動許可
+prefix_rule(
+  pattern = ["gh", "pr", "view"],
+  decision = "allow"
+)
+
+prefix_rule(
+  pattern = ["gh", "pr", "list"],
+  decision = "allow"
+)
+
+# PR マージは毎回確認
+prefix_rule(
+  pattern = ["gh", "pr", "merge"],
+  decision = "prompt",
+  reason = "PR マージは影響が大きいので確認"
+)
+
+# force push は禁止
+prefix_rule(
+  pattern = ["git", "push", "--force"],
+  decision = "forbidden",
+  reason = "force push はチームポリシー上禁止"
+)
+```
+
+### 例: Docker
+
+```text
+prefix_rule(
+  pattern = ["docker", "ps"],
+  decision = "allow"
+)
+
+prefix_rule(
+  pattern = ["docker", "run"],
+  decision = "forbidden",
+  reason = "コンテナ起動は手動で"
+)
+```
+
+---
+
+## 3 つの decision
+
+| decision | 挙動 |
+|---|---|
+| `allow` | 自動実行。承認 prompt なし |
+| `prompt` | 毎回ユーザー確認を要求 |
+| `forbidden` | ブロック（実行しない） |
+
+`approval_policy` の補足として動きます。`approval_policy = "never"` でも、Rules で `prompt` / `forbidden` 指定があれば優先されます。
+
+---
+
+## シェルスクリプトの自動分解
+
+Codex Rules は、**シェルスクリプトを自動解析して複数コマンドを個別評価**します。
+
+たとえば次のように複合コマンドを Codex が実行しようとすると:
+
+```bash
+git pull && npm install && npm run build && git push --force
+```
+
+各コマンドが個別に評価されます:
+
+- `git pull` → allow
+- `npm install` → （ルールなしで既定挙動）
+- `npm run build` → 同上
+- `git push --force` → forbidden で **ここで停止**
+
+`&&` / `;` / `|` などのパイプ・連鎖を理解した上で、危険コマンドだけを止められます。
+
+---
+
+## マッチの優先順位
+
+複数のルールが同じコマンドにマッチした場合、より **具体的（prefix が長い）** なルールが優先されます。
+
+```text
+prefix_rule(
+  pattern = ["git"],
+  decision = "allow"
+)
+
+prefix_rule(
+  pattern = ["git", "push"],
+  decision = "prompt"
+)
+
+prefix_rule(
+  pattern = ["git", "push", "--force"],
+  decision = "forbidden"
+)
+```
+
+- `git status` → allow（`git` ルール）
+- `git push origin main` → prompt（`git push` ルール）
+- `git push --force origin main` → forbidden（`git push --force` ルール）
+
+---
+
+## AGENTS.md / Hooks との役割分担
+
+| レイヤー | 何を制御するか | 適性 |
+|---|---|---|
+| **AGENTS.md** | プロジェクトの方針・規約・好み（自然言語） | チームコンベンションの伝達 |
+| **Rules** | シェルコマンドの実行可否（パターンマッチ） | 安全な操作の自動化、危険操作のブロック |
+| **Hooks** | ライフサイクルイベントへの介入（コードで判定） | プロンプト検査、複雑な条件判定 |
+| **approval_policy** | 全体的な承認の挙動 | デフォルト挙動の設定 |
+| **sandbox_mode** | ファイル / ネットワーク権限 | I/O の境界 |
+
+役割が違うので、**重ねて使う**のが基本です。
+
+例: 開発者の典型構成
+
+```toml
+# 既定は on-request
+approval_policy = "on-request"
+
+# ファイル書き込みはワークスペース内のみ
+sandbox_mode = "workspace-write"
+```
+
+```text
+# ~/.codex/rules/default.rules
+
+# git の読み取り系は全部許可
+prefix_rule(pattern = ["git", "status"], decision = "allow")
+prefix_rule(pattern = ["git", "log"], decision = "allow")
+prefix_rule(pattern = ["git", "diff"], decision = "allow")
+
+# 危険系は禁止
+prefix_rule(pattern = ["git", "push", "--force"], decision = "forbidden")
+prefix_rule(pattern = ["rm", "-rf"], decision = "forbidden")
+```
+
+```toml
+# Hooks は redacted thinking 検査やプロンプト sanitize に使う
+[features]
+codex_hooks = true
+
+[[hooks.UserPromptSubmit]]
+matcher = "*"
+
+[[hooks.UserPromptSubmit.hooks]]
+type = "command"
+command = "python3 ~/.codex/hooks/sanitize.py"
+```
+
+---
+
+## 注意点
+
+- **実験的機能**: 公式は実験的扱い。挙動や記法が将来変わる可能性
+- **完全なセキュリティ境界ではない**: Hooks と同様、最終的なガードレールは sandbox / OS パーミッション
+- **シェル依存**: 複雑な動的コマンド生成（`eval`, `bash -c "..."` の中身など）は完全には捕捉できないことがある
+- **チーム共有**: プロジェクト固有のルールは `<repo>/.codex/rules/` に置いて git 管理が推奨
+
+---
+
+## 推奨運用
+
+1. **最初は最小限**: `forbidden` だけ書いてスタート（`rm -rf /`、`git push --force` など）
+2. **頻繁な操作を allow に**: 毎回 prompt が出てうるさい操作を `allow` に
+3. **危険ゾーンを `prompt` に**: 完全に禁止ではないが慎重にしたい操作（PR merge、本番デプロイ）
+4. **チームで共有**: プロジェクトルールは git にコミットして全員が同じ動作に
+
+---
+
+## まとめ
+
+Codex Rules は、**シェルコマンドの実行可否をチームのポリシーとして明文化**するレイヤーです。
+
+`approval_policy` と `sandbox_mode` だけでは「全部承認 or 全部許可」になりがちなところを、コマンド単位で細かく制御できるのが強みです。
+
+Hooks よりも軽量に書けるので、まず Rules で表現できないか検討し、複雑な判定ロジックが必要なら Hooks に進むのが自然な進路です。
+
+---
+
+## 関連リンク
+
+- [Codex Rules（公式）](https://developers.openai.com/codex/rules)
+- [Codex Hooks（本サイト）](/knowledge/ai-tools/codex/hooks)
+- [Codex AGENTS.md 設定ガイド（本サイト）](/knowledge/ai-tools/codex/agents-md)
+- [Codex 承認モード&サンドボックス（本サイト）](/knowledge/ai-tools/codex/approval-modes-sandbox)

@@ -1,0 +1,233 @@
+---
+title: "Codex Sample Config：すぐ使える完全な config.toml サンプル集"
+description: "Codex の `config.toml` 完全サンプルを 2026 年 5 月時点の公式仕様で整理。モデル選択・推論設定・サンドボックス・MCP（STDIO/HTTP）・モデルプロバイダー（OpenAI/Azure/Ollama/Bedrock）・Web 検索・メモリ・履歴・通知・OTel まで、コピペで使える形でまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Configuration", "config.toml", "sample", "template"]
+sortOrder: 24
+createdAt: 2026-05-10
+updatedAt: 2026-05-10
+author: "田中省伍"
+---
+
+## 要点
+
+- 公式 [Sample Config](https://developers.openai.com/codex/config-sample) は **コピペで使える実用テンプレート**
+- TOML の文法上、**ルートキーはテーブル（`[section]`）より前に書く**必要がある点に注意
+- 必要な節だけ取り出して `~/.codex/config.toml` に貼り付け、環境に合わせて調整
+- 主要セクション: モデル / 認証 / サンドボックス / MCP / プロバイダー / 履歴 / メモリ / TUI / OTel
+
+---
+
+## 完全サンプル
+
+下記をベースに、不要な節を削って使ってください。
+
+```toml
+# ~/.codex/config.toml
+# Codex 完全サンプル設定（2026 年 5 月版）
+
+# ─── ルートキー（テーブルより前に置く） ────────────────────────
+model            = "gpt-5.5"
+model_provider   = "openai"
+service_tier     = "fast"
+approval_policy  = "on-request"
+sandbox_mode     = "workspace-write"
+web_search       = "cached"
+personality      = "pragmatic"
+profile          = "default"
+
+# 推論設定
+reasoning_effort = "medium"   # low / medium / high
+verbosity        = "balanced" # concise / balanced / detailed
+
+# ─── 認証・ログイン ────────────────────────────────────────
+[auth]
+preferred_method = "chatgpt"  # chatgpt / api_key
+
+# ─── サンドボックス書き込み ─────────────────────────────────
+[sandbox_workspace_write]
+network_access = "blocked"
+exclude_tmp = false
+
+# ─── 機能フラグ ────────────────────────────────────────
+[features]
+codex_hooks = true
+memories = true
+fast_mode = true
+
+# ─── プロファイル ───────────────────────────────────────
+[profiles.default]
+model = "gpt-5.5"
+
+[profiles.work]
+model = "gpt-5.4"
+sandbox_mode = "read-only"
+
+[profiles.automation]
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[profiles.local]
+model_provider = "ollama"
+model = "qwen-coder-32b"
+
+# ─── モデルプロバイダー ─────────────────────────────────────
+[model_providers.openai]
+name = "OpenAI"
+# 既定なので追加設定不要
+
+[model_providers.azure]
+name = "Azure OpenAI"
+base_url = "https://YOUR_RESOURCE.openai.azure.com/openai/deployments/YOUR_DEPLOYMENT"
+api_key_env = "AZURE_OPENAI_KEY"
+api_version = "2024-12-01-preview"
+
+[model_providers.ollama]
+name = "Ollama Local"
+base_url = "http://localhost:11434/v1"
+api_key_env = "OLLAMA_API_KEY"
+
+[model_providers.bedrock]
+name = "Bedrock"
+type = "bedrock"
+region = "us-east-1"
+
+# ─── MCP サーバー ──────────────────────────────────────
+# STDIO 例
+[mcp_servers.filesystem]
+type = "stdio"
+command = "npx"
+args = ["-y", "@modelcontextprotocol/server-filesystem", "/repos"]
+
+# HTTP 例
+[mcp_servers.linear]
+type = "http"
+url = "https://mcp.linear.app/mcp"
+
+# MCP OAuth
+mcp_oauth_callback_port = 8765
+mcp_oauth_credentials_store = "keychain"
+
+# ─── 名前付き Permissions ──────────────────────────────────
+[permissions.read-only-net]
+sandbox_mode = "read-only"
+network_access = "allowed"
+
+[permissions.workspace-no-net]
+sandbox_mode = "workspace-write"
+network_access = "blocked"
+
+# ─── Hooks ─────────────────────────────────────────────
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '/usr/bin/python3 "$(git rev-parse --show-toplevel)/.codex/hooks/pre_tool_use.py"'
+timeout = 30
+statusMessage = "Checking command"
+
+# ─── サブエージェント ────────────────────────────────────
+[agents.researcher]
+model = "gpt-5.4"
+sandbox = "read-only"
+instructions = "Research only. Do not modify files."
+
+[agents.implementor]
+model = "gpt-5.5"
+sandbox = "workspace-write"
+instructions = "Implement based on the research output."
+
+# ─── AGENTS.md 関連 ─────────────────────────────────────
+project_doc_max_size_kib = 32
+project_doc_alternate_filenames = ["CLAUDE.md", "INSTRUCTIONS.md"]
+
+# ─── 履歴・メモリ ──────────────────────────────────────
+[history]
+max_threads = 100
+retention_days = 30
+
+[memories]
+generate_memories = true
+use_memories = true
+disable_on_external_context = true
+min_rate_limit_remaining_percent = 20
+
+# ─── Web 検索 ─────────────────────────────────────────
+[web_search]
+mode = "cached"
+allowed_domains = ["docs.openai.com", "github.com"]
+
+# ─── TUI（ターミナル UI） ─────────────────────────────────
+[tui]
+notifications = true
+animations = false
+clear_on_exit = true
+mouse_support = false
+
+# ─── ユーザープロファイル ──────────────────────────────────
+[user]
+display_name = "Shogo"
+timezone = "Asia/Tokyo"
+
+# ─── Shell 環境ポリシー ────────────────────────────────────
+[shell_environment_policy]
+inherit = "core"
+include = ["PATH", "HOME", "GITHUB_TOKEN"]
+exclude = ["AWS_SECRET_*", "OPENAI_API_KEY"]
+
+# ─── OpenTelemetry ─────────────────────────────────────
+[otel]
+enabled = true
+endpoint = "https://otel-collector.internal.example.com:4318"
+service_name = "codex-cli"
+exporter = "otlp"
+
+[otel.metrics]
+session_quality_survey = true
+```
+
+---
+
+## 使い方
+
+### 全部コピペ → そのまま使う
+
+最初は全部コピペし、環境変数のところ（`AZURE_OPENAI_KEY` など）と URL を自分の環境に書き換えるだけで動きます。
+
+### 必要な節だけ抜き出す
+
+「OpenAI だけ使う」「ローカル LLM は使わない」のような場合は、不要な `[model_providers.*]` を削除します。最小構成なら次の数行で動きます:
+
+```toml
+model = "gpt-5.5"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+web_search = "cached"
+```
+
+### よくあるパターン別の抜粋
+
+**個人開発者ミニマル**: model + approval_policy + sandbox_mode + web_search
+**業務開発（profiles 切替）**: 上記 + `[profiles.*]` 複数 + auth
+**Enterprise（OTel 込み）**: 上記 + `[otel]` + `[shell_environment_policy]` + `[features]`
+**ローカル LLM 試用**: `[model_providers.ollama]` + 対応 profile
+
+---
+
+## 注意点
+
+- **TOML 文法**: ルートレベルのキー（`model = ...`）はすべての `[section]` の **前**に書く必要があります。途中に書くとパースエラー
+- **環境変数**: `*_env` 系のキーは値ではなく**環境変数名**を指定（例: `api_key_env = "AZURE_OPENAI_KEY"` で `$AZURE_OPENAI_KEY` を読む）
+- **シークレット直書き禁止**: `api_key = "sk-..."` のような直書きはしない。必ず env 経由
+- **管理者強制**: Enterprise では `requirements.toml` で `allowed_*` リストが上乗せされ、許可されない値は無視される
+
+---
+
+## 関連リンク
+
+- [Codex Sample Config（公式）](https://developers.openai.com/codex/config-sample)
+- [Codex Config Basics（本サイト）](/knowledge/ai-tools/codex/config-basics)
+- [Codex Advanced Config（本サイト）](/knowledge/ai-tools/codex/config-advanced)
+- [Codex config.toml リファレンス（本サイト）](/knowledge/ai-tools/codex/config-reference)

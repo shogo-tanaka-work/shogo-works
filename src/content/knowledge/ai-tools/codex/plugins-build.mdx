@@ -1,0 +1,290 @@
+---
+title: "Codex Plugins Build：マニフェスト・ディレクトリ構造・配布手順までの自作ガイド"
+description: "Codex Plugin の自作方法を 2026 年 5 月時点の公式仕様で整理。`$plugin-creator` でのスキャフォルディング、手動マニフェスト（`.codex-plugin/plugin.json`）、ディレクトリ構造（skills / .app.json / .mcp.json）、ローカル marketplace でのテスト、配布までを実例つきでまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Plugins", "Build", "manifest", "marketplace", "development"]
+sortOrder: 31
+createdAt: 2026-05-10
+updatedAt: 2026-05-10
+author: "田中省伍"
+---
+
+## 要点
+
+- 作成方法は 2 通り: `$plugin-creator` スキルでスキャフォルディング、または手動でマニフェスト作成
+- ディレクトリ直下に `.codex-plugin/`（マニフェスト）、`skills/`、`.app.json`、`.mcp.json` を配置
+- マニフェスト（`plugin.json`）に名前・バージョン・説明・著者・コンポーネントパスを記載
+- ローカル marketplace（`marketplace.json`）でテスト後、組織共有 → 公式登録（準備中）の流れ
+- 公開前に **権限スコープ・依存・ライセンス** を必ず確認
+
+公式ドキュメントは [`developers.openai.com/codex/plugins/build`](https://developers.openai.com/codex/plugins/build)。
+
+---
+
+## 開発の進め方
+
+### スキャフォルディング（推奨）
+
+```text
+$plugin-creator
+```
+
+Codex 内で `$plugin-creator` スキルを呼び出すと、対話的に必要な情報を聞かれてプラグインの雛形を生成してくれます。
+
+質問されること（一般例）:
+- プラグイン名
+- 機能の概要
+- 含めるコンポーネント（Skills / App統合 / MCPサーバー）
+- 連携するサービス
+- 著者情報
+
+### 手動作成
+
+1 から書きたい場合は、ディレクトリ構造を自分で組みます。
+
+```bash
+mkdir -p my-plugin/.codex-plugin
+cd my-plugin
+```
+
+---
+
+## ディレクトリ構造
+
+```text
+my-plugin/
+├── .codex-plugin/
+│   └── plugin.json          # メインマニフェスト
+├── skills/                   # Skills 定義群
+│   ├── summarize-issues/
+│   │   ├── SKILL.md
+│   │   └── scripts/
+│   └── triage-issue/
+│       └── SKILL.md
+├── .app.json                 # App 統合設定（外部サービス接続）
+├── .mcp.json                 # 同梱 MCP サーバー設定
+├── README.md                 # 利用者向け説明
+└── LICENSE
+```
+
+各サブディレクトリの役割:
+
+- **`.codex-plugin/plugin.json`**: プラグイン全体のメタデータ（必須）
+- **`skills/`**: 1 つ以上の Skills を含めるディレクトリ
+- **`.app.json`**: GitHub / Slack / Gmail などの App 統合の設定
+- **`.mcp.json`**: 同梱 MCP サーバー（stdio / http）の定義
+
+---
+
+## マニフェスト（plugin.json）
+
+```json
+{
+  "name": "github-issue-triage",
+  "version": "1.0.0",
+  "description": "GitHub の Issue をトリアージし、優先度・担当・関連 PR を整理する",
+  "author": {
+    "name": "Shogo",
+    "email": "shogo@example.com",
+    "url": "https://shogoworks.com"
+  },
+  "license": "MIT",
+  "components": {
+    "skills": ["./skills/summarize-issues", "./skills/triage-issue"],
+    "app": "./.app.json",
+    "mcp": "./.mcp.json"
+  },
+  "display": {
+    "label": "GitHub Issue Triage",
+    "description": "Triage open issues by reading discussion and recent commits.",
+    "icon": "./assets/icon.png",
+    "screenshots": [
+      "./assets/screen-list.png",
+      "./assets/screen-detail.png"
+    ]
+  },
+  "requirements": {
+    "codex_min_version": "0.130.0",
+    "platforms": ["macos", "linux", "windows"]
+  }
+}
+```
+
+主要フィールド:
+
+- **`name`**: 一意のプラグイン名（ハイフン区切り、英小文字）
+- **`version`**: SemVer 形式
+- **`description`**: 一覧表示用の短い説明
+- **`author`**: 配布責任者
+- **`license`**: SPDX ライセンス識別子
+- **`components`**: 含まれるパーツへの相対パス
+- **`display`**: インストール画面の見栄え（ラベル / アイコン / スクリーンショット）
+- **`requirements`**: 動作要件（最低 Codex バージョン、対応 OS）
+
+---
+
+## .app.json — App 統合の定義
+
+```json
+{
+  "name": "github",
+  "type": "oauth",
+  "auth": {
+    "client_id_env": "GITHUB_CLIENT_ID",
+    "client_secret_env": "GITHUB_CLIENT_SECRET",
+    "redirect_uri": "http://localhost:8765/callback",
+    "scopes": ["repo", "read:org"]
+  }
+}
+```
+
+OAuth フローを Codex が代行します。秘密情報は環境変数経由で読み込み、マニフェスト本体には書きません。
+
+---
+
+## .mcp.json — 同梱 MCP サーバー
+
+```json
+{
+  "servers": {
+    "issue-tools": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./mcp-servers/issue-tools.js"]
+    }
+  }
+}
+```
+
+プラグインに同梱する MCP サーバーを定義。インストール時に Codex が自動で `[mcp_servers.issue-tools]` 相当の設定を追加します。
+
+---
+
+## Skills の追加
+
+`skills/<skill-name>/SKILL.md` を置きます。
+
+```markdown
+---
+name: triage-issue
+description: |
+  GitHub の Issue をトリアージし、優先度・担当・関連 PR を整理します。
+trigger:
+  examples:
+    - "issue #123 をトリアージして"
+    - "open issues のうち bug ラベルを優先度別に整理"
+---
+
+## 手順
+
+1. issue 内容と最新コメントを確認
+2. 関連 PR（mentioned by, fixes 等）を抽出
+3. 優先度を P0-P3 で提案
+4. 想定担当者を AGENTS.md の owners セクションから推定
+5. 結果を箇条書きで返す
+
+## 出力形式
+
+| Issue | Title | Priority | Suggested Owner | Related PRs |
+| --- | --- | --- | --- | --- |
+```
+
+詳細は [Codex Agent Skills](/knowledge/ai-tools/codex/agent-skills)。
+
+---
+
+## ローカルでのテスト
+
+公開する前にローカル marketplace で動作確認します。
+
+```json
+// my-marketplace/marketplace.json
+{
+  "name": "my-internal",
+  "version": "1.0.0",
+  "plugins": [
+    {
+      "name": "github-issue-triage",
+      "source": "../my-plugin",
+      "category": "developer-tools"
+    }
+  ]
+}
+```
+
+```bash
+codex plugin marketplace add ./my-marketplace
+codex plugin install github-issue-triage
+codex
+> issue #123 をトリアージして
+```
+
+実環境のセッションで挙動を確認 → 修正を繰り返します。プラグインのファイルを変更したら `codex plugin reinstall github-issue-triage` で反映。
+
+---
+
+## 配布
+
+### 組織内配布
+
+社内 GitHub などのリポジトリに `marketplace.json` 入りでホスティングし、メンバーは:
+
+```bash
+codex plugin marketplace add https://github.com/your-org/codex-plugins
+```
+
+を実行するだけ。
+
+### 公式 Plugin Directory（準備中）
+
+OpenAI 公式の Plugin Directory への登録機能は本稿執筆時点（2026-05）で **準備中**。公開時の手順は公式から発表される予定です。
+
+### キュレーションされた marketplace
+
+複数のプラグインを 1 つの `marketplace.json` でまとめ、テーマ別にキュレーションして配布できます。「データ分析プラグイン集」「セキュリティチーム向け集」のような形。
+
+---
+
+## 公開前のチェックリスト
+
+- [ ] **権限スコープ最小化**: 必要な OAuth scope だけ要求
+- [ ] **シークレット直書き禁止**: マニフェストに API キー等を直接書かない
+- [ ] **依存の明記**: 必要な Codex バージョン・OS・外部 CLI（gh / docker 等）
+- [ ] **README 完備**: インストール手順、利用例、トラブルシュート
+- [ ] **ライセンス明示**: SPDX 識別子で
+- [ ] **テスト**: ローカル marketplace で実際にインストール → 利用 → アンインストール
+- [ ] **エラー時の挙動**: API 失敗時にユーザーフレンドリーなメッセージを返すか
+- [ ] **権限変更の影響**: 既存の `approval_policy` / `sandbox_mode` を尊重しているか
+
+---
+
+## トラブルシュート
+
+| 症状 | 確認ポイント |
+|---|---|
+| インストール失敗 | `requirements.codex_min_version` を満たしているか、依存の CLI/モジュールが入っているか |
+| 認証 OAuth で 失敗 | `redirect_uri` がポリシーと一致しているか、scope が認可されているか |
+| MCP サーバーが起動しない | `.mcp.json` の command パスが正しいか、実行権限があるか |
+| Skill が呼ばれない | `SKILL.md` の `description` / `trigger.examples` が呼び出しの意図を反映しているか |
+| 削除しても App が残る | ChatGPT の Connectors 設定から手動 revoke 必要 |
+
+---
+
+## まとめ
+
+Codex Plugin の自作は、**「使い回したい業務フロー」をパッケージ化**する作業です。
+
+最初は `$plugin-creator` でスキャフォルディングし、必要に応じて手動マニフェスト編集 → ローカル marketplace でテスト → 組織配布、の順で進めるのが安全です。
+
+公式登録機能は準備中なので、まずは社内利用から始めて知見を貯めるとよいでしょう。
+
+---
+
+## 関連リンク
+
+- [Codex Plugins Build（公式）](https://developers.openai.com/codex/plugins/build)
+- [Codex Plugins 概要（本サイト）](/knowledge/ai-tools/codex/plugins-overview)
+- [Codex Marketplace（本サイト）](/knowledge/ai-tools/codex/marketplace)
+- [Codex Agent Skills（本サイト）](/knowledge/ai-tools/codex/agent-skills)
+- [Codex MCP 連携（本サイト）](/knowledge/ai-tools/codex/mcp-integration)

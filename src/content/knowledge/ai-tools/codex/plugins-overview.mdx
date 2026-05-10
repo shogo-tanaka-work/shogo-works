@@ -1,0 +1,187 @@
+---
+title: "Codex Plugins 概要：Skills・App統合・MCPサーバーをまとめた再利用可能ワークフロー"
+description: "Codex の Plugins システムを 2026 年 5 月時点の公式仕様で整理。Skills / App統合 / MCPサーバーをバンドルする位置付け、インストール手順、認証フロー、権限管理、Marketplace との関係、Claude Plugin（codex-plugin-cc）まで横断的にまとめます。"
+category: "ai-tools"
+subcategory: "codex"
+tags: ["Codex", "Plugins", "Skills", "MCP", "Marketplace"]
+sortOrder: 30
+createdAt: 2026-05-10
+updatedAt: 2026-05-10
+author: "田中省伍"
+---
+
+## 要点
+
+- Codex Plugin は **Skills + App統合 + MCPサーバー** をバンドルする再利用可能なワークフロー単位
+- インストール後、認証が必要なものは初回利用時にプロンプト
+- 権限は既存の `approval_policy` / `sandbox_mode` を **上書きしない**
+- Marketplace 経由で公開プラグイン配布、独自プラグインも作成可
+- 自作の作り方は [Codex Plugins Build](/knowledge/ai-tools/codex/plugins-build)、配布は [Codex Marketplace](/knowledge/ai-tools/codex/marketplace) 参照
+
+公式ドキュメントは [`developers.openai.com/codex/plugins`](https://developers.openai.com/codex/plugins)。
+
+---
+
+## Plugin とは
+
+Codex Plugin は、関連する Skills / App 統合 / MCP サーバーを 1 つのパッケージにまとめた**再利用可能なワークフロー単位**です。
+
+たとえば「Gmail プラグイン」をインストールすると、次がまとめて入ります:
+
+- **Skills**: 「未読メールの要約」「特定スレッドの抽出」などの再利用手順
+- **App統合**: Gmail へのアクセス（OAuth 認証）
+- **MCPサーバー**: Gmail のメッセージを Codex のツールとして公開
+
+これにより、Codex に「先週の請求書メールをまとめて」と依頼するだけで、プラグインが裏で適切に動きます。
+
+---
+
+## Plugin に含まれる要素
+
+### Skills
+
+特定作業の **再利用可能な手順書**。SKILL.md（メイン定義）+ scripts/ + assets/ で構成され、自然言語の指示と必要な補助スクリプトをセットにしています。
+
+詳細は [Codex Agent Skills](/knowledge/ai-tools/codex/agent-skills)。
+
+### App 統合
+
+GitHub / Slack / Google Drive / Salesforce / Notion などの **外部ツールへの接続**。OAuth で認証し、プラグインからその SaaS のデータを読み書きできます。
+
+### MCP サーバー
+
+Model Context Protocol に従って **追加ツールやシステム情報へのアクセス**を提供します。プラグインに同梱される MCP サーバーが Codex のツールセットに自動追加されます。
+
+詳細は [Codex MCP 連携](/knowledge/ai-tools/codex/mcp-integration)。
+
+---
+
+## インストール
+
+### App / CLI のプラグインディレクトリから
+
+1. Codex App または CLI のプラグインメニューを開く
+2. Marketplace から検索
+3. 「インストール」を選択
+4. 必要に応じて認証（OAuth 経由）
+5. 利用可能になる
+
+### Marketplace 経由
+
+```bash
+codex plugin marketplace add <marketplace-source>
+codex plugin install <plugin-name>
+```
+
+詳細は [Codex Marketplace](/knowledge/ai-tools/codex/marketplace)。
+
+---
+
+## 利用方法
+
+インストール後、通常のプロンプトに自然言語で書くだけで、必要なときに Codex が自動的にプラグインの Skills / MCP ツールを呼び出します。
+
+```text
+未読の請求書メールを Gmail から取得して、金額順にまとめてください。
+```
+
+明示的に指定したい場合:
+
+```text
+@gmail プラグインで未読の請求書を取得してください。
+```
+
+---
+
+## 認証フロー
+
+App 統合を含むプラグインは、**初回利用時に認証 prompt** が出ます。
+
+1. プラグインが認証を要求
+2. ブラウザが開いて OAuth 同意画面
+3. 同意して Codex App に戻る
+4. トークンは Codex がローカル（OS の credentials store）に保存
+5. 以降のセッションでは自動的に再利用
+
+トークン保存先は `mcp_oauth_credentials_store` で `keychain`（macOS）/ `secretservice`（Linux）/ `credstore`（Windows）などが選べます。
+
+---
+
+## 権限と承認
+
+プラグインをインストールしても、**既存の承認設定を上書きしません**。
+
+- `approval_policy` / `sandbox_mode` / Rules / Hooks はそのまま適用
+- プラグインの MCP ツール呼び出しも、通常のツール承認フローを通る
+- App 統合の外部 API 呼び出しは、各サービスの利用規約に従う
+
+「Plugin を入れたから危険な操作が許される」ことはありません。むしろ Plugin を介した操作にも Rules / Hooks で追加ガードレールを敷けます。
+
+---
+
+## アンインストール
+
+```bash
+codex plugin uninstall <plugin-name>
+```
+
+アンインストールすると:
+
+- Plugin 配下の Skills は削除される
+- 接続された App は **ChatGPT 側に残存**（手動で revoke する必要あり）
+- MCP サーバー定義は削除される
+
+App 接続が残ることに注意。完全に切り離したい場合は、ChatGPT の Connectors 設定からも削除してください。
+
+---
+
+## Marketplace との関係
+
+Plugin は **配布フォーマット**で、Marketplace は **流通の場**です。
+
+- **Plugin**: 個別の機能パッケージ（Gmail プラグイン、Slack プラグインなど）
+- **Marketplace**: 複数 Plugin をキュレーションした目録（`marketplace.json` で定義）
+
+OpenAI 公式 Marketplace、組織内 Marketplace、個人開発の Marketplace の 3 系統があります。詳細は [Codex Marketplace](/knowledge/ai-tools/codex/marketplace)。
+
+---
+
+## Claude Plugin（codex-plugin-cc）との関係
+
+OpenAI 公式の **`codex-plugin-cc`** は、Claude Code 内から Codex を呼び出すための **Claude 側の plugin** で、Codex Plugin とは違います。
+
+- `codex-plugin-cc`: Claude Code → Codex を呼ぶブリッジ
+- Codex Plugin（本記事）: Codex に Skills / MCP / App 統合を追加するパッケージ
+
+両方を使うこともできます: Claude Code から `codex-plugin-cc` 経由で Codex を起動し、その Codex セッションには別途インストールされた Codex Plugin が読み込まれている、という構成。
+
+---
+
+## 自作プラグインを作る
+
+公開プラグインに無い機能や、社内専用の連携を作りたい場合は、独自 Plugin を作成できます。
+
+`$plugin-creator` スキルでスキャフォルディング、または手動で `.codex-plugin/plugin.json` マニフェストを書きます。
+
+詳細は [Codex Plugins Build](/knowledge/ai-tools/codex/plugins-build)。
+
+---
+
+## まとめ
+
+Codex Plugins は、**Skills と外部ツール連携と MCP サーバーをまとめた配布単位**です。
+
+- 個別に Skills を 5 個書いて MCP サーバーを設定して App を接続する → 面倒
+- Plugin として 1 つ入れる → 同等の機能セットが揃う
+
+社内で繰り返す業務フロー（チケット駆動の修正、レポート作成、KYC ワークフローなど）を Plugin 化すれば、メンバー全員が同じ品質で作業できます。
+
+---
+
+## 関連リンク
+
+- [Codex Plugins（公式）](https://developers.openai.com/codex/plugins)
+- [Codex Plugins Build（本サイト）](/knowledge/ai-tools/codex/plugins-build)
+- [Codex Marketplace（本サイト）](/knowledge/ai-tools/codex/marketplace)
+- [Codex Agent Skills（本サイト）](/knowledge/ai-tools/codex/agent-skills)
+- [Codex MCP 連携（本サイト）](/knowledge/ai-tools/codex/mcp-integration)
