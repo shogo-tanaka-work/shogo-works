@@ -48,11 +48,11 @@ describe("knowledge サブカテゴリデータ", () => {
     ]);
   });
 
-  it("web-development サブカテゴリに supabase / vercel / gas が含まれていること", () => {
+  it("web-development サブカテゴリに supabase / vercel / gas / cloudflare が含まれていること", () => {
     const webDev = subcategories["web-development"];
     expect(webDev).toBeDefined();
     const slugs = webDev?.map((s) => s.slug).sort();
-    expect(slugs).toEqual(["gas", "supabase", "vercel"]);
+    expect(slugs).toEqual(["cloudflare", "gas", "supabase", "vercel"]);
   });
 
   it("すべてのサブカテゴリに slug / label / description が存在すること", () => {

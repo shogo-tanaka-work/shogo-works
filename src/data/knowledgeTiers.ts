@@ -340,6 +340,44 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
       sortOrderStart: 90,
     },
   ],
+  /**
+   * Cloudflare の tier 構成は、knowledge-vault 側で整理された
+   * Tier 1: 開発者プラットフォーム中核 / Tier 2: Zero Trust /
+   * Tier 3: Network & Edge / Tier 4: その他 の 4 階層に、
+   * Overview / CLI を Getting Started として加えた構成。
+   */
+  "web-development/cloudflare": [
+    {
+      order: 1,
+      label: "Getting Started",
+      description: "Connectivity Cloud の全体像と CLI ツール群",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "Tier 1: 開発者プラットフォーム中核",
+      description: "Workers / Pages / R2 / D1 / KV / Durable Objects / Queues / Workers AI / AI Gateway / Vectorize / Hyperdrive / Stream / Images / Tunnel / Turnstile / Access / Workflows",
+      sortOrderStart: 10,
+    },
+    {
+      order: 3,
+      label: "Tier 2: Zero Trust",
+      description: "Browser Isolation / Gateway / DLP / CASB / DEX / Email Security",
+      sortOrderStart: 30,
+    },
+    {
+      order: 4,
+      label: "Tier 3: Network & Edge",
+      description: "WAF / DDoS / Rate Limiting / Bot Management / Argo / Magic Transit / Spectrum / Load Balancing / API Shield / Cache / Waiting Room",
+      sortOrderStart: 40,
+    },
+    {
+      order: 5,
+      label: "Tier 4: その他",
+      description: "DNS / Registrar / Email Routing / Containers / Radar / Pipelines / Secrets Store / Sandbox SDK / Workers for Platforms / Zaraz など",
+      sortOrderStart: 60,
+    },
+  ],
 };
 
 /** カテゴリ × サブカテゴリの tier 定義を取得 */

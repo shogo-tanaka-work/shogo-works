@@ -116,6 +116,12 @@ export const subcategories: Partial<
       description:
         "Google Workspace 連携のサーバーレス JavaScript 実行環境。Spreadsheet / Gmail / Calendar の自動化",
     },
+    {
+      slug: "cloudflare",
+      label: "Cloudflare",
+      description:
+        "Connectivity Cloud 思想のエッジネットワーク。Workers / R2 / D1 / Durable Objects / Zero Trust / WAF / DNS をアーキテクト判断軸で整理",
+    },
   ],
 };
 
