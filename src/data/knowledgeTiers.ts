@@ -124,6 +124,222 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
       sortOrderStart: 39,
     },
   ],
+  /**
+   * Claude Code の tier 構成は code.claude.com/docs のセクション構造
+   * （Getting Started / Core Concepts / Configuration / Features / Skills & Subagents /
+   *  Advanced / Integrations / Reference）を踏まえ、当サイトの記事粒度に合わせて
+   *  4 tier に集約。
+   */
+  "ai-tools/claude-code": [
+    {
+      order: 1,
+      label: "Getting Started",
+      description: "Claude Code の全体像をまず押さえる",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "Extend & Build",
+      description: "Hooks / Skills / Subagents / MCP / Memory / Agent SDK で拡張する",
+      sortOrderStart: 1,
+    },
+    {
+      order: 3,
+      label: "Workflows & Modes",
+      description: "Plan Mode / Routines / Auto Mode・他ツールとの比較",
+      sortOrderStart: 8,
+    },
+    {
+      order: 4,
+      label: "Install & Operations",
+      description: "セットアップ・日常運用・カスタムコマンド・Web/Headless",
+      sortOrderStart: 12,
+    },
+  ],
+  /**
+   * Claude（claude.ai / Claude API）の tier 構成は
+   * docs.claude.com の Models / Build with Claude / API Features の
+   * 大分類に準拠。
+   */
+  "ai-tools/claude": [
+    {
+      order: 1,
+      label: "Getting Started",
+      description: "Claude 全体像と ant CLI",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "Models & Plans",
+      description: "Opus 4.7・Claude Design・Max プラン",
+      sortOrderStart: 2,
+    },
+    {
+      order: 3,
+      label: "Build with Claude",
+      description: "Artifacts / Files API / Agent Skills / Memory Tool",
+      sortOrderStart: 5,
+    },
+    {
+      order: 4,
+      label: "API Features",
+      description: "Interleaved Thinking / Citations / Structured Outputs / Prompt Caching",
+      sortOrderStart: 9,
+    },
+  ],
+  /**
+   * ChatGPT は記事数が少ないため 2 tier に最小化。
+   */
+  "ai-tools/chatgpt": [
+    {
+      order: 1,
+      label: "Overview & Models",
+      description: "ChatGPT 全体像と GPT-5 系モデル",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "Plans & Surfaces",
+      description: "Pro $100 プランと Codex 統合",
+      sortOrderStart: 2,
+    },
+  ],
+  /**
+   * Gemini の tier 構成は ai.google.dev の Models / API / Apps の分類と、
+   * Google Workspace 系機能を分離したもの。
+   */
+  "ai-tools/gemini": [
+    {
+      order: 1,
+      label: "Getting Started",
+      description: "Gemini 全体像",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "Models",
+      description: "Gemini 3.1 Pro / Flash Live",
+      sortOrderStart: 1,
+    },
+    {
+      order: 3,
+      label: "API & Tools",
+      description: "API 料金・キャッシング・CLI Extensions・NotebookLM",
+      sortOrderStart: 3,
+    },
+    {
+      order: 4,
+      label: "Apps & Workspace",
+      description: "Deep Research / Workspace 機能 / Gems",
+      sortOrderStart: 7,
+    },
+  ],
+  /**
+   * Supabase の tier 構成は記事ファイルの 10 単位プレフィックスに対応する。
+   * 公式は Build / Auth & Security / Data / AI / Operations / Reference の分類で
+   * ドキュメントを整理しており、当サイトでは安全度マップ・更新ダイジェスト・参考資料を
+   * 末尾の独立 tier として持つ。
+   */
+  "web-development/supabase": [
+    {
+      order: 1,
+      label: "Getting Started",
+      description: "全体目次と読み方",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "Overview",
+      description: "Supabase の全体像",
+      sortOrderStart: 10,
+    },
+    {
+      order: 3,
+      label: "Products",
+      description: "Database / Auth / Storage / Realtime / Edge Functions / Data API / AI / Cron",
+      sortOrderStart: 20,
+    },
+    {
+      order: 4,
+      label: "Security & Compliance",
+      description: "コンプライアンス・RLS・Auth セキュリティ・ネットワーク・安全領域マップ",
+      sortOrderStart: 30,
+    },
+    {
+      order: 5,
+      label: "Updates",
+      description: "Launch Week / Changelog の継続的アップデート",
+      sortOrderStart: 40,
+    },
+    {
+      order: 6,
+      label: "Reference",
+      description: "SDK / CLI / Management API の俯瞰",
+      sortOrderStart: 50,
+    },
+    {
+      order: 7,
+      label: "Hints & Sources",
+      description: "プロダクト改善ヒントと一次ソース URL 集",
+      sortOrderStart: 90,
+    },
+  ],
+  /**
+   * Vercel の tier 構成は記事ファイルの 10 単位プレフィックスに対応する。
+   * 公式は Frameworks / Compute / Edge / Security / AI / Observability の分類で
+   * ドキュメントを整理しており、当サイトでは AI Cloud（v0 / AI SDK / AI Gateway / MCP）
+   * を独立 tier として持つ。
+   */
+  "web-development/vercel": [
+    {
+      order: 1,
+      label: "Getting Started",
+      description: "全体目次と読み方",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "Overview",
+      description: "AI Cloud としての全体像",
+      sortOrderStart: 10,
+    },
+    {
+      order: 3,
+      label: "Build & Operate",
+      description: "Frameworks / Functions / Routing / ISR / Deployments / Domains / Storage / Observability",
+      sortOrderStart: 20,
+    },
+    {
+      order: 4,
+      label: "Security",
+      description: "Compliance / WAF / Bot Management / Deployment Protection / DDoS / 安全領域マップ",
+      sortOrderStart: 30,
+    },
+    {
+      order: 5,
+      label: "AI Cloud",
+      description: "v0 & AI SDK / AI Gateway / MCP & Sandbox / AI Agents",
+      sortOrderStart: 40,
+    },
+    {
+      order: 6,
+      label: "Updates",
+      description: "Changelog ダイジェスト・Ship Week",
+      sortOrderStart: 50,
+    },
+    {
+      order: 7,
+      label: "Reference",
+      description: "CLI / REST API / SDK の俯瞰",
+      sortOrderStart: 60,
+    },
+    {
+      order: 8,
+      label: "Hints & Sources",
+      description: "プロダクト改善ヒントと一次ソース URL 集",
+      sortOrderStart: 90,
+    },
+  ],
 };
 
 /** カテゴリ × サブカテゴリの tier 定義を取得 */
