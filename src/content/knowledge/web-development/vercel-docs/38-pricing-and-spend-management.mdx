@@ -1,0 +1,196 @@
+---
+title: "Pricing & Spend Management — Active CPU 課金・利用枠・Spend Cap で Vercel コストを設計する"
+description: "Vercel の Hobby / Pro / Enterprise の三プラン構造と、Fluid Compute による Active CPU 課金、Functions / Bandwidth / Image Optimization / Edge Requests / Storage（Blob / KV / Postgres）/ Queues / Workflows / Microfrontends といった機能別の従量課金軸を整理する。さらに Spend Management（Spend Cap・Usage Alerts・Webhook・プロジェクト一括停止）と Cost Observability、Marketplace 経由の外部プロバイダー課金まで、設計と運用の観点で 2026 年 5 月時点の単価とともにまとめる。"
+category: "web-development"
+subcategory: "vercel"
+createdAt: 2026-05-10
+sortOrder: 38
+---
+
+## この章の要点
+
+- Vercel の課金は「プラン定額」「機能別従量課金」「Spend Cap によるガード」の三層構造で構成される。Hobby は永続無料、Pro は $20/ユーザー/月＋ $20 分の利用クレジット、Enterprise はカスタム見積もりという建付けである。
+- Fluid Compute の Active CPU 課金は、I/O 待機中に CPU 課金が止まる仕組みであり、AI 推論や外部 API 呼び出しを含む I/O バウンドな処理で従来比最大 90% 弱（公式の Standard サイズ 100% 稼働比較で約 53%、I/O バウンドな実ワークロードでは公称 85% 級）のコスト削減を実現する。2025 年 6 月 25 日に発表された。
+- Hobby プランには Active CPU 4 時間・Provisioned Memory 360 GB-時・Invocations 100 万回・Fast Data Transfer 100 GB・Edge Requests 100 万回・Build Execution 6,000 分などが含まれる。Pro はクレジットの範囲内で使い、超過分はリージョン別または公開単価で従量課金される。
+- Functions（Active CPU $0.128/時、Provisioned Memory $0.0106/GB-時、Invocations $0.60/100 万回）、Edge Requests（$2/100 万、初回 1,000 万回付与）、Image Optimization（$0.05–$0.0812/1K 変換）、Microfrontends（$2/100 万 Routing、追加プロジェクト $250/月）、Workflows（$20/100 万 Events、データ書込 $0.50/GB）、Observability Plus（Pro $10/月＋ $1.20/100 万 Events）といった単価が、機能ごとに公式に明記されている。
+- Spend Management は Spend Cap・Usage Alerts・Webhook・Production Deployment 一括 Pause を提供する。Vercel が数分間隔で利用量を集計するため上限到達は瞬時には止まらず、DDoS のようなバーストではコスト超過のリスクが残る。WAF / Rate Limit と組み合わせて多層防御を組む必要がある。
+- Cost Observability ダッシュボードと Activity ログ、Webhook payload による外部連携でコスト可視化が可能だが、Marketplace パートナー（外部 DB・LLM プロバイダー等）の利用料は Spend Cap の対象外である点に注意する。
+
+## Vercel Pricing & Spend Management とは
+
+Vercel の課金体系は、プランごとの「定額部分」、機能ごとの「従量課金部分」、超過を抑えるための「Spend Cap」という三層で整理できる。プランは Hobby / Pro / Enterprise の三段階で、それぞれ対象ユーザー像が明確に分かれている。Hobby は個人開発・学習・OSS 用の無料プランで、商用利用は許可されていない。Pro は $20/ユーザー/月の有償プランで、$20 分の Managed Infrastructure 利用クレジットが付帯し、超過分は従量で課金される。Enterprise は SAML SSO・契約リージョン・専任サポート・カスタム上限などを伴うカスタム価格である（出典: [Pricing](https://vercel.com/pricing)、2026 年 5 月時点）。
+
+機能別の従量課金は「Managed Infrastructure（Functions・Bandwidth・Image Optimization・Storage 等）」と「DX Platform（Observability・Web Analytics・Speed Insights 等の運用機能）」の二系統に整理されている。Managed Infrastructure はリクエスト数や転送量で計測され、DX Platform は固定月額または Event 単価で課金される（出典: [Pricing on Vercel](https://vercel.com/docs/pricing)、`last_updated: 2026-02-27`）。
+
+Active CPU 課金は、Fluid Compute と一体化した課金モデルであり、Vercel の Pricing 体系の中核に位置する革新である。従来のサーバーレスは「実行時間 × メモリ」を GB-Hours としてまとめて課金していたため、外部 API レスポンス待ちのアイドル時間まで CPU 単価が乗り続けていた。Active CPU 課金では、CPU は「コードが実際に CPU を消費している時間」のみ計上され、I/O 待機中は止まる。一方、Provisioned Memory はインスタンスの最終リクエスト完了まで連続課金される。これにより、AI Gateway 経由の LLM 呼び出しのように I/O が支配的なワークロードで著しいコスト削減が見込める（出典: [Lower pricing with Active CPU pricing for Fluid Compute](https://vercel.com/changelog/lower-pricing-with-active-cpu-pricing-for-fluid-compute)、2025-06-25）。
+
+Spend Management は、これら従量課金が想定外に膨らむことを防ぐためのガード機能群である。Spend Cap、Usage Alerts、Webhook、Production Deployment の一括 Pause が用意され、Pro プラン以上で利用できる（出典: [Spend Management](https://vercel.com/docs/spend-management)）。Hobby ではそもそも従量課金が発生しないため、利用枠を超えると新たな実行が停止される設計になっており、プランそのものが事実上のキャップとして機能する。
+
+## 何が解説されているか
+
+公式 Pricing ドキュメントは、課金単位を「Resource（課金対象）」と「Metric（計測軸）」のペアで列挙する形式で構成されている。たとえば Vercel Functions は Active CPU・Provisioned Memory・Invocations の三軸、Image Optimization は Transformations・Cache Reads・Cache Writes の三軸といった具合に、機能ごとに独立した単価が定義される。このため、コスト試算は単純な「実行時間 × 単価」では完結せず、機能ごとの利用枠と従量単価をマトリクスで把握する必要がある。
+
+まず、プラン比較を示す。料金は 2026 年 5 月時点の公開価格で、Pro の従量単価はリージョンによって変動するものを含む。
+
+| 項目 | Hobby | Pro | Enterprise |
+| --- | --- | --- | --- |
+| 月額 | 無料（永続） | $20/ユーザー/月（$20 クレジット付） | カスタム |
+| 商用利用 | 不可 | 可 | 可 |
+| Projects 数上限 | 200 | 無制限 | 無制限 |
+| Concurrent Builds | 1 | 12 | カスタム |
+| Static File Uploads | 100 MB | 1 GB | N/A |
+| Build Time / Deployment | 45 分 | 45 分 | 45 分 |
+| Runtime Logs 保持 | 1 時間 | 1 日 | 3 日 |
+| Active CPU 含み | 4 CPU-時 | クレジット内 | カスタム |
+| Provisioned Memory 含み | 360 GB-時 | クレジット内 | カスタム |
+| Invocations 含み | 100 万回 | 100 万回 | カスタム |
+| Fast Data Transfer 含み | 100 GB | 1 TB | カスタム |
+| Edge Requests 含み | 100 万回 | 1,000 万回 | カスタム |
+| Build Execution 含み | 6,000 分 | クレジット内 | カスタム |
+
+出典: [Limits](https://vercel.com/docs/limits)（`last_updated: 2026-03-02`）、[Pricing on Vercel](https://vercel.com/docs/pricing)、[Pricing](https://vercel.com/pricing)。
+
+次に、Pro プランで超過分が発生したときに適用される機能別の従量単価を、設計時に頻出するものに絞ってまとめる。リージョン依存の単価は東京（hnd1）など特定リージョンを指定すると高くなる傾向があり、グローバル平均より割高に試算しておくのが安全である。
+
+| 機能 | 計測軸 | Pro 単価 | Pro の含み枠 |
+| --- | --- | --- | --- |
+| Functions Active CPU | CPU-時 | $0.128/時（リージョン別） | クレジット内 |
+| Functions Provisioned Memory | GB-時 | $0.0106/GB-時（リージョン別） | クレジット内 |
+| Function Invocations | 件 | $0.60/100 万回 | 100 万回 |
+| Fast Data Transfer | GB | リージョン別 | 1 TB |
+| Edge Requests | 件 | リージョン別（公示 $2/100 万 目安） | 1,000 万回 |
+| Image Optimization Transformations | 件 | $0.05–$0.0812/1K | 5K（Hobby）/ 10K（Pro 月） |
+| Image Optimization Cache Reads | 件 | $0.40–$0.64/100 万 | 300K–600K/月 |
+| Image Optimization Cache Writes | 件 | $4.00–$6.40/100 万 | 100K–200K/月 |
+| Edge Config Reads | 件 | $3.00/100 万 | 100 万 |
+| Edge Config Writes | 件 | $5.00/1,000（Pro 換算 $1.00/1,000 含み枠超過分） | 1,000 |
+| ISR Reads | 件 | リージョン別 | 1,000 万 |
+| ISR Writes | 件 | リージョン別 | 200 万 |
+| Blob Storage Size | GB-月 | リージョン別 | 5 GB |
+| Blob Simple Operations | 件 | リージョン別 | 100,000 |
+| Blob Advanced Operations | 件 | リージョン別 | 10,000 |
+| Blob Data Transfer | GB | リージョン別 | 100 GB |
+| Workflow Events | 件 | $20/100 万 | 利用ベース |
+| Workflow Data Written | GB | $0.50/GB | 利用ベース |
+| Workflow Data Retained | GB-月 | $0.50/GB-月 | 利用ベース |
+| Queue API Operations | 件 | リージョン別 | N/A |
+| Microfrontends Routing | 件 | $2/100 万 | 50K（Hobby） |
+| Microfrontends 追加プロジェクト | プロジェクト | $250/月 | 2 |
+| Bulk Redirects | 件 | $0.002/月 × 25,000 件 | 1,000（Pro）/ 10,000（Ent） |
+| Web Analytics Events | 件 | $0.00003/件 | 100,000 |
+| Speed Insights Data Points | 件 | $0.65/データポイント | 10,000 |
+| Observability Plus | Event | $1.20/100 万＋ベース $10/月 | 100 万 |
+| Drains Volume | GB | $0.50/GB | N/A |
+| WAF Rate Limiting | Allowed Requests | リージョン別 | 100 万 |
+
+出典: [Pricing on Vercel](https://vercel.com/docs/pricing)、[Limits](https://vercel.com/docs/limits)。リージョン別単価は [Regional pricing](https://vercel.com/docs/pricing/regional-pricing) を参照のこと。
+
+DX Platform 側の追加機能は固定月額が中心である。Pro プランの代表的な add-on は SAML Single Sign-On（$300/月）、HIPAA BAA（$350/月）、Static IPs（$100/プロジェクト/月）、Preview Deployment Suffix（$100/月）、Flags Explorer（$250/月）、Speed Insights（$10/プロジェクト/月）である（出典: [Pricing on Vercel](https://vercel.com/docs/pricing)）。これらは Spend Cap の対象外で月次固定で課金される。
+
+最後に、AWS / Cloudflare とのシンプルな比較を示す。Vercel は「ホスティング＋ CDN ＋関数＋ DX」を一体料金で提供するため、AWS Lambda + CloudFront のような自前構成と単純比較するのは難しいが、コスト観点での代表例は次のとおりである。
+
+| 観点 | Vercel（Pro） | AWS（Lambda + CloudFront） | Cloudflare（Workers Paid） |
+| --- | --- | --- | --- |
+| 関数の課金軸 | Active CPU + Provisioned Memory + Invocations | GB-Seconds + Requests | CPU time + Requests |
+| アイドル時の CPU 課金 | 停止（Fluid Compute） | 停止（VPC 内処理時間のみ） | 停止 |
+| エッジ関数 | Edge Functions（V8 Isolate） | Lambda@Edge / CloudFront Functions | Workers（V8 Isolate） |
+| バンドル幅 | リージョン別（Fast Data Transfer） | リージョン別（CloudFront DTO） | 含む（Free Tier 大きめ） |
+| Spend Cap | 公式に提供 | Budgets で間接的に通知のみ | 公式に上限通知 |
+| プラットフォーム DX | フレームワーク統合・Preview URL・Observability 一体 | 個別構成が必要 | 一定の統合 |
+
+Vercel の Pricing は単純な単価では Cloudflare のほうが安いケースもあるが、Preview Deployment・Build Pipeline・Observability などの DX が単一料金に内包されている点で総保有コストは別軸の比較になる（一次情報: [Pricing](https://vercel.com/pricing)）。
+
+## 使い方
+
+### Spend Cap の設定
+
+Spend Cap は Pro プランの Owner / Billing ロールで有効化する。手順は次のとおりである（出典: [Spend Management](https://vercel.com/docs/spend-management)）。
+
+1. ダッシュボードのチームを開き、Settings → Billing を選択する。
+2. Spend Management セクションのトグルを Enabled に切り替える。
+3. 上限金額を USD で入力する（請求サイクル単位）。
+4. 上限到達時のアクションとして「通知のみ」「Webhook 発火」「全プロジェクトの Production Deployment 一括 Pause」のいずれか、または複数を選択する。
+
+請求サイクルの途中で金額を変更した場合、現在の累積額が新しい上限を超えていれば、設定したアクションが即座にトリガーされる。Pause を選択すると、Vercel が数分間隔で利用量を集計したうえで全プロジェクトの本番デプロイを停止する。停止後は 503 `DEPLOYMENT_PAUSED` エラーが返り、再開は各プロジェクト単位でダッシュボードか REST API（`Unpause a project`）から手動で行う必要がある。
+
+### Usage Alerts
+
+Spend Cap を設定すると、メールおよび Web 通知が 50% / 75% / 100% の到達時に自動配信される。SMS 通知は 100% 到達時のみ有効化でき、Owner / Billing ロールが Settings → My Notifications → SMS で電話番号を登録すると受信できる（出典: [Spend Management](https://vercel.com/docs/spend-management)）。
+
+### Webhook 連携
+
+Webhook URL を登録すると、上限到達時と請求サイクル終了時に POST リクエストが送信される。検証用の payload は次の形式である（出典: [Spend Management](https://vercel.com/docs/spend-management)）。
+
+```json filename="webhook-payload.json"
+{
+  "budgetAmount": 500,
+  "currentSpend": 500,
+  "teamId": "team_jkT8yZ3oE1u6xLo8h6dxfNc3",
+  "thresholdPercent": 100
+}
+```
+
+リクエストには `x-vercel-signature` ヘッダが付与され、Webhook 保存時に発行される SHA と比較することで偽造リクエストを排除できる。請求サイクル終了時には `{"teamId": "...", "type": "endOfBillingCycle"}` が送信されるため、これをトリガーに Pause したプロジェクトを REST API で自動再開する仕組みを組むのが定石である。
+
+### Cost Observability の使い方
+
+Vercel ダッシュボードの Usage タブでは、機能別・プロジェクト別の利用状況がリアルタイムに近い粒度で可視化される。Functions の Active CPU と Provisioned Memory は別グラフで表示されるため、CPU 偏重なのか Memory 偏重なのかを切り分けて、`maxDuration` を短くするべきか、メモリサイズを下げるべきかの意思決定に使える。Activity ログには Spend Management の操作（金額変更、Pause、Resume）が記録され、監査用途に利用できる（出典: [Spend Management](https://vercel.com/docs/spend-management)）。
+
+### Fluid Compute 有効化前後の試算
+
+Fluid Compute は 2025 年 4 月 23 日以降の新規プロジェクトでデフォルト有効化されている。それ以前のプロジェクトはダッシュボードの Functions Settings、または `vercel.json` の `"fluid": true` で切り替えられる（前章 [Functions & Fluid Compute](./21-functions-and-fluid-compute) 参照）。試算の目安として、AI 推論を 1 日 10 万回・各リクエストが 8 秒間（うち CPU 実時間 1.5 秒・I/O 待機 6.5 秒）・メモリ 2 GB という想定では、従来サーバーレスの GB-Hours 課金では「8 秒 × 2 GB = 16 GB-秒」全量が課金対象であるのに対し、Fluid Compute では Active CPU 課金は 1.5 秒分のみとなる。Active CPU は $0.128/時、Provisioned Memory は $0.0106/GB-時という公式単価を当てはめて月次合計を出し、Invocations $0.60/100 万回を加える形で見積もる。リージョンによっては Active CPU が $0.202/時（hnd1 等）まで上がる点も忘れてはならない。
+
+### AI Gateway / v0 の料金確認
+
+AI Gateway や v0 など Vercel の AI 系プロダクトは別系統の従量課金である。AI Gateway はトークン単位、v0 はクレジット制で、Pro プランでも独立した請求項目として積み上がる。Marketplace 連携で利用する外部 LLM（OpenAI 等）の従量課金は Vercel が代行請求するケースもあるが、Spend Cap の対象には含まれないため、各プロバイダーのダッシュボードでも別途確認する必要がある（出典: [Pricing on Vercel](https://vercel.com/docs/pricing)、[Spend Management](https://vercel.com/docs/spend-management) — `It does not include seats, integrations (such as Marketplace), or separate add-ons` の記述）。
+
+## 注意点・セキュリティ観点
+
+### DDoS によるコスト爆発
+
+Spend Cap は数分間隔の集計に基づくため、瞬間的なバーストでは上限到達を検知してから停止までにラグが発生する。攻撃トラフィックが Edge Requests と Function Invocations を同時に押し上げるシナリオでは、停止前に数百 GB の Fast Data Transfer や数千万件の Invocations が発生する可能性がある。対策として、Vercel WAF の Rate Limiting（Pro 含み 100 万 Allowed Requests）と Bot Filter、Attack Challenge Mode を併用し、関数到達前に弾く多層防御を組む（出典: [Spend Management](https://vercel.com/docs/spend-management) の `Pausing is not instantaneous` の記述）。
+
+### Hobby の商用利用制限
+
+Hobby プランは商用利用が禁じられており、業務サイト・収益化されているプロダクトでの利用は規約違反となる。商用案件は Pro 以上が前提である。Hobby プロジェクトを商用に転用する場合は Pro へ昇格するか、Pro チームへ Transfer する必要がある。
+
+### Active CPU の見落としやすい計上
+
+Active CPU は「コードが CPU を消費している時間」のみ課金されるが、`waitUntil` で投入したバックグラウンド処理やストリーミングレスポンスのループ処理は CPU 時間として計上され続ける。レスポンス送信後にバックグラウンドで重い計算をしている関数は、見かけ上のレスポンスが速くても Active CPU 単価が積み上がりやすい。Observability で関数別・パス別の CPU 時間を定期的に確認することが必須である。
+
+### コミット履歴での秘匿情報除去（Spend 観点）
+
+機微情報の漏洩が Spend に波及するパターンとしては、API Key が漏れて外部から不正に Functions を叩かれ、Active CPU と Invocations が膨れ上がるケースが典型である。`.env` をコミットしないのは当然として、過去コミットに混入していないかを `gitleaks` 等で監査し、漏れていた場合は鍵をローテーションしたうえで、その期間の Spend を Vercel サポートと精査する運用を推奨する。
+
+### 組織外メンバーへの権限
+
+Spend Cap の設定変更は Owner / Billing ロールに限定されている。Developer ロールはコード変更で従量を増やせる一方で Spend Cap を緩める権限がないため、開発者の自由度を保ちつつ財布を守る役割分担が可能である（出典: [Spend Management](https://vercel.com/docs/spend-management)）。逆に Owner を必要以上に付与すると意図せず上限を引き上げられるリスクがあるため、Owner は最小限に絞るべきである。
+
+### Marketplace パートナーの二重請求
+
+Marketplace 経由で Neon、Upstash、Resend などの外部プロバイダーを契約した場合、課金は Vercel 側に統合される。一方、外部プロバイダー側で直接アカウントを持っている場合は二重請求になりかねない。Marketplace 統合を導入する際は、既存の直接契約を停止または Vercel 側へ移管したかを必ず確認する（出典: [Spend Management](https://vercel.com/docs/spend-management) の Marketplace 記述）。
+
+### Provisioned Memory の継続課金
+
+Active CPU と異なり、Provisioned Memory は最後のリクエストが完了してインスタンスが解放されるまで継続課金される。`waitUntil` で投入した非同期処理が長引くとインスタンスのライフタイムが延び、メモリ単価がかさむ。長時間バックグラウンド処理は Workflows や Queues に切り出して計測軸を分離するのが望ましい。
+
+### Build 系コストの見落とし
+
+Build Execution は Hobby が 6,000 分含み、Pro はクレジット内である。CI から Preview を多用するチームは Build 時間が想定以上に伸びやすい。`vercel.json` の `ignoreCommand` や Turbo Build 機（$0.126/分）への切り替え可否を含め、Build マシンのサイズ選定もコスト設計に組み込む（出典: [Pricing on Vercel](https://vercel.com/docs/pricing)、[Limits](https://vercel.com/docs/limits)）。
+
+## 一次ソース（原文）
+
+- [Pricing — Vercel](https://vercel.com/pricing)
+- [Pricing on Vercel（docs）](https://vercel.com/docs/pricing) — `last_updated: 2026-02-27`
+- [Limits — Vercel](https://vercel.com/docs/limits) — `last_updated: 2026-03-02`
+- [Spend Management — Vercel](https://vercel.com/docs/spend-management) — `last_updated: 2026-02-27`
+- [Lower pricing with Active CPU pricing for Fluid Compute（Changelog）](https://vercel.com/changelog/lower-pricing-with-active-cpu-pricing-for-fluid-compute) — 2025-06-25
+- [Vercel Functions: Usage and pricing](https://vercel.com/docs/functions/usage-and-pricing)
+- [Image Optimization: Limits and pricing](https://vercel.com/docs/image-optimization/limits-and-pricing)
+- [Vercel Blob: Usage and pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing)
+- [Microfrontends: Limits and pricing](https://vercel.com/docs/microfrontends#limits-and-pricing)
+- [Workflows pricing](https://vercel.com/docs/workflows/pricing)
+- [Regional pricing](https://vercel.com/docs/pricing/regional-pricing)
+- [How does Vercel calculate usage of resources?](https://vercel.com/docs/pricing/how-does-vercel-calculate-usage-of-resources)
+- [Manage and optimize usage](https://vercel.com/docs/pricing/manage-and-optimize-usage)
+- [Improved infrastructure pricing（Blog）](https://vercel.com/blog/improved-infrastructure-pricing)

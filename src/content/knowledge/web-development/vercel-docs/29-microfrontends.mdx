@@ -1,0 +1,182 @@
+---
+title: "Microfrontends — 複数フレームワーク横断の本番運用とゾーン分割を Vercel で実現する"
+description: "Vercel Microfrontends の GA（2025 年 10 月 31 日）、ゾーン分割（Microfrontend Zones）・パス連結・共有レイアウト・複数フレームワーク（Next.js / SvelteKit / Vite / その他）の同居運用を解説する。1 日約 10 億リクエストを処理する規模、Cursor を含む 250 以上のチームでの採用事例、`microfrontends.json` の設定、ローカル開発プロキシ、Build & Deploy パイプラインや Preview Deployment との統合、CSP・認証・課金観点までをカバーする。"
+category: "web-development"
+subcategory: "vercel"
+createdAt: 2026-05-10
+sortOrder: 29
+---
+
+## この章の要点
+
+- Vercel Microfrontends は 2025 年 10 月 31 日に一般提供（GA）となった機能であり、単一の大規模アプリケーションを独立デプロイ可能な複数アプリへ分割しつつ、エンドユーザーには 1 つのアプリとして提供するための仕組みである。
+- GA 時点で 1 日およそ 10 億件のマイクロフロントエンド・ルーティングリクエストを処理しており、Cursor、The Weather Company、A+E Global Media を含む 250 以上のチームが本番運用に採用している。
+- 全プランで利用可能であり、Hobby は 50K リクエスト / 月までと 2 プロジェクトが含まれる。Pro / Enterprise では 2 プロジェクトを越える追加プロジェクトが 1 件あたり月 250 ドル、追加リクエストは 100 万件あたり 2 ドルで従量課金される。
+- フレームワーク非依存に設計されており、Next.js（App Router / Pages Router）、SvelteKit、Vite ベースのフレームワーク、その他の任意フレームワークを同一グループ内で同居させられる。Module Federation のようなランタイム合成ではなく、Vercel の Edge / CDN レベルでパスごとに合成（path-based composition）する点が特徴である。
+- Preview Deployment と Production Deployment の両方でゾーン構成が反映され、ブランチ URL・デプロイメント URL ごとに「同一コミットの子アプリ」「ブランチ最新ビルド」「フォールバック環境」と段階的に解決される。これにより、複数チームが独立にリリースしても URL 体験が崩れない設計になっている。
+- ローカル開発では `@vercel/microfrontends` が提供する `microfrontends proxy` と `microfrontends port` を組み合わせ、ローカルで動かすゾーンだけを起動し、他は本番にフォールバックする「単一ゾーン開発」を可能にしている。
+
+## Vercel Microfrontends とは
+
+マイクロフロントエンドとは、単一の Web アプリケーションを「機能単位の小さなアプリ」へ分割し、独立にデプロイ可能にする設計手法である。チームごとに技術選定とリリースサイクルを切り離せるため、組織のスケールに伴う「ビルド時間の肥大化」「単一リポジトリでのリリース調整コスト」「レガシースタックからの段階的移行」の三つの課題を解きやすくなる。一方で、合成方法を誤るとパフォーマンス低下・セキュリティ境界の曖昧化・運用の複雑化を招くため、合成レイヤーをどこに置くかの設計判断が中心命題になる。
+
+Vercel の実装は、合成レイヤーを「Vercel のグローバルネットワーク」に置く方式である。公式ドキュメントが明記しているとおり、Vercel は「ドメインに対するリクエストを受けると、ライブデプロイ内の `microfrontends.json` を読み、そのリクエスト処理の中で適切な子アプリへルーティング先を確定させる」。ここで重要なのは、これがリライト（rewrite）による再リクエストではなく、同一リクエスト内で行われるネットワーク内ルーティングであり、追加のネットワークホップを生まないという点である。結果として、ブラウザから見ると単一ドメインの単一アプリに見えるが、内部的にはパスごとに別プロジェクトのデプロイへ吸い込まれていく構造になる。
+
+この方式は、Module Federation のように「ホストアプリのランタイムが remoteEntry を取得して JS をマージする」モデルとは性質が異なる。Vercel Microfrontends ではフレームワーク同士のランタイム結合は行われず、ページ遷移やパス境界で別プロジェクトに到達する。ホスト側で別フレームワークの JS を直接インポートする必要がないため、Next.js と SvelteKit のように世代もランタイムも異なる組み合わせを同居させやすい。代償として、SPA 的な「同一プロセス内でコンポーネントを差し込む」用途には向かず、適用範囲は「縦割りの機能分割（vertical slice）」が中心となる。
+
+Vercel が公式ブログ「How Vercel adopted microfrontends」（2024 年 10 月 22 日公開、著者 Mark Knichel / Dan Fein / Brian Emerick）で述べているとおり、Vercel 自身もこの方式で自社ダッシュボードを再構成しており、`vercel.com` をマーケティングサイト・ドキュメント・ログイン後ダッシュボードの 3 つの縦割りマイクロフロントエンドへ分解している。同記事は、プレビュービルド時間が 40% 以上短縮され、初期検証では「ビルド時間が半減し得る」結果が得られたこと、LCP と INP の Core Web Vitals 指標で改善が見られたことを報告している。
+
+## 何が解説されているか
+
+公式ドキュメント `vercel.com/docs/microfrontends` 配下は、概念・クイックスタート・設定リファレンス・パスルーティング・ローカル開発・運用管理・ツールバー・トラブルシューティングの 8 領域で構成される。前提知識としては、Vercel プロジェクトを 2 つ以上作成し、それらを「マイクロフロントエンドグループ」として束ねる必要がある。グループ内には必ず 1 つの「Default app（既定アプリ）」を置き、`microfrontends.json` の所有とフォールバック処理を担わせる。
+
+実装上の核は次の 4 つである。第一に、Default app に置かれる `microfrontends.json` がルーティング権限を一元的に持つ。第二に、各子アプリは `@vercel/microfrontends` をインストールし、フレームワークごとのラッパー（Next.js なら `withMicrofrontends`、SvelteKit / Vite なら `experimental/vite` プラグイン）を経由して、自身のアセット URL に「アセットプレフィックス」を付与する。第三に、CDN レイヤーでのパスマッチングは、純粋なパス式（`/docs/:path*`、`/:path(a|b)` など）で記述され、複数セグメントに跨る `*` / `+` は末尾でしか使えないなどの明示的な制約がある。第四に、Preview や Branch URL では「同一コミット → ブランチ最新 → フォールバック環境」という順序で解決される。これにより、複数子アプリのリリースサイクルがズレても URL 体験が壊れにくい。
+
+下表は、Vercel Microfrontends と他の代表的な合成手段の比較である。設計判断時の補助として用いる。
+
+| 観点 | Vercel Microfrontends | Module Federation | iframe 埋め込み | リバースプロキシ自前構成 |
+| --- | --- | --- | --- | --- |
+| 合成レイヤー | Edge / CDN（同一リクエスト内ルーティング） | ブラウザランタイム（remoteEntry のロード） | ブラウザ（独立ドキュメント） | リバースプロキシ層（rewrite / proxy_pass） |
+| フレームワーク混在 | 容易（Next.js / SvelteKit / Vite 等） | 同一バンドラ前提（webpack / Rspack 中心） | 完全自由 | 自由（HTTP レベルで結合） |
+| 追加ネットワークホップ | なし | あり（remoteEntry 取得） | あり（iframe 文書） | プロキシ実装次第 |
+| 認証 / Cookie 共有 | 同一ドメインで自然に共有 | 同一ドメイン前提 | 別オリジン扱いで分離 | 設計による |
+| 観測性・ロールバック | Vercel ダッシュボード / Instant Rollback で統合 | バンドル側で各自実装 | ほぼ独立 | 自前で構築 |
+| 主な弱点 | 縦割り分割向き、横方向のコンポーネント差し込みは不可 | バージョン整合・ランタイム結合の運用負荷 | UX 制約（モーダル・ナビ） | 運用工数と SLO 担保 |
+
+この比較が示すように、Vercel Microfrontends はランタイム結合を捨てる代わりに、ネットワーク層での合成を Vercel に委譲することで、フレームワーク選択の自由度と運用コストの両立を狙っている。設計の方向性としては「巨大 SPA を一つの世界として作る」のではなく、「URL の縦割りで責務を切る」アプローチに最適化されている。
+
+## 使い方
+
+ここでは、`web`（Next.js、Default app）と `docs`（任意フレームワーク、`/docs/*` を担当）の 2 ゾーン構成を例に、最小手順を示す。
+
+最初に、Vercel ダッシュボードまたは CLI でマイクロフロントエンドグループを作成する。CLI の場合は次のとおりである。
+
+```bash filename="terminal"
+vercel microfrontends create-group
+```
+
+対話プロンプトでグループ名と所属プロジェクトを指定し、Default app を選ぶ。グループを作っただけでは挙動は変わらず、Default app に `microfrontends.json` を含むデプロイが本番に反映された時点でルーティングが有効になる。
+
+次に、Default app のリポジトリルートに `microfrontends.json` を置く。最小例は次のとおりである。
+
+```json filename="microfrontends.json"
+{
+  "$schema": "https://openapi.vercel.sh/microfrontends.json",
+  "applications": {
+    "web": {
+      "development": {
+        "fallback": "vercel.com"
+      }
+    },
+    "docs": {
+      "routing": [
+        {
+          "group": "docs",
+          "paths": ["/docs/:path*"]
+        }
+      ]
+    }
+  }
+}
+```
+
+`applications` のキーは Vercel プロジェクト名と一致させる必要がある。プロジェクト名と `package.json` の `name` が一致しない場合は、`packageName` フィールドで明示する。`development.fallback` は、ローカル開発でそのアプリを起動していないときに代替として参照する本番ホストである。
+
+続いて、各子アプリで `@vercel/microfrontends` を導入する。Next.js では `next.config.js` を `withMicrofrontends` でラップするだけで、JS / CSS のアセット URL に自動で `/vc-ap-<application name のハッシュ>` 形式のアセットプレフィックスが付与され、CDN ルーティングと整合する。Next.js の `basePath` との併用は現時点では非サポートである点に注意する。
+
+```ts filename="next.config.ts"
+import { withMicrofrontends } from "@vercel/microfrontends/next/config";
+
+export default withMicrofrontends({
+  reactStrictMode: true,
+});
+```
+
+SvelteKit を子アプリにする場合は、Svelte 設定をラップしたうえで Vite 側にもプラグインを追加する。`@vercel/microfrontends` の `1.0.1` 以上が必要である。
+
+```ts filename="vite.config.ts"
+import { defineConfig } from "vite";
+import { sveltekit } from "@sveltejs/kit/vite";
+import { microfrontends } from "@vercel/microfrontends/experimental/vite";
+
+export default defineConfig({
+  plugins: [sveltekit(), microfrontends()],
+});
+```
+
+Vite ベースのフレームワーク（React Router / Astro 等の Vite を使うケース）でも同じ `experimental/vite` プラグインが利用できる。Vercel ドキュメントは、Vite ネイティブの `base` を併用するより、プラグインが自動付与するアセットプレフィックスを使うことを推奨している。フレームワーク非対応の場合は、JS / CSS / `public/` 配下のアセットすべてを「ユニークなパスプレフィックス（例: `/docs-assets`）」配下に移し、その値を `microfrontends.json` の `paths` に追加する手動運用となる。
+
+`microfrontends.json` のパス式は意図的に保守的で、`/path`、`/:segment`、`/prefix/:path*`、`/prefix/:path+`、`/:path(a|b)`、`/:path((?!a|b).*)`、`/prefix-:path-suffix` をサポートする。重複・競合するルートは禁止であり、`*` や `+` は末尾でのみ使える。これは「同じパスが 2 つの子アプリに割り当たる」状態をビルド時に検出するための制約である。ユニットテストとしては `validateRouting` ヘルパーが提供され、CI でルーティングを担保できる。
+
+ローカル開発では、子アプリを 1 つだけ起動し、他は本番にフォールバックさせる構成が公式の推奨である。各子アプリの `dev` スクリプトで `microfrontends port` を使い、ポートを動的にプロキシと整合させる。
+
+```json filename="package.json"
+{
+  "name": "web",
+  "scripts": {
+    "dev": "next --port $(microfrontends port)",
+    "proxy": "microfrontends proxy microfrontends.json --local-apps web"
+  },
+  "dependencies": {
+    "@vercel/microfrontends": "latest"
+  }
+}
+```
+
+Turborepo を併用する場合は、`turbo run dev --filter=web` を実行するだけで、Web の開発サーバーとローカルプロキシが同時に立ち上がる（`turbo` 2.3.6 以降または 2.4.2 以降が必要）。プロキシは既定で `http://localhost:3024` で受け付け、`/docs/*` のような自分が起動していない子アプリへのリクエストは `microfrontends.json` の `development.fallback` で指定した本番ホストに転送される。
+
+ポリレポ構成の場合、`microfrontends.json` を共有する手段が必要になる。Vercel CLI 44.2.2 以降では `vercel microfrontends pull` で Default app から設定を引き寄せられ、CI では環境変数 `VC_MICROFRONTENDS_CONFIG` にパスを渡すことでも読み込める。これにより、各リポジトリのローカル開発で同一のルーティング表を参照できる。
+
+CI / Preview の運用では、Vercel が「同一コミットで子アプリのデプロイがあればそれに、なければブランチ最新、それもなければフォールバック環境」の順で解決する仕様を活用する。Pull Request ごとに自動生成される Branch URL や Deployment URL に対して、各子アプリのデプロイが揃わなくても URL 体験が崩れない。複数チームのリリースを段階的に進める場合は、`flag` フィールドと `@vercel/microfrontends/next/middleware` の `runMicrofrontendsMiddleware` を組み合わせ、特定パスを「フィーチャーフラグが true のときだけ別ゾーンへルーティングする」ように切り替える運用が公式に提供されている。
+
+```ts filename="middleware.ts"
+import type { NextRequest } from "next/server";
+import { runMicrofrontendsMiddleware } from "@vercel/microfrontends/next/middleware";
+
+export async function middleware(request: NextRequest) {
+  const response = await runMicrofrontendsMiddleware({
+    request,
+    flagValues: {
+      "name-of-feature-flag": async () => true,
+    },
+  });
+  if (response) return response;
+}
+
+export const config = {
+  matcher: [
+    "/.well-known/vercel/microfrontends/client-config",
+    "/flagged/path",
+  ],
+};
+```
+
+`/.well-known/vercel/microfrontends/client-config` は、クライアントが「このセッションでフラグ付きパスがどの子アプリに解決されるか」を取得し、ナビゲーション前のプリフェッチを最適化するために使われるエンドポイントである。フラグ運用を入れる場合は、このマッチャを必ず含める必要がある。
+
+## 注意点・セキュリティ観点
+
+Vercel Microfrontends は同一ドメイン上で複数プロジェクトを合成するため、セキュリティと運用の前提が「単一プロジェクト」のときと変わる。
+
+第一に、`basePath`（Next.js）はサポート対象外である。アセットプレフィックスは `withMicrofrontends` が自動で `/vc-ap-<hash>` を付与するため、独自に `basePath` を設定すると二重プレフィックスになり、CDN ルーティングと整合しなくなる。`assetPrefix` を人間可読な値に上書きしたい場合は、`microfrontends.json` の `assetPrefix` を使い、変更時には旧値を含むトラフィックが壊れないよう Preview で十分検証する。
+
+第二に、CSP は単一ドメインに集約された結果、`script-src` / `style-src` / `img-src` の許可ホストが「すべての子アプリのアセットプレフィックス配下」をカバーする必要がある。iframe による埋め込みではないため `frame-src` 由来の制約は緩むが、子アプリごとに別バンドラ・別バージョンの依存を抱えるため、`unsafe-inline` を許さない nonce ベース運用に揃える際は、各子アプリのフレームワーク側で nonce を伝播させる必要がある。
+
+第三に、認証は同一ドメインのため Cookie・LocalStorage を自然に共有できる一方、Cookie の `Path` 属性を子アプリ側で安易に絞ると、ゾーン横断のセッションが壊れることがある。基本は `Path=/` で発行し、機密度の高い値はサーバーサイドのセッション ID に集約する設計が安全である。
+
+第四に、Preview Deployment Protection（パスワード保護や SSO）が有効な場合、ローカルプロキシのフォールバック先が保護されたデプロイになると 401 で失敗する。回避策として、保護対象プロジェクトで「Protection Bypass for Automation」を発行し、`AUTOMATION_BYPASS_<アプリ名を大文字化し非英数字を `_` に置換した値>` という名前で Default app の環境変数に設定する。例えば子アプリ名が `my-docs-app` の場合、変数名は `AUTOMATION_BYPASS_MY_DOCS_APP` となる。
+
+第五に、ドメイン設計は「単一の apex ドメインに集約」が公式の前提である。`example.com` 直下に Web、`example.com/docs/*` に Docs を割り付ける構成は素直に動くが、`docs.example.com` のようなサブドメインに別ゾーンを割り当てる構成は、別グループとして別途設計する必要がある。SEO 観点では、サブドメイン分割と異なり Canonical URL とサイトマップを単一ドメイン下で統合できる利点があるが、各子アプリの `robots.txt` や `sitemap.xml` を Default app 側に集約するか、各ゾーンで分割発行するかを早期に決めておくべきである。
+
+第六に、課金面では「Microfrontends Routing リクエスト数」と「Microfrontends Projects 数」の二軸で課金される。Hobby は 50K リクエスト / 月および 2 プロジェクトまでが含まれる。Pro / Enterprise は 2 プロジェクトを越える分に月 250 ドル / プロジェクト、ルーティングリクエストは 100 万件あたり 2 ドルが従量課金される。使用量はダッシュボードの **Vercel Delivery Network** セクションから確認できるため、リリース後はトラフィック規模と単価をモニタリングし、子アプリ分割の粒度が過剰になっていないかを定期的に見直すべきである。
+
+最後に、`microfrontends.json` の変更は「子アプリのリリース順」に依存するという運用上の罠がある。新パスを追加する際、子アプリ側にハンドラが存在する状態でないと、ルーティングが先行してマージされた瞬間に 404 を返す。公式ドキュメントは、安全側に倒す手段として `flag` ベースのルーティング切替を推奨しており、合わせて `validateRouting`、`validateMiddlewareConfig`、`validateMiddlewareOnFlaggedPaths` の各テストユーティリティを CI に組み込む構成を案内している。Instant Rollback も併用すれば、誤ってルーティングを変更した際でも以前のデプロイへ即時に戻せる。
+
+## 一次ソース（原文）
+
+- Vercel Docs: Microfrontends overview — `https://vercel.com/docs/microfrontends`
+- Vercel Docs: Microfrontends Quickstart — `https://vercel.com/docs/microfrontends/quickstart`
+- Vercel Docs: Path Routing — `https://vercel.com/docs/microfrontends/path-routing`
+- Vercel Docs: Local Development — `https://vercel.com/docs/microfrontends/local-development`
+- Vercel Changelog: Microfrontends now generally available（2025 年 10 月 31 日）— `https://vercel.com/changelog/microfrontends-now-generally-available`
+- Vercel Blog: How Vercel adopted microfrontends（2024 年 10 月 22 日、Mark Knichel / Dan Fein / Brian Emerick）— `https://vercel.com/blog/how-vercel-adopted-microfrontends`
+- Vercel Knowledge Base: Incremental migrations with microfrontends — `https://vercel.com/kb/guide/incremental-migrations-with-microfrontends`
