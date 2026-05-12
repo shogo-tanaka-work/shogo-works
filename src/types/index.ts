@@ -129,6 +129,7 @@ export type AiNewsTool =
   | "codex"
   | "gemini"
   | "github-copilot"
+  | "manus"
   | "n8n"
   | "runway";
 
