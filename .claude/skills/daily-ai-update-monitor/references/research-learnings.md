@@ -6,6 +6,22 @@
 
 ---
 
+## 2026-05-12: Claude Platform on AWS と Claude Code v2.1.139 の取りこぼし対策
+
+### 学び1: Claude開発者向け発表は `claude.com/blog` とクラウドプロバイダー公式も見る
+
+- **取りこぼし**: Claude Platform on AWS GA（2026-05-11公開）。Claude API / Console / Managed Agents / Skills / MCP connector などのネイティブClaude Platform機能をAWSアカウント経由で使える発表。
+- **原因**: Claude本体の巡回対象が `support.claude.com` Release Notes と `anthropic.com/news` に寄っていた。開発者向け / クラウド連携の公式発表が `claude.com/blog` と AWS公式（What's New / Machine Learning Blog）に出るパターンをカタログ化していなかった。
+- **対処**: source-catalog の Claude 補助ソースに `claude.com/blog`、AWS What's New、AWS Machine Learning Blog、Claude Platform Docs を追加。SKILL.md の重要ルールと追補検索クエリにも Claude Platform / AWS 逆引きを追加。
+- **カタログ取り込み**: 反映済み（2026-05-12 PR追補）。
+
+### 学び2: Claude Code Releases はタグ確認だけでなく本文の主要機能を抽出する
+
+- **取りこぼしリスク**: Claude Code v2.1.139 の agent view / `/goal` / hooks 改善のように、1つのリリース本文に複数の大きな機能がまとまる。
+- **原因**: GitHub Release の存在確認はできても、本文の `What's changed` を読み込まないと、ユーザー視点で重要な機能名をニュース判定に反映しづらい。
+- **対処**: SKILL.md に「Claude Code は GitHub Releases本文の What's changed を読む」を追加。`claude agents` / agent view / `/goal` / hooks / plugin / MCP を明示的な抽出キーワードにした。
+- **カタログ取り込み**: 反映済み（2026-05-12 PR追補）。
+
 ## 2026-05-09: 初版投入（漏れ4件の振り返り）
 
 ### 学び1: OpenAI 公式 Blog は `openai.com/index/<slug>/` 個別ポストを必ず確認する

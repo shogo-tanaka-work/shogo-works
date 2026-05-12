@@ -9,7 +9,7 @@
 | ChatGPT / OpenAI | https://help.openai.com/en/articles/6825453-chatgpt-release-notes | https://openai.com/news/、https://openai.com/index/ 個別ポスト | 週数回 | docs/research/zenn-chatgpt-openai-basic/official-updates |
 | OpenAI Codex | https://github.com/openai/codex/releases | https://developers.openai.com/codex/changelog、https://developers.openai.com/codex/hooks | ほぼ毎日（alpha含む） | docs/research/openai-codex/official-updates |
 | Gemini | https://blog.google/products-and-platforms/products/gemini/ | https://workspaceupdates.googleblog.com/（週次Recap + 個別ポスト） | 週数回 | docs/research/zenn-gemini-release-basic/official-updates |
-| Claude | https://support.claude.com/en/articles/12138966-release-notes | https://www.anthropic.com/news | 週1〜2回 | docs/research/zenn-claude-release-basic/official-updates |
+| Claude | https://support.claude.com/en/articles/12138966-release-notes | https://www.anthropic.com/news、https://claude.com/blog、https://aws.amazon.com/about-aws/whats-new/、https://aws.amazon.com/blogs/machine-learning/、https://platform.claude.com/docs/ | 週1〜2回 | docs/research/zenn-claude-release-basic/official-updates |
 | Claude Code | https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md | https://github.com/anthropics/claude-code/releases | ほぼ毎日 | docs/research/zenn-claude-code-release-basic/official-updates |
 | GitHub Copilot | https://github.blog/changelog/label/copilot/ | https://docs.github.com/en/copilot | ほぼ毎日 | docs/research/zenn-github-copilot-basic/official-updates |
 | Genspark | https://www.genspark.ai/blog | なし | 月数回 | docs/research/zenn-genspark-basic/official-updates |
@@ -58,6 +58,8 @@ Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行
 - **OpenAI公式Blog**は、`openai.com/news/` トップ一覧だけでなく、新規アンカーが見えたら **`openai.com/index/<slug>/` 個別ポストの URL を必ず取得して日付・本文を確認**します。専用モデル発表（GPT-5.5-Cyber等）、限定プレビュー、特化版のアナウンスは個別ポスト側にしか詳細が載らないことがあります。
 - **OpenAI Codex** は GitHub Releases が一次情報で最も粒度が細かいです。安定版本文には `## New Features` / `## Bug Fixes` / `## Documentation` 等のセクションが含まれます。Hooks や Plugin など既存機能の派生改善は本文中の `Plugin details now show...` のような言い回しで表現されることが多いので、新規発表でなくても拾います（→ SKILL.md「派生改善も対象」ルール参照）。
 - Claude Release Notesは、1つの日付見出しの下に複数更新が入ることがあります。別製品や別機能として明確に分かれる場合だけ、詳細ファイルを分けます。
+- **Claude / Anthropic公式Blogは `anthropic.com/news` だけでなく `claude.com/blog` も確認します**。Claude Platform、Claude API、AWS / Bedrock / Vertex / Foundry 連携、Console、Managed Agents、Skills、MCP connector のような開発者向け発表は `claude.com/blog/<slug>` 側に出ることがあります。
+- **Claude のクラウドプロバイダー連携はプロバイダー公式も一次情報として確認します**。特に AWS は `aws.amazon.com/about-aws/whats-new/` と `aws.amazon.com/blogs/machine-learning/` で Claude Platform on AWS / Bedrock 関連の GA・機能拡張を発表するため、`site:aws.amazon.com Claude Platform Anthropic` などで逆引きします。Anthropic公式に掲載が遅れる / 別ドメイン掲載される場合でも、AWS公式で確認できれば対象にします。
 - Claude Codeはraw changelogが最も安定しています。
 - n8n GitHub Releasesは必ずpagination込みで確認します。HTMLの1ページ目だけを見て完了扱いにしません。
 - **Workspace Updates Blog** は週次Recap（`weekly-recap-MM-DD-2026.html`）に集約されますが、**個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細**で日付もはっきりします。多言語対応・地域ロールアウト・GA切替などは個別ポストにのみ載るため、Recap だけで完了扱いにしません。
