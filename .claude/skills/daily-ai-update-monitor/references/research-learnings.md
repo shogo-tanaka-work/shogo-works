@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-05-13: OpenAI Academy / 1階層目セクションの取りこぼし対策
+
+### 学び: OpenAI公式の dated page は `openai.com/index/` 以外にも出る
+
+- **取りこぼし**: OpenAI Academy「How finance teams use Codex」（`https://openai.com/academy/how-finance-teams-use-codex/`、2026-05-12公開）。
+- **原因**: source-catalog では `openai.com/news/` と `openai.com/index/<slug>/` 個別ポストを重視していたが、`openai.com/academy/` のような1階層目セクション配下を明示巡回対象にしていなかった。
+- **対処**: source-catalog の ChatGPT / OpenAI 補助ソースに `openai.com/academy/`、`openai.com/stories/`、`openai.com/business/`、`openai.com/solutions/` を追加。SKILL.md の重要ルールにも `openai.com/<section>/<slug>/` 型の dated page を巡回対象にする旨を追加。
+- **カタログ取り込み**: 反映済み（2026-05-13追補）。
+
 ## 2026-05-12: Claude Platform on AWS と Claude Code v2.1.139 の取りこぼし対策
 
 ### 学び1: Claude開発者向け発表は `claude.com/blog` とクラウドプロバイダー公式も見る
