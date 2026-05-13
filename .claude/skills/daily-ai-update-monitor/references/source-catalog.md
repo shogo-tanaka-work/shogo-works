@@ -6,7 +6,7 @@
 
 | ツール | 主ソース | 補助ソース | 想定更新頻度 | 詳細出力先 |
 | --- | --- | --- | --- | --- |
-| ChatGPT / OpenAI | https://help.openai.com/en/articles/6825453-chatgpt-release-notes | https://openai.com/news/、https://openai.com/index/ 個別ポスト | 週数回 | docs/research/zenn-chatgpt-openai-basic/official-updates |
+| ChatGPT / OpenAI | https://help.openai.com/en/articles/6825453-chatgpt-release-notes | https://openai.com/news/、https://openai.com/index/ 個別ポスト、https://openai.com/academy/、https://openai.com/stories/、https://openai.com/business/、https://openai.com/solutions/ | 週数回 | docs/research/zenn-chatgpt-openai-basic/official-updates |
 | OpenAI Codex | https://github.com/openai/codex/releases | https://developers.openai.com/codex/changelog、https://developers.openai.com/codex/hooks | ほぼ毎日（alpha含む） | docs/research/openai-codex/official-updates |
 | Gemini | https://blog.google/products-and-platforms/products/gemini/ | https://workspaceupdates.googleblog.com/（週次Recap + 個別ポスト） | 週数回 | docs/research/zenn-gemini-release-basic/official-updates |
 | Claude | https://support.claude.com/en/articles/12138966-release-notes | https://www.anthropic.com/news、https://claude.com/blog、https://aws.amazon.com/about-aws/whats-new/、https://aws.amazon.com/blogs/machine-learning/、https://platform.claude.com/docs/ | 週1〜2回 | docs/research/zenn-claude-release-basic/official-updates |
@@ -56,6 +56,7 @@ Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行
 
 - ChatGPT release notesは環境によって本文取得が不安定なことがあります。本文が取れない場合はOpenAI Newsを補助ソースとして使い、制限を日次サマリーに残します。
 - **OpenAI公式Blog**は、`openai.com/news/` トップ一覧だけでなく、新規アンカーが見えたら **`openai.com/index/<slug>/` 個別ポストの URL を必ず取得して日付・本文を確認**します。専用モデル発表（GPT-5.5-Cyber等）、限定プレビュー、特化版のアナウンスは個別ポスト側にしか詳細が載らないことがあります。
+- **OpenAI公式サイトの1階層目セクション**も巡回対象にします。`openai.com/academy/`、`openai.com/stories/`、`openai.com/business/`、`openai.com/solutions/` など、`openai.com/<section>/<slug>/` 形式で日付付きページが公開されることがあります。Codex / ChatGPT / API / enterprise use case / Academy guide など、製品活用・機能・業務導入に関わる内容は更新候補として扱います。
 - **OpenAI Codex** は GitHub Releases が一次情報で最も粒度が細かいです。安定版本文には `## New Features` / `## Bug Fixes` / `## Documentation` 等のセクションが含まれます。Hooks や Plugin など既存機能の派生改善は本文中の `Plugin details now show...` のような言い回しで表現されることが多いので、新規発表でなくても拾います（→ SKILL.md「派生改善も対象」ルール参照）。
 - Claude Release Notesは、1つの日付見出しの下に複数更新が入ることがあります。別製品や別機能として明確に分かれる場合だけ、詳細ファイルを分けます。
 - **Claude / Anthropic公式Blogは `anthropic.com/news` だけでなく `claude.com/blog` も確認します**。Claude Platform、Claude API、AWS / Bedrock / Vertex / Foundry 連携、Console、Managed Agents、Skills、MCP connector のような開発者向け発表は `claude.com/blog/<slug>` 側に出ることがあります。

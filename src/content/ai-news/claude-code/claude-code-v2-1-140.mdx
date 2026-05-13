@@ -1,0 +1,40 @@
+---
+title: "Claude Code v2.1.140、subagent指定とplugin警告を改善"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-12
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.140"
+summary: "Claude Code v2.1.140では、Agent toolのsubagent_type matching、/goalのエラー表示、settings hot-reload、background service、plugin warningsなどが改善された。"
+impact: "agentやpluginを日常運用する環境で、設定ミスや制限状態が見えやすくなる。"
+tags: ["claude-code", "agent", "plugin", "hooks"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.140が公開されました。
+
+今回は大きな新機能というより、agent、plugin、hooks、background service周辺の運用品質を上げる修正が中心です。
+
+## 何が変わったか
+
+- Agent toolの `subagent_type` が、大文字小文字や区切り文字の違いに強くなった
+- agent color paletteを更新
+- `/goal` がhooks制限時に黙って止まる問題を修正
+- symlinkされたsettings fileのhot-reloadまわりを修正
+- `claude --bg` やbackground service startupの安定性を改善
+- Windowsでmissing executable確認がevent-loop stallを起こす問題を修正
+- pluginのdefault component folderが無視される場合に警告を表示
+
+## 業務インパクト
+
+Claude Codeをagentやplugin込みで運用する場合、設定ミスの見え方が重要です。
+
+今回の更新は、subagent名の表記ゆれ、hooks制限、plugin manifestとフォルダ構成の衝突など、日々の作業で詰まりやすい箇所を少しずつ潰しています。
+
+## 教材化視点
+
+Claude Codeのplugin / hooks / subagent運用チェックリストに使えます。特に「動かないときに何を見るか」の教材に向いています。
