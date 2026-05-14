@@ -1,0 +1,51 @@
+---
+title: "Claude Code v2.1.141、hooks通知・plugin HTTPS clone・agent運用をまとめて改善"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-13
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.141"
+summary: "Claude Code v2.1.141が公開された。hook JSON outputのterminalSequence、plugin sourceのHTTPS clone優先、workload identity federationのworkspace ID、claude agents --cwdなど、チーム運用とagent管理に効く改善が多い。"
+impact: "Claude Codeを個人CLIではなく、hooks、plugins、background agents、複数workspaceで運用するチームほど恩恵が大きい。"
+tags: ["claude-code", "hooks", "plugins", "agents", "mcp", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/hooks"
+  - "/knowledge/ai-tools/claude-code/subagents"
+  - "/knowledge/ai-tools/claude-code/skills"
+draft: false
+---
+
+## 要約
+
+Anthropicは2026年5月13日、Claude Code v2.1.141を公開しました。今回のリリースは単一の大型機能というより、hooks、plugins、agents、feedback、permission、MCP、Remote Control、Windows、VSCodeなど、日常運用の細部をかなり広く整える内容です。
+
+特に注目したいのは、hook JSON outputに`terminalSequence`が追加されたこと、GitHub plugin sourceをHTTPSでcloneするための環境変数が追加されたこと、workload identity federationでworkspace IDを明示できること、`claude agents --cwd <path>`で特定ディレクトリのsession listへ絞り込めることです。
+
+Claude Codeを個人のCLIとして使うだけなら小さな改善に見えますが、複数プロジェクト、複数agent、plugin、MCP、企業ネットワーク制約を含む環境では、運用上の摩擦を下げるリリースです。
+
+## 何が変わったか
+
+- hook JSON outputに`terminalSequence`が追加された
+- GitHub plugin sourceをSSHではなくHTTPSでcloneしやすくする`CLAUDE_CODE_PLUGIN_PREFER_HTTPS`が追加された
+- workload identity federation向けに`ANTHROPIC_WORKSPACE_ID`を指定できる
+- `claude agents --cwd <path>`でsession listをディレクトリ単位に絞り込める
+- `/feedback`で直近24時間または7日間のsessionを含められる
+- Rewind menuに過去文脈の要約操作が追加された
+- background agentが現在のpermission modeを維持するようになった
+- plugin menu navigation、MCP connector、Remote Control、Windows、VSCodeまわりの不具合が多数修正された
+
+## 業務インパクト（一般企業向け）
+
+企業利用では、SSH鍵を配れない環境、workspaceをまたぐ認証、複数プロジェクトのagent session管理がよく問題になります。今回のHTTPS clone優先やworkspace ID指定、`--cwd`による絞り込みは、そのあたりの運用に直接効きます。
+
+hooksの`terminalSequence`は、開発者の体験改善にも使えます。長い処理の完了通知、window title更新、bellなどをhook側から制御できるため、Claude Codeを常時起動して作業するチームでは、通知設計を少し丁寧にできます。
+
+また、permission promptやbackground agentの挙動修正が多いので、Claude Codeを「人間が見ながら使うCLI」から「複数agentを並行で回す作業環境」へ寄せている流れが見えます。チーム導入では、agentを起動する場所、権限モード、feedback提出のログ範囲をルール化しておくと安定します。
+
+## 副業・個人活用視点
+
+個人利用では、まず`claude agents --cwd <path>`が便利です。複数案件を同じマシンで扱う人ほど、案件ごとにagent sessionを見分けやすくなります。
+
+pluginを使う場合、GitHub SSH keyがない環境でHTTPS cloneを選べるのも地味に助かります。クライアント端末や一時環境でClaude Codeを使うときに、SSH鍵設定まで触らずにpluginを導入できる可能性があります。
+
+hooksを自作している人は、`terminalSequence`で完了通知やタイトル変更を足すと、長い調査や生成タスクを放置しやすくなります。小さな改善ですが、複数案件を並行している人ほど効いてきます。
