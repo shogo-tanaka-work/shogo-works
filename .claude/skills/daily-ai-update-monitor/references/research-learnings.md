@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-05-14: OpenAI Newsカテゴリ面 / 日本語トップの取りこぼし対策
+
+### 学び: OpenAI Newsはカテゴリページに技術記事が目立つ形で出る
+
+- **取りこぼし**: OpenAI Engineering / Security「Building a safe, effective sandbox to enable Codex on Windows」（`https://openai.com/index/building-codex-windows-sandbox/`、2026-05-13公開）。
+- **原因**: `openai.com/news/` トップと `openai.com/index/<slug>/` 個別確認に寄っており、`openai.com/ja-JP/news/` のカテゴリカード、および `openai.com/news/engineering/` / `openai.com/news/security/` のカテゴリ面を明示巡回していなかった。
+- **対処**: source-catalog の OpenAI 補助ソースに Newsカテゴリ（Company / Research / Product / Safety / Engineering / Security / Global Affairs / AI Adoption）と日本語トップを追加。SKILL.md にカテゴリ巡回ルールと、Engineering / Security の Codex / sandbox / agent runtime / API infrastructure / security implementation 記事を `category: enhancement` で拾う判断を追加。
+- **カタログ取り込み**: 反映済み（2026-05-14追補）。
+
 ## 2026-05-13: OpenAI Academy / 1階層目セクションの取りこぼし対策
 
 ### 学び: OpenAI公式の dated page は `openai.com/index/` 以外にも出る
