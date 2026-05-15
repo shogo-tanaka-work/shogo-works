@@ -6,7 +6,7 @@
 
 | ツール | 主ソース | 補助ソース | 想定更新頻度 | 詳細出力先 |
 | --- | --- | --- | --- | --- |
-| ChatGPT / OpenAI | https://help.openai.com/en/articles/6825453-chatgpt-release-notes | https://openai.com/news/、https://openai.com/ja-JP/news/、https://openai.com/news/company-announcements/、https://openai.com/news/research/、https://openai.com/news/product-releases/、https://openai.com/news/safety-alignment/、https://openai.com/news/engineering/、https://openai.com/news/security/、https://openai.com/news/global-affairs/、https://openai.com/news/ai-adoption/、https://openai.com/index/ 個別ポスト、https://openai.com/academy/、https://openai.com/stories/、https://openai.com/business/、https://openai.com/solutions/ | 週数回 | docs/research/zenn-chatgpt-openai-basic/official-updates |
+| ChatGPT / OpenAI | https://help.openai.com/en/articles/6825453-chatgpt-release-notes | https://openai.com/news/、https://openai.com/ja-JP/news/、https://openai.com/news/company-announcements/、https://openai.com/news/research/、https://openai.com/news/product-releases/、https://openai.com/news/safety-alignment/、https://openai.com/news/engineering/、https://openai.com/news/security/、https://openai.com/news/global-affairs/、https://openai.com/news/ai-adoption/、https://openai.com/index/ 個別ポスト、https://openai.com/academy/、https://openai.com/stories/、https://openai.com/business/、https://openai.com/solutions/、https://status.openai.com/ | 週数回 | docs/research/zenn-chatgpt-openai-basic/official-updates |
 | OpenAI Codex | https://github.com/openai/codex/releases | https://developers.openai.com/codex/changelog、https://developers.openai.com/codex/hooks | ほぼ毎日（alpha含む） | docs/research/openai-codex/official-updates |
 | Gemini | https://blog.google/products-and-platforms/products/gemini/ | https://workspaceupdates.googleblog.com/（週次Recap + 個別ポスト） | 週数回 | docs/research/zenn-gemini-release-basic/official-updates |
 | Claude | https://support.claude.com/en/articles/12138966-release-notes | https://www.anthropic.com/news、https://claude.com/blog、https://aws.amazon.com/about-aws/whats-new/、https://aws.amazon.com/blogs/machine-learning/、https://platform.claude.com/docs/ | 週1〜2回 | docs/research/zenn-claude-release-basic/official-updates |
@@ -17,7 +17,7 @@
 | Dify | https://github.com/langgenius/dify/releases | https://dify.ai/blog | 週1〜2回 | docs/research/zenn-dify-basic/official-updates |
 | n8n | https://github.com/n8n-io/n8n/releases | https://docs.n8n.io/release-notes/ | ほぼ毎日（stable + pre-release） | docs/research/zenn-n8n-basic/official-updates |
 | Meta AI | https://ai.meta.com/blog/ | https://www.meta.ai/ | 月数回 | docs/research/zenn-meta-ai-basic/official-updates |
-| Runway | https://runwayml.com/changelog | なし | 月数回 | docs/research/zenn-runway-basic/official-updates |
+| Runway | https://runwayml.com/changelog | https://runwayml.com/news | 月数回 | docs/research/zenn-runway-basic/official-updates |
 | xAI / Grok | https://docs.x.ai/docs/release-notes | https://x.ai/news | 週1〜2回 | docs/research/zenn-xai-grok-basic/official-updates |
 | ByteDance Seed | https://seed.bytedance.com/en/blog/ | なし | 月数回 | docs/research/zenn-bytedance-seed-basic/official-updates |
 | Pika | https://pika.art/blog | https://pika.art/、https://pika.pika.page/posts | 月数回 | docs/research/zenn-pika-basic/official-updates |
@@ -55,6 +55,7 @@ Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行
 ## ソース別の注意
 
 - ChatGPT release notesは環境によって本文取得が不安定なことがあります。本文が取れない場合はOpenAI Newsを補助ソースとして使い、制限を日次サマリーに残します。
+- OpenAI Status はCodex Cloud、Code Review、API等の障害が出るため、対象期間内のincidentは `category: incident` として日次サマリーに残します。短時間incidentは記事化せずresearch詳細に留めるのを基本にします。
 - **OpenAI公式Blog**は、`openai.com/news/` トップ一覧だけでなく、カテゴリページ（Company / Research / Product / Safety / Engineering / Security / Global Affairs / AI Adoption）と日本語トップ `openai.com/ja-JP/news/` も確認します。新規アンカーが見えたら **`openai.com/index/<slug>/` 個別ポストの URL を必ず取得して日付・本文を確認**します。専用モデル発表（GPT-5.5-Cyber等）、限定プレビュー、特化版のアナウンスは個別ポスト側にしか詳細が載らないことがあります。
 - **OpenAI Newsカテゴリはトップ一覧と差分が出ることがあります**。特に Engineering / Security は Codex、sandbox、agent実行環境、API基盤、セキュリティ実装の技術記事が出るため、製品リリースではなくてもCodex / API / enterprise導入に関わる場合は `category: enhancement` として記録します。
 - **OpenAI公式サイトの1階層目セクション**も巡回対象にします。`openai.com/academy/`、`openai.com/stories/`、`openai.com/business/`、`openai.com/solutions/` など、`openai.com/<section>/<slug>/` 形式で日付付きページが公開されることがあります。Codex / ChatGPT / API / enterprise use case / Academy guide など、製品活用・機能・業務導入に関わる内容は更新候補として扱います。
@@ -66,6 +67,7 @@ Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行
 - n8n GitHub Releasesは必ずpagination込みで確認します。HTMLの1ページ目だけを見て完了扱いにしません。
 - **Workspace Updates Blog** は週次Recap（`weekly-recap-MM-DD-2026.html`）に集約されますが、**個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細**で日付もはっきりします。多言語対応・地域ロールアウト・GA切替などは個別ポストにのみ載るため、Recap だけで完了扱いにしません。
 - Difyのpre-releaseは、対象期間内であれば `channel: pre-release` として含めます。
+- Runway は changelog だけでなく News に新製品発表が出ることがあります。`Introducing Runway Agent` のような大型発表は changelogに載らない場合があるため、`runwayml.com/news` も確認します。
 - Pikaは日付付きchangelogが少ないため、公式Blogの日付を優先します。トップページ観測に留まる場合は `date_precision: observed` を付けます。`pika.pika.page/posts` が補助ソースとして本文を取りやすい場合があります。
 
 ## 二次ソース（一次ソース URL 探索の補助のみ）

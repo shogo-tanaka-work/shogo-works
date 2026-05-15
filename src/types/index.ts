@@ -131,7 +131,8 @@ export type AiNewsTool =
   | "github-copilot"
   | "manus"
   | "n8n"
-  | "runway";
+  | "runway"
+  | "xai-grok";
 
 export type AiNewsStatus = "captured" | "candidate" | "promoted";
 

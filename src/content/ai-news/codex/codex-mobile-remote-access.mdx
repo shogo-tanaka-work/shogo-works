@@ -1,0 +1,46 @@
+---
+title: "CodexがChatGPTモバイルアプリから操作可能に、Remote SSHとHooksもGA"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-05-14
+sourceUrl: "https://openai.com/index/work-with-codex-from-anywhere/"
+summary: "OpenAIがCodexのモバイル操作previewを発表した。ChatGPT mobile appからMac上のCodexに接続し、threadの開始・継続、承認、diff確認、方針変更ができる。Remote SSHとHooksはGA、Business / Enterprise向けprogrammatic access tokensも提供される。"
+impact: "Codexがローカル端末の前に座って使うCLIから、長時間作業をモバイルで監督するagent運用へ広がる。企業ではremote environment、token、HIPAA対応の整理が必要になる。"
+tags: ["codex", "openai", "mobile", "remote-ssh", "hooks", "enterprise"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/codex/cloud-web"
+  - "/knowledge/ai-tools/codex/hooks"
+  - "/knowledge/ai-tools/codex/enterprise-admin"
+draft: false
+---
+
+## 要約
+
+OpenAIは2026年5月14日、CodexをChatGPT mobile appから操作できるpreviewを発表しました。CodexがMac host、laptop、devbox、managed remote environmentで作業している間、ユーザーはスマホからthreadを開始・継続し、質問へ回答し、方針を変え、action approvalやdiff確認を行えます。
+
+これにより、Codexは「開発端末の前に座って使うAI」から、「長時間走るagentを必要な瞬間だけモバイルで監督するAI」へ一段進みます。OpenAIはあわせて、Remote SSHのGA、HooksのGA、Business / Enterprise向けprogrammatic access tokens、対象Enterprise workspaceでのlocal Codex HIPAA-compliant useも案内しました。
+
+## 何が変わったか
+
+- ChatGPT mobile appでCodex remote accessがpreview提供
+- 現時点ではmacOS上のCodex appに接続可能
+- mobileからthread開始、質問回答、方針変更、approval、diff確認ができる
+- secure relayでhost machineを直接public internetへ露出せずに接続
+- Remote SSHとHooksが全プランでGA
+- Programmatic access tokensがBusiness / Enterpriseで利用可能
+- eligible ChatGPT Enterprise workspaceでlocal CodexのHIPAA-compliant useをサポート
+
+## 業務インパクト（一般企業向け）
+
+長時間の調査、テスト、リファクタリング、障害調査をCodexに任せるほど、「途中で人間が判断する瞬間」が増えます。今回のmobile previewは、その判断をデスク前に戻らず処理するためのアップデートです。
+
+企業では、Remote SSHとprogrammatic access tokensが特に重要です。承認済みのdevboxやremote environmentでCodexを走らせ、スマホから進捗確認や承認だけを行う設計がしやすくなります。一方で、token発行、hostの接続条件、端末紛失時のアクセス管理、HIPAA対象業務での利用範囲など、管理者が決める項目も増えます。
+
+Codex導入教材は、CLIの使い方だけでは足りなくなってきました。これからは「どこで実行するか」「誰が承認するか」「どの端末から監督できるか」を含めた運用設計が必要です。
+
+## 副業・個人活用視点
+
+個人開発では、出先でCodexの作業を止めずに済むのが大きいです。移動中に方針だけ選ぶ、エラーを見て追加指示を出す、帰宅前にdiffを確認しておく、といった使い方ができます。
+
+副業案件では、夜間にCodexへ調査や修正を走らせ、日中のスキマ時間にスマホで承認・軌道修正する運用が現実的になります。ただし、クライアントのコードや認証情報を扱う場合は、host machine、remote environment、mobile端末のアクセス管理を明確にしておく必要があります。
