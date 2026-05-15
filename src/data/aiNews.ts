@@ -46,6 +46,11 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     label: "Runway",
     description: "動画生成、モデル追加、制作ワークフローの公式アップデート",
   },
+  {
+    slug: "xai-grok",
+    label: "xAI / Grok",
+    description: "Grok、xAI API、Grok Buildなどの公式アップデート",
+  },
 ];
 
 export const aiNewsStatuses: AiNewsStatusMeta[] = [
