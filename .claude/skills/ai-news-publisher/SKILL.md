@@ -122,6 +122,7 @@ ai-news 記事化すると「逆方向の事実」を読者が「公式新機能
 - `github-copilot`: GitHub Copilot 全般（Chat / Edit / Agent / CLI / Code Review）
 - `n8n`: n8n
 - `runway`: Runway
+- `xai-grok`: xAI / Grok（Grok、xAI API、Grok Build）
 
 新ツール追加は `src/content.config.ts` の更新が前提。enum にないツールの記事化は禁止。
 
