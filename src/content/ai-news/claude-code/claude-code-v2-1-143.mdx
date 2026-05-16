@@ -1,0 +1,39 @@
+---
+title: "Claude Code v2.1.143、plugin依存関係とbackground sessions運用を強化"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-15
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.143"
+summary: "Claude Code v2.1.143では、plugin dependency enforcement、plugin marketplaceでの推定context cost表示、background sessionsの設定保持、Windows / PowerShellまわりの改善が追加された。"
+impact: "Claude Code が単体CLIから、pluginと複数agentを含む長時間運用環境へ進んでいることがより明確になった。"
+tags: ["claude-code", "plugins", "background-sessions", "windows", "agents"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+Anthropic は 2026年5月15日、Claude Code v2.1.143 を公開しました。今回の更新は、派手な新モデル追加ではなく、plugin、background sessions、`claude agents`、Windows / PowerShell の運用性を広く底上げする内容です。
+
+特に目立つのは、plugin の依存関係管理、plugin marketplace での projected context cost 表示、background session が model / effort / MCP 設定などを保持する改善です。Claude Code が、単発のCLI実行よりも、複数agentと長時間実行を前提にした開発環境へ進んでいることがよく見えます。
+
+## 何が変わったか
+
+- plugin 有効化時に依存関係を自動で扱い、無効化時は依存中 plugin を警告
+- `/plugin` 画面で per-turn / per-invocation の推定コンテキストコストを表示
+- background sessions が model、effort、MCP、settings、fallback model などを保持
+- `claude agents` から background sessions の既定値をより細かく指定
+- PowerShell tool が Windows で既定有効化され、Windows Terminal / WSL 周辺の不具合も複数修正
+
+## 業務インパクト（一般企業向け）
+
+実務では、agentを長時間走らせるほど「起動時の設定がどこまで引き継がれるか」が重要になります。今回の更新は、その抜けをかなり埋めています。background session に入ったあとで MCP 設定や fallback model が失われると、運用の再現性が落ちます。そこが維持されるようになるのは、地味ですが大きい改善です。
+
+また、plugin dependency と projected context cost の可視化は、plugin を増やしたときの複雑さとコストを管理しやすくします。企業導入では「便利なpluginを増やす」だけでなく、「依存関係を壊さず、どれだけ文脈コストを使うかを見える化する」ことが重要になります。
+
+## 副業・個人活用視点
+
+個人開発者にとっても、background sessions を使った長時間作業や、複数 plugin を組み合わせる運用がしやすくなります。特に Windows 利用者には、PowerShell tool の既定有効化と操作安定性の改善が効きます。
+
+Claude Code を単なる「コードを書かせるCLI」としてではなく、plugin・agent・background session を組み合わせる作業環境として使う人ほど、今回の恩恵は大きいはずです。
