@@ -6,6 +6,29 @@
 
 ---
 
+## 2026-05-15: OpenAI Status / Runway News / xAI記事カテゴリの補強
+
+### 学び1: OpenAI StatusはCodex / Code Review incidentの一次情報になる
+
+- **発見**: OpenAI Status「Codex Cloud and Code Review experiencing high failure rate」（2026-05-14）。
+- **原因**: source-catalogに `status.openai.com` がなく、incident categoryを定義していても巡回対象が不足していた。
+- **対処**: ChatGPT / OpenAI補助ソースに `https://status.openai.com/` を追加し、Codex Cloud / Code Review / API incidentは `category: incident` として記録するルールを追加。
+- **カタログ取り込み**: 反映済み（2026-05-15）。
+
+### 学び2: Runway大型発表はchangelogではなくNewsに出ることがある
+
+- **発見**: Runway News「Introducing Runway Agent」（2026-05-13）。今回の2026-05-15日次窓からは外れるが、前日調査でchangelogだけを見ると漏れる可能性がある。
+- **原因**: source-catalogのRunway補助ソースが空で、`runwayml.com/news` を巡回していなかった。
+- **対処**: Runway補助ソースに `https://runwayml.com/news` を追加し、SKILL.mdにもNews確認ルールを追加。
+- **カタログ取り込み**: 反映済み（2026-05-15）。
+
+### 学び3: xAI / Grok のAIニュースカテゴリが必要になった
+
+- **発見**: xAI公式「Introducing Grok Build Early Beta」（2026-05-14）はcoding agent / CLIの大型発表で、既存のai-news enumに対応カテゴリがなかった。
+- **原因**: source-catalogにはxAI / Grokがあるが、公開記事側 `aiNews.tool` enum と publisher skill のカテゴリ一覧に `xai-grok` がなかった。
+- **対処**: `src/content.config.ts`、`src/types/index.ts`、`src/data/aiNews.ts` に `xai-grok` を追加し、publisher skillのカテゴリ一覧にも反映。
+- **カタログ取り込み**: 反映済み（2026-05-15）。
+
 ## 2026-05-14: OpenAI Newsカテゴリ面 / 日本語トップの取りこぼし対策
 
 ### 学び: OpenAI Newsはカテゴリページに技術記事が目立つ形で出る
