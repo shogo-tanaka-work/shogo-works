@@ -24,6 +24,7 @@
 - `feat/<機能名>`: 新機能の開発ブランチ（例: feat/user-auth）
 - `fix/<内容>`: バグ修正ブランチ（例: fix/login-error）
 - `refactor/<対象>`: リファクタリングブランチ
+- branch / worktree の使い分けと cleanup は `branch-management.md` を参照する
 
 ### フロー
 1. main から feature/fix/refactor ブランチを切る
