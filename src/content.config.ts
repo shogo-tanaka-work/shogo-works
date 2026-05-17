@@ -41,6 +41,7 @@ const aiNews = defineCollection({
       "manus",
       "n8n",
       "runway",
+      "xai-grok",
     ]),
     toolLabel: z.string(),
     date: z.coerce.date(),
