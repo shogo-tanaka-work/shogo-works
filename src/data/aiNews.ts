@@ -32,6 +32,11 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     description: "Copilot、Coding Agent、VS Code連携の公式アップデート",
   },
   {
+    slug: "manus",
+    label: "Manus",
+    description: "ManusのAIエージェント、Webアプリ生成、プロジェクト管理の公式アップデート",
+  },
+  {
     slug: "n8n",
     label: "n8n",
     description: "n8nのリリース、AIワークフロー、連携機能の更新",
@@ -40,6 +45,11 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     slug: "runway",
     label: "Runway",
     description: "動画生成、モデル追加、制作ワークフローの公式アップデート",
+  },
+  {
+    slug: "xai-grok",
+    label: "xAI / Grok",
+    description: "Grok、xAI API、Grok Buildなどの公式アップデート",
   },
 ];
 

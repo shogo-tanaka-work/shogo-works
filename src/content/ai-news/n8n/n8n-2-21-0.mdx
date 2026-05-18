@@ -1,0 +1,40 @@
+---
+title: "n8n 2.21.0、AI BuilderとAgent/MCPまわりを広く更新"
+tool: "n8n"
+toolLabel: "n8n"
+date: 2026-05-12
+sourceUrl: "https://github.com/n8n-io/n8n/releases/tag/n8n%402.21.0"
+summary: "n8n 2.21.0はpre-releaseとして公開され、AI Builder、Agent、MCP、workflow validation、webhook verificationなど多数の更新を含む。"
+impact: "n8nがAI workflow platformとして、生成だけでなくcredential、検証、MCP、trigger securityまで含めて整備されている。"
+tags: ["n8n", "ai-builder", "agent", "mcp", "workflow"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools"
+draft: false
+---
+
+## 要約
+
+n8n 2.21.0がpre-releaseとして公開されました。
+
+AI Builder、Agent、MCP、workflow SDK、credential handling、webhook verificationなど、AI workflowを実運用するうえで効いてくる更新が多く含まれています。
+
+## 何が変わったか
+
+- AI Builderでarchived workflow復元、planning context保持、terminal stateの可視化を改善
+- Instance AIのliveness timeoutやsandbox workspace directory作成を改善
+- workflow structure validationを追加
+- MCPの `get_execution` hangやtool documentation usageを改善
+- credential resolution scopeやdynamic credential authentication endpointsのrate limitingを追加
+- 複数trigger nodeにwebhook request verificationを追加
+- Figma、Jira、Outlookなどのnode連携も拡張
+
+## 業務インパクト
+
+n8nのAI機能は、単に「LLMを呼ぶ」段階から、workflowを生成・検証・実行し、MCPやcredentialも含めて扱う方向に進んでいます。
+
+一方で今回はpre-releaseです。本番環境では、stable反映や破壊的変更の有無を確認してから導入するのがよさそうです。
+
+## 教材化視点
+
+n8nをAI agent workflow platformとして教える教材に向いています。AI Builder、MCP、credential、webhook verificationをまとめて扱うと、実務の自動化設計に近づきます。

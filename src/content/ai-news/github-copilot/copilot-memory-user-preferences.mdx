@@ -1,0 +1,39 @@
+---
+title: "GitHub Copilot Memoryがユーザー設定を記憶、会話ごとの再説明を減らす"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-05-15
+sourceUrl: "https://github.blog/changelog/2026-05-15-copilot-memory-remembers-your-preferences/"
+summary: "GitHub Copilot に、preferred frameworks、coding patterns、communication style などを会話をまたいで記憶する Copilot Memory が追加された。VS Code の Copilot Chat で Pro / Pro+ ユーザー向けに提供される。"
+impact: "毎回同じ開発方針を説明する手間が減り、prompt engineering から context engineering へ重心が移る。"
+tags: ["github-copilot", "memory", "context-engineering", "vscode"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+GitHub は 2026年5月15日、Copilot Memory を発表しました。これは、VS Code の Copilot Chat がユーザーの preferred frameworks、coding patterns、communication style などを会話をまたいで記憶し、次回以降の応答に反映する機能です。対象は GitHub Copilot Pro / Pro+ ユーザーです。
+
+これまでは、新しい会話を始めるたびに「TypeScript を優先」「簡潔に答えて」「このライブラリ構成で」などを繰り返し伝える必要がありました。Copilot Memory は、その再説明コストを下げ、単発プロンプトの工夫よりも、継続的に使える文脈設計を重視する方向へ進めます。
+
+## 何が変わったか
+
+- preferred frameworks、coding patterns、communication style などを会話をまたいで記憶
+- VS Code の Copilot Chat で利用可能
+- Pro / Pro+ ユーザー向けに提供
+- 自然言語で memory の確認・削除が可能
+- `Settings > Copilot > Memory` から確認、削除、有効化/無効化が可能
+
+## 業務インパクト（一般企業向け）
+
+開発チームでは、AIに毎回同じ前提を説明するコストが少しずつ積み上がります。Copilot Memory は、その摩擦を下げる一方で、どの情報を個人memoryに持たせるか、どこからをリポジトリ規約や共有設定に寄せるかという整理も必要にします。
+
+チーム運用では、個人の好みは memory、プロジェクトの標準は repo instructions、組織ルールは policy というように、文脈の置き場所を分ける設計が重要になります。便利なだけでなく、context engineering の責任分界を考え直す更新です。
+
+## 副業・個人活用視点
+
+個人開発では、毎回同じ指示を書かなくてよくなるだけでも体験がかなり軽くなります。複数案件を並行するフリーランスなら、よく使うスタックや説明の好みを持たせておくことで、Copilot をより自分仕様に近づけられます。
+
+ただし、memory は万能なプロジェクト設定ではありません。案件ごとのルールや再現性が必要な指示は、memory だけに頼らず、リポジトリ側の設定やドキュメントにも残すほうが安全です。

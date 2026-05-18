@@ -1,0 +1,50 @@
+---
+title: "Claude Code v2.1.143、plugin依存関係・background session・Windows運用を強化"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-15
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.143"
+summary: "Claude Code v2.1.143が公開された。plugin依存関係の保護、projected context cost表示、background sessionの継続性、Windows / PowerShell運用の改善が入り、複数agentを長時間回すチーム運用に効く更新となった。"
+impact: "plugins、background sessions、Windows環境を使うチームほど恩恵が大きく、Claude Codeを単発CLIから継続運用基盤へ寄せる改善が進んだ。"
+tags: ["claude-code", "plugins", "agents", "background-sessions", "windows", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/skills"
+  - "/knowledge/ai-tools/claude-code/subagents"
+draft: false
+---
+
+## 要約
+
+Anthropicは2026年5月15日、Claude Code v2.1.143を公開しました。今回の更新は、plugin、background session、Windows / PowerShell対応を中心に、Claude Codeを複数agentで継続運用する際の細かな摩擦をまとめて下げる内容です。
+
+目立つ変更は、pluginの依存関係を壊しにくくする enforcement、`/plugin` marketplaceでの projected context cost 表示、worktreeが扱いづらいrepo向けの`worktree.bgIsolation: "none"`、background sessionがidle復帰後もmodelとeffort設定を保持する改善です。
+
+単なる不具合修正の集合ではなく、plugin導入判断、background agent設計、Windowsでの実運用に直接効く改善がまとまっているため、Claude Codeをチームで使う読者には速報として追う価値があります。
+
+## 何が変わったか
+
+- `claude plugin disable`で依存pluginがある場合は無効化を拒否し、disable chainの案内を出すようになった
+- `claude plugin enable`で推移的依存関係もまとめて有効化できるようになった
+- `/plugin` marketplaceで、turn単位・呼び出し単位の projected context cost を確認できる
+- `worktree.bgIsolation: "none"`で、background sessionをworking copyへ直接向けられる
+- background sessionがidle復帰後も設定済みのmodel / effortを維持する
+- `claude agents`で`--model`、`--effort`、`--settings`、`--mcp-config`などをdispatch先へ渡しやすくなった
+- PowerShell toolの既定有効化やWindows Terminal / WSL関連修正が入った
+- worktree cleanupが`rm -rf`へfallbackしなくなり、gitignored fileや作業中ファイルを失いにくくなった
+
+## 業務インパクト（一般企業向け）
+
+plugin依存関係の保護は、チーム導入で特に重要です。複数pluginを組み合わせる運用では、1つのdisableが別機能の破損につながりやすいため、依存関係をCLI側で守れるだけでも事故率を下げられます。
+
+projected context costの表示も、pluginを「便利そうだから入れる」から「費用感を見て選ぶ」へ進める改善です。複数pluginを標準配布する組織では、導入判断や推奨pluginセットの見直しに使えます。
+
+さらに、background sessionのmodel / effort保持、`/bg`での設定維持、worktree cleanupの安全化は、長時間ジョブや複数agent運用の信頼性に直結します。Windows / PowerShell対応の改善も含め、Claude Codeを個人向けCLIからチーム運用基盤へ寄せる流れが続いています。
+
+## 副業・個人活用視点
+
+個人利用では、まず projected context cost が便利です。pluginを増やしすぎる前に、おおよそのコスト感を見ながら選べるようになります。
+
+background sessionを多用する人には、model / effortの保持や`worktree.bgIsolation: "none"`が効きます。小さめのrepoや一時案件では、worktreeを増やすより直接working copyを使いたい場面もあるため、選択肢が増えました。
+
+WindowsでClaude Codeを使っている人にとっては、PowerShellやTerminalまわりの改善が地味に大きいです。paste、session表示、filesystemアクセスといった日常の詰まりどころが減るので、継続利用しやすくなります。

@@ -1,0 +1,56 @@
+---
+title: "Claude Code v2.1.139でagent viewと/goalが追加"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-11
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.139"
+summary: "Claude Code v2.1.139 が公開。全セッションを一覧するagent view、完了条件を設定する/goal、hooksのexec formとcontinueOnBlock、プラグイン詳細、MCP再接続改善などが追加された。"
+impact: "Claude Codeを長時間タスクや複数セッションで運用するチームでは、進行状況管理、完了条件の明示、hooksによる安全な自動継続の設計がしやすくなる。"
+tags: ["claude-code", "release-note", "agent-view", "goal", "hooks", "mcp"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/daily-operations"
+  - "/knowledge/ai-tools/claude-code/hooks"
+  - "/knowledge/harness-engineering/long-running-agents"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.139 が公開されました。今回は小さなパッチではなく、長時間タスク運用や複数セッション管理に効く更新がまとまっています。
+
+目立つのは、すべての Claude Code セッションを一覧できる agent view と、完了条件を設定できる `/goal` です。さらに hooks、MCP、プラグイン、Transcript view、OTEL まわりにも改善が入っています。
+
+## 何が変わったか
+
+- `claude agents` で agent view を起動し、実行中・ブロック中・完了済みセッションを一覧できる
+- `/goal` で完了条件を設定し、Claude が複数ターンにまたがって作業を続けられる
+- `/scroll-speed` でマウスホイール速度を調整できる
+- `claude plugin details <name>` でプラグイン構成とセッションごとの token cost 見積もりを確認できる
+- hooks に `args: string[]` の exec form が追加され、shell を介さずコマンドを直接起動できる
+- `PostToolUse` hook に `continueOnBlock` が追加され、拒否理由を Claude に戻して作業を継続できる
+- MCP stdio サーバーに `CLAUDE_PROJECT_DIR` が渡される
+- MCP 再接続、プラグイン詳細、Transcript view、OTEL など多数の修正・改善
+
+## 業務インパクト
+
+Claude Code を単発のコード生成ではなく、複数セッションで運用するチームに効く更新です。
+
+agent view は、いま走っている作業、止まっている作業、終わった作業を一覧する入口になります。長いタスクを複数並べる運用では、セッションの見失いが減ります。
+
+`/goal` は、AIエージェントに仕事を任せるときの「完了条件」を明示する機能です。これは実務ではかなり重要です。曖昧に「直して」ではなく、「この条件を満たすまで続ける」と定義できると、長時間タスクの成功率が上がります。
+
+hooks の `continueOnBlock` も実務向きです。ガードレールに引っかかったときに、ただ止めるのではなく、拒否理由を Claude に渡して修正を続けさせる設計ができます。
+
+## 副業・教材化視点
+
+Claude Code の教材では、「便利なコマンド紹介」よりも一段深く、長時間タスクをどう管理するかを扱いやすくなりました。
+
+教材化するなら、次の章に展開できます。
+
+- `/goal` を使った完了条件の書き方
+- agent view で複数セッションを管理する運用
+- hooks で失敗理由をフィードバックする安全な自動化
+- プラグインの token cost を見ながらチーム導入する方法
+
+個人開発でも、作業を複数並列に任せる人ほど効果が出ます。特に、調査、修正、テスト、ドキュメント更新をまたぐタスクでは、完了条件を言語化してから Claude Code に渡す習慣が重要になります。

@@ -6,6 +6,63 @@
 
 ---
 
+## 2026-05-15: OpenAI Status / Runway News / xAI記事カテゴリの補強
+
+### 学び1: OpenAI StatusはCodex / Code Review incidentの一次情報になる
+
+- **発見**: OpenAI Status「Codex Cloud and Code Review experiencing high failure rate」（2026-05-14）。
+- **原因**: source-catalogに `status.openai.com` がなく、incident categoryを定義していても巡回対象が不足していた。
+- **対処**: ChatGPT / OpenAI補助ソースに `https://status.openai.com/` を追加し、Codex Cloud / Code Review / API incidentは `category: incident` として記録するルールを追加。
+- **カタログ取り込み**: 反映済み（2026-05-15）。
+
+### 学び2: Runway大型発表はchangelogではなくNewsに出ることがある
+
+- **発見**: Runway News「Introducing Runway Agent」（2026-05-13）。今回の2026-05-15日次窓からは外れるが、前日調査でchangelogだけを見ると漏れる可能性がある。
+- **原因**: source-catalogのRunway補助ソースが空で、`runwayml.com/news` を巡回していなかった。
+- **対処**: Runway補助ソースに `https://runwayml.com/news` を追加し、SKILL.mdにもNews確認ルールを追加。
+- **カタログ取り込み**: 反映済み（2026-05-15）。
+
+### 学び3: xAI / Grok のAIニュースカテゴリが必要になった
+
+- **発見**: xAI公式「Introducing Grok Build Early Beta」（2026-05-14）はcoding agent / CLIの大型発表で、既存のai-news enumに対応カテゴリがなかった。
+- **原因**: source-catalogにはxAI / Grokがあるが、公開記事側 `aiNews.tool` enum と publisher skill のカテゴリ一覧に `xai-grok` がなかった。
+- **対処**: `src/content.config.ts`、`src/types/index.ts`、`src/data/aiNews.ts` に `xai-grok` を追加し、publisher skillのカテゴリ一覧にも反映。
+- **カタログ取り込み**: 反映済み（2026-05-15）。
+
+## 2026-05-14: OpenAI Newsカテゴリ面 / 日本語トップの取りこぼし対策
+
+### 学び: OpenAI Newsはカテゴリページに技術記事が目立つ形で出る
+
+- **取りこぼし**: OpenAI Engineering / Security「Building a safe, effective sandbox to enable Codex on Windows」（`https://openai.com/index/building-codex-windows-sandbox/`、2026-05-13公開）。
+- **原因**: `openai.com/news/` トップと `openai.com/index/<slug>/` 個別確認に寄っており、`openai.com/ja-JP/news/` のカテゴリカード、および `openai.com/news/engineering/` / `openai.com/news/security/` のカテゴリ面を明示巡回していなかった。
+- **対処**: source-catalog の OpenAI 補助ソースに Newsカテゴリ（Company / Research / Product / Safety / Engineering / Security / Global Affairs / AI Adoption）と日本語トップを追加。SKILL.md にカテゴリ巡回ルールと、Engineering / Security の Codex / sandbox / agent runtime / API infrastructure / security implementation 記事を `category: enhancement` で拾う判断を追加。
+- **カタログ取り込み**: 反映済み（2026-05-14追補）。
+
+## 2026-05-13: OpenAI Academy / 1階層目セクションの取りこぼし対策
+
+### 学び: OpenAI公式の dated page は `openai.com/index/` 以外にも出る
+
+- **取りこぼし**: OpenAI Academy「How finance teams use Codex」（`https://openai.com/academy/how-finance-teams-use-codex/`、2026-05-12公開）。
+- **原因**: source-catalog では `openai.com/news/` と `openai.com/index/<slug>/` 個別ポストを重視していたが、`openai.com/academy/` のような1階層目セクション配下を明示巡回対象にしていなかった。
+- **対処**: source-catalog の ChatGPT / OpenAI 補助ソースに `openai.com/academy/`、`openai.com/stories/`、`openai.com/business/`、`openai.com/solutions/` を追加。SKILL.md の重要ルールにも `openai.com/<section>/<slug>/` 型の dated page を巡回対象にする旨を追加。
+- **カタログ取り込み**: 反映済み（2026-05-13追補）。
+
+## 2026-05-12: Claude Platform on AWS と Claude Code v2.1.139 の取りこぼし対策
+
+### 学び1: Claude開発者向け発表は `claude.com/blog` とクラウドプロバイダー公式も見る
+
+- **取りこぼし**: Claude Platform on AWS GA（2026-05-11公開）。Claude API / Console / Managed Agents / Skills / MCP connector などのネイティブClaude Platform機能をAWSアカウント経由で使える発表。
+- **原因**: Claude本体の巡回対象が `support.claude.com` Release Notes と `anthropic.com/news` に寄っていた。開発者向け / クラウド連携の公式発表が `claude.com/blog` と AWS公式（What's New / Machine Learning Blog）に出るパターンをカタログ化していなかった。
+- **対処**: source-catalog の Claude 補助ソースに `claude.com/blog`、AWS What's New、AWS Machine Learning Blog、Claude Platform Docs を追加。SKILL.md の重要ルールと追補検索クエリにも Claude Platform / AWS 逆引きを追加。
+- **カタログ取り込み**: 反映済み（2026-05-12 PR追補）。
+
+### 学び2: Claude Code Releases はタグ確認だけでなく本文の主要機能を抽出する
+
+- **取りこぼしリスク**: Claude Code v2.1.139 の agent view / `/goal` / hooks 改善のように、1つのリリース本文に複数の大きな機能がまとまる。
+- **原因**: GitHub Release の存在確認はできても、本文の `What's changed` を読み込まないと、ユーザー視点で重要な機能名をニュース判定に反映しづらい。
+- **対処**: SKILL.md に「Claude Code は GitHub Releases本文の What's changed を読む」を追加。`claude agents` / agent view / `/goal` / hooks / plugin / MCP を明示的な抽出キーワードにした。
+- **カタログ取り込み**: 反映済み（2026-05-12 PR追補）。
+
 ## 2026-05-09: 初版投入（漏れ4件の振り返り）
 
 ### 学び1: OpenAI 公式 Blog は `openai.com/index/<slug>/` 個別ポストを必ず確認する
