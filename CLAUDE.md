@@ -34,6 +34,7 @@ npm run preview   # ビルド済みサイトのプレビュー
 ## 詳細ルール
 詳細は .claude/rules/ を参照すること。
 スタック固有のルールはプロジェクト開始時に rules/ に追加すること。
+- ブランチ運用・worktree 利用判断は `.claude/rules/branch-management.md` を必ず確認すること。
 
 ## AIニュース運用
 - AIニュースの調査・公開では `.claude/skills/daily-ai-update-monitor/` と `.claude/skills/ai-news-publisher/` の手順に従うこと。
