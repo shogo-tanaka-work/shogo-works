@@ -1,0 +1,48 @@
+---
+title: "OpenAI Codex v0.131.0（stable）、TUI・plugin・remote・Python SDKを大幅強化"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-05-18
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.131.0"
+summary: "OpenAI Codexのstable版v0.131.0が公開された。TUIの拡充、@メンションの横断検索、plugin marketplace CLIとplugin hooks既定有効化、daemon管理のcodex remote-control、Python SDKのopenai-codexへの移行、codex doctorの追加が中心。旧apply_patch形式とafter-tool-use hooksは削除された。"
+impact: "Codexをチームの実行基盤として使う組織に影響が大きい。plugin・remote運用の標準化が進む一方、レガシーapply_patch削除は破壊的変更となるため移行確認が必要。"
+tags: ["codex", "tui", "plugins", "remote-control", "python-sdk", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/codex/plugins-overview"
+  - "/knowledge/ai-tools/codex/codex-sdk"
+  - "/knowledge/ai-tools/codex/cli-features"
+draft: false
+---
+
+## 要約
+
+OpenAIは2026年5月18日、Codexのstable版 `rust-v0.131.0` を公開しました。直近は alpha が連日出る状態が続いていましたが、今回は alpha 群を取り込んだ stable で、TUI・plugin・remote ワークフロー・Python SDK の4領域がまとめて強化された大型リリースです。
+
+TUI は service-tier コマンドのデータ駆動化、blended token 使用量表示、権限/承認モード表示、有効 workspace root 表示、レスポンシブな Markdown テーブルなど、session の状態把握と制御が拡充されました。`@` メンションがファイル・ディレクトリ・plugin・skill を1つの picker で横断検索できるようになり、操作導線も整理されています。plugin ワークフローは marketplace CLI コマンドとバージョン認識の共有を獲得し、**plugin hooks が既定で有効化**されました。remote ワークフローは daemon 管理の `codex remote-control` と実行時 enable/disable API を備え、Python SDK は `openai-codex` / `openai_codex` へ移行しています。診断用の `codex doctor` も追加されました。
+
+一方で、レガシーな function 形式の `apply_patch` と after-tool-use hooks は既定安定化に伴い**削除**されています。これらに依存した自動化がある場合は破壊的変更になるため、stable へ上げる前に公式リリースノートの確認が必要です。
+
+## 何が変わったか
+
+- TUI に blended token 使用量・権限/承認モード・有効 workspace root 表示、レスポンシブ Markdown テーブルを追加
+- `@` メンションでファイル/ディレクトリ/plugin/skill を1つの picker から横断検索
+- plugin marketplace CLI コマンド、バージョン認識の共有、shared-workspace バケットの明確化を追加
+- **plugin hooks が既定で有効化**された
+- `codex remote-control` が daemon 管理になり、実行時 enable/disable API・status 読み取り・registry 連携 remote 環境をサポート
+- Python SDK が `openai-codex` / `openai_codex` へ移行（並行ターンルーティング・承認モード対応）
+- 診断コマンド `codex doctor`（runtime / auth / terminal / network / config / local state を横断）を追加
+- Windows サンドボックス（deny-read ルール、scoped write root、PowerShell エッジケース）を堅牢化
+- 旧 function 形式 `apply_patch` と after-tool-use hooks を削除（破壊的変更の可能性）
+
+## 業務インパクト（一般企業向け）
+
+Codex をチームの実行基盤として標準化している組織では、plugin hooks 既定有効化と marketplace CLI が運用の前提を変えます。plugin の配布・更新・共有を CLI で扱えるため、社内標準 plugin セットの管理がしやすくなります。`codex doctor` は、サポート問い合わせ前の一次切り分けを現場で完結させる手段として、ヘルプデスク負荷の軽減に使えます。
+
+注意が必要なのはレガシー `apply_patch` と after-tool-use hooks の削除です。CI や社内自動化で旧形式を前提にしている場合、stable 更新で動かなくなる可能性があります。情シス・基盤チームは、全社展開前に検証環境で互換性を確認し、移行手順を周知する運用が安全です。Python SDK のパッケージ名変更（`openai-codex`）も、社内ツールやドキュメントの更新対象になります。
+
+## 副業・個人活用視点
+
+個人利用では、TUI の使用量・権限モード表示が日常的に効きます。token 消費と承認モードを画面上で把握できるため、コスト管理と「どこまで自動で進めてよいか」の判断がしやすくなります。`@` メンションの横断検索も、ファイルと plugin/skill を行き来する作業のテンポを上げます。
+
+Python で Codex を組み込んで案件をこなしている人は、`openai-codex` への移行を早めに済ませておくと、後続の機能追従が楽になります。`codex doctor` は、環境差で動かないときの自己解決手段として、納品前のトラブルシュートに使えます。

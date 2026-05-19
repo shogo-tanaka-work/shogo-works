@@ -1,0 +1,49 @@
+---
+title: "Claude Code v2.1.144、background sessionの再開・運用性と起動安定性を強化"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-19
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.144"
+summary: "Claude Code v2.1.144が公開された。background sessionが/resumeの対象になり、完了通知に経過時間が表示されるなど継続運用が扱いやすくなった。/modelのデフォルト挙動変更、'usage credits'への用語統一、api.anthropic.com到達不可時の起動ハング解消、MCPやBedrock/Vertexまわりの重要修正も入った。"
+impact: "background agentを長時間・複数回す運用ほど効くリリース。起動安定性とMCP/クラウドモデル選択の修正により、Claude Codeをチーム運用基盤として使う際の事故とストレスが減る。"
+tags: ["claude-code", "background-sessions", "resume", "mcp", "bedrock", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/web-and-headless"
+  - "/knowledge/ai-tools/claude-code/new-commands-2026"
+  - "/knowledge/ai-tools/claude-code/mcp"
+draft: false
+---
+
+## 要約
+
+Anthropicは2026年5月19日、Claude Code v2.1.144を公開しました。前回の v2.1.143 が plugin 依存関係や Windows 対応を中心にした更新だったのに対し、今回は **background session の運用性向上**と、**起動・ターミナル表示・接続性まわりの安定化**が主軸です。
+
+最も実務に効くのは、`/resume` が background session（`claude --bg` や agent view から起動したもの）も対象になった点です。これまで interactive session と background session は扱いが分かれていましたが、両者が `bg` 表示付きで同じ一覧に並び、再開できるようになりました。あわせて background subagent の完了通知に経過時間（例: "Agent completed · 3h 2m 5s"）が出るようになり、長時間ジョブの実態を把握しやすくなっています。
+
+加えて、`api.anthropic.com` が到達不可（captive portal・ファイアウォール・VPN）のときに最大75秒も起動がハングしていた問題が解消され、side-channel API 呼び出しが15秒でタイムアウトするようになりました。単発利用でも体感が変わる修正です。単なるバグ修正の寄せ集めではなく、Claude Code を継続運用基盤として使うチームに直接効く改善がまとまっているため、速報として追う価値があります。
+
+## 何が変わったか
+
+- `/resume` が background session も対象になり、interactive session と並んで `bg` 表示で再開できる
+- background subagent の完了通知に経過時間が表示される
+- `/model` は当該 session のみモデルを変更し、`d` キーで新規 session の既定を設定する方式に変更
+- CLI 文言の "extra usage" が "usage credits" に統一され、`/extra-usage` は `/usage-credits` に（旧名も継続動作）
+- `/plugin` の browse / discover ペインで plugin の最終更新日が表示される
+- `api.anthropic.com` 到達不可時の起動ハング（最大75秒）を解消、15秒でタイムアウト
+- MCP の paginated `tools/list` が1ページ目しか返さずツールを取りこぼす問題を修正
+- Bedrock / Vertex で `/model` から「Opus (1M context)」を選べない問題（v2.1.129 リグレッション）を修正
+- 長時間 session でのターミナル表示崩れ、VS Code ペイン分割でのリサイズ崩れを修正
+- Windows での attached background session スクロール（PgUp/PgDn・ホイール・Ctrl+O）が動作
+
+## 業務インパクト（一般企業向け）
+
+`/resume` の background session 対応は、複数 agent を長時間回すチームに直接効きます。これまで「どの background session が動いていて、どれを再開できるか」が見えにくかった部分が、interactive と同じ導線で扱えるようになり、運用の見通しが上がります。完了通知の経過時間表示も、ジョブのコスト感や所要時間を社内で共有する材料になります。
+
+起動ハングの解消は地味ですが影響範囲が広い修正です。社内ネットワークやVPN環境でClaude Codeを配布している組織では、起動の遅さが「使われない理由」になりがちでした。MCP の `tools/list` ページング修正は、多数のツールを公開する MCP サーバーを社内標準にしている場合に、ツールが静かに欠落するという発見しづらい不具合を防ぎます。Bedrock / Vertex 経由で Opus (1M context) を使う組織は、モデル選択の回復により設計通りのモデルを選べるようになります。
+
+## 副業・個人活用視点
+
+個人利用では、まず `/model` の挙動変更を押さえておくと混乱しません。モデル変更は当該 session 限定になり、新規 session の既定は `d` キーで設定する方式に変わりました。常用モデルを固定したい人は一度 `d` で既定を設定しておくのが安全です。
+
+background session を多用する人には、`/resume` 対応と完了通知の経過時間が効きます。夜間に長時間ジョブを投げて翌朝続きから再開する、といった使い方がしやすくなりました。ネットワークが不安定な環境で作業する場合は、起動ハング解消だけでも体感の改善が大きいはずです。

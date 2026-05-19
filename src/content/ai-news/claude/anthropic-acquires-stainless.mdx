@@ -1,0 +1,41 @@
+---
+title: "AnthropicがStainlessを買収、Claude PlatformのSDK・MCP接続性を内製強化"
+tool: "claude"
+toolLabel: "Claude"
+date: 2026-05-18
+sourceUrl: "https://www.anthropic.com/news/anthropic-acquires-stainless"
+summary: "Anthropicが、SDK・MCPサーバーツール生成を専門とするStainlessの買収を発表した。Stainlessは創業以来Anthropic公式SDKの生成を担ってきた企業で、買収によりClaude Platform上のSDK整備とエージェント接続性を内製で強化する狙い。"
+impact: "Claude API/SDKを使う開発者・企業にとって、公式SDKとMCPコネクタの供給体制が内製化され、中長期で開発者体験とエージェント接続性の改善が見込まれる。"
+tags: ["claude", "claude-platform", "sdk", "mcp", "acquisition"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude/overview"
+draft: false
+---
+
+## 要約
+
+Anthropicは2026年5月18日、SDK・MCPサーバーツール生成を専門とするStainlessの買収を発表しました。Stainlessは2022年創業で、Anthropic APIの提供開始当初から公式SDKの生成を担ってきた企業です。TypeScript / Python / Go / Java / Kotlin など複数言語のSDK、CLI、MCPサーバーコネクタを生成し、数百社が開発者・AIエージェントのAPI連携に利用しています。
+
+Anthropicは「エージェントは接続できる対象の有用性以上にはなれない（Agents are only as useful as what they can connect to）」とし、エージェント接続性をClaudeの中核能力と位置づけています。今回の買収は、Claude PlatformのSDK整備とエージェント接続レイヤーを外部委託から内製へ寄せる動きで、開発者体験の改善とコネクタ整備の加速を狙うものです。
+
+現時点で既存SDK・APIの利用方法そのものに即時の破壊的変更はありません。あくまで「Claude Platformがどの方向に投資するか」を示すシグナルとして捉えるのが適切です。Claude上でエージェントや外部連携を本格運用する読者にとって、供給体制の変化は中長期の判断材料になります。
+
+## 何が変わったか
+
+- Anthropicが SDK・MCPサーバーツール生成企業 Stainless を買収
+- Anthropic公式SDK（TypeScript / Python / Go / Java / Kotlin など）の生成チームが社内に統合
+- Claude PlatformのSDK整備・MCPコネクタ・エージェント接続レイヤーの強化方針が明確化
+- 既存SDK / APIの利用方法に即時の破壊的変更はなし（今後の体験改善の布石）
+
+## 業務インパクト（一般企業向け）
+
+Claude APIを業務システムやエージェントに組み込んでいる企業にとって、公式SDKの供給体制が内製化される意味は小さくありません。これまで公式SDKは外部企業の技術に支えられていましたが、生成チームがAnthropic社内に入ることで、SDKの品質・追従速度・MCPコネクタ整備が一体で進む可能性が高まります。
+
+技術選定や調達の観点では、「公式SDKの継続性とサポート体制」が論点になる組織にとって安心材料になり得ます。一方で、買収直後に挙動が変わるわけではないため、現行の実装方針を急いで変える必要はありません。情シス・開発基盤チームは、今後のSDK・MCPコネクタのリリース動向を継続ウォッチし、エージェント接続性まわりの強化を取り込むタイミングを見極めるのが現実的です。
+
+## 副業・個人活用視点
+
+個人開発でClaude APIを使っている場合、当面は今までどおりの実装で問題ありません。注目すべきは、今後のSDKとMCPコネクタの整備ペースです。エージェントから外部サービスへ繋ぐ部分（MCP）の整備が進めば、個人でも「Claude＋外部ツール連携」を作りやすくなり、受託や自作ツールの幅が広がります。
+
+副業でAI連携を扱うなら、Stainless由来の公式SDKがどの言語までカバーを広げるか、MCPコネクタがどう拡充されるかを追っておくと、提案できる構成の選択肢を先取りできます。
