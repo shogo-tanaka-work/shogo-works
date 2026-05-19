@@ -1,0 +1,10 @@
+---
+title: "OpenAI Codex v0.131.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-131-0"
+date: 2026-05-18
+tags: ["codex", "plugins", "codex-sdk", "remote-control"]
+---
+
+plugins-overview 教材に「plugin hooks 既定有効化」「marketplace CLI」を、plugin 導入・運用の標準手順として反映候補。codex-sdk 教材は Python SDK のパッケージ名が `openai-codex` / `openai_codex` へ移行した点を必ず更新（旧パッケージ名の記述があれば差し替え）。cli-features 教材では TUI の使用量/権限モード表示、`@` 横断検索、`codex doctor` を恒久機能として扱える。
+
+破壊的変更として、レガシー function 形式 `apply_patch` と after-tool-use hooks の削除を「移行注意」として該当教材に1行追記。alpha 群（v0.131.0-alpha.x, v0.132.0-alpha.1）の個別差分は教材に持ち込まず、stable v0.131.0 の結論のみ反映する。
