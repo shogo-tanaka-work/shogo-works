@@ -1,0 +1,61 @@
+---
+title: "Antigravity 2.0 がデスクトップに上陸、Gemini CLI は Antigravity CLI へ統合"
+tool: "gemini"
+toolLabel: "Gemini / Google"
+date: 2026-05-19
+sourceUrl: "https://blog.google/innovation-and-ai/technology/developers-tools/google-io-2026-developer-highlights/"
+summary: "Google I/O 2026 開発者基調講演で Antigravity 2.0 がスタンドアロンデスクトップアプリとして登場。並列実行する複数エージェントを 1 か所で管理する司令塔 UI と位置付けられ、動的サブエージェント・スケジュール実行・Google AI Studio / Android / Firebase 連携を持つ。Flash 版は従来比 12 倍速。同時に Gemini CLI は Antigravity CLI へ統合され、移行が推奨。Gemini API には Managed Agents が追加。"
+impact: "Gemini CLI を業務スクリプトに組み込んでいる組織は移行検討が必須。エージェント並列運用の司令塔として Antigravity が出てきたことで、AI オーケストレーション競争が「単発 CLI」→「複数エージェントの管制 UI」フェーズに入った。Managed Agents は OpenAI Agents SDK / Anthropic Managed Agents と並ぶ選択肢として開発者の比較対象になる。"
+tags: ["gemini", "google-io", "antigravity", "gemini-cli", "managed-agents", "agent-orchestration"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+Google I/O 2026 の開発者基調講演で、エージェントオーケストレーションプラットフォーム **Antigravity 2.0** がスタンドアロンデスクトップアプリとして発表されました。並列に走る複数エージェントを 1 か所で管理する「司令塔 UI」と位置付けられており、**動的サブエージェント**、**スケジュール実行のバックグラウンドタスク**、**Google AI Studio / Android / Firebase 連携**を備えます。Flash 版は従来比 12 倍速と説明されています。
+
+同時に発表された大きな構造変更が、**Gemini CLI を Antigravity CLI へ統合**する移行方針です。Gemini CLI はコミュニティ主導で展開されてきましたが、Google は今後 Antigravity CLI を「ターミナル経由でも GUI と同じエージェント生成体験を提供するインターフェース」として推進します。`gemini` コマンドを業務スクリプト / CI / docker / Makefile に組み込んでいる組織は、コマンド名・サブコマンド構造・認証フローの再設計が必要になる可能性があります。
+
+開発者向けの目玉はもう一つあります。**Gemini API に Managed Agents が追加**され、単一 API コールで **推論・ツール使用・コード実行を行うエージェントを隔離 Linux 環境上に起動**できるようになりました。OpenAI の Agents SDK、Anthropic の Managed Agents と並ぶ「エージェントを API として呼ぶ」プリミティブが 3 社揃った形です。
+
+加えて、**Google AI Studio がモバイルアプリ化**し、**Workspace API への接続**と **「プロンプトから Android アプリを生成」** する Android ネイティブ開発体験を獲得しました。料金面では新 **Google AI Ultra（$100/月）** が Antigravity 利用上限を Pro の 5 倍にする位置付け。2026-05-25 までの期間限定で $100 のボーナスクレジットが提供されます。
+
+これらをまとめると、Google は **「単一 CLI（Gemini CLI）+ クラウド」から「デスクトップ司令塔（Antigravity）+ 軽量 CLI + Managed Agents API」** へ開発者体験を組み替えに来ました。Claude Code / Codex / Cursor が並ぶエンジニア向け CLI 市場に対し、Google は「並列エージェントの司令塔 UI」というレイヤー差別化で勝負する戦略です。
+
+## 何が変わったか
+
+- **Antigravity 2.0**: スタンドアロンデスクトップアプリ。並列実行する複数エージェントの中央ハブ
+- **動的サブエージェント**: 並列タスクに応じて子エージェントを自動生成
+- **スケジュール実行のバックグラウンドタスク**: cron 的に定期実行
+- **Antigravity Flash**: 従来比 12 倍速版
+- **Antigravity CLI（旧 Gemini CLI）**: GUI を立ち上げずに同等のエージェント生成体験
+- **Gemini API: Managed Agents**: 単一 API コールで隔離 Linux 環境上にエージェントを起動
+- **Google AI Studio モバイル化**: モバイルアプリ提供、Workspace API 接続、Android ネイティブ開発
+- **Google Flow**: 複雑タスク計画とクリエイティブツール統合のエージェント
+- **Google Pics**: Nano Banana モデルベースの AI 画像生成 / 編集（trusted testers、Pro / Ultra は夏ロールアウト）
+- **料金**: Google AI Ultra（$100/月）が主軸。Antigravity 利用上限は Pro の 5 倍。2026-05-25 まで $100 ボーナスクレジット
+
+## 業務インパクト（一般企業向け）
+
+最も実務に効くのは **Gemini CLI を業務スクリプトに組み込んでいる組織への移行コスト** です。社内ボット、CI スクリプト、cron 上の自動化、Docker イメージで配布している開発環境などに `gemini` コマンドが入っている場合、Antigravity CLI への置き換えタイミングを計画する必要があります。Google は移行を「推奨」ですが、長期的には Gemini CLI 側がメンテナンスフェーズに入る可能性が高く、半年〜1 年スパンで移行計画を立てるのが妥当です。
+
+Antigravity デスクトップは、**複数エージェントを並列に走らせるチーム**にとってこれまで CLI ターミナルやチャット履歴に散らばっていた管理を 1 か所に集約できる点が大きいです。開発組織でいえば、「コードベース調査エージェント」「テスト追加エージェント」「ドキュメント更新エージェント」を同時に動かして、進捗を一覧で確認するワークフローが現実的になります。Managed Agents は社内 SaaS に「内蔵 AI エージェント」を持たせるときの実装オプションが増えたことを意味します。これまで Codex CLI / Claude Code / Aider などをラップするか、Anthropic Managed Agents / OpenAI Agents SDK を使うかという選択でしたが、Gemini も同レイヤーで参戦したことで料金 / レイテンシ / 隔離環境のスペック比較が必要になります。
+
+情シス・開発生産性チームは、**AI Ultra（$100/月）の組織契約** が用意されるかを Google に問い合わせるのが次のアクションです。個人 Ultra で Antigravity を回す状態を放置すると、ライセンス管理・データ取扱・ログ可視性のどれも組織から見えなくなります。
+
+## 副業・個人活用視点
+
+副業視点では、**Antigravity デスクトップが「個人のエージェント司令塔」になり得る**点が大きい変化です。たとえば次のような並列運用が現実的になります。
+
+- 朝にニュース要約エージェントがダイジェストを生成
+- 受託案件の進捗を読み取って Slack / Discord に投稿するエージェント
+- 副業ブログ / Note の下書きを夜間に生成するエージェント
+- 翌日のスケジュールを整理するエージェント
+
+これらを別タブ・別 CLI で個別に回す代わりに、**Antigravity 1 画面で監視**できるようになります。Claude Code / Codex / Aider を併用しているフリーランスは、Antigravity を「もう 1 つの司令塔候補」として比較しておく価値があります。
+
+Managed Agents は、副業で AI SaaS を作る場合の **「サーバーレス × エージェント」スタック**として有力です。AWS Lambda + Anthropic Managed Agents / OpenAI Agents SDK で組んでいたものを、Gemini Managed Agents に乗せ換えて料金検証する選択肢が増えました。
+
+Gemini CLI を業務に組み込んでいる個人開発者は、**早めに Antigravity CLI のドキュメントを読み、手元の `gemini` 呼び出しを 1 か所にラップしておく**と移行が楽です。

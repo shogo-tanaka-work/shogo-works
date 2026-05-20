@@ -1,0 +1,14 @@
+---
+title: "Codex rust-v0.132.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-132-0"
+date: 2026-05-20
+tags: ["codex", "python-sdk", "goal-continuation", "remote-executor", "windows"]
+---
+
+Codex Python SDK 入門教材があれば、API キーだけでなく ChatGPT ブラウザログイン / device-code を選択肢として並べて手順を 3 つに分割。Turn API は plain string 入力で書き直して、コード例の行数を半分程度に圧縮可能。
+
+Goal continuation の usage limit 対応は「Goal を長時間回す」教材で挙動として明示。コスト管理章を作り、`--output-schema` の resume 対応で「途中で止めて翌日続ける」運用例を追加。
+
+Remote Executor の認証統合は、Codex を CI / リモート環境で使う教材で別認証手順を削除する更新が必要。Windows の MSVC ランタイム不要化は、Windows 配布手順教材で「VC++ 再配布パッケージは不要」と注記。
+
+Knowledge へは個別リリースノートを持ち込まず、「Codex の認証選択肢」「Goal continuation の停止条件」「Windows 配布の前提」を必要箇所のみ更新。

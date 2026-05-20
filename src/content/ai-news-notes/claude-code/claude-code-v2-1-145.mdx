@@ -1,0 +1,12 @@
+---
+title: "Claude Code v2.1.145 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-145"
+date: 2026-05-19
+tags: ["claude-code", "agents-json", "otel", "read-tool", "security-fix"]
+---
+
+web-and-headless / background agents 教材で、`claude agents --json` と OTEL `agent_id` / `parent_agent_id` 追加を「外部ツール・観測基盤連携」観点で追記候補。MCP / プラグイン教材では `/plugin` Discover / Browse 画面の構成表示を「導入前レビューのチェックリスト化」と組み合わせて補強。
+
+mcp 教材ではセキュリティ修正（Bash 裸変数代入での permission-prompt バイパス）を「`permissions` ルールを組むときの落とし穴例」として 1 行触れる価値あり。Knowledge へは v2.1.145 固有のリリースノートを持ち込まず、「セッション可視化（JSON / OTEL）」「Read tool の PARTIAL 挙動」「プラグインインストール前可視化」の 3 点に絞って既存教材を必要箇所のみ更新。
+
+new-commands-2026 教材は、`claude agents` のターミナルタブタイトル表示と Read tool の PARTIAL 挙動を運用 Tips として小ネタ追加が可能。
