@@ -1,0 +1,60 @@
+---
+title: "Codex stable rust-v0.132.0、Python SDK の認証フロー刷新と goal continuation 暴走防止"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-05-20
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.132.0"
+summary: "Codex の stable リリース rust-v0.132.0 が公開。Python SDK に API キー / ChatGPT ブラウザ / device-code の認証フローが first-class でサポートされ、Turn API は plain string 入力とメトリクス入り TurnResult に簡素化された。`codex exec resume` で `--output-schema` を渡せるようになり、TUI の起動も高速化。Goal continuation は usage limit を超えてループしなくなり、Remote Executor 登録は別レジストリ認証が不要に。Windows のインストール堅牢性向上、MSVC バイナリの外部 VC++ ランタイム依存も解消。"
+impact: "Python SDK で Codex を業務システムに組み込んでいる組織は認証フロー刷新の確認が必須。Goal continuation の usage limit 対応はコスト暴走を防ぐ重要修正で、エージェントを長時間回す運用に直接効く。Windows 配布が安定化したため、社内配布の選択肢が広がる。"
+tags: ["codex", "python-sdk", "goal-continuation", "remote-executor", "windows", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/codex"
+draft: false
+---
+
+## 要約
+
+OpenAI は 2026 年 5 月 20 日（UTC）に Codex の stable リリース **rust-v0.132.0** を公開しました。前回 stable の v0.131.0（apply_patch 旧形式と after-tool-use hooks を削除した破壊的変更）から約 2 週間、Python SDK 周辺と運用安定性を中心とした堅実なアップデートです。
+
+最大の変更は **Python SDK の認証フロー刷新**です。これまで API キー認証中心だった Python SDK に、**API キー / ChatGPT ブラウザログイン / device-code** の 3 つが first-class でサポートされ、社内開発者の作業環境（個人 ChatGPT 課金、組織 API キー、CI 環境など）に応じた使い分けがしやすくなりました。**Turn API も plain string 入力に対応し、`TurnResult` にメトリクスが内包**されるなど、入門コードがより短く書けるようになっています。
+
+`codex exec resume` には **`--output-schema` フラグ**が追加され、再開時にも出力スキーマを強制できるようになりました。長時間ジョブを `resume` で続けるとき、最後に「決まった JSON 形式で結果を吐かせる」運用が安定化します。
+
+運用面では、**Goal continuation が usage limit を超えてループしない**ようになった点が重要です。これまで「Goal を達成するまで走り続ける」モードで API 使用量が暴走するリスクがありましたが、limit 到達で明示的に停止するようになりました。Remote Executor は **標準 Codex 認証に統合**され、別レジストリで credentials を管理する必要がなくなっています。
+
+そのほか、TUI 起動時のターミナル機能チェックがバッチ化されて起動が速くなり、アプリサーバーのターン処理で**画像が元解像度を保持する**ようになりました。Windows 周りでは、インストール堅牢性が上がり、MSVC バイナリが**外部 VC++ ランタイムを必要としなくなった**ため、社内配布で「VC++ 再配布パッケージ入れて」というサポート問い合わせが減ります。Multi-session TUI の MCP 安定性、Remote sessions の WebSocket 維持、セッションピッカーの thread ID 表示と paste 対応など、複数 session を回す運用での細かい修正も多数入っています。
+
+公式リリースノートに「破壊的変更あり」の明示はありませんが、Python SDK の API 形状が変わっているため、社内ツール / 業務スクリプトで Codex Python SDK を呼んでいる組織は動作確認が必要です。
+
+## 何が変わったか
+
+- **Python SDK 認証**: API キー / ChatGPT ブラウザ / device-code の 3 フローが first-class
+- **Python Turn API**: plain string 入力、`TurnResult` にメトリクス内包
+- **`codex exec resume --output-schema`**: 再開時にも出力スキーマを強制
+- **TUI 起動高速化**: ターミナル機能チェックのバッチ化
+- **Remote Executor 登録**: 別レジストリ認証が不要、標準 Codex 認証に統合
+- **画像解像度の保持**: アプリサーバーのターン間で元解像度を維持
+- **Goal continuation**: usage limit 到達で停止（過剰ループ防止）
+- **セッションピッカー**: thread ID 表示、リネーム表示、paste 対応
+- **Multi-session TUI**: MCP コール時の安定性向上
+- **Remote sessions**: WebSocket 接続維持と diff パス表示の修正
+- **Windows**: インストール堅牢性、MSVC バイナリの外部依存解消、UI 改善
+
+## 業務インパクト（一般企業向け）
+
+**Python SDK で Codex を業務システムに組み込んでいる組織**は、`pip install` のアップグレード後に認証フロー周辺の動作確認が必須です。CI / バッチで動かしているスクリプトはほぼ動くはずですが、ローカル開発で「ChatGPT ブラウザログイン」を使っていたメンバーは、コード側で `auth_mode` を明示する形に書き換えると安定します。
+
+Goal continuation の usage limit 停止は、**コスト管理の観点で重要な修正**です。これまで「Goal を達成するまで走り続ける」設計で OpenAI API 課金が想定外に膨らむケースがあり、CFO / 情シスから「Codex の月額が読めない」という声が出ていた組織は、本リリースで挙動が予測可能になります。月次上限や Goal あたりの使用量上限を改めて設計し直す好機です。
+
+Windows 配布の安定化（MSVC ランタイム不要）は、**情シス・社員配布の摩擦を減らす地味だが効く修正**です。VC++ 再頒布可能パッケージのインストールを伴うソフトウェアは社内手続きで止まりがちでしたが、Codex は単独で動くようになったため社内配布の選択肢が広がります。
+
+Remote Executor が標準 Codex 認証に統合された点は、リモート CI 基盤に Codex を組み込んでいる組織にとって設定が大幅に簡素化されることを意味します。別レジストリ認証の管理コストが減るため、社内自動化の運用負荷が下がります。
+
+## 副業・個人活用視点
+
+個人開発者にとって一番効くのは **Python SDK の認証フロー刷新**です。これまで Codex を Python から触るときに「API キーを `.env` に置く」前提だったのが、**ChatGPT ブラウザログイン / device-code** で個人 ChatGPT 課金を経由した利用が現実的になりました。副業の小さい検証コードで API キーを発行しなくても済むようになるため、新規プロジェクトの立ち上げ摩擦が下がります。
+
+Goal continuation の usage limit 停止は、副業のコスト管理に直接効きます。深夜に長時間ジョブを投げて、翌朝請求書を見て驚くようなパターンが起きにくくなりました。`--output-schema` を `resume` でも使えるようになったため、「途中で止めて翌日続ける長時間タスク（リサーチ・記事生成・コード移行）」の出力品質を安定化させやすくなっています。
+
+Windows ユーザーは、外部 VC++ ランタイム不要になったことで自宅 / 業務 PC の両方に手軽に入れられるようになりました。Mac / Linux 中心で書かれた解説記事を Windows でなぞるときの初期摩擦が大幅に減ります。

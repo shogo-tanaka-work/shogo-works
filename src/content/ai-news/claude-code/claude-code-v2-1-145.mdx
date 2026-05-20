@@ -1,0 +1,65 @@
+---
+title: "Claude Code v2.1.145、agents の JSON 出力・OTEL 強化・Read tool の PARTIAL 表示"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-19
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.145"
+summary: "Claude Code v2.1.145 が公開された。`claude agents --json` でライブセッション一覧が JSON 取得できるようになり、tmux-resurrect・ステータスバー・セッションピッカーへの組み込みが現実的になった。OTEL spans に agent_id / parent_agent_id 属性が追加され、バックグラウンドサブエージェントのトレースが扱いやすくなった。Read tool は token 上限超過時にハードエラーを返さず PARTIAL view を返す挙動に変更。Bash の裸変数代入での permission-prompt バイパス、agent view の voice push-to-talk、タスクリストの並び順など重要修正も入った。"
+impact: "外部ツール・観測基盤との連携強化が中心。Claude Code をチームの常用プラットフォームに据える組織には地味だが大きい改善で、特に複数エージェント運用と OTEL 連携を進めている組織に直接効く。セキュリティ修正（permission-prompt バイパス）も含まれるためアップデート推奨。"
+tags: ["claude-code", "agents-json", "otel", "read-tool", "security-fix", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/web-and-headless"
+  - "/knowledge/ai-tools/claude-code/new-commands-2026"
+  - "/knowledge/ai-tools/claude-code/mcp"
+draft: false
+---
+
+## 要約
+
+Anthropic は 2026 年 5 月 19 日、Claude Code **v2.1.145** を公開しました。前回の v2.1.144 が「background session の運用性」と「起動安定性」を主軸にしたリリースだったのに対し、今回は **外部連携・観測性・セッション管理 UX**を中心とした改善が入りました。
+
+最大のトピックは **`claude agents --json`** の追加です。ライブセッション一覧を JSON で取り出せるようになり、`tmux-resurrect` 連携、独自ステータスバー、サードパーティ製のセッションピッカーなどに組み込みやすくなりました。あわせて **OTEL spans に `agent_id` / `parent_agent_id` 属性**が追加され、バックグラウンドサブエージェントの親子関係が観測基盤側でもきれいに辿れるようになっています。Datadog / New Relic / Honeycomb など OpenTelemetry を取り込んでいるチームには直接効く改善です。
+
+UI / UX 側では、**`/plugin` の Discover / Browse 画面でインストール前に commands / agents / skills / hooks / MCP / LSP サーバーの構成が表示される**ように改善されました。これまではインストールしてから中身を確認する必要があったため、組織内でプラグインを精査して導入する運用がしやすくなります。Stop / SubagentStop hooks には `background_tasks` と `session_crons` フィールドが入力に追加され、フックスクリプトからバックグラウンドジョブの存在を判断できるようになりました。
+
+Read tool は **token 上限超過時にハードエラーを返さず、「PARTIAL view」表示付きで最初のページを返す**挙動に変更されました。これまでは「ファイルが大きすぎて読めません」で止まっていた状況が、まず先頭をエージェントに渡せるようになり、エージェント側の判断余地が増えています。
+
+セキュリティ修正として、**Bash コマンドの裸の変数代入（`FOO=bar` 形式）で許可リスト外の環境変数の permission-prompt がバイパスされていた問題**が修正されました。permission ルールを厳格に組んでいる組織は、すり抜けの可能性があったため早めに更新するのが安全です。
+
+## 何が変わったか
+
+- `claude agents --json` でライブセッションを JSON 出力
+- OTEL spans に `agent_id` / `parent_agent_id` 属性、サブエージェントスパンの親子関係改善
+- ステータスライン JSON 入力に GitHub repo / PR 情報を自動付加
+- `/plugin` Discover / Browse 画面でインストール前に commands / agents / skills / hooks / MCP / LSP の構成を表示
+- Stop / SubagentStop hooks 入力に `background_tasks` / `session_crons` フィールド
+- Read tool: token 上限超過時にハードエラーではなく "PARTIAL view" 注記付きで先頭ページを返す
+- `claude agents` のターミナルタブタイトルに awaiting-input 数を表示
+- フルスクリーンモードでもスラッシュコマンド / @-mention 候補がマウスホバー / クリックに対応
+- 【セキュリティ修正】Bash 裸変数代入での permission-prompt バイパス
+- 【修正】MCP プロンプトスラッシュコマンドが生のサーバーバリデーションエラーを表示する問題
+- 【修正】ターミナルリサイズ / refocus 後のスピナー・経過時間表示が止まる問題
+- 【修正】Windows PowerShell 5.1 でのクロスプロジェクト resume ヒント
+- 【修正】agent view リプライペインの voice push-to-talk
+- 【修正】タスクリストの順序がランダムになる問題
+- 【修正】非 ASCII 名 Agent Teams メンバーで HTTP ヘッダエンコードが失敗
+- 【修正】`/review` で非推奨の `projectCards` GraphQL クエリ
+- 【修正】`claude plugin validate` の skills 検出強化
+- 【修正】`context: fork` の skills で無限ループ
+
+## 業務インパクト（一般企業向け）
+
+`claude agents --json` と OTEL 強化は、**Claude Code をチーム開発の常用プラットフォームにしている組織**に直接効きます。これまで「誰がどの session を走らせているか」「並列で何件動いているか」をターミナル目視で確認していたチームは、ステータスバーやダッシュボードに数値を流し込めるようになります。OTEL 連携を観測基盤に通している組織にとって、サブエージェントの親子関係がトレース上で正しく辿れるようになる改善は地味ですが大きな前進です。
+
+Bash 裸変数代入での permission-prompt バイパス修正は、**permission ルールを厳格に組んでいる組織は要注意**です。`SECRET=...` のような環境変数代入経由で許可リスト外の挙動がすり抜けていた可能性があるため、SOC / 情シス側に「アップデート完了の確認」「過去ログの簡易レビュー」を周回するのが安全です。
+
+`/plugin` の Discover / Browse 画面での構成表示は、**社内プラグインのレビュー運用**を作っている組織に効きます。インストール前に commands / agents / skills / hooks / MCP / LSP の構成を見られるため、レビュー基準（許可するスキル種別・MCP 接続先など）をチェックリスト化しやすくなります。
+
+## 副業・個人活用視点
+
+個人利用では、**Read tool の PARTIAL view 挙動**が一番体感の変わるポイントです。これまで「ファイルが大きすぎて読めません」で止まっていた大きいログ・データセット・コード生成物に対して、エージェントが先頭を見て「分割読みする」「特定箇所だけ抜き出す」と判断できるようになります。生成物を雑に確認させる運用が現実的になりました。
+
+`claude agents --json` は、複数 session を同時に回す副業フリーランスにとって便利です。tmux 上のステータスバーに「待ち状態のエージェント数」を表示する、Raycast / Alfred ワークフローでアクティブな session を一覧する、といった自作ツールが組みやすくなります。OTEL 連携は個人ではオーバーキルですが、**Honeycomb 無料枠 / Datadog 学生プラン**などで観測基盤に慣れたい人には良い練習素材です。
+
+ステータスライン JSON 入力に GitHub repo / PR 情報が入るようになった点は、`gh pr create` まわりのワークフローを習慣化している人ほど効きます。「今編集中の PR」をターミナル下部に常に出しておく構成が組めるので、副業案件と本業の切り替えで迷子になりにくくなります。

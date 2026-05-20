@@ -1,0 +1,47 @@
+---
+title: "Google I/O 2026: Gemini 3.5 Flash GA・Omni Flash・24/7 エージェント Spark で 'agentic Gemini era' 宣言"
+tool: "gemini"
+toolLabel: "Gemini / Google"
+date: 2026-05-19
+sourceUrl: "https://blog.google/innovation-and-ai/sundar-pichai-io-2026/"
+summary: "Google I/O 2026 のキーノートで、Sundar Pichai が 'the agentic Gemini era' を宣言。新モデル群（Gemini 3.5 Flash GA、Omni Flash、6月公開予告の Gemini 3.5 Pro）と、Gemini アプリ上で 24/7 動作する個人向けエージェント Gemini Spark が中心。Spark はサブスクの棚卸し、メールから締切抽出、議事録生成→ドキュメント化→フォローアップ作成を能動的に実行。月額 $100 の Google AI Ultra が主軸プラン。"
+impact: "Gemini が「質問に答えるアシスタント」から「ユーザーの代わりに動く 24/7 エージェント」に再定義され、ChatGPT Agent・Claude Skills と並ぶ三つ巴のエージェント競争が本格化。3.5 Flash は競合の半額・4倍速を謳い、Copilot にも同日 GA。"
+tags: ["gemini", "google-io", "gemini-3-5-flash", "gemini-spark", "ai-ultra", "agent"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+2026 年 5 月 19 日（米国時間）、Google I/O 2026 キーノートが Mountain View で開催されました。Sundar Pichai は冒頭で "the agentic Gemini era" を宣言し、これまでの「質問に答えるアシスタント」型 Gemini から、**ユーザーの代わりに動く 24/7 エージェント** への転換を打ち出しました。本記事では、I/O で発表された大量のアップデートのうち、もっとも業務インパクトが大きい **モデル群** と **Gemini Spark** に絞って整理します（Antigravity 2.0 と Gemini CLI 統合は別記事、Gemini for Science は調査メモのみ）。
+
+モデル面の主役は **Gemini 3.5 Flash の GA**、動画出力までこなすマルチモーダル新モデル **Gemini Omni Flash**、そして 2026 年 6 月公開予告の **Gemini 3.5 Pro** です。Google は 3.5 Flash について「フロンティアレベルの性能を競合の半額・4 倍速で提供する」と説明しており、同日 GitHub Copilot 上でも GA 開始しました（Copilot 側のニュースは別記事）。3.5 Pro は推論強化版として位置付けられ、Pro 級のタスクをより安く速く動かす流れが Google 側にも揃った形です。
+
+そして I/O のハイライトが **Gemini Spark** です。Sundar Pichai は Spark を「a 24/7 personal AI agent」と紹介し、デバイスがロック / 閉じていてもクラウド側で動き続け、Gmail / Docs / Slides と連携してユーザーの仕事を **能動的に進める** と説明しました。具体例として「月次明細から隠れたサブスクを抽出する」「受信トレイから学校や行政の締切を抽出して要約を配信する」「メール・チャットから議事録を作り、Docs にまとめてフォローアップ文面まで作る」などが挙がっています。Spark は **Gemini 3.5 上で動作**し、**Google AI Ultra（$100/月）契約者の米国ベータ**が発表翌週から開始、Trusted testers は発表週から先行アクセスです。2026 年夏に向けて、テキスト送信、カスタムサブエージェント、ローカルブラウザ操作などの機能拡張が予告されています。
+
+この一連の発表で重要なのは、Google が Gemini を **「ChatGPT / Claude と肩を並べる単一モデル」ではなく、「日常を 24/7 動かす実行基盤」** として再定義しに来た点です。OpenAI の ChatGPT Agent、Anthropic の Claude Skills、そして今回の Gemini Spark で、主要 3 社のエージェント路線が出揃いました。
+
+## 何が変わったか
+
+- **Gemini 3.5 Flash が GA**: 競合の半額・4 倍速を主張。同日 GitHub Copilot でも GA 開始
+- **Gemini Omni Flash**: あらゆる入力（テキスト / 画像 / 音声）から動画出力を生成できる新マルチモーダルモデル
+- **Gemini 3.5 Pro**: 推論強化版を 2026 年 6 月に公開予定
+- **Gemini Spark**: Gemini アプリ上の 24/7 動作エージェント。Gemini 3.5 上で動作、Gmail / Docs / Slides と連携、クラウドで継続動作。米国・Google AI Ultra ベータが発表翌週開始
+- **Spark のユースケース例（公式）**: 月次明細から隠れサブスク抽出、受信トレイの学校 / 行政書類の締切抽出と要約配信、メール / チャットからの議事録自動化と Docs まとめ・フォローアップ作成
+- **その他キーノート発表**: Ask YouTube（米国向け夏ロールアウト）、Docs Live（音声→ドキュメント、有料）、Daily Brief（メール / カレンダー / タスク統合ダイジェスト）、Android Halo（エージェント進捗 UI、年内）、検索の生成 UI と情報エージェント、TPU 8t / 8i、自動脆弱性検出 Code Mender、インテリジェントアイウェア（音声版が 2026 年秋）、SynthID の Search / Chrome 拡張
+- **料金**: 主軸プランは Google AI Ultra（$100/月）。Pro より高い使用上限・並列度を提供
+
+## 業務インパクト（一般企業向け）
+
+最も大きい影響は、**Workspace を業務基盤に置いている組織にとって、Gemini Spark が「アプリ操作の代行者」として刺さるレイヤーに入ったこと**です。これまで「Gemini for Workspace を使う」という議論は、文書要約・草案生成・スプレッドシート関数の補助といった**受動的な活用**が中心でした。Spark は「メール監視→締切抽出→定例配信」「会議メモ→Docs まとめ→フォローアップ送付」を**ユーザーが指示しなくても継続的に動かす**設計のため、業務ルール側に「Spark にどこまで任せていいか」「個人情報 / 機密文書を含む受信箱に常駐させていいか」という新しいガバナンス論点が出てきます。Workspace 管理者は、Ultra 個人契約での無秩序な利用を許容するか、組織契約 / Enterprise 版を待つかの判断が必要です。
+
+モデル側では、**3.5 Flash の半額・4 倍速** が事実であれば、これまで「Sonnet / GPT-5 Mini で十分」と判断していた業務系ワークロード（社内文書 Q&A、定型問い合わせ要約、レビュー一次対応）を Flash 階層に倒し直す再評価の余地があります。GitHub Copilot で GA したため、社内開発の常用モデルとして検証しやすくなりました。Omni Flash は社内動画コンテンツの自動生成（教育・マニュアル・お客様事例）に効きますが、肖像権・SynthID 表示などのガイドライン整備が前提です。
+
+3.5 Pro は 6 月公開のため、今動かす判断ではなく **「6 月時点で社内ベンチを取り直す」予定** を立てておくのが現実的です。AI Ultra（$100/月）契約は、CTO / 情シスが「個人契約か組織契約か」を仕分けるための一次資料として整理しておく価値があります。
+
+## 副業・個人活用視点
+
+副業・個人クリエイター視点では、**Spark のベータが米国 Ultra に閉じている**点が現実の制約です。日本からは VPN / 米国カード前提になりがちで、業務利用には推奨しにくい段階。ただし、コンテンツ作成・ニュースレター運営・受託業務の進捗管理を「Gmail と Docs に集約して、Spark に毎朝ダイジェストを作らせる」という運用は Ultra 加入が日本展開した時点で即試せるユースケースとして筋がよく、**今のうちに Gmail のラベル設計やフォルダ運用を整理しておく**ことが Spark 投入時の立ち上げ速度に直結します。
+
+副業マネタイズ視点では、**3.5 Flash の安さ × 速さ** が API 利用コストを大きく下げる可能性があります。社内 SaaS の AI 機能・ボイスエージェント・要約 API などを Flash 階層で組み直すと月額が半分以下になる可能性があり、フリーランス案件で「コスト最適化リファクタ」を提案できる材料になります。Omni Flash の動画出力は、ショート動画系の副業（YouTube Shorts / TikTok 解説動画）で「テキスト原稿→動画化」のパイプラインを 1 社（Google）に寄せられる選択肢が増えました。
