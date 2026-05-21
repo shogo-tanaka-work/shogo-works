@@ -1,0 +1,45 @@
+---
+title: "Copilot Chat (web) で全 Gemini モデルが利用停止、GPT-5.2 Codex / GPT-5.4 nano も retire"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-05-20
+sourceUrl: "https://github.blog/changelog/2026-05-20-updates-to-available-models-in-copilot-on-web"
+summary: "GitHub Copilot Chat (web) 上の利用可能モデルから、**全 Gemini モデル**および **GPT-5.2 Codex / GPT-5.4 nano** が削除された。OpenAI 系と Claude 系のモデルは価格帯を問わず引き続き利用可能。GitHub は「より一貫性のある高品質な応答」のためモデル選択肢を絞ったと説明。前日（5/19）の『Gemini 3.5 Flash が Copilot で GA』とは Web / IDE でチャネルが分かれる構図で、Web では Gemini を選べなくなる一方、VS Code 等の IDE 統合版では引き続き Gemini 3.5 Flash が使える。"
+impact: "「Copilot 全体で Gemini が使える」という大まかな理解で社内ルールを組んでいると、Web 利用者の体験が突然変わる。チャネル別（Web / IDE / Mobile）で対応モデルが異なる前提を踏まえ、社内モデルガイドの見直しが必要。Web で Gemini を中心に使っていたユーザーは OpenAI / Claude への切替が強制される。"
+tags: ["github-copilot", "model-retire", "gemini", "web", "policy"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+GitHub は 2026 年 5 月 20 日、Copilot Chat **(web 版)** の利用可能モデルを整理し、**全 Gemini モデル**および **GPT-5.2 Codex / GPT-5.4 nano** を削除しました。残ったのは **OpenAI 系と Claude 系**で、価格帯を問わず引き続き利用可能です。GitHub 自身は「**より一貫性のある高品質な応答**」を実現するため選択肢を絞った、と説明しています。
+
+タイミング的に重要なのは、**前日 5/19 に「Gemini 3.5 Flash が Copilot で GA」**として発表されたばかり、という点です。同じ Copilot ブランドの中で **Web では Gemini を一括除外、IDE では Gemini 3.5 Flash を GA**という、チャネル別に分岐した方針が同じ週に走った形になります。
+
+つまり今後の Copilot は **「Web 版は OpenAI / Claude 系のみ」「VS Code 等の IDE 統合版は Gemini 3.5 Flash を含む三つ巴」**という、利用面（Web / IDE / Mobile）でモデル戦略が分かれる構図が定着しつつあります。
+
+## 何が変わったか
+
+- Copilot Chat (web) から **全 Gemini モデル**が削除
+- 同様に **GPT-5.2 Codex / GPT-5.4 nano** も削除
+- OpenAI 系 / Claude 系は価格帯を問わず継続利用可能
+- IDE 統合版（VS Code 等）は影響なし
+- IDE 側では前日 5/19 に **Gemini 3.5 Flash が GA**したばかり
+
+## 業務インパクト（一般企業向け）
+
+社内で「Copilot で使えるモデル」を整理しているドキュメントは、**Web / IDE / Mobile のチャネル別表**に書き換える必要があります。これまで「全チャネル共通でこれらのモデルが使える」前提で社内ガイドを作っていた場合、Web 利用者の体験が今回の変更で大きく変わり、混乱の原因になります。
+
+特に **Web 上で Gemini を中心に使っていたチーム**（軽量・低コストモデルとして Gemini Flash を主軸にしていた等）は、強制的に OpenAI / Claude 系への切替を求められます。コスト・速度感が変わる可能性があるため、月次プレミアムリクエストの想定も見直しが必要です。
+
+組織として **モデル選択方針**を持っている場合は、「**Web ではモデル選択肢が絞られている前提で運用**」「**Gemini を使いたければ IDE で**」のような明示的なルールを敷くと、混乱を抑えられます。
+
+## 副業・個人活用視点
+
+個人で Copilot Web を使っていて Gemini を選んでいた人は、**強制的に OpenAI / Claude 系への切替**が求められます。コスト感・応答速度・回答スタイルが変わるので、しばらくは複数モデルを試して肌に合うものを選び直すフェーズが入ります。
+
+「IDE では Gemini 3.5 Flash が GA したばかりなのに Web ではゼロ」という分岐は直感的ではないので、**チャネル切替時の挙動差**を理解しておくとストレスが減ります。Issue トリアージ・PR レビュー・ドキュメント生成のような Web 寄りの作業では OpenAI / Claude、コーディング・補完のような IDE 寄りの作業では Gemini も含めた使い分け、という構図を頭に入れておくと判断が早くなります。
+
+GitHub 側のアナウンスでは新規追加モデルへの言及はなく、**選択肢を絞り込むことが主目的**なので、Web のモデル一覧は今後しばらくこの絞り込み構成が続く可能性が高いと見ておくとよいです。

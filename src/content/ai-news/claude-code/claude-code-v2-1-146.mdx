@@ -1,0 +1,59 @@
+---
+title: "Claude Code v2.1.146、/simplify が /code-review に改名・Auto Mode の質問抑制を調整"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-21
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.146"
+summary: "Claude Code v2.1.146 が公開された。`/simplify` が `/code-review` に改名され、optional な effort level（処理深度）を受け付けるようになった。Auto Mode は、ユーザーまたはスキルが明示的に `AskUserQuestion` に依存する場合は確認質問を抑制しない挙動に変更され、自動化と対話のバランスが調整された。Windows pwsh、MCP ページネーション、Windows Terminal の背景セッションちらつき、NTFS ジャンクション、`/theme` の Esc 無反応、Agent SDK 経由のストリーミング例外など、運用上効く修正が15項目入っている。"
+impact: "コマンド改名 (`/simplify` → `/code-review`) は社内ドキュメントやスキルテンプレに地味だが広く波及する。Auto Mode の `AskUserQuestion` 非抑制は、スキル側で明示的にユーザー確認を挟みたいケースが安全に動くようになる重要な調整。Windows 環境 / MCP 連携 / OTEL 観測を回しているチームは修正の恩恵が大きいので、特に支障がなければ早めに更新したい。"
+tags: ["claude-code", "code-review", "auto-mode", "windows", "mcp", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/new-commands-2026"
+  - "/knowledge/ai-tools/claude-code/mcp"
+draft: false
+---
+
+## 要約
+
+Anthropic は 2026 年 5 月 21 日、Claude Code **v2.1.146** を公開しました。前日の v2.1.145 が `claude agents --json` と OTEL 強化など「外部連携・観測性」を主軸にしたのに対し、今回は **コマンド体系の整理と Auto Mode の挙動調整、Windows / MCP 周りの修正**を中心にした更新です。
+
+最大のトピックは **`/simplify` → `/code-review` への改名**です。レビュー目的に即した名前に変わり、合わせて optional な **effort level**（処理深度）を指定できるようになりました。社内のレビュー運用テンプレや教材で `/simplify` を案内している場合は、対応の差し替えが必要になります。
+
+挙動面では **Auto Mode が、ユーザーまたはスキルが明示的に `AskUserQuestion` に依存する場面では確認質問を抑制しない**ように変わりました。Auto Mode は基本的に「人に確認を取らずに先へ進む」前提のモードですが、スキル側が明示的にユーザー判断を要求する設計になっている場合（破壊的操作の最終確認など）、それを潰してしまうと安全側に倒せません。今回の調整で、**「自動化したいけど重要な分岐は人に聞く」設計が壊れない**ようになりました。
+
+15 項目のバグ修正には、現場で効くものが多く含まれています。**Windows の winget / Microsoft Store 経由 pwsh でのコマンドラインエラー**、**MCP ページネーション対応サーバーで 2 ページ目以降がドロップ**、**Windows Terminal でストリーミング中の背景セッションちらつき**、**バックグラウンドジョブのワークツリー削除が NTFS ジャンクションに非追従**など、Windows ユーザーと MCP 多用ユーザーには直接効く修正です。`/theme` 色エディタで Esc が無反応・GNOME Terminal の右クリック貼り付けが効かない、といった UI 系の小さなストレスも解消されました。
+
+## 何が変わったか
+
+- `/simplify` が `/code-review` に改名、optional な effort level を受け付け
+- Auto Mode が `AskUserQuestion` 必須のスキル・ユーザー指定では確認を抑制しなくなる
+- 大規模ファイル編集の差分表示性能向上
+- ネイティブアップデータがネットワーク一時障害でリトライ
+- バックグラウンド化セッションが既付与権限を再プロンプトしない
+- 【修正】Windows pwsh (winget / Microsoft Store 経由) のコマンドラインエラー
+- 【修正】MCP ページネーション対応サーバーで2ページ目以降のアイテムがドロップ
+- 【修正】Windows Terminal でストリーミング中の背景セッションちらつき
+- 【修正】Windows バックグラウンドジョブのワークツリー削除が NTFS ジャンクションに非追従
+- 【修正】スキルのみ入力したセッションで `/background` が拒否される
+- 【修正】`/theme` 色エディタで Esc キーが無反応
+- 【修正】Agent SDK 経由実行時のストリーミング終了後の例外
+- 【修正】`forceLoginOrgUUID` / `forceLoginMethod` がサードパーティプロバイダーに非適用
+- 【修正】GNOME Terminal の右クリック・中クリック貼り付け
+- 【修正】`CLAUDE_CODE_SUBAGENT_MODEL` がマルチエージェントセッションで子プロセスに非伝播
+
+## 業務インパクト（一般企業向け）
+
+`/simplify` → `/code-review` の改名は、**社内ドキュメント・オンボーディング資料・スキルテンプレ**を整備している組織に広く波及します。`/simplify` を案内している箇所をまとめて棚卸しし、effort level の指定例（例: `/code-review high` のように深度を上げる運用）も併記する更新作業が必要です。Pull Request レビューを Claude Code に任せる運用を組んでいるチームは、effort level 別の用途分け（quick / standard / deep）を運用ガイドに整理しておくと、レビュー観点のばらつきが減ります。
+
+Auto Mode の `AskUserQuestion` 非抑制は、**スキル開発者にとっての安全側調整**です。自社スキルで「破壊的操作の前にユーザー確認を入れる」設計をしている場合、これまで Auto Mode で確認が飛ばされてしまう懸念がありましたが、今回の修正で安心して使えます。逆に「Auto Mode なら一切確認しない」前提でスキルを作っていた場合、想定外に確認質問が出るケースが発生するため、自社スキルの `AskUserQuestion` 呼び出し箇所を一度棚卸しするとよいです。
+
+Windows / MCP 関連の修正は、**Windows を標準開発機にしている組織や、社内 MCP サーバーをページネーション対応で実装している組織**には直接効きます。MCP のページ送り問題は「一見動いているけど2ページ目以降のデータが落ちている」というサイレント不整合を生んでいた可能性があるため、これまで MCP 経由で大量データを扱っていたユースケースは挙動の再確認が安全です。
+
+## 副業・個人活用視点
+
+個人運用で一番影響するのは **`/simplify` → `/code-review` の改名**です。エイリアスやスニペット、自前メモを `/simplify` で組んでいる場合、無言で動かなくなるリスクがあります。今のうちに置換しておくのが安全です。
+
+Auto Mode を多用している人は、**自分のスキル設定で `AskUserQuestion` を入れている箇所がないか**を確認しておくと、想定外の質問プロンプトに驚かずに済みます。逆に「自動で進めたいから極力質問させたくない」ワークフロー（夜間バッチ的に走らせる用途など）では、スキル側の `AskUserQuestion` を外す調整が必要です。
+
+Windows ユーザー個人にとっては、winget / Microsoft Store 経由 pwsh のエラー修正、NTFS ジャンクション周りの修正、GNOME Terminal の貼り付け修正などが体感の改善ポイントです。これまで「なんとなく動きがおかしい」だった部分が解消されているので、Windows / Linux デスクトップ環境を主にしている人は素直にアップデート推奨です。
