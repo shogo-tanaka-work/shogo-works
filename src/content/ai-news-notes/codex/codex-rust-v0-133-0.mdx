@@ -1,0 +1,12 @@
+---
+title: "OpenAI Codex 0.133.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-133-0"
+date: 2026-05-21
+tags: ["codex", "goals", "permission-profiles", "extensions"]
+---
+
+workflows-goals 教材は前提の更新が必要。Goals は 0.133.0 で experimental を卒業し、既定で有効化されたため、教材内に「experimental」「試験的機能」といった注記があれば削除し、「専用ストレージに保存され、ターンをまたいで進捗を追跡する標準機能」として記述する。Goal mode は CLI（0.133.0）と Codex アプリ（26.519）の両方で同時に正式化された点も補足候補。
+
+approval-modes-sandbox / enterprise-admin 教材には、権限プロファイルの強化を恒久情報として追記する。list API・継承（inheritance）・managed な `requirements.toml` 対応・実行時リフレッシュにより、権限が「単発の承認設定」から「再利用・継承・中央管理できるプロファイル」へ性格が変わったこと、Windows サンドボックスとの統合が強化されたことを、組織統制の文脈で1段書き足す。
+
+hooks 教材では `SubagentStart` / `SubagentStop` フックの追加と、拡張が観測できるライフサイクルイベント（subagent 開始/停止、ツール実行、ターンメタデータ）の拡充を、観測・監査の章に追記する候補。Knowledge 本体には個別バージョン番号や速報的な変更点は持ち込まず、機能の恒久的な位置づけのみ反映する。

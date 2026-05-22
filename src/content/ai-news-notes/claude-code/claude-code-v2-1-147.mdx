@@ -1,0 +1,12 @@
+---
+title: "Claude Code v2.1.147 / v2.1.148 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-147"
+date: 2026-05-21
+tags: ["claude-code", "code-review", "background-sessions", "hooks"]
+---
+
+new-commands-2026 教材の `/code-review` 記述を更新候補。v2.1.146 では「`/simplify` からの改名」段階だったが、v2.1.147 で「effort level 付きで correctness バグを報告し、`--comment` で GitHub PR にインラインコメントを投稿する」コマンドへ実体化し、旧 cleanup-and-fix 挙動は削除された。教材は「改名」ではなく「コードレビューコマンドとしての機能」を主軸に書き換え、`/code-review <effort>` と `--comment` の使い分け例を1セクション追加する。
+
+agent-teams / background 教材には、ピン留めバックグラウンドセッションのライフサイクル（アイドル時も常駐・本体更新時はその場で再起動・メモリ逼迫時は非ピン留めより後に解放）を恒久情報として1段追記する候補。「ピン留め＝常駐ワーカー、非ピン留め＝使い捨て」という運用の作法も補足できる。
+
+hooks 教材では、フック `if` 条件が `PowerShell(*)` のワイルドカードでしか一致せず `PowerShell(git push*)` のような形が効かなかった不具合が修正された点に触れ、条件の書き方の注意として残す価値がある。Knowledge 本体へはバージョン番号などの速報情報を持ち込まず、「`/code-review` の正式な役割」「ピン留めセッションの生存ルール」のような恒久的に効く知識のみ反映する。
