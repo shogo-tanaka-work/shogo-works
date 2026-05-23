@@ -67,7 +67,7 @@ type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
 const { entry, currentSlug, sidebarGroups, previous, next } =
   Astro.props as Props;
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
 ---
 
 <KnowledgeLayout
@@ -82,6 +82,7 @@ const { Content } = await render(entry);
   sidebarGroups={sidebarGroups}
   previous={previous}
   next={next}
+  headings={headings}
 >
   <Content />
 </KnowledgeLayout>

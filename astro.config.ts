@@ -5,8 +5,11 @@ import tailwindcss from "@tailwindcss/vite";
 import cloudflare from "@astrojs/cloudflare";
 import rehypeExternalLinks from "rehype-external-links";
 
+const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
+const isTest = proc?.env?.VITEST === "true" || proc?.env?.NODE_ENV === "test";
+
 export default defineConfig({
-  adapter: cloudflare(),
+  ...(isTest ? {} : { adapter: cloudflare() }),
   markdown: {
     shikiConfig: {
       theme: "one-dark-pro",
