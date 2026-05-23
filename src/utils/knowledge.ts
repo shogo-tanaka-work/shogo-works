@@ -171,6 +171,35 @@ export function getSubcategories(
 }
 
 /**
+ * サブカテゴリ切替ドロップダウン等で使う、全カテゴリ×全サブカテゴリの
+ * フラットな選択肢リスト。カテゴリ定義順 → サブカテゴリ定義順で返す。
+ */
+export interface SubcategoryNavOption {
+  category: KnowledgeCategory;
+  categoryLabel: string;
+  subcategorySlug: string;
+  subcategoryLabel: string;
+  href: string;
+}
+
+export function getAllSubcategoryNavOptions(): SubcategoryNavOption[] {
+  const options: SubcategoryNavOption[] = [];
+  for (const cat of categories) {
+    const subs = subcategories[cat.slug] ?? [];
+    for (const sub of subs) {
+      options.push({
+        category: cat.slug,
+        categoryLabel: cat.label,
+        subcategorySlug: sub.slug,
+        subcategoryLabel: sub.label,
+        href: `/knowledge/${cat.slug}/${sub.slug}`,
+      });
+    }
+  }
+  return options;
+}
+
+/**
  * UnifiedArticle 配列を tier 単位でグループ化する。
  * tier 定義の各エントリの `sortOrderStart` をしきい値にして区切る。
  *

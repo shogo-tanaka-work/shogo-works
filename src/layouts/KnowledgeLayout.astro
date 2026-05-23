@@ -5,6 +5,7 @@ import Badge from "@/components/ui/Badge.astro";
 import ArticleSidebar from "@/components/knowledge/ArticleSidebar.astro";
 import ArticleToc from "@/components/knowledge/ArticleToc.astro";
 import { categories } from "@/data/knowledge";
+import { getAllSubcategoryNavOptions } from "@/utils/knowledge";
 import type { KnowledgeTier } from "@/data/knowledgeTiers";
 import type { KnowledgeCategory } from "@/types";
 import type { MarkdownHeading } from "astro";
@@ -61,6 +62,7 @@ const {
 
 const categoryMeta = categories.find((c) => c.slug === category);
 const categoryLabel = categoryMeta?.label ?? category;
+const navOptions = getAllSubcategoryNavOptions();
 
 const articleBasePath = subcategorySlug
   ? `/knowledge/${category}/${subcategorySlug}`
@@ -127,6 +129,7 @@ const jsonLd = JSON.stringify({
             categorySlug={category}
             subcategorySlug={subcategorySlug}
             subcategoryLabel={subcategoryLabel}
+            navOptions={navOptions}
           />
         </aside>
 
