@@ -1,6 +1,7 @@
 ---
 import type { KnowledgeCategory } from "@/types";
 import type { KnowledgeTier } from "@/data/knowledgeTiers";
+import type { SubcategoryNavOption } from "@/utils/knowledge";
 
 interface SidebarArticle {
   slug: string;
@@ -22,6 +23,8 @@ interface Props {
   categorySlug: KnowledgeCategory;
   subcategorySlug?: string;
   subcategoryLabel?: string;
+  /** サブカテゴリ切替ドロップダウンの選択肢（任意） */
+  navOptions?: SubcategoryNavOption[];
 }
 
 const {
@@ -31,6 +34,7 @@ const {
   categorySlug,
   subcategorySlug,
   subcategoryLabel,
+  navOptions = [],
 } = Astro.props;
 
 const headingLabel = subcategoryLabel ?? categoryLabel;
@@ -41,9 +45,54 @@ const articleBasePath = subcategorySlug
   ? `/knowledge/${categorySlug}/${subcategorySlug}`
   : `/knowledge/${categorySlug}`;
 const hasTiers = groups.some((g) => g.tier !== null);
+const totalArticles = groups.reduce((sum, g) => sum + g.articles.length, 0);
+
+// navOptions をカテゴリ単位にまとめる（カテゴリ定義順は維持）
+const navGroups: { category: KnowledgeCategory; categoryLabel: string; options: SubcategoryNavOption[] }[] = [];
+for (const opt of navOptions) {
+  const last = navGroups[navGroups.length - 1];
+  if (last && last.category === opt.category) {
+    last.options.push(opt);
+  } else {
+    navGroups.push({
+      category: opt.category,
+      categoryLabel: opt.categoryLabel,
+      options: [opt],
+    });
+  }
+}
+const currentHref = headingHref;
 ---
 
 <nav class="text-sm" aria-label={`${headingLabel} の記事一覧`}>
+  {
+    navGroups.length > 0 && (
+      <div class="mb-4">
+        <label class="block text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+          サブカテゴリ
+        </label>
+        <select
+          class="w-full text-sm rounded-md border border-border bg-background px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/40 focus:border-teal-500/60"
+          aria-label="サブカテゴリを切り替える"
+          onchange="if(this.value)window.location.href=this.value"
+        >
+          {navGroups.map((g) => (
+            <optgroup label={g.categoryLabel}>
+              {g.options.map((opt) => (
+                <option
+                  value={opt.href}
+                  selected={opt.href === currentHref}
+                >
+                  {opt.subcategoryLabel}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </select>
+      </div>
+    )
+  }
+
   <a
     href={headingHref}
     class="block text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-teal-600 transition-colors mb-3"
@@ -62,9 +111,9 @@ const hasTiers = groups.some((g) => g.tier !== null);
                 group.articles.some((a) => a.slug === currentSlug)
               }
             >
-              <summary class="flex items-center gap-2 cursor-pointer select-none py-1.5 text-[11px] font-bold uppercase tracking-wide text-foreground/80 hover:text-teal-600 transition-colors list-none">
+              <summary class="flex items-start gap-2 cursor-pointer select-none py-1.5 text-[11px] font-bold uppercase tracking-wide text-foreground/80 hover:text-teal-600 transition-colors list-none">
                 <svg
-                  class="w-3 h-3 transition-transform duration-200 group-open/tier:rotate-90 flex-shrink-0"
+                  class="w-3 h-3 mt-1 transition-transform duration-200 group-open/tier:rotate-90 flex-shrink-0"
                   viewBox="0 0 12 12"
                   fill="none"
                   aria-hidden="true"
@@ -78,13 +127,25 @@ const hasTiers = groups.some((g) => g.tier !== null);
                   />
                 </svg>
                 {group.tier && (
-                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/10 text-teal-600 text-[10px] font-semibold flex-shrink-0">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/10 text-teal-600 text-[10px] font-semibold flex-shrink-0 mt-0.5">
                     {group.tier.order}
                   </span>
                 )}
-                <span class="flex-1">
-                  {group.tier ? group.tier.label : "記事一覧"}
+                <span class="flex-1 min-w-0">
+                  <span class="block">
+                    {group.tier ? group.tier.label : "記事一覧"}
+                  </span>
+                  {group.tier?.description && (
+                    <span class="block mt-0.5 text-[10px] font-normal normal-case tracking-normal text-muted-foreground/90 leading-snug line-clamp-2">
+                      {group.tier.description}
+                    </span>
+                  )}
                 </span>
+                {group.tier && (
+                  <span class="ml-2 mt-0.5 text-[10px] font-medium normal-case tracking-normal text-muted-foreground tabular-nums flex-shrink-0">
+                    {group.articles.length} / {totalArticles} 記事
+                  </span>
+                )}
               </summary>
               <ol class="mt-2 ml-1.5 space-y-1 border-l border-border">
                 {group.articles.map((article) => {

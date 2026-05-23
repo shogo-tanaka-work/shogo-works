@@ -4,6 +4,7 @@ import {
   getArticlesByCategory,
   getArticlesByCategoryAndSubcategory,
   getSubcategories,
+  getAllSubcategoryNavOptions,
   getAdjacentArticles,
   getAllTags,
   getArticlesByTag,
@@ -15,6 +16,7 @@ import {
   toUnifiedFromExternal,
   toUnifiedFromInternal,
 } from "@/utils/knowledge";
+import { categories, subcategories } from "@/data/knowledge";
 import type { ExternalArticle } from "@/types";
 
 interface MockEntry {
@@ -543,6 +545,55 @@ describe("getSubcategories", () => {
   it("正常系: サブカテゴリ未登録カテゴリのとき、空配列を返すこと", () => {
     const result = getSubcategories("career");
     expect(result).toEqual([]);
+  });
+});
+
+describe("getAllSubcategoryNavOptions", () => {
+  it("正常系: 全カテゴリ×全サブカテゴリの総数を返すこと", () => {
+    const expected = categories.reduce(
+      (sum, c) => sum + (subcategories[c.slug]?.length ?? 0),
+      0,
+    );
+    const result = getAllSubcategoryNavOptions();
+    expect(result).toHaveLength(expected);
+  });
+
+  it("正常系: href が /knowledge/{category}/{subcategory} 形式であること", () => {
+    const result = getAllSubcategoryNavOptions();
+    for (const opt of result) {
+      expect(opt.href).toBe(
+        `/knowledge/${opt.category}/${opt.subcategorySlug}`,
+      );
+    }
+  });
+
+  it("正常系: サブカテゴリ未定義カテゴリ（career）が含まれないこと", () => {
+    const result = getAllSubcategoryNavOptions();
+    expect(result.some((o) => o.category === "career")).toBe(false);
+  });
+
+  it("正常系: カテゴリ定義順 → サブカテゴリ定義順で返ること", () => {
+    const result = getAllSubcategoryNavOptions();
+    // 各カテゴリの開始 index がカテゴリ定義順に従う
+    const aiToolsIdx = result.findIndex((o) => o.category === "ai-tools");
+    const webDevIdx = result.findIndex((o) => o.category === "web-development");
+    expect(aiToolsIdx).toBeLessThan(webDevIdx);
+
+    // ai-tools 内ではサブカテゴリ定義順
+    const aiToolsSubs = result
+      .filter((o) => o.category === "ai-tools")
+      .map((o) => o.subcategorySlug);
+    const aiToolsDefinedOrder = subcategories["ai-tools"]?.map((s) => s.slug) ?? [];
+    expect(aiToolsSubs).toEqual(aiToolsDefinedOrder);
+  });
+
+  it("正常系: categoryLabel と subcategoryLabel がメタ情報と一致すること", () => {
+    const result = getAllSubcategoryNavOptions();
+    const claudeCode = result.find(
+      (o) => o.category === "ai-tools" && o.subcategorySlug === "claude-code",
+    );
+    expect(claudeCode?.categoryLabel).toBe("AI Tools");
+    expect(claudeCode?.subcategoryLabel).toBe("Claude Code");
   });
 });
 
