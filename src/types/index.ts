@@ -147,3 +147,45 @@ export interface AiNewsStatusMeta {
   label: string;
   description: string;
 }
+
+// --- Top page: featured knowledge / media outlets / resources / tech stack ---
+
+export type FeaturedSource = "internal" | "external";
+export type FeaturedPlatform = "zenn" | "qiita" | "note" | "youtube";
+
+export interface FeaturedKnowledgeItem {
+  title: string;
+  description: string;
+  href: string;
+  source: FeaturedSource;
+  platform?: FeaturedPlatform;
+  categoryLabel?: string;
+}
+
+export interface MediaOutlet {
+  name: string;
+  description: string;
+  url: string;
+  iconSlug: string; // simple-icons の slug
+  brandColor?: string;
+  comingSoon?: boolean;
+}
+
+export interface ResourceItem {
+  title: string;
+  description: string;
+  href: string;
+  comingSoon: boolean;
+}
+
+export interface TechItem {
+  name: string;
+  iconSlug: string;
+  url?: string;
+}
+
+export interface TechCategory {
+  key: string;
+  label: string;
+  items: TechItem[];
+}
