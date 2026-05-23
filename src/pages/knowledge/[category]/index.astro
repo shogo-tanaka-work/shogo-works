@@ -23,7 +23,7 @@ interface Props {
   category: CategoryMeta;
 }
 
-const { category } = Astro.props;
+const { category } = Astro.props as unknown as Props;
 const allEntries = await getCollection("knowledge");
 const allCategoryArticles = mergeArticlesByCategory(
   externalArticles,

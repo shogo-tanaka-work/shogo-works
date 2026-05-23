@@ -52,19 +52,41 @@ const hasTiers = groups.some((g) => g.tier !== null);
   </a>
   {
     hasTiers ? (
-      <div class="space-y-5">
+      <div class="space-y-2">
         {groups.map((group) =>
           group.articles.length > 0 ? (
-            <div>
-              {group.tier && (
-                <h3 class="text-[11px] font-bold uppercase tracking-wide text-foreground/80 mb-2 flex items-center gap-2">
-                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/10 text-teal-600 text-[10px] font-semibold">
+            <details
+              class="knowledge-sidebar-group group/tier"
+              open={
+                group.tier === null ||
+                group.articles.some((a) => a.slug === currentSlug)
+              }
+            >
+              <summary class="flex items-center gap-2 cursor-pointer select-none py-1.5 text-[11px] font-bold uppercase tracking-wide text-foreground/80 hover:text-teal-600 transition-colors list-none">
+                <svg
+                  class="w-3 h-3 transition-transform duration-200 group-open/tier:rotate-90 flex-shrink-0"
+                  viewBox="0 0 12 12"
+                  fill="none"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M4 3l4 3-4 3"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  />
+                </svg>
+                {group.tier && (
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-teal-500/10 text-teal-600 text-[10px] font-semibold flex-shrink-0">
                     {group.tier.order}
                   </span>
-                  {group.tier.label}
-                </h3>
-              )}
-              <ol class="space-y-1 border-l border-border">
+                )}
+                <span class="flex-1">
+                  {group.tier ? group.tier.label : "記事一覧"}
+                </span>
+              </summary>
+              <ol class="mt-2 ml-1.5 space-y-1 border-l border-border">
                 {group.articles.map((article) => {
                   const isCurrent = article.slug === currentSlug;
                   return (
@@ -85,7 +107,7 @@ const hasTiers = groups.some((g) => g.tier !== null);
                   );
                 })}
               </ol>
-            </div>
+            </details>
           ) : null,
         )}
       </div>
@@ -116,3 +138,14 @@ const hasTiers = groups.some((g) => g.tier !== null);
     )
   }
 </nav>
+
+<style>
+  /* Safari など details summary のデフォルトマーカー除去 */
+  .knowledge-sidebar-group summary::-webkit-details-marker {
+    display: none;
+  }
+  .knowledge-sidebar-group summary::marker {
+    display: none;
+    content: "";
+  }
+</style>

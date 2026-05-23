@@ -11,6 +11,7 @@ describe("Astro build", () => {
         timeout: TIMEOUT,
         stdio: "pipe",
         maxBuffer: MAX_BUFFER,
+        env: { ...process.env, VITEST: "", NODE_ENV: "production" },
       });
     }).not.toThrow();
   }, TIMEOUT);
@@ -21,6 +22,7 @@ describe("Astro build", () => {
         timeout: TIMEOUT,
         stdio: "pipe",
         maxBuffer: MAX_BUFFER,
+        env: { ...process.env, VITEST: "", NODE_ENV: "production" },
       });
     }).not.toThrow();
   }, TIMEOUT);

@@ -3,9 +3,11 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import Badge from "@/components/ui/Badge.astro";
 import ArticleSidebar from "@/components/knowledge/ArticleSidebar.astro";
+import ArticleToc from "@/components/knowledge/ArticleToc.astro";
 import { categories } from "@/data/knowledge";
 import type { KnowledgeTier } from "@/data/knowledgeTiers";
 import type { KnowledgeCategory } from "@/types";
+import type { MarkdownHeading } from "astro";
 
 interface SidebarArticle {
   slug: string;
@@ -37,6 +39,7 @@ interface Props {
   sidebarGroups: SidebarGroup[];
   previous: AdjacentArticle | null;
   next: AdjacentArticle | null;
+  headings?: readonly MarkdownHeading[];
 }
 
 const {
@@ -53,6 +56,7 @@ const {
   sidebarGroups,
   previous,
   next,
+  headings = [],
 } = Astro.props;
 
 const categoryMeta = categories.find((c) => c.slug === category);
@@ -107,13 +111,14 @@ const jsonLd = JSON.stringify({
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonLd} />
   </Fragment>
-  <article class="py-20 px-4">
-    <div class="max-w-6xl mx-auto">
+  <article class="py-20 px-6 lg:px-10">
+    <div class="max-w-[1600px] mx-auto">
       <Breadcrumb items={breadcrumbItems} />
 
-      <div class="lg:flex lg:gap-10 lg:items-start">
+      <div class="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)_15rem] lg:gap-10 lg:items-start">
         <aside
-          class="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
+          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
+          aria-label="記事一覧"
         >
           <ArticleSidebar
             groups={sidebarGroups}
@@ -125,7 +130,7 @@ const jsonLd = JSON.stringify({
           />
         </aside>
 
-        <div class="flex-1 min-w-0 max-w-3xl">
+        <div class="min-w-0">
           <header class="mb-10">
             <div class="flex items-center gap-2 flex-wrap mb-4">
               <Badge variant="teal">{categoryLabel}</Badge>
@@ -214,6 +219,12 @@ const jsonLd = JSON.stringify({
             </a>
           </footer>
         </div>
+
+        <aside
+          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto"
+        >
+          <ArticleToc headings={headings} />
+        </aside>
       </div>
     </div>
   </article>

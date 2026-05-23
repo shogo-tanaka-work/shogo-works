@@ -1,0 +1,154 @@
+---
+import type { MarkdownHeading } from "astro";
+import { getTocHeadings, type TocItem } from "@/utils/headings";
+
+interface Props {
+  headings: readonly MarkdownHeading[];
+  label?: string;
+}
+
+const { headings, label = "この記事の目次" } = Astro.props;
+const items: TocItem[] = getTocHeadings(headings);
+const hasItems = items.length > 0;
+---
+
+{
+  hasItems && (
+    <nav
+      aria-label={label}
+      class="knowledge-toc text-sm"
+      data-knowledge-toc
+    >
+      <p class="flex items-center gap-2 text-xs font-semibold text-foreground/70 mb-4">
+        <svg
+          class="w-4 h-4"
+          viewBox="0 0 16 16"
+          fill="none"
+          aria-hidden="true"
+        >
+          <path
+            d="M2 3.5h12M2 8h12M2 12.5h8"
+            stroke="currentColor"
+            stroke-width="1.5"
+            stroke-linecap="round"
+          />
+        </svg>
+        目次
+      </p>
+      <ul class="knowledge-toc__list">
+        {items.map((item) => (
+          <li class="knowledge-toc__item">
+            <a
+              href={`#${item.slug}`}
+              class="knowledge-toc__link"
+              data-toc-link={item.slug}
+            >
+              {item.text}
+            </a>
+            {item.children.length > 0 && (
+              <ul class="knowledge-toc__list is-child">
+                {item.children.map((child) => (
+                  <li class="knowledge-toc__item">
+                    <a
+                      href={`#${child.slug}`}
+                      class="knowledge-toc__link is-child"
+                      data-toc-link={child.slug}
+                    >
+                      {child.text}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </li>
+        ))}
+      </ul>
+    </nav>
+  )
+}
+
+<script>
+  import tocbot from "tocbot";
+
+  const SELECTOR = "[data-knowledge-toc]";
+
+  const init = () => {
+    const tocEl = document.querySelector(SELECTOR);
+    if (!tocEl) return;
+    const content = document.querySelector(".knowledge-prose");
+    if (!content) return;
+
+    tocbot.destroy();
+    tocbot.init({
+      tocSelector: SELECTOR + " > ul",
+      contentSelector: ".knowledge-prose",
+      headingSelector: "h2, h3",
+      hasInnerContainers: false,
+      collapseDepth: 6,
+      scrollSmooth: true,
+      scrollSmoothOffset: -80,
+      headingsOffset: 80,
+      activeLinkClass: "knowledge-toc__link--active",
+      listClass: "knowledge-toc__list",
+      linkClass: "knowledge-toc__link",
+      listItemClass: "knowledge-toc__item",
+      orderedList: false,
+    });
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+
+  document.addEventListener("astro:page-load", init);
+</script>
+
+<style is:global>
+  .knowledge-toc__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .knowledge-toc__item {
+    margin: 0;
+  }
+
+  .knowledge-toc__link {
+    display: block;
+    padding: 0.4rem 0 0.4rem 0.875rem;
+    margin-left: 0;
+    border-left: 2px solid transparent;
+    color: hsl(0 0% 55%);
+    line-height: 1.55;
+    font-size: 0.8125rem;
+    text-decoration: none;
+    transition:
+      color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .knowledge-toc__link:hover {
+    color: var(--color-foreground);
+  }
+
+  /* tocbot がネストした ul に自動付与する is-collapsed クラスでもインデントを効かせる */
+  .knowledge-toc__list .knowledge-toc__list,
+  .knowledge-toc__list ul {
+    padding-left: 0.875rem;
+  }
+
+  .knowledge-toc__link.is-child,
+  .knowledge-toc__list .knowledge-toc__list .knowledge-toc__link {
+    font-size: 0.78125rem;
+    color: hsl(0 0% 60%);
+  }
+
+  .knowledge-toc__link--active {
+    color: var(--color-foreground);
+    border-left-color: var(--color-primary);
+    font-weight: 600;
+  }
+</style>
