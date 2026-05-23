@@ -342,6 +342,25 @@ export function getCategoryArticleCount<T extends KnowledgeEntry>(
   return counts;
 }
 
+/**
+ * 公開記事を「最終更新日」の降順で返す。
+ * 各記事の最終更新日は `updatedAt ?? createdAt` で評価する。
+ * 外部記事は updatedAt を持たないため対象外（MDX のみ）。
+ */
+export function getRecentlyUpdatedArticles<T extends KnowledgeEntry>(
+  entries: T[],
+  limit: number,
+): T[] {
+  return entries
+    .filter((entry) => !entry.data.draft)
+    .sort((a, b) => {
+      const aDate = (a.data.updatedAt ?? a.data.createdAt).getTime();
+      const bDate = (b.data.updatedAt ?? b.data.createdAt).getTime();
+      return bDate - aDate;
+    })
+    .slice(0, limit);
+}
+
 export function getRelatedArticles<T extends KnowledgeEntry>(
   entries: T[],
   currentId: string,

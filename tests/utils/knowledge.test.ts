@@ -10,6 +10,7 @@ import {
   getAllTags,
   getArticlesByTag,
   getCategoryArticleCount,
+  getRecentlyUpdatedArticles,
   getRelatedArticles,
   mergeArticles,
   mergeArticlesByCategory,
@@ -732,5 +733,77 @@ describe("toUnifiedFromInternal with subcategory", () => {
     const result = toUnifiedFromInternal(mockEntriesWithSubcategory[0]);
     expect(result.href).toBe("/knowledge/ai-tools/claude-code-intro");
     expect(result.subcategory).toBeUndefined();
+  });
+});
+
+describe("getRecentlyUpdatedArticles", () => {
+  const baseData = {
+    description: "",
+    category: "ai-tools",
+    tags: [],
+    sortOrder: 0,
+    draft: false,
+    author: "田中省伍",
+  };
+  const entries = [
+    {
+      id: "a",
+      data: {
+        ...baseData,
+        title: "A",
+        createdAt: new Date("2026-01-01"),
+        updatedAt: new Date("2026-05-10"),
+      },
+    },
+    {
+      id: "b",
+      data: {
+        ...baseData,
+        title: "B",
+        createdAt: new Date("2026-04-01"),
+        // updatedAt 無し → createdAt で代用される
+      },
+    },
+    {
+      id: "c",
+      data: {
+        ...baseData,
+        title: "C",
+        createdAt: new Date("2026-03-01"),
+        updatedAt: new Date("2026-05-20"),
+      },
+    },
+    {
+      id: "d-draft",
+      data: {
+        ...baseData,
+        title: "D",
+        createdAt: new Date("2026-05-30"),
+        updatedAt: new Date("2026-05-30"),
+        draft: true,
+      },
+    },
+  ];
+
+  it("正常系: updatedAt ?? createdAt の降順で並ぶこと", () => {
+    const result = getRecentlyUpdatedArticles(entries, 10);
+    expect(result.map((e) => e.id)).toEqual(["c", "a", "b"]);
+  });
+
+  it("正常系: updatedAt が無い記事は createdAt で代用されること", () => {
+    const result = getRecentlyUpdatedArticles(entries, 10);
+    // b は createdAt 2026-04-01 なので a(2026-05-10) より後ろ、b単独でも結果に含まれる
+    expect(result.map((e) => e.id)).toContain("b");
+  });
+
+  it("正常系: limit を超える場合、limit 件で打ち切ること", () => {
+    const result = getRecentlyUpdatedArticles(entries, 2);
+    expect(result).toHaveLength(2);
+    expect(result.map((e) => e.id)).toEqual(["c", "a"]);
+  });
+
+  it("異常系: draft 記事は除外されること", () => {
+    const result = getRecentlyUpdatedArticles(entries, 10);
+    expect(result.map((e) => e.id)).not.toContain("d-draft");
   });
 });

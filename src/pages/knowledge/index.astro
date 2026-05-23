@@ -5,12 +5,21 @@ import SectionHeader from "@/components/ui/SectionHeader.astro";
 import CategoryCard from "@/components/knowledge/CategoryCard.astro";
 import ArticleCard from "@/components/knowledge/ArticleCard.astro";
 import { categories, externalArticles } from "@/data/knowledge";
-import { mergeArticles, getUnifiedCategoryCount } from "@/utils/knowledge";
+import {
+  getRecentlyUpdatedArticles,
+  getUnifiedCategoryCount,
+  toUnifiedFromInternal,
+} from "@/utils/knowledge";
 
 const allEntries = await getCollection("knowledge");
-const unified = mergeArticles(externalArticles, allEntries);
 const counts = getUnifiedCategoryCount(externalArticles, allEntries);
-const latestArticles = unified.slice(0, 6);
+const recentlyUpdated = getRecentlyUpdatedArticles(allEntries, 10).map((e) => {
+  const unified = toUnifiedFromInternal(e);
+  return {
+    ...unified,
+    displayDate: e.data.updatedAt ?? e.data.createdAt,
+  };
+});
 
 function getCategoryLabel(slug: string): string {
   return categories.find((c) => c.slug === slug)?.label ?? slug;
@@ -91,20 +100,20 @@ function getCategoryLabel(slug: string): string {
       </div>
 
       {
-        latestArticles.length > 0 && (
+        recentlyUpdated.length > 0 && (
           <div>
             <h2 class="text-2xl font-bold text-foreground mb-6 animate-on-scroll">
-              最新記事
+              最近更新された記事
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {latestArticles.map((article, i) => (
+              {recentlyUpdated.map((article, i) => (
                 <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
                   <ArticleCard
                     title={article.title}
                     description={article.description}
                     categoryLabel={getCategoryLabel(article.category)}
                     tags={article.tags}
-                    createdAt={article.createdAt}
+                    createdAt={article.displayDate}
                     href={article.href}
                     isExternal={article.isExternal}
                     platform={article.platform}
