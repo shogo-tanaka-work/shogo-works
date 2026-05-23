@@ -182,6 +182,38 @@ export interface SubcategoryNavOption {
   href: string;
 }
 
+/**
+ * カテゴリトップページのサブカテゴリカード等で使う、サブカテゴリ単位の集計情報。
+ *
+ * - `articleCount`: 公開状態の MDX 記事数（draft は除外）
+ * - `lastUpdatedAt`: 公開記事の `updatedAt ?? createdAt` の最大値。記事ゼロなら null
+ *
+ * 外部記事は subcategory を持たない仕様のため対象外。
+ */
+export interface SubcategoryMetrics {
+  articleCount: number;
+  lastUpdatedAt: Date | null;
+}
+
+export function getSubcategoryMetrics<T extends KnowledgeEntry>(
+  entries: T[],
+  category: KnowledgeCategory,
+  subcategory: string,
+): SubcategoryMetrics {
+  const matches = getPublishedArticles(entries).filter(
+    (e) =>
+      e.data.category === category && e.data.subcategory === subcategory,
+  );
+  if (matches.length === 0) {
+    return { articleCount: 0, lastUpdatedAt: null };
+  }
+  const lastUpdatedAt = matches.reduce<Date>((acc, e) => {
+    const d = e.data.updatedAt ?? e.data.createdAt;
+    return d.getTime() > acc.getTime() ? d : acc;
+  }, new Date(0));
+  return { articleCount: matches.length, lastUpdatedAt };
+}
+
 export function getAllSubcategoryNavOptions(): SubcategoryNavOption[] {
   const options: SubcategoryNavOption[] = [];
   for (const cat of categories) {

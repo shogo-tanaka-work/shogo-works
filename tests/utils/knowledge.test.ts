@@ -5,6 +5,7 @@ import {
   getArticlesByCategoryAndSubcategory,
   getSubcategories,
   getAllSubcategoryNavOptions,
+  getSubcategoryMetrics,
   getAdjacentArticles,
   getAllTags,
   getArticlesByTag,
@@ -594,6 +595,106 @@ describe("getAllSubcategoryNavOptions", () => {
     );
     expect(claudeCode?.categoryLabel).toBe("AI Tools");
     expect(claudeCode?.subcategoryLabel).toBe("Claude Code");
+  });
+});
+
+describe("getSubcategoryMetrics", () => {
+  const entries: MockEntry[] = [
+    {
+      id: "ai-tools/agents/a",
+      data: {
+        title: "A",
+        description: "",
+        category: "ai-tools",
+        subcategory: "agents",
+        tags: [],
+        sortOrder: 0,
+        createdAt: new Date("2026-04-01"),
+        updatedAt: new Date("2026-04-15"),
+        draft: false,
+        author: "x",
+      },
+    },
+    {
+      id: "ai-tools/agents/b",
+      data: {
+        title: "B",
+        description: "",
+        category: "ai-tools",
+        subcategory: "agents",
+        tags: [],
+        sortOrder: 1,
+        createdAt: new Date("2026-04-10"),
+        // updatedAt なし
+        draft: false,
+        author: "x",
+      },
+    },
+    {
+      id: "ai-tools/agents/draft",
+      data: {
+        title: "Draft",
+        description: "",
+        category: "ai-tools",
+        subcategory: "agents",
+        tags: [],
+        sortOrder: 2,
+        createdAt: new Date("2026-05-01"),
+        updatedAt: new Date("2026-05-01"),
+        draft: true,
+        author: "x",
+      },
+    },
+    {
+      id: "ai-tools/other/c",
+      data: {
+        title: "C",
+        description: "",
+        category: "ai-tools",
+        subcategory: "other",
+        tags: [],
+        sortOrder: 0,
+        createdAt: new Date("2026-03-01"),
+        draft: false,
+        author: "x",
+      },
+    },
+  ];
+
+  it("正常系: 該当サブカテゴリの公開記事数を返すこと", () => {
+    const m = getSubcategoryMetrics(entries, "ai-tools", "agents");
+    expect(m.articleCount).toBe(2);
+  });
+
+  it("正常系: 最終更新日は (updatedAt ?? createdAt) の最大値を返すこと", () => {
+    const m = getSubcategoryMetrics(entries, "ai-tools", "agents");
+    // A.updatedAt=2026-04-15, B.createdAt=2026-04-10 → 2026-04-15
+    expect(m.lastUpdatedAt?.toISOString()).toBe(
+      new Date("2026-04-15").toISOString(),
+    );
+  });
+
+  it("異常系: 該当記事ゼロのとき articleCount=0 / lastUpdatedAt=null", () => {
+    const m = getSubcategoryMetrics(entries, "ai-tools", "none");
+    expect(m.articleCount).toBe(0);
+    expect(m.lastUpdatedAt).toBeNull();
+  });
+
+  it("異常系: draft 記事は count にも lastUpdatedAt にも含まれないこと", () => {
+    const m = getSubcategoryMetrics(entries, "ai-tools", "agents");
+    expect(m.articleCount).toBe(2);
+    // draft の 2026-05-01 が反映されない
+    expect(m.lastUpdatedAt?.getTime()).toBeLessThan(
+      new Date("2026-05-01").getTime(),
+    );
+  });
+
+  it("正常系: 他カテゴリ/他サブカテゴリの記事が混入しないこと", () => {
+    const m = getSubcategoryMetrics(entries, "ai-tools", "other");
+    expect(m.articleCount).toBe(1);
+    expect(m.lastUpdatedAt?.toISOString()).toBe(
+      new Date("2026-03-01").toISOString(),
+    );
   });
 });
 

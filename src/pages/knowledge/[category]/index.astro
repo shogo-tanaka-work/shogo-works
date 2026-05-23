@@ -9,6 +9,7 @@ import { categories, externalArticles } from "@/data/knowledge";
 import {
   mergeArticlesByCategory,
   getSubcategories,
+  getSubcategoryMetrics,
 } from "@/utils/knowledge";
 import type { CategoryMeta } from "@/types";
 
@@ -35,6 +36,17 @@ const articles = allCategoryArticles.filter(
   (a) => a.subcategory === undefined,
 );
 const subcategoryList = getSubcategories(category.slug);
+
+const subcategoryMetrics = subcategoryList.map((sub) => ({
+  meta: sub,
+  metrics: getSubcategoryMetrics(allEntries, category.slug, sub.slug),
+}));
+
+const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
+  year: "numeric",
+  month: "long",
+  day: "numeric",
+});
 ---
 
 <BaseLayout
@@ -59,17 +71,28 @@ const subcategoryList = getSubcategories(category.slug);
               サブカテゴリ
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {subcategoryList.map((sub) => (
+              {subcategoryMetrics.map(({ meta, metrics }) => (
                 <a
-                  href={`/knowledge/${category.slug}/${sub.slug}`}
-                  class="block p-5 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
+                  href={`/knowledge/${category.slug}/${meta.slug}`}
+                  class="flex flex-col p-5 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
                 >
                   <h3 class="font-semibold text-foreground mb-1">
-                    {sub.label}
+                    {meta.label}
                   </h3>
-                  <p class="text-sm text-muted-foreground line-clamp-2">
-                    {sub.description}
+                  <p class="text-sm text-muted-foreground line-clamp-2 mb-3">
+                    {meta.description}
                   </p>
+                  <div class="mt-auto flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-teal-500/10 text-teal-700 font-medium tabular-nums">
+                      {metrics.articleCount}
+                      <span class="font-normal">記事</span>
+                    </span>
+                    {metrics.lastUpdatedAt && (
+                      <span class="tabular-nums">
+                        最終更新: {dateFormatter.format(metrics.lastUpdatedAt)}
+                      </span>
+                    )}
+                  </div>
                 </a>
               ))}
             </div>
