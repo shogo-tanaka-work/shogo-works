@@ -9,10 +9,9 @@ export const mediaOutlets: MediaOutlet[] = [
   {
     name: "note",
     description: "現場視点の AI 活用メモを継続発信",
-    url: "#",
+    url: "https://note.com/shogo123198",
     iconSlug: "note",
     brandColor: "#000000",
-    comingSoon: true,
   },
   {
     name: "X",
