@@ -28,6 +28,46 @@ function getCategoryLabel(slug: string): string {
         subtitle="AI活用・Web開発・DevOpsなど、実践的な技術ナレッジを発信しています"
       />
 
+      <a
+        href="/knowledge/roadmap"
+        class="group block mb-10 animate-on-scroll"
+      >
+        <div
+          class="rounded-3xl p-6 md:p-7 bg-gradient-to-r from-teal-50 to-emerald-50 ring-1 ring-teal-500/20 hover:ring-teal-500/40 transition-all"
+        >
+          <div class="flex items-start gap-4">
+            <div
+              class="w-12 h-12 rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-500 flex items-center justify-center text-2xl shrink-0"
+              aria-hidden="true"
+            >
+              🧭
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 mb-1">
+                <h3
+                  class="text-lg font-semibold text-foreground group-hover:text-teal-700 transition-colors"
+                >
+                  ロードマップから始める
+                </h3>
+                <span
+                  class="text-xs text-teal-700 bg-white/70 px-2 py-0.5 rounded-full"
+                  >推奨</span
+                >
+              </div>
+              <p class="text-sm text-muted-foreground line-clamp-2">
+                目的別に「何をどの順で読むか」を整理した学習パス。プロンプト工学・ハーネス工学・Web
+                構築などのコースを用意しています。
+              </p>
+            </div>
+            <span
+              aria-hidden="true"
+              class="shrink-0 text-teal-600 group-hover:translate-x-1 transition-transform mt-1"
+              >→</span
+            >
+          </div>
+        </div>
+      </a>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         {
           categories.map((category, i) => (
