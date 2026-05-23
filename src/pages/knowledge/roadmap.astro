@@ -1,0 +1,110 @@
+---
+import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Card from "@/components/ui/Card.astro";
+import { roadmapPaths } from "@/data/roadmap";
+import { resolveAllRoadmaps } from "@/utils/roadmap";
+
+const allEntries = await getCollection("knowledge");
+// 未解決 ref / draft への ref があればここで throw され、ビルドが失敗する
+const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
+---
+
+<BaseLayout
+  title="ロードマップ | Knowledge Base | shogoworks"
+  description="目的別に推奨記事を順序立てて学ぶための学習ロードマップ。プロンプト工学・ハーネス工学・Web 構築などのパスを用意しています。"
+>
+  <section class="py-20 px-4">
+    <div class="max-w-4xl mx-auto">
+      <SectionHeader
+        title="学習ロードマップ"
+        subtitle="目的別に、おすすめの記事を順番に並べました。上から読み進めるだけで、その分野の地図が頭に入ります。"
+      />
+
+      <nav
+        aria-label="ロードマップ一覧"
+        class="mb-12 flex flex-wrap justify-center gap-2 animate-on-scroll"
+      >
+        {
+          resolvedPaths.map((path) => (
+            <a
+              href={`#${path.id}`}
+              class="inline-flex items-center px-4 py-2 rounded-full border border-border bg-secondary/40 text-sm text-foreground hover:border-teal-500 hover:text-teal-700 transition-colors"
+            >
+              {path.title}
+            </a>
+          ))
+        }
+      </nav>
+
+      <div class="space-y-16">
+        {
+          resolvedPaths.map((path, pathIdx) => (
+            <section
+              id={path.id}
+              class={`animate-on-scroll stagger-${(pathIdx % 5) + 1} scroll-mt-24`}
+            >
+              <header class="mb-6">
+                <h2 class="text-2xl font-bold text-foreground mb-2">
+                  {path.title}
+                </h2>
+                <p class="text-muted-foreground leading-relaxed">
+                  {path.description}
+                </p>
+              </header>
+
+              <Card>
+                <ol class="divide-y divide-border">
+                  {path.steps.map((step, idx) => (
+                    <li class="py-4 first:pt-0 last:pb-0">
+                      <a
+                        href={step.href}
+                        class="group flex gap-4 items-start"
+                      >
+                        <span
+                          aria-hidden="true"
+                          class="shrink-0 w-9 h-9 rounded-full bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center text-sm font-semibold"
+                        >
+                          {idx + 1}
+                        </span>
+                        <div class="flex-1 min-w-0">
+                          <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1">
+                            <h3 class="text-base font-semibold text-foreground group-hover:text-teal-700 transition-colors">
+                              {step.title}
+                            </h3>
+                            <span class="text-xs text-muted-foreground">
+                              約{step.readingMinutes}分
+                            </span>
+                          </div>
+                          <p class="text-sm text-muted-foreground leading-relaxed">
+                            {step.note}
+                          </p>
+                        </div>
+                        <span
+                          aria-hidden="true"
+                          class="shrink-0 text-muted-foreground group-hover:text-teal-700 transition-colors mt-1"
+                        >
+                          →
+                        </span>
+                      </a>
+                    </li>
+                  ))}
+                </ol>
+              </Card>
+            </section>
+          ))
+        }
+      </div>
+
+      <div class="mt-16 text-center animate-on-scroll">
+        <a
+          href="/knowledge"
+          class="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 transition-colors"
+        >
+          ← Knowledge Base トップへ戻る
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
