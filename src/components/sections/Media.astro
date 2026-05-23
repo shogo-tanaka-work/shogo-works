@@ -1,0 +1,72 @@
+---
+import { mediaOutlets } from "@/data";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Badge from "@/components/ui/Badge.astro";
+
+function iconUrl(slug: string, color?: string): string {
+  // simple-icons CDN（公式・無料・CC0）
+  // color 指定がある場合は brand color、無い場合はデフォルト黒
+  const trimmed = color?.replace(/^#/, "");
+  return trimmed
+    ? `https://cdn.simpleicons.org/${slug}/${trimmed}`
+    : `https://cdn.simpleicons.org/${slug}`;
+}
+---
+
+<section id="media" class="py-20 bg-secondary/30">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <SectionHeader
+      title="メディア発信"
+      subtitle="各プラットフォームで発信中／準備中です。気になる媒体からフォローいただけると嬉しいです。"
+    />
+
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+      {
+        mediaOutlets.map((outlet, i) => {
+          const inner = (
+            <div class="flex items-start gap-3">
+              <img
+                src={iconUrl(outlet.iconSlug, outlet.brandColor)}
+                alt={outlet.name}
+                width="28"
+                height="28"
+                class="shrink-0 mt-0.5"
+                loading="lazy"
+              />
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-1 flex-wrap">
+                  <span class="text-base font-semibold text-foreground">
+                    {outlet.name}
+                  </span>
+                  {outlet.comingSoon && (
+                    <Badge variant="default">準備中</Badge>
+                  )}
+                </div>
+                <p class="text-xs text-muted-foreground leading-relaxed">
+                  {outlet.description}
+                </p>
+              </div>
+            </div>
+          );
+
+          const wrapperClass = `block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-2xl p-5 transition-all duration-300 animate-on-scroll stagger-${(i % 5) + 1}`;
+
+          return outlet.comingSoon ? (
+            <div class={`${wrapperClass} opacity-60`} aria-disabled="true">
+              {inner}
+            </div>
+          ) : (
+            <a
+              href={outlet.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={`${wrapperClass} group hover:ring-teal-500/30 hover:shadow-md`}
+            >
+              {inner}
+            </a>
+          );
+        })
+      }
+    </div>
+  </div>
+</section>

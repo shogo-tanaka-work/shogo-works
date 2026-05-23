@@ -1,0 +1,52 @@
+---
+import { resources } from "@/data";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Badge from "@/components/ui/Badge.astro";
+---
+
+<section id="resources" class="py-20">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <SectionHeader
+      title="お役立ち資料"
+      subtitle="サービス紹介資料・ホワイトペーパー・テンプレート集を順次公開予定です。"
+    />
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      {
+        resources.map((res, i) => {
+          const card = (
+            <>
+              <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-4 text-2xl">
+                📄
+              </div>
+              <div class="flex items-center gap-2 mb-2 flex-wrap">
+                <h3 class="text-lg font-semibold text-foreground">
+                  {res.title}
+                </h3>
+                {res.comingSoon && <Badge variant="default">準備中</Badge>}
+              </div>
+              <p class="text-sm text-muted-foreground leading-relaxed">
+                {res.description}
+              </p>
+            </>
+          );
+
+          const wrapperClass = `block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300 animate-on-scroll stagger-${(i % 5) + 1}`;
+
+          return res.comingSoon ? (
+            <div class={`${wrapperClass} opacity-70`} aria-disabled="true">
+              {card}
+            </div>
+          ) : (
+            <a
+              href={res.href}
+              class={`${wrapperClass} group hover:ring-teal-500/20 hover:shadow-md`}
+            >
+              {card}
+            </a>
+          );
+        })
+      }
+    </div>
+  </div>
+</section>

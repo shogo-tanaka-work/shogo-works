@@ -1,0 +1,57 @@
+---
+import { featuredKnowledge } from "@/data";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Badge from "@/components/ui/Badge.astro";
+import { externalLinkAttrs } from "@/utils/externalLink";
+---
+
+<section id="featured-knowledge" class="py-20">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <SectionHeader
+      title="注目のナレッジ"
+      subtitle="読まれている解説記事をピックアップ。Claude Code・プロンプト工学・現場運用のハーネス設計まで。"
+    />
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {
+        featuredKnowledge.map((item, i) => (
+          <a
+            href={item.href}
+            class={`group block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300 hover:ring-teal-500/20 hover:shadow-md animate-on-scroll stagger-${(i % 5) + 1}`}
+            {...externalLinkAttrs(item.source)}
+          >
+            <div class="flex items-center gap-2 flex-wrap mb-3">
+              {item.categoryLabel && (
+                <Badge variant="teal">{item.categoryLabel}</Badge>
+              )}
+              {item.source === "external" && item.platform && (
+                <Badge variant="blue">
+                  {item.platform}
+                  <span class="ml-0.5">↗</span>
+                </Badge>
+              )}
+            </div>
+            <h3 class="text-lg font-semibold text-foreground group-hover:text-teal-700 transition-colors mb-2 line-clamp-2">
+              {item.title}
+              {item.source === "external" && (
+                <span class="text-muted-foreground text-sm ml-1">↗</span>
+              )}
+            </h3>
+            <p class="text-sm text-muted-foreground leading-relaxed line-clamp-3">
+              {item.description}
+            </p>
+          </a>
+        ))
+      }
+    </div>
+
+    <div class="mt-10 text-center">
+      <a
+        href="/knowledge"
+        class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+      >
+        Knowledge Base をすべて見る →
+      </a>
+    </div>
+  </div>
+</section>
