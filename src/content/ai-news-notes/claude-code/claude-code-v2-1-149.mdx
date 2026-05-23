@@ -1,0 +1,14 @@
+---
+title: "Claude Code v2.1.149 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-149"
+date: 2026-05-22
+tags: ["claude-code", "usage", "mcp", "enterprise", "security"]
+---
+
+new-commands-2026 教材の `/usage` 記述を更新候補。これまで「実行コストを確認できるコマンド」程度の説明だったが、v2.1.149 でスキル / サブエージェント / プラグイン / MCP サーバー単位の内訳表示に対応した。教材は「コスト総量を見る」から「内訳を見てチューニングする」運用へ書き換え、内訳の活用例（プラグイン別レビュー、MCP サーバー別の見直しサイクル）を1段追加できる。
+
+mcp 教材には、Enterprise 向け `allowAllClaudeAiMcps` マネージド設定と `managed-mcp.json` の役割を追記する候補。これまで個別許可ベースで説明していた MCP 管理を、「クラウド MCP コネクタを一括許可する手段が増えた」前提に直す。Enterprise 管理者向けセクションがあれば、`managed-mcp.json` のバージョン管理・配布フローを整える前提も補足できる。
+
+hooks / install-and-setup 教材には、PowerShell の `cd` 系経由のパーミッションバイパス（`Set-Location` 等の組み込み関数で許可外ディレクトリへ抜けられた問題）が v2.1.149 で修正された旨を恒久情報として追記候補。Windows 環境のセキュリティ前提として「v2.1.149 以降を使うこと」と書ける。
+
+macOS の `find` クラッシュ修正は、Knowledge 本体には恒久情報として持ち込まず、速報ニュース記事リンクからの参照のみに留める。
