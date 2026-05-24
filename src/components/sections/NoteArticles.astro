@@ -1,0 +1,75 @@
+---
+import { mediaOutlets } from "@/data";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import { fetchNoteFeed } from "@/utils/noteFeed";
+
+const noteOutlet = mediaOutlets.find((o) => o.name === "note");
+const noteUrl = noteOutlet?.url;
+const rssUrl = noteUrl ? `${noteUrl.replace(/\/$/, "")}/rss` : undefined;
+
+const articles = rssUrl ? await fetchNoteFeed(rssUrl, 3) : [];
+
+function formatDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}/${m}/${d}`;
+}
+---
+
+{
+  articles.length > 0 && (
+    <section id="note-articles" class="py-20">
+      <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+        <SectionHeader
+          title="note の最新記事"
+          subtitle="現場視点の AI 活用メモを継続発信中。直近の投稿をピックアップしています。"
+        />
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {articles.map((article, i) => (
+            <a
+              href={article.link}
+              target="_blank"
+              rel="noopener noreferrer"
+              class={`group block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl overflow-hidden transition-all duration-300 hover:ring-teal-500/20 hover:shadow-md animate-on-scroll stagger-${(i % 5) + 1}`}
+            >
+              {article.thumbnail && (
+                <div class="aspect-video bg-secondary/40 overflow-hidden">
+                  <img
+                    src={article.thumbnail}
+                    alt=""
+                    loading="lazy"
+                    class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                  />
+                </div>
+              )}
+              <div class="p-5">
+                <p class="text-xs text-muted-foreground mb-2">
+                  {formatDate(article.pubDate)}
+                </p>
+                <h3 class="text-base font-semibold text-foreground group-hover:text-teal-700 transition-colors line-clamp-2">
+                  {article.title}
+                  <span class="text-muted-foreground text-sm ml-1">↗</span>
+                </h3>
+              </div>
+            </a>
+          ))}
+        </div>
+
+        {noteUrl && (
+          <div class="mt-10 text-center">
+            <a
+              href={noteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              note をすべて見る →
+            </a>
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
