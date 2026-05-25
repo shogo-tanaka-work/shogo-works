@@ -1,0 +1,26 @@
+---
+import type { GetStaticPaths } from "astro";
+import ServiceLandingPage from "@/components/sections/ServiceLandingPage.astro";
+import { services } from "@/data";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import type { ServiceItem } from "@/types";
+
+export const getStaticPaths: GetStaticPaths = () =>
+  services.map((service) => ({
+    params: { id: service.id },
+    props: { service },
+  }));
+
+interface Props {
+  service: ServiceItem;
+}
+
+const { service } = Astro.props;
+---
+
+<BaseLayout
+  title={`${service.title} | Services | shogoworks`}
+  description={service.description}
+>
+  <ServiceLandingPage service={service} />
+</BaseLayout>
