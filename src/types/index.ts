@@ -68,6 +68,7 @@ export interface PricingPlan {
 
 export interface ServiceItem {
   id: string;
+  href: string;
   title: string;
   description: string;
   icon: string;

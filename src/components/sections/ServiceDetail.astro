@@ -16,6 +16,8 @@ const iconSvgs: Record<string, string> = {
   "graduation-cap":
     '<svg class="w-7 h-7 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>',
   code: '<svg class="w-7 h-7 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  server:
+    '<svg class="w-7 h-7 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/><path d="M10 6h8"/><path d="M10 18h8"/></svg>',
 };
 ---
 
@@ -122,10 +124,16 @@ const iconSvgs: Record<string, string> = {
                 </div>
               ))}
             </div>
-            <div class="mt-6">
+            <div class="mt-6 space-y-3">
+              <a
+                href={service.href}
+                class="block w-full text-center px-4 py-2.5 bg-teal-500 text-white text-sm font-medium rounded-xl hover:bg-teal-600 transition-colors"
+              >
+                詳しいサービスページを見る
+              </a>
               <a
                 href="/contact"
-                class="block w-full text-center px-4 py-2.5 bg-teal-500 text-white text-sm font-medium rounded-xl hover:bg-teal-600 transition-colors"
+                class="block w-full text-center px-4 py-2.5 bg-white text-teal-700 text-sm font-medium rounded-xl ring-1 ring-teal-500/20 hover:bg-teal-50 transition-colors"
               >
                 お問い合わせ
               </a>

@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { services } from "@/data/services";
 
 describe("services データ", () => {
-  it("4つのサービスカテゴリが定義されていること", () => {
-    expect(services).toHaveLength(4);
+  it("5つのサービスカテゴリが定義されていること", () => {
+    expect(services).toHaveLength(5);
   });
 
   it("すべてのサービスに必須フィールドが存在すること", () => {
@@ -31,6 +31,7 @@ describe("services データ", () => {
     expect(ids).toContain("ai-support");
     expect(ids).toContain("training");
     expect(ids).toContain("web-development");
+    expect(ids).toContain("system-modernization");
   });
 
   it("料金プランに定価とモニター価格が含まれていること", () => {

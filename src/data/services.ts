@@ -3,6 +3,7 @@ import type { ServiceItem } from "@/types";
 export const services: ServiceItem[] = [
   {
     id: "automation",
+    href: "/services/automation",
     title: "自動化・効率化ツール開発",
     description:
       "GAS / PowerShell / Webアプリで業務を自動化。AI活用のフルサイクル開発で、要件定義から運用保守まで一貫対応します。",
@@ -51,6 +52,7 @@ export const services: ServiceItem[] = [
   },
   {
     id: "ai-support",
+    href: "/services/ai-support",
     title: "AI伴走支援",
     description:
       "AI駆動開発の支援からノーコードツール導入まで。AIの活用を一緒に進め、ビジネスの課題を解決します。",
@@ -100,6 +102,7 @@ export const services: ServiceItem[] = [
   },
   {
     id: "training",
+    href: "/services/training",
     title: "企業向け研修",
     description:
       "AI活用や技術研修を実践的なハンズオン形式で開催。すぐに業務に活かせるスキルを提供します。",
@@ -146,6 +149,7 @@ export const services: ServiceItem[] = [
   },
   {
     id: "web-development",
+    href: "/services/web-development",
     title: "Web開発",
     description:
       "Next.js / React を中心に、要件定義から設計・実装・運用まで対応。モダンな技術スタックで高品質なWebアプリケーションを構築します。",
@@ -188,6 +192,64 @@ export const services: ServiceItem[] = [
       "Astro",
       "TailwindCSS",
       "Node.js",
+    ],
+  },
+  {
+    id: "system-modernization",
+    href: "/services/system-modernization",
+    title: "既存システム刷新・コスト最適化",
+    description:
+      "高止まりした維持費や運用負荷を可視化し、既存機能を守りながら段階的な刷新とコスト最適化を進めます。",
+    icon: "server",
+    longDescription:
+      "クラウド費用や保守費が膨らんでいる一方で、古いシステムの構成が分からず触れない。そんな状況を整理し、現行機能と運用を把握したうえで、不要コストの削減と安全な段階移行を支援します。全面刷新を急がず、止められない業務を守りながら改善余地の大きい箇所から着手します。",
+    targetAudience:
+      "既存システムの維持費・保守負荷を見直したい中小・中堅企業、管理部門・情報システム担当",
+    painPoints: [
+      "クラウド料金や保守費が高いまま推移しているが、どこを減らせるか分からない",
+      "長年運用した業務システムがブラックボックス化し、改修や移行が怖い",
+      "業務を止めずに、古い構成や手作業運用を段階的に見直したい",
+      "刷新投資の判断に必要な、現状コストと削減可能性の材料が足りない",
+    ],
+    details: [
+      {
+        heading: "現状構成・維持費の棚卸し",
+        body: "システム構成、クラウドリソース、保守作業、手作業運用を確認し、コストと継続リスクの見える化を行います。",
+      },
+      {
+        heading: "コスト最適化と改善計画",
+        body: "不要リソースや過剰スペック、運用負荷が高い箇所を整理し、機能を損なわない改善候補と優先順位を提示します。",
+      },
+      {
+        heading: "段階的な刷新・移行支援",
+        body: "既存業務を継続しながら、影響範囲を管理したリプレイスやモダナイズを設計・実装し、移行後の運用まで支援します。",
+      },
+      {
+        heading: "改善効果の比較資料",
+        body: "改善前後の構成、費用、運用負荷を比較できる形で整理し、次の投資判断や社内説明に活用できる材料を提供します。",
+      },
+    ],
+    pricing: [
+      {
+        name: "現状分析・コスト棚卸し",
+        price: "個別見積もり",
+      },
+      {
+        name: "刷新計画・移行ロードマップ",
+        price: "個別見積もり",
+      },
+      {
+        name: "実装・移行支援",
+        price: "個別見積もり",
+      },
+    ],
+    technologies: [
+      "AWS",
+      "Cloudflare",
+      "TypeScript",
+      "React",
+      "Astro",
+      "Supabase",
     ],
   },
 ];
