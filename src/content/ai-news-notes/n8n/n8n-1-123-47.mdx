@@ -1,0 +1,16 @@
+---
+title: "n8n 1.123.47 教材化メモ"
+noteFor: "n8n/n8n-1-123-47"
+date: 2026-05-25
+tags: ["n8n", "security", "stable", "backport"]
+---
+
+「派手な新機能」ではなく「依存パッチの当て方」を教える側の教材に向く。
+
+- 1.x と 2.x の stable 系列が並走している n8n の運用構造を説明する
+- `vm2` / `ws` / `protobufjs` などの Node.js トランジティブ依存が n8n の安全性に与える影響を例示する
+- GitHub Releases の watch → 通知 → 自動 pull の運用パイプライン化を扱う
+- Cloud と self-host のセキュリティ責任分界を整理する
+- 「stable backport があるバージョンを使うべきか、2.x stable に追従するか」の判断軸を扱う
+
+AI 自動化基盤のガバナンス・セキュリティ運用の章で引用する素材として保管。
