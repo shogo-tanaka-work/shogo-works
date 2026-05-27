@@ -1,0 +1,222 @@
+---
+title: "Supabase 本番運用ガイド — ログ監視・バックアップ・障害復旧"
+description: "Supabase Cloud をリリース後に運用する担当者向けに、Logs Explorer の見方、Pro プランのバックアップ、PITR、障害時の復元判断と確認手順を整理する。"
+category: "web-development"
+subcategory: "supabase"
+createdAt: 2026-05-27
+sortOrder: 35
+---
+
+## この章の要点
+
+- Supabase を本番公開した後は、まず **Logs Explorer / Project Status / Status Page** で「自分のアプリの問題か、Supabase 側の問題か、DB 負荷の問題か」を切り分ける。
+- Pro プランでは、Dashboard の `Database > Backups` から **直近 7 日の日次バックアップ**を参照・復元できる。日次バックアップは「前日の状態へ戻す」用途であり、直前までの更新を守る仕組みではない。
+- 秒単位に近い時点へ戻したい場合は **Point-in-Time Recovery (PITR)** を追加する。PITR は Pro / Team / Enterprise のアドオンで、少なくとも Small compute add-on が必要である。
+- 復元操作はデータベースを過去状態に戻す操作であり、アプリのコードデプロイを戻す「ロールバック」とは別物である。障害時は、コードの切り戻しで済むのか、DB 復元が必要なのかを先に判断する。
+- Database backup は Storage API の実ファイルを復元しない。Storage の誤削除、Edge Functions、Auth 設定、Realtime 設定まで含めて元に戻ると思って復元を開始してはいけない。
+
+## この章の前提
+
+本章は **Supabase Cloud の本番プロジェクトを Pro プラン以上で運用するケース**を主対象にする。確認日は **2026-05-27** である。プラン内容、料金、Dashboard の表示位置は変更される可能性があるため、実際に障害対応を行う時点で公式ドキュメントと Dashboard を再確認する。
+
+特に Free プランについては、公式の Backups ガイドと Pricing ページで表示上の説明が揃っていない箇所がある。本番データの復旧要件を Free の挙動に依存させず、Pro 以上で実際に利用可能なバックアップと復元画面を事前確認してからリリースする方針が安全である。
+
+## リリース後にまず見る場所
+
+### 日常監視と障害調査の入口
+
+| 見る場所 | 何が分かるか | 典型的な確認場面 |
+|---|---|---|
+| Status Page | Supabase 全体またはリージョン側の障害有無 | API が一斉に失敗した、Dashboard に入れない |
+| Project Status | 自分のプロジェクト内のサービス health | Auth / Storage / Edge Functions が unhealthy と表示された |
+| Logs Explorer | 各製品ログを横断して原因を掘る | 5xx、認証失敗、SQL エラー、Function 例外を追う |
+| Performance Advisor / Query Performance | DB 負荷・遅いクエリ・索引不足の手掛かり | レスポンスが徐々に遅くなった、DB が不安定 |
+| Security Advisor | RLS などのセキュリティ不備 | リリース前後、テーブル追加後の定期確認 |
+| Database > Backups | 復元できる日次バックアップまたは PITR 範囲 | 誤削除・誤更新で復元を検討する |
+
+Project Status が unhealthy の場合でも、即座に復元へ進むものではない。公式トラブルシューティングでは、DB の過負荷やサイズ不足でも複数サービスが unhealthy になり得ると説明されている。特に Edge Functions の unhealthy 表示はプラットフォーム health check に基づくため、対象 function を実際に呼び出し、Invocation Logs と突き合わせて判断する。
+
+### Logs Explorer で見るログ
+
+Supabase Dashboard の Logs Explorer は、製品ごとのログを別々の source として検索できる。まず「どの層で失敗しているか」を絞るために使う。
+
+| Source | 主に確認する内容 |
+|---|---|
+| API / `edge_logs` | REST / GraphQL API の request、status code、レスポンス時間 |
+| `postgres_logs` | SQL 実行、接続、DB エラー、手動で `RAISE` したメッセージ |
+| `auth_logs` | サインイン、トークン、認証・認可周辺の失敗 |
+| `storage_logs` | ファイルの upload / download 周辺の失敗 |
+| `realtime_logs` | Realtime 通信の調査 |
+| `function_edge_logs` | Edge Function の request / response と status code |
+| `function_logs` | Edge Function 内の例外と `console` ログ |
+
+Logs Explorer はキーワードやパターンで絞り込みでき、クエリ結果をエクスポートできる。SQL 形式で問い合わせる場合は、対象期間の timestamp filter を必ず入れ、大きい nested object を丸ごと SELECT しない。調査時に検索範囲が広すぎると、必要な障害時刻を見失いやすい。
+
+ログには個人情報やアクセストークンを意図的に出力しない。公式ガイドでも、追加識別情報を request metadata に載せる場合に PII を含めないよう注意している。アプリ側では request ID や内部の処理 ID を使い、ユーザー情報をそのままログキーにしない運用にする。
+
+### Pro で把握しておく観測期間
+
+Pricing ページでは、Pro の `Log retention (API & Database)` は **7 日**と示されている。障害の事後分析を 1 週間以上後に行う可能性がある場合、Dashboard 内の保持だけでは足りない。
+
+運用を一段上げる選択肢は以下の二つである。
+
+| 選択肢 | 用途 | 注意点 |
+|---|---|---|
+| Metrics API | CPU、IO、WAL、connection、query stats などの継続監視・アラート | Prometheus 互換の beta 機能。指標名は変わる可能性がある |
+| Log Drains | イベントログを外部ログ基盤へ転送し、長期保持・横断調査する | Pro では追加費用が発生するため Pricing で確認する |
+
+小規模な本番運用では、最初からすべてを導入する必要はない。ただし「障害が起きてから 8 日後に調査する可能性があるか」を考え、必要ならリリース時点で外部保管を設計しておく。
+
+## Pro プランのバックアップを理解する
+
+### 日次バックアップと PITR の違い
+
+| 項目 | 日次バックアップ | PITR |
+|---|---|---|
+| Pro での利用 | 標準で直近 7 日を参照可能 | 別料金のアドオン |
+| 戻せる粒度 | 作成済みの日次バックアップ単位 | 選択可能な復旧範囲内で秒単位の時点を指定 |
+| 主な用途 | 前日まで戻せればよい事故、検証用復元 | 誤更新直前まで戻したい重要 DB |
+| 日次バックアップとの併用 | 標準動作 | 有効化すると日次バックアップは取得されなくなる |
+| 前提 compute | 通常のプラン構成 | 少なくとも Small compute add-on |
+| Pro での保持・料金 | 直近 7 日 | 7 日保持で約 100 USD / 月、14 日で約 200 USD / 月、28 日で約 400 USD / 月 |
+
+PITR は、トランザクションログ（WAL）を使って指定時点まで再生する方式である。「7 日世代管理のバックアップを見る」という要件であれば Pro の日次バックアップが入口になるが、事故直前の時点へ寄せて戻す必要がある本番サービスでは PITR の導入判断を先送りしない方がよい。
+
+### Dashboard での確認場所
+
+日次バックアップまたは PITR の確認は、Dashboard の対象プロジェクトから `Database > Backups` を開いて行う。
+
+- 日次バックアップを利用している場合は、復元可能なバックアップ一覧から、障害発生より前の候補を確認する。
+- PITR を利用している場合は、`Point in Time` 設定に表示される earliest / latest recovery point の範囲を確認する。
+- PITR の latest recovery point が現在時刻より古く見える場合でも、直近に DB 更新がなければ WAL が生成されていないだけのケースがある。更新有無と合わせて判断する。
+
+### バックアップに含まれないもの
+
+復元前に特に重要なのは、Database Backup が「プロジェクト全体の完全な巻き戻し」ではないことである。
+
+| 対象 | 復元時の扱い |
+|---|---|
+| DB schema / table data | 復元対象 |
+| Auth schema に保持されたユーザーデータ | DB 復元範囲に含まれる |
+| Custom role のパスワード | 日次バックアップに含まれず、復元後に再設定が必要 |
+| Storage API のオブジェクト本体 | 含まれない。削除したファイルは DB 復元では戻らない |
+| Edge Functions | DB 復元だけでは復旧しない |
+| Auth の外部プロバイダ設定や API keys | 新規プロジェクトへ復元する場合は再設定が必要 |
+| Realtime 設定 / Read Replicas | 新規プロジェクトへ復元する場合は再設定が必要 |
+
+Storage に顧客アップロードファイルがあるサービスでは、DB バックアップだけでなく Storage の保持・復旧方針を別途用意する必要がある。
+
+## 障害時の判断フロー
+
+### 1. まず復元せず、障害の種類を分ける
+
+| 症状 | 最初の行動 | DB 復元の可能性 |
+|---|---|---|
+| デプロイ後に画面や API が壊れた | アプリのリリース差分と function logs を確認し、コードを切り戻す | 通常は不要 |
+| 5xx や timeout が増えた | Status Page、Project Status、API / Postgres logs、負荷を確認 | 原因がデータ破損でなければ不要 |
+| 誤って重要テーブルを削除・一括更新した | 書き込みを止め、事故時刻を確定し、backup / PITR 候補を確認 | 高い |
+| Storage ファイルを削除した | Storage の復旧経路を確認する | DB 復元だけでは解決しない |
+| 権限漏れでデータが閲覧された | RLS / key / session の封じ込めと監査を優先 | 復元では解決しない |
+
+復元は「障害が直るかもしれない再起動ボタン」ではない。復元後に失われる正常データがあるため、対象時刻以降の更新を捨ててもよいか、別途退避できるかを判断してから実施する。
+
+### 2. データ事故なら影響拡大を止める
+
+誤削除・誤更新が進行中なら、次の順で対応する。
+
+1. 原因になったバッチ、Cron、Edge Function、管理画面操作などの追加実行を止める。
+2. 発生時刻、実行者、対象テーブル、対象ユーザー、最後に正常だった時刻を記録する。
+3. 必要であればアプリをメンテナンス状態にし、新規書き込みを止める。
+4. Logs Explorer とアプリのログで、復元したい直前時刻を特定する。
+5. 日次バックアップまたは PITR で失われるデータ量を見積もる。
+
+`pg_cron`、`pg_net`、外部連携を使っている場合、復元後に同じ処理がもう一度実行されるリスクも考慮する。
+
+### 3. 復元方法を選ぶ
+
+| 判断 | 選ぶ方法 |
+|---|---|
+| 昨日以前の状態に本番を戻せばよく、以降の更新を失っても許容できる | 日次バックアップから本番プロジェクトを復元 |
+| 誤操作の直前まで戻す必要があり、PITR を有効化済み | PITR で指定時点へ本番プロジェクトを復元 |
+| 復元データを確認してから本番への反映方針を判断したい | 有料プランの `Restore to a New Project` を利用して新規 DB コピーで検証 |
+| Storage オブジェクトの削除が主な問題 | DB 復元ではなく、Storage 用の復旧設計・外部コピーを使う |
+
+`Restore to a New Project` は beta 機能で、物理バックアップが有効な paid plan 向けである。本番 DB をその場で上書きせず、失われた行の確認やデータ救出を行える点が有用だが、新しいプロジェクト分の料金が発生する。
+
+## 復元を実行する手順
+
+### 本番プロジェクトを日次バックアップから復元する
+
+1. 対象プロジェクトの `Database > Backups` を開く。
+2. 障害発生より前で、許容できる最も新しい日次バックアップを選ぶ。
+3. 復元で失われる更新、Storage が戻らないこと、復元中の停止時間を関係者と確認する。
+4. Dashboard の確認画面から復元を開始する。
+5. 完了通知後、DB とアプリの整合性を確認し、書き込み再開を判断する。
+
+復元中はプロジェクトが利用できなくなり、停止時間は DB サイズに依存する。サブスクリプションや replication slot を利用している場合は、Realtime 用に Supabase が扱う slot を除き、復元前に drop し、復元後に再作成する必要がある。
+
+### PITR で事故直前へ復元する
+
+1. `Database > Backups` の `Point in Time` で復旧可能な期間を確認する。
+2. Logs Explorer などで確定した「事故より前」の日時を date/time picker で選ぶ。
+3. 復元対象時刻と失われる書き込み、ダウンタイムを確認する。
+4. 復元を開始する。
+5. 完了後、重要テーブル、認証動作、アプリ API、後続ジョブの状態を確認する。
+
+PITR は物理バックアップを戻した後、指定時刻まで WAL を再生して復元する。事故の実行時刻ぴったりを選ぶと誤更新自体を含める危険があるため、ログから特定した事故直前の安全な時刻を選ぶ。
+
+### 新規プロジェクトへ復元して検証する
+
+本番上書きの前に内容を確認したい場合は、`Database > Backups > Restore to a New Project` から別プロジェクトへ復元する。
+
+- DB schema、data、indexes、DB roles / permissions、Auth user data はコピー対象になる。
+- Storage objects / settings、Edge Functions、Auth settings / API keys、Realtime settings、Read Replicas は手動で再設定する。
+- コピー後は `pg_cron`、`pg_net`、wrappers など外部処理を動かす extension を停止し、検証プロジェクトからメール送信や webhook 発火が起きないようにする。
+
+この方式は、失われたデータだけを抽出して本番へ戻す判断や、復元内容のレビューに向く。一方、完全なフェイルオーバー手順ではないため、緊急復旧時間の要件が厳しいサービスでは事前に実地演習が必要である。
+
+## 復元後の確認チェックリスト
+
+### 直後に確認すること
+
+- [ ] Project Status が正常に戻ったか
+- [ ] 主要な読み取り API と書き込み API が期待どおり動くか
+- [ ] Auth のログイン・セッション更新が動くか
+- [ ] 重要テーブルの件数と代表データが復元時点どおりか
+- [ ] Storage の実ファイル欠損が別途残っていないか
+- [ ] Custom role のパスワード再設定が必要でないか
+- [ ] replication slot / subscription の再作成が必要でないか
+- [ ] Cron、Queue、Webhook、Edge Function が事故処理を再実行しないか
+
+### 復旧後に残すこと
+
+- [ ] 発生時刻、検知経路、影響範囲、復元時点、停止時間を記録する
+- [ ] 復元で失った正常更新がある場合、再投入方針を記録する
+- [ ] PITR、Log Drains、Metrics API、Storage 外部保管の導入要否を見直す
+- [ ] 同種事故を防ぐ RLS、権限、管理画面確認、バッチ実行制御を改善する
+
+## 小規模本番での最低限の運用案
+
+個人開発または小規模商用サービスで Pro を利用するなら、最初の運用基準は以下でよい。
+
+| 頻度 | やること |
+|---|---|
+| リリース前 | RLS、Security Advisor、バックアップ表示、復元責任者、Storage 復旧方針を確認 |
+| リリース直後 | API / Function logs、主要操作、Auth、DB エラーを確認 |
+| 週次 | Performance Advisor、直近エラー、Database > Backups の表示を確認 |
+| 重要変更前 | 手動 dump または復元可能時点を確認し、データ変更処理の停止方法を確認 |
+| 障害時 | Status Page → Project Status → Logs Explorer → 復元要否判断の順で対応 |
+
+金銭・予約・業務記録など、数時間分のデータ消失も許容しにくいサービスでは、日次バックアップだけでは不足する。PITR の費用を「障害発生後の追加判断」ではなく、リリース前の運用コストに含めて判断する。
+
+## 一次ソース（2026-05-27 確認）
+
+- [Logging / Logs Explorer](https://supabase.com/docs/guides/telemetry/logs)
+- [Metrics API](https://supabase.com/docs/guides/telemetry/metrics)
+- [Database Backups / PITR](https://supabase.com/docs/guides/platform/backups)
+- [Restore to a New Project](https://supabase.com/docs/guides/platform/clone-project)
+- [Production Checklist](https://supabase.com/docs/guides/deployment/going-into-prod)
+- [Project Status reports unhealthy services](https://supabase.com/docs/guides/troubleshooting/project-status-reports-unhealthy-services)
+- [Pricing](https://supabase.com/pricing)
+- [Supabase Status](https://status.supabase.com/)
+
