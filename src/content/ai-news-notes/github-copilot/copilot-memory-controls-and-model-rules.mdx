@@ -1,0 +1,17 @@
+---
+title: "Copilot Memory 制御強化 + Model rules 教材化メモ"
+noteFor: "github-copilot/copilot-memory-controls-and-model-rules"
+date: 2026-05-26
+tags: ["github-copilot", "memory", "model-rules", "governance", "enterprise", "business"]
+---
+
+github-copilot/governance 教材があれば、章立てを **Enterprise → 組織 → リポジトリ → ユーザー** の 4 階層に合わせて見直す。
+
+- **Enterprise 層**: Model rules でデフォルトモデル選択と `Enabled` / `Optional` 可用性。Copilot Business / Enterprise プランが対象。
+- **組織層**: Model rules を受領し、組織内ポリシーを決める責務分担を明示。
+- **リポジトリ層**: Copilot Memory のリポジトリレベル off スイッチを節追加。OSS / 法務 NG リポジトリは OFF を推奨。
+- **ユーザー層**: `/memory on` / `/memory off` / `/memory show` の CLI 操作と、保存時の scope（user-level preference / repository-level fact）を明示。
+
+memory 教材があれば、`/memory show` の出力例と、repository-level fact が **全貢献者に共有される** 前提を恒久情報として 1 段追加。外部協力者として参画する場合の自分ルール（「クライアントのリポジトリでは user-level preference のみ、repository-level fact は触らない」）を補足記述として入れる。
+
+scope の明示と `/memory` CLI は public preview の段階のため、「将来仕様変更の可能性あり」を 1 行注記。Model rules は Business / Enterprise プラン限定の旨を明示。

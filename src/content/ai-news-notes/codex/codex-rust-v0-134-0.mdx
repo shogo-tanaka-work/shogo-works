@@ -1,0 +1,16 @@
+---
+title: "OpenAI Codex rust-v0.134.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-134-0"
+date: 2026-05-26
+tags: ["codex", "profile", "mcp", "hooks", "thread-search", "stable", "breaking-change"]
+---
+
+cli-setup 教材は、`--profile` の主セレクタ昇格と legacy profile v1 廃止を **0.134 における破壊的変更** として節を新設。「0.133 までの設定ファイル・スクリプトは migration guidance に従って書き換える」「`codex sandbox` も `--profile` を受けるように」「profile 切替経路は CLI / TUI / sandbox / app-server で一本化された」の 3 点を明示。
+
+mcp 教材は、per-server environment、streamable HTTP MCP に対する OAuth option、connector tool schema の `$ref`/`$defs` 保持と過大 schema の compact 化、`readOnlyHint` の並列化を統合して節を更新。**MCP 設計指針**として「並列化したい MCP server には `readOnlyHint` を付ける」「環境を分けたい MCP server は per-server env を使う」を含める。Annotation 整備がそのままパフォーマンス改善になる、という運用ポイントを明文化。
+
+hooks 教材は、hook input に subagent identity が、extension tool に conversation history が渡されるようになった点を「v0.134 派生改善」として節追加。これにより subagent ごとに hook 動作を分岐させる、または会話履歴を踏まえてプロンプトを書き換える、いずれの設計パターンも記述例を 1 つずつ用意できる。
+
+knowledge-tools 系の教材があれば、**thread content search**（rollout ベースのローカル会話履歴検索）を「Codex を knowledge base としても扱う」観点で節追加。case-insensitive + result preview の仕様、`/goal` 運用との組み合わせを記載。
+
+bedrock 関連の教材があれば、**Bedrock Mantle GovCloud region** 追加を恒久情報として 1 行追記。

@@ -22,6 +22,11 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     description: "OpenAI CodexのCLI、アプリ、Hooks、プラグインの公式アップデート",
   },
   {
+    slug: "cursor",
+    label: "Cursor",
+    description: "Cursor IDE、Composer、Agents Window、Cursor Automationsの公式アップデート",
+  },
+  {
     slug: "gemini",
     label: "Gemini",
     description: "Geminiアプリ、Google AI、Workspace連携の公式アップデート",

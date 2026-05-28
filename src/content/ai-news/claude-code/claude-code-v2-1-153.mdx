@@ -1,0 +1,77 @@
+---
+title: "Claude Code v2.1.153、`/model` 既定保存に切替・`skipLfs` plugin オプション・stateful MCP `tools/list` reconnect ループ修正・gateway クレデンシャル誤送信修正・`--strict-mcp-config` の subagent 適用"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-28
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.153"
+summary: "Anthropic は 2026-05-28 00:52 UTC に Claude Code **v2.1.153** を公開した。前日 v2.1.152 が `/code-review --fix` や `MessageDisplay` hook の大型機能追加だったのに対し、v2.1.153 は plugin marketplace / `claude agents` / MCP / background agent / `/model` 周りの運用バグ修正と挙動調整を多数まとめたメンテナンス寄りリリース。ただし即気付くレベルの挙動変化を 2 件含む。1 つ目が **`/model` の既定保存切替**で、これまでは「セッション限定で切り替える」が標準だった `/model` が、IDE と同様に **次セッション以降のデフォルトを保存する** 動きに変わった。セッション限定で切りたい場合は picker 内で `s` を押す。`modelPicker:setAsDefault` をカスタマイズしている設定は `modelPicker:thisSessionOnly` にリネームが必要で、`d` action は `s` に置き換わった。2 つ目が **stateful MCP の `tools/list` reconnect ループ修正**で、v2.1.147 で混入したリグレッションが原因の常時再接続を解消した。さらに **custom API gateway 経由でユーザーの Anthropic OAuth クレデンシャルが gateway に誤送信される**バグも修正されている（本来 gateway 用 token のみ送るべきところ）。subagent (Agent tool) frontmatter MCP servers が `--strict-mcp-config` / `--bare` / remote mode / enterprise managed MCP config / managed-settings の allow/deny policy をすべて無視していた問題も修正され、ブロック時には visible warning が出る。Windows PowerShell installer の偽『Installation complete!』、`claude update` のチャネル誤判定、セッション再開時のメモリ過剰使用、`/bg` / `/btw` の background session 関連、tmux 内 `/copy` ほか **background agent 周りの細かい不具合**も多数解消されている。`skipLfs` plugin marketplace オプション、status line コマンドへの `COLUMNS` / `LINES` 渡し、`claude agents` の autocomplete 拡張、PR 列の `PR #N` / `N PRs` 表示、macOS の背景エージェントを「Claude Code」名義の Privacy & Security 権限として永続化、なども入る。"
+impact: "**`/model` の既定保存切替**は社内ガイドの書き換えポイント。これまで「`/model` でセッション限定切替」を前提に書いていた手順は、`s` でセッション限定にできることを明示する形に直す必要がある。**stateful MCP `tools/list` reconnect ループ修正**と **custom API gateway クレデンシャル誤送信修正** は、v2.1.147〜v2.1.152 を使っている組織にとって即時アップデート相当のセキュリティ・安定性修正。特に gateway 経由運用の組織は v2.1.153 へ揃えるのが望ましい。**`--strict-mcp-config` の subagent 適用修正** は、enterprise managed-settings での MCP 統制を「subagent も対象に含む」前提に戻す重要な修正で、ブロック時に warning が出るようになったため、運用上もデバッグが楽になる。`skipLfs` は LFS 同梱 plugin の clone コストが課題だった環境の負荷削減に効き、`claude agents` の autocomplete 拡張は agent dispatch を多用するチームのスループットを地味に押し上げる。"
+tags: ["claude-code", "model", "mcp", "plugins", "claude-agents", "background-agents", "security", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/new-commands-2026"
+  - "/knowledge/ai-tools/claude-code/mcp"
+  - "/knowledge/ai-tools/claude-code/install-and-setup"
+draft: false
+---
+
+## 要約
+
+Anthropic は 2026 年 5 月 28 日 00:52 UTC（日本時間 9:52）に Claude Code **v2.1.153** を公開しました。前日の v2.1.152 が `/code-review --fix` や `MessageDisplay` hook などの大型機能追加だったのに対し、v2.1.153 は **plugin marketplace / `claude agents` / MCP / background agent / `/model`** 周りの運用バグ修正と挙動調整をまとめたメンテナンス寄りリリースです。ただし、即気付くレベルの挙動変化を 2 件含みます。
+
+1 つ目は **`/model` の既定保存切替**です。これまで `/model` は「セッション限定で切り替える」のが標準でしたが、v2.1.153 からは IDE と同じく **次セッション以降のデフォルトを保存する** 動きに変わりました。セッション限定で切りたい場合は picker 内で `s` を押す形に変わっています。あわせて、`modelPicker:setAsDefault` をカスタマイズしていた `keybindings.json` は `modelPicker:thisSessionOnly` にリネームが必要で、`d` action は `s` に置き換わりました。
+
+2 つ目は **stateful MCP の `tools/list` reconnect ループ修正**です。v2.1.147 で混入したリグレッションが原因で、optional GET SSE stream を持たない stateful MCP server に対して `tools/list` 再接続が無限ループしていた問題が解消されました。**v2.1.147〜v2.1.152 を踏んだチームは即時アップグレードが望ましい**範囲です。
+
+セキュリティ寄りの修正としては、**custom API gateway 経由で gateway 用 token ではなくユーザーの Anthropic OAuth クレデンシャルが gateway に送信される**バグが直りました。gateway 運用組織は v2.1.153 へ揃えるべきです。
+
+エンタープライズ運用に関わる修正として、**subagent (Agent tool) frontmatter MCP servers の `--strict-mcp-config` 適用**が戻りました。これまでは `--strict-mcp-config` / `--bare` / remote mode / enterprise managed MCP config / managed-settings の allow/deny policy が **すべて無視**されており、subagent の MCP は無防備な状態でした。v2.1.153 では適用が復活し、ブロックされた subagent MCP server には visible warning が表示されます。`--strict-mcp-config` も、`--agents` / SDK `agents` で明示渡しした agent 定義の inline `mcpServers` を不必要に剥がさなくなりました。
+
+このほか、`skipLfs` plugin marketplace オプション（`github` / `git` plugin source で LFS の clone を skip）、status line コマンドへの `COLUMNS` / `LINES` 環境変数渡し、`claude agents` dispatch input の autocomplete でネイティブ slash command と bundled skill も提案、PR 列の `PR #N` / `N PRs` 表示、macOS の背景エージェントを「Claude Code」名義として Privacy & Security に表示し権限をアップグレード越しに維持、Windows PowerShell installer の偽 "Installation complete!" 修正、`claude update` のチャネル誤判定修正、セッション再開時のメモリ過剰使用（複数 GB 消費）修正、`/bg` / `/btw` を含む background session 周りの細かい不具合修正（tmux 内 `/copy` の clipboard 失敗、background-color 漏れ、iTerm2 `cmd+k` 描画、IME candidate window 位置、`/rename` のバナー反映遅延、`EnterWorktree` の `ToolSearch` 依存解消）なども入っています。
+
+[VSCode] では、VS Code 終了時に Claude Code プロセスが Windows でクリーンに終了せず、誤った "unclean exit" 報告と孤立 MCP server を残す問題も解消されました。
+
+## 何が変わったか
+
+- `/model` の選択がセッションのデフォルトとして保存される挙動に変更（IDE と同じ）。picker 内 `s` でセッション限定切替に切り替え。
+- `modelPicker:setAsDefault` キーバインドは `modelPicker:thisSessionOnly` にリネーム必要（`d` → `s`）。
+- stateful MCP の `tools/list` 無限再接続を修正（v2.1.147 リグレッション）。
+- custom API gateway がユーザーの Anthropic OAuth クレデンシャルを受け取る不具合を修正。
+- subagent frontmatter MCP servers に対する `--strict-mcp-config` / `--bare` / remote / enterprise managed MCP config / managed-settings allow-deny policy の適用を復活。ブロック時に visible warning。
+- `--strict-mcp-config` が `--agents` / SDK `agents` の inline `mcpServers` を剥がさなくなる。
+- `skipLfs` を `github`/`git` plugin marketplace source に追加（LFS clone を skip）。
+- npm グローバルインストール時の自動更新不可を一回通知 + `/doctor` で修正手順表示。
+- status line コマンドに `COLUMNS` / `LINES` 環境変数を渡す。
+- `claude agents`: dispatch input の autocomplete がネイティブ slash command + bundled skill を提案、PR 列が `PR #N` / `N PRs` を区別。
+- `claude doctor` が直近 update 試行の結果を表示。
+- "MCP / connector authentication" 起動通知を 1 メッセージに統合。
+- macOS の背景エージェントが「Claude Code」名義として Privacy & Security に表示され、アップグレード越しに権限維持。
+- Windows PowerShell installer の偽 "Installation complete!" 修正。
+- `claude update` が npm 環境で release channel のバージョンを使うように修正。
+- セッション再開時のメモリ過剰使用（複数 GB）修正、background agent stale daemon 修正、`/bg` 中の応答継続、tmux 内 `/copy` clipboard 失敗修正、iTerm2 `cmd+k` 描画、IME candidate window 位置、`/rename` バナー反映 ほか background session 関連を多数修正。
+- `Agent` tool with `subagent_type: 'claude'` が undocumented temporary worktree で走り gitignored パスへの出力を silent discard していた問題を修正。
+- MCP tool progress notification が collapsed tool view に表示されない問題を修正。
+- 不正な `file://` リンクが terminal でクリックできない問題を修正。
+- [VSCode] Windows での Claude Code プロセス unclean exit と孤立 MCP server 残存を修正。
+
+## 業務インパクト（一般企業向け）
+
+**`/model` の既定保存切替** は、社内ガイドの記述更新ポイントです。「`/model` は当該セッションだけの一時切替」を前提にしていた手順書は、「`s` を押すとセッション限定」を明示する形に書き換えてください。`keybindings.json` を社内で配布している場合は、`modelPicker:setAsDefault` を `modelPicker:thisSessionOnly` にリネームする周知も必要です。
+
+**stateful MCP `tools/list` reconnect ループ修正** と **custom API gateway クレデンシャル誤送信修正** は、v2.1.147〜v2.1.152 を使っている組織にとって即時アップデート相当です。前者は MCP server を多用する開発ワークフローで CPU / ネットワーク負荷の主要因になっていた可能性があり、後者は gateway 経由運用の組織で **本来 gateway 専用 token のみ送るべき経路で個人 OAuth クレデンシャルが渡る** という重大な情報フロー違反です。社内配布バージョンを v2.1.153 以降に揃えるのが望ましい更新です。
+
+**`--strict-mcp-config` の subagent 適用修正** は、enterprise managed-settings での MCP 統制を「subagent も対象に含む」前提に戻す重要な修正です。これまで「managed-settings で deny にした MCP server が subagent からは普通に呼べていた」状況だった場合、社内のセキュリティ前提が回復します。ブロック時に visible warning が出るようになったため、運用デバッグの観点でも一段見やすくなりました。
+
+`skipLfs` plugin オプションは、LFS 同梱 plugin（モデル重みなどを LFS で配布している plugin）の clone コストが課題だった環境向けです。CI / 大量端末配布で plugin clone の遅さがネックになっていたチームは設定を入れる価値があります。
+
+`claude agents` の autocomplete 拡張と PR 列の表示改善は、agent dispatch を業務フローに組み込んでいるチームのスループットを地味に押し上げます。
+
+## 副業・個人活用視点
+
+個人開発で最も影響が大きいのは **`/model` の挙動変更**です。これまで「`/model` で気軽に切り替えて、セッション越しには戻る」運用をしていた人は、`s` を押さないと **次回起動時もそのモデルが使われる** ことになるため、コスト管理上は意識的に `s` を使う癖をつけた方が無難です。逆に「同じモデルを使い続けたい」人にとっては、毎回設定し直す手間が消える嬉しい変更です。
+
+**stateful MCP の reconnect ループ修正** は、ローカルで stateful MCP server を試している人ほど効きます。v2.1.147 以降で「なんとなく重い」「ファンが回り続ける」感覚があった場合、原因の一つだった可能性があります。
+
+**`skipLfs`** は、自作 plugin marketplace を運用しているとき、LFS 同梱 plugin を読み手側で軽く扱える設定として有用です。配布する側も、`skipLfs` 推奨の plugin かどうかを README に書くと親切です。
+
+**background agent 周りの一連の修正**（特に tmux 内 `/copy` の clipboard 失敗、`cmd+k` 描画、IME candidate window 位置）は、ターミナル中心で副業案件を回している個人にとって日々のストレスが減る部分です。Windows / macOS / Linux 環境で background agent を併用している人ほど、v2.1.153 へ上げるメリットがあります。
