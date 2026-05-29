@@ -1,0 +1,28 @@
+---
+title: "Claude Code v2.1.154（+ v2.1.156 hotfix）教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-154"
+date: 2026-05-28
+tags: ["claude-code", "opus-4-8", "dynamic-workflows", "claude-agents", "simplify", "auto-mode", "managed-settings", "mcp"]
+---
+
+new-commands-2026 教材は次を反映:
+
+- **`/workflows`** を新設節として追加（dynamic workflows、Max / Team / Enterprise、Enterprise は管理者有効化）。
+- **`/effort`** のラベル変更（Speed/Intelligence → Faster/Smarter）と `xhigh` 追加。
+- **`/simplify` の cleanup-only 再定義** を「フルレビューは `/code-review --fix` 直接使用」と対比で記述。
+- **`/chrome`** のブラウザ選択、**`/plugin enable`** の defaultEnabled-aware 操作、**`! <command>`** の `claude agents` 背景シェル起動も全部入り。
+
+managed-settings 教材は **不正 MCP エントリ単独 drop + `claude doctor` 警告** を恒久情報として節追加。Enterprise 運用者向けに「`claude doctor` を週次チェックに組み込む」推奨を 1 行入れる。
+
+skills 教材は `/claude-api` skill が Opus 4.8 サポート + 4.7 → 4.8 移行ガイダンスを取り込んだ点を 1 行追記。
+
+mcp 教材は次を反映:
+- stdio MCP server サブプロセスへの `CLAUDE_CODE_SESSION_ID` / `CLAUDECODE=1` を仕様として記載。
+- `claude mcp list/get` の `⏸ Pending approval` 表示を運用シナリオとして節追加。
+- Streaming tool execution が telemetry 無効 / Bedrock / Vertex / Foundry でも常時有効になった点も記載。
+
+model 切替教材は **Opus 4.6 fast mode override（`CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE`）2026-06-01 削除予告** を移行ガイドとして節追加。代替は `/model claude-opus-4-6[1m]` + `/fast on`。
+
+auto-mode 教材は data exfiltration 検知強化を 1 段書く。リポジトリ bulk transfer の検知が強まった点を「気付かないうちにブロックされる挙動が変わったわけではない」と注意付きで明示。
+
+v2.1.156 の hotfix（Opus 4.8 thinking block）は本記事の脚注リンク扱い。Knowledge への恒久情報化は不要。

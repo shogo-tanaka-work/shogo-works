@@ -1,0 +1,16 @@
+---
+title: "Claude Enterprise Connector Custom Roles 教材化メモ"
+noteFor: "claude/claude-enterprise-connector-custom-roles"
+date: 2026-05-28
+tags: ["claude", "enterprise", "connectors", "custom-roles", "rbac", "governance"]
+---
+
+「Claude Enterprise 管理者ガイド」「コネクタ運用」教材があれば、custom roles のコネクタ権限節を新設。Always allowed / Needs approval / Blocked の 3 状態と、connector 単位 / connector tool 単位の 2 階層を明示。
+
+権限合成則の **加算的合成（いずれかのロールが許可なら可）** と **4 階層（プラットフォーム → 組織 → ロール → ユーザー）の最も制限の強い設定が勝つ** 仕組みは、独立節として持つ価値あり。管理者のトラブルシュート判断順序として記載。
+
+監査対応の節があれば、「ロール単位で connector × tool アクセスを表化できる」点を SOC 2 / ISO 27001 観点で 1 段書く。
+
+Enterprise 限定機能（Pro/Team では使えない）のため、対象プランの注記は必須。
+
+副業観点では「Claude Enterprise の権限設計コンサル」として案件提案できる材料が増えたため、フリーランス向けの教材があれば 1 行記録。

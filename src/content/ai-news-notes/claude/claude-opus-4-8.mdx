@@ -1,0 +1,16 @@
+---
+title: "Claude Opus 4.8 教材化メモ"
+noteFor: "claude/claude-opus-4-8"
+date: 2026-05-28
+tags: ["claude", "opus-4-8", "model-release", "fast-mode", "messages-api", "pricing"]
+---
+
+models 教材は、Opus 4.7 → 4.8 のアップグレード表を新設し、「コード欠陥見逃し 1/4」「Terminal-Bench 2.1 首位」「OSWorld-Verified 82.3%」「法務エージェント 10% 超」をベンチ系の根拠として明示。API 識別子 `claude-opus-4-8` を一覧に追加。
+
+pricing 教材は、4.8 通常料金（入力 $5 / 出力 $25）が 4.7 と同一であること、Fast mode が **$10 / $50 で前世代比 3 倍安価 + 2.5 倍速** であることを更新。Opus 4.6 Fast mode override（`CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE`）の **2026-06-01 削除予告** を脚注で扱い、`/model claude-opus-4-6[1m]` + `/fast on` を代替手順として記載。
+
+Messages API 教材があれば、システムエントリの配列内配置を「プロンプトキャッシュ運用」節に追記。途中指示差し替えがキャッシュを切らずに実行できる点を、エージェント設計パターンとして書く。
+
+Effort Control は claude.ai / Cowork 全プラン対応。設定手順を 1 段で書ける。
+
+dynamic workflows、Copilot GA、Effort Control の各話題はそれぞれ別記事化済み。クロスリンクで補完する。

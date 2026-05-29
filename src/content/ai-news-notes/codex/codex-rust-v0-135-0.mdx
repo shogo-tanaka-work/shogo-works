@@ -1,0 +1,20 @@
+---
+title: "OpenAI Codex rust-v0.135.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-135-0"
+date: 2026-05-28
+tags: ["codex", "codex-doctor", "status", "permissions", "vim", "python-sdk", "sandbox-preset", "memory"]
+---
+
+cli-setup 教材は `codex doctor` の支援範囲（環境 / Git / terminal / app-server / thread inventory）を節追加。トラブルシュート時の最初の一手として標準化する記述に書き換える。
+
+permissions 教材は `/permissions` の名前付き permission プロファイル対応を 0.134 の `--profile` 主セレクタ化と一体で説明。custom profile 表示挙動を 1 段詳細化。
+
+Vim 教材があれば、テキストオブジェクト編集 + word/line-end 挙動改善 + interrupt-turn binding 設定を節追加。
+
+Python SDK 教材は Sandbox preset API への統一を反映。古い sandbox config の渡し方は deprecated と明示。
+
+memory 関連教材があれば、専用 SQLite 移行を「将来の memory tool 機能拡張の地ならし」として恒久情報に追記。
+
+`/status` のリモート接続詳細表示は「リモートトランスポート運用」節を持つ教材があれば追記。
+
+0.134 で行った profile v1 廃止が 0.135 で **完遂**（consumer 撤去）したため、profile 移行ガイド側に「0.135 以降は profile v1 が完全に消えた」を 1 行確定情報として残す。
