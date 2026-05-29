@@ -1,0 +1,126 @@
+---
+title: "Claude Code v2.1.154、Opus 4.8 既定化と dynamic workflows 同時投入 — `/effort xhigh`、`/workflows` で数百サブエージェント並列、`/simplify` を cleanup-only に再定義、`claude agents` で `! <command>` 背景シェル、auto-mode 強化、Opus 4.6 fast mode override 2026-06-01 削除予告"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-28
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.154"
+summary: "Anthropic は 2026-05-28 18:00 UTC に Claude Code **v2.1.154** を公開した。直前の v2.1.153 がメンテナンス寄りだったのに対し、v2.1.154 は **Opus 4.8 同日リリースと dynamic workflows 導入** を中心に **挙動の再設計が多数まとまった** 当窓最大級のリリース。Opus 4.8 が既定モデルになり、`/effort xhigh` が最難タスク向けに追加、Fast mode on Opus 4.8 が標準レート 2 倍で 2.5 倍速で利用可能になった。**dynamic workflows** は `/workflows` 経由で **数十〜数百のサブエージェント** を背景でオーケストレートする機能で、Max / Team / Enterprise + API / Bedrock / Vertex / Foundry が対象、Enterprise は管理者の有効化が前提。**`/simplify` がフル `/code-review --fix` から cleanup-only（reuse / simplification / efficiency / altitude）へ再定義**、`/effort` のスライダーラベルが Speed / Intelligence → Faster / Smarter に変更、lean system prompt が Opus 4.7 以前と Haiku / Sonnet 以外で既定化。`claude agents` では **`! <command>` で背景セッションのシェル**（`claude --bg --exec '<command>'` 同等）が起動可能になり、`/logout` の背景セッション誤転送が修正された。Claude in Chrome の `/chrome` でブラウザを選べるようになり、Plugins は **`defaultEnabled: false`** を `plugin.json` / marketplace エントリに宣言可能、`/plugin` Discover に **suggested for this directory** ピン付けも入った。**Streaming tool execution が常時有効化**（telemetry 無効 / Bedrock / Vertex / Foundry でも）、**stdio MCP server に `CLAUDE_CODE_SESSION_ID` と `CLAUDECODE=1` 環境変数**、`claude mcp list/get` が未承認 `.mcp.json` を `⏸ Pending approval` 表示。セキュリティでは **auto-mode 分類器の data exfiltration 検知強化**、**`rm -rf $HOME` の trailing slash 問題修正**、**`$TMPDIR` の sandboxed / unsandboxed 不一致修正**、**managed settings の不正 MCP エントリ単独 drop（全体 discard を回避）+ `claude doctor` 警告**、**Opus 4.6 fast mode override（`CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE`）の 2026-06-01 削除予告** が並ぶ。背景セッション・VS Code・TUI 周りの修正も多数含まれる。同 2026-05-29 に **v2.1.156** が Opus 4.8 利用時の thinking block 改変による API エラーを hotfix で解消している（v2.1.154 → v2.1.156 へ即時アップグレード推奨）。"
+impact: "**Opus 4.8 既定化 + dynamic workflows 投入** で、Claude Code は「対話型エージェント」から「**数百サブエージェント並列の自律オーケストレータ**」へ大きく軸が動いた。Max / Team / Enterprise で運用しているチームは、**`/workflows` を使う前提でのトークン消費見積もり** と、**Enterprise は管理者による有効化判断** を急ぐ必要がある。**`/simplify` の cleanup-only 再定義** は、これまで「軽く整える」つもりで `/simplify` を使っていた運用に挙動変化を持ち込むため、社内ガイドの記述更新が必須。**`! <command>` で背景シェル** が起動できるようになったのは `claude agents` 中心の運用設計を変える要素で、CI 待ち・ビルド・E2E の並走を Claude 内に閉じ込めやすくなる。**auto-mode の data exfiltration 検知強化** と **managed settings の不正 MCP エントリ単独 drop** は、これまで「不正な 1 エントリで policy 全体が黙って discard されていた」問題への直接の対処で、`claude doctor` 警告が出るためトラブルシュート性も上がる。Enterprise 配下の運用者は、`claude doctor` を週次チェックに組み込む価値がある。**Opus 4.6 fast mode override 2026-06-01 削除予告** は、4.6 Fast を運用に組み込んでいる組織にとって即時の移行課題（`/model claude-opus-4-6[1m]` + `/fast on`）。**v2.1.154 を踏んだら v2.1.156 へ即アップグレード**（thinking block hotfix）。"
+tags: ["claude-code", "opus-4-8", "dynamic-workflows", "claude-agents", "simplify", "auto-mode", "managed-settings", "mcp", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/new-commands-2026"
+  - "/knowledge/ai-tools/claude-code/skills"
+  - "/knowledge/ai-tools/claude-code/managed-settings"
+draft: false
+---
+
+## 要約
+
+Anthropic は 2026 年 5 月 28 日 18:00 UTC に Claude Code **v2.1.154** を公開しました。直前の v2.1.153 がメンテナンス寄りだったのに対し、v2.1.154 は **Opus 4.8 の同日リリース** と **dynamic workflows の導入** を中心に挙動の再設計が多数まとまった、当窓最大級のリリースです。
+
+### モデル / 推論関連
+
+- **Opus 4.8 が既定モデル** に。`/effort xhigh` で最難タスク向け。
+- **Fast mode on Opus 4.8**: 標準レート 2 倍で **2.5 倍速**。
+- **lean system prompt が既定化**（Haiku / Sonnet / Opus 4.7 以前を除く）。
+- Claude は **本当に判断できないとき** だけ選択肢提示の質問を出し、文脈があれば自走する方針に。
+- **Opus 4.6 fast mode override**（`CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE`）を **2026-06-01 削除予告**。代替: `/model claude-opus-4-6[1m]` → `/fast on`。
+
+### dynamic workflows（同日 blog でも発表）
+
+- `/workflows` で **数十〜数百のサブエージェントを並列オーケストレート**。
+- Max / Team / Enterprise + API / Bedrock / Vertex / Foundry が対象。**Enterprise は管理者が有効化** する必要あり。
+- `ultracode` 設定（effort メニュー）で自動モードに。
+- トークン消費が「著しく多い」ため、スコープを絞って開始することが推奨。
+
+### コマンド再定義
+
+- **`/simplify`** がフル `/code-review --fix` から **cleanup-only**（reuse / simplification / efficiency / altitude）の自動適用に変更。
+- `/effort` のスライダーラベルが **`Speed`/`Intelligence`** から **`Faster`/`Smarter`** に変更。
+
+### `claude agents`
+
+- **`! <command>`**: シェルコマンドを **背景セッション** として起動、attach / detach 可。`claude --bg --exec '<command>'` 同等。
+- `/logout` が背景セッション転送ではなく **本当にログアウト** する挙動に修正。
+- **`←←`** で agents view を開く操作が **Bedrock / Vertex / Foundry / telemetry-disabled** でも動作。
+
+### Plugins / Claude in Chrome / MCP
+
+- **`/chrome`** → "Select browser…" で接続済みブラウザ選択（複数接続時のチャット内選択にも対応）。
+- Plugins が **`defaultEnabled: false`** を `plugin.json` / marketplace エントリに宣言可能。`/plugin` または `claude plugin enable` で個別有効化。
+- `/plugin` Discover タブが現在ディレクトリと関連する plugin を **"suggested for this directory"** で上位ピン。
+- **Streaming tool execution が常時有効**（telemetry 無効 / Bedrock / Vertex / Foundry でも）。
+- stdio MCP server サブプロセスが **`CLAUDE_CODE_SESSION_ID`** と **`CLAUDECODE=1`** を環境変数で受け取る。
+- `claude mcp list`/`get` が未承認 `.mcp.json` サーバーを **`⏸ Pending approval`** として表示（pipe 時は自動承認しない）。
+- `/remote-control` autocomplete に "Disconnect Remote Control"（既に active のとき）。
+
+### セキュリティ / Auto mode
+
+- **Auto mode 分類器の data exfiltration 検知強化**（特にリポジトリ内容の bulk transfer）。
+- **`rm -rf $HOME` が trailing slash 付きの `HOME`** でもブロックされるように修正。
+- `$TMPDIR` が同セッション内で sandboxed / unsandboxed Bash 間で別ディレクトリに解決される問題を修正。
+- **managed settings の不正な `allowedMcpServers` / `deniedMcpServers` エントリ** で policy 全体が discard されていた問題を修正。不正エントリは drop + **`claude doctor` 警告**。
+- 単一の壊れたエントリで全 policy が黙って落ちる挙動が解消され、トラブルシュートが楽になった。
+
+### Background / TUI / VS Code
+
+- 1M-context モデルで背景エージェント完了通知が "out of context" 早発する問題を修正。
+- pinned 背景セッションが Claude Code 更新後に毎分 respawn する問題を修正。
+- "blocked" / "running" / "working" のまま retire しない背景セッション修正。
+- 背景セッションの subagent が worktree-isolation guard を回避していた問題を修正。
+- macOS の orphan `claude --bg-pty-host` が 100% CPU で残る問題を修正。
+- `worktree.baseRef: "head"` が linked worktree 内で main checkout HEAD に解決される問題を修正。
+- VS Code の thinking spinner 色数 cap で間欠的なターミナル描画破損を修正。Auto mode が VS Code でも bypass-permissions 設定不要に。
+
+### Skill / その他
+
+- **`/claude-api` skill に Opus 4.8 サポート + 4.7 → 4.8 移行ガイダンス** 追加。
+- `/model` ピッカーで Default オプションに fast mode 価格表示（API 利用ユーザー、fast on 時）。
+- ほか多数。
+
+### 翌 2026-05-29 の hotfix
+
+- **v2.1.156**: Opus 4.8 利用時の thinking block 改変による API エラーを修正（v2.1.155 はリリース履歴に出ず、yanked と推定）。**v2.1.154 を踏んだら v2.1.156 へ即時アップグレード推奨**。
+
+## 何が変わったか
+
+- 既定モデルが Opus 4.8 に。`/effort xhigh`、Fast mode on Opus 4.8（2 倍コスト・2.5 倍速）。
+- **dynamic workflows**: `/workflows` で数百サブエージェント並列、Max / Team / Enterprise（Enterprise は管理者有効化）+ API / Bedrock / Vertex / Foundry。
+- `/simplify` を cleanup-only に再定義（reuse / simplification / efficiency / altitude）。
+- `/effort` ラベル変更（Speed/Intelligence → Faster/Smarter）。
+- `claude agents` で `! <command>` 背景シェル、`/logout` 修正、`←←` 拡大対応。
+- `/chrome` でブラウザ選択、Plugins `defaultEnabled: false`、`/plugin` Discover の suggested for this directory。
+- Streaming tool execution が常時有効、stdio MCP に `CLAUDE_CODE_SESSION_ID` / `CLAUDECODE=1`、`claude mcp list/get` の Pending 表示。
+- Auto mode 分類器の data exfiltration 検知強化、`rm -rf $HOME` trailing slash 修正、`$TMPDIR` 不一致修正。
+- managed settings の不正 MCP エントリ単独 drop + `claude doctor` 警告。
+- Opus 4.6 fast mode override の 2026-06-01 削除予告（代替: `/model claude-opus-4-6[1m]` + `/fast on`）。
+- 背景セッション / VS Code / TUI 周りの修正多数。
+- `/claude-api` skill に Opus 4.8 サポート追加。
+- 翌 v2.1.156 で Opus 4.8 thinking block hotfix。
+
+## 業務インパクト（一般企業向け）
+
+**Opus 4.8 既定化 + dynamic workflows 投入** で、Claude Code は **対話型エージェントから自律オーケストレータへ軸が動きました**。Max / Team / Enterprise で運用しているチームは、`/workflows` を使う前提でのトークン消費見積もりと、**Enterprise は管理者による有効化判断** を急ぐ必要があります。「数百のサブエージェントを背景で並列実行する」という前提で、社内ガイドの「セッション設計」「コスト管理」を書き直す価値があります。
+
+**`/simplify` の cleanup-only 再定義** は、これまで「軽く整える」つもりで `/simplify` を使っていた運用に挙動変化を持ち込みます。社内ガイドで `/simplify` を「フルレビュー＋修正適用」として説明していた組織は記述更新が必須です。フルレビューが必要な場面は `/code-review --fix` を直接使う形に書き換えます。
+
+**`! <command>` で背景シェル** が起動できるようになったのは `claude agents` 中心の運用設計を変える要素です。CI 待ち、ビルド、E2E などの並走を Claude 内に閉じ込めやすくなり、`claude --bg --exec '<command>'` 同等を **チャット内から打てる** ことの実務インパクトは大きいです。
+
+**Auto mode の data exfiltration 検知強化** と **managed settings の不正 MCP エントリ単独 drop** は、これまで「不正な 1 エントリで policy 全体が黙って discard されていた」問題への直接の対処です。`claude doctor` 警告が出るようになったため、トラブルシュート性も上がりました。Enterprise 配下では `claude doctor` を週次チェックに組み込む価値があります。
+
+**Opus 4.6 fast mode override（`CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE`）の 2026-06-01 削除予告** は、4.6 Fast を業務で使い続けているチームにとって即時の移行課題です。代替は `/model claude-opus-4-6[1m]` + `/fast on`。週内に移行手順を整理しないと事故ります。
+
+**v2.1.154 を踏んだ場合は v2.1.156 へ即時アップグレード** が推奨です（Opus 4.8 利用時の thinking block 改変による API エラー hotfix）。
+
+## 副業・個人活用視点
+
+個人開発で最も効くのは **`! <command>` の背景シェル** です。ビルドや長い CLI 実行を待つ間に Claude に別の作業を投げられるため、「ビルド中の手待ち時間」を消せます。`claude agents` を中心にした運用に寄せている人ほど体感が変わります。
+
+**dynamic workflows** は個人で使うには Max プランが前提で、トークンコストも大きいので慎重に試行する必要があります。ただし、副業案件で「大規模 codebase の audit」「多ファイルの一括リファクタ」を請けている人にとっては、**1 セッションで完結する設計** ができる可能性がある機能です。ユースケースを 1 つ作って試す価値はあります。
+
+**`/simplify` の cleanup-only 再定義** は、軽い整形を頻繁にやる人に効きます。これまでは `/code-review --fix` のフルレビューが走って時間がかかっていた場面で、`/simplify` が **再利用 / 簡略化 / 効率化 / altitude** だけに絞った速い手当てを返すようになりました。
+
+**Plugins の `defaultEnabled: false`** は、自作 plugin marketplace を運用している人にとって重要です。「インストールしただけでは有効にならない」設計にできるため、複数 plugin を持つ marketplace の UX を細かく調整できます。
+
+**Opus 4.6 fast mode override の削除予告** は、個人で 4.6 Fast を使い続けている人も対象です。`/model claude-opus-4-6[1m]` + `/fast on` への移行を 2026-06-01 までに済ませてください。
