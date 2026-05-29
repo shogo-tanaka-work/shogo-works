@@ -1,0 +1,14 @@
+---
+title: "Claude Managed Agents Self-hosted sandboxes / MCP tunnels 教材化メモ"
+noteFor: "claude/claude-managed-agents-self-hosted-sandboxes-mcp-tunnels"
+date: 2026-05-26
+tags: ["claude", "managed-agents", "mcp", "self-hosted", "sandbox", "enterprise"]
+---
+
+managed-agents 教材は、「実行環境はどこで動くか」を扱う節を新設。Anthropic ホスト sandbox の従来構成と、Self-hosted sandboxes（public beta）の差を比較できる形にする。想定デプロイ先（自社インフラ・Cloudflare・Daytona・Modal・Vercel）を列挙しつつ、「いずれも public beta 段階のため、変更前提で扱う」を明文化。
+
+mcp 教材は、MCP tunnels（research preview）を「Managed Agents から社内 MCP に到達する経路」として節追加。社内 MCP 設計時の権限境界（MCP 単位で切る）を、tunnel 提供の登場を踏まえて推奨する記述に書き換える。research preview のため本番投入は早い、を必ず注記。
+
+Claude Code の sandbox 体系、Codex の `--profile` / sandbox 体系との対比は、次回のまとめ記事候補。Knowledge 本体への直接反映は、いずれも beta / preview のため避ける。
+
+Code w/ Claude 東京開催（2026-06-05〜06）は、Knowledge 本体に持ち込まない一過性情報。本記事リンクからの参照に留め、終了後に学んだ内容ベースで別記事化を検討する。

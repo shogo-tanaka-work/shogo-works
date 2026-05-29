@@ -18,6 +18,19 @@
 
 ---
 
+## 2026-05-28: 「Genspark Slides 5.0 がリリースされた」
+
+- **ユーザー認識**: 「Genspark Slides が 5.0 になった」
+- **公式実態**: Genspark の公式 Blog（`genspark.ai/blog`）と AI Slides Changelog（`genspark.ai/docs/ai_slides_changelog`、当窓は 403 で取得不可）のいずれも、対象期間（2026-05-26〜2026-05-28）に「Slides 5.0」名義の発表は確認できない。直近の大型発表は 2026-04-08 の **AI Workspace 4.0**、製品系列としての Slides は **Creative Mode** や `.pptx インポート→テンプレ化` などの個別機能追加が直近のメイン更新。「Slides 5.0」というメジャーバージョン採番は公式に存在しない（少なくとも公開ページ上では確認できない）。
+- **裏取り URL**:
+  - Genspark Blog 直近一覧（最新が 2026-05-17、Workspace 4.0 は 2026-04-08）: https://www.genspark.ai/blog
+  - AI Workspace 4.0 公式発表: https://www.genspark.ai/blog/introducing-genspark-ai-workspace-4-0-your-ai-employee-now-everywhere
+  - AI Slides 製品トップ: https://www.genspark.ai/agents?type=slides_agent
+- **窓内の関連発表**: 2026-05-26〜2026-05-28 に Slides 関連の公式新規エントリなし（`genspark.ai/docs` は 403 で再確認待ち）。
+- **メモ作成日**: 2026-05-28
+
+---
+
 ## エントリ追加ルール
 
 新しいギャップが見つかったら、上記フォーマットで上から積む。

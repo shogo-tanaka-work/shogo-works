@@ -1,0 +1,76 @@
+---
+title: "GitHub Copilot、Memory の削除/スコープ/CLI 制御強化と Model rules を同日発表、Enterprise → 組織 → リポジトリの階層ガバナンスが整う"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-05-26
+sourceUrl: "https://github.blog/changelog/2026-05-26-copilot-memory-has-more-controls-for-deletion-scope-and-the-copilot-cli/"
+summary: "GitHub は 2026-05-26 に Copilot のガバナンス関連アップデートを 2 件同時に発表した。1 つ目は **Copilot Memory の制御強化（public preview、全有料 Copilot プラン）**。ユーザーが「忘れて」と依頼したときの削除ガイダンス、リポジトリ管理者がメモリ機能をリポジトリ単位で OFF にできる **リポジトリレベル off スイッチ**、`/memory on` / `/memory off` / `/memory show` の **`/memory` CLI**、保存時の scope（**user-level preference**: 個人 + 全リポジトリ、**repository-level fact**: 全貢献者 + 該当リポジトリ限定）の明示が入った。2 つ目は **Copilot Model rules**（Copilot Business / Copilot Enterprise）。Enterprise オーナーが **組織単位で利用可能な Copilot モデル**を制御でき、各組織のデフォルトモデル選択や `Enabled`（自動 ON）/ `Optional`（組織側が判断）の可用性切替が可能になる。これにより、企業全体一括の単一設定ではなく **組織ごとに異なるモデル配布** が現実的になる。同日発表のため、Copilot のガバナンスは **Enterprise → 組織 → リポジトリ → ユーザー** の階層で「何を制御できるか」が一段整理された。"
+impact: "Copilot Memory の制御強化は、これまで「Memory に何が貯まっていて、どう消すか」が見えにくかった問題に対する答え。`/memory show` で状態を即時確認でき、リポジトリ管理者がメモリ機能自体をリポジトリ単位で止められるようになるため、**OSS / 法務的に NG なリポジトリでは Memory を OFF にする** という運用が定常化できる。scope の明示（user-level preference か repository-level fact か）は、特に **repository-level fact が全貢献者に共有される** 前提を意識した運用に直結するため、社内ガイドの『Copilot Memory 利用ガイド』に明記しておきたい。Copilot Model rules は **Enterprise 配下の組織別モデル配布** を制御する機能で、規制業界・契約上のモデル制限が組織横断的に異なる場合の運用に直接効く。`Enabled` / `Optional` の挙動差を社内テンプレートに落とし込んでおけば、Enterprise オーナーと各組織管理者の責務分担が明確になる。両者を合わせると、Enterprise → 組織 → リポジトリ → ユーザーの階層ガバナンスを設計し直す材料が一気に揃った形になる。"
+tags: ["github-copilot", "memory", "model-rules", "governance", "enterprise", "business", "public-preview", "scope"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/github-copilot/governance"
+  - "/knowledge/ai-tools/github-copilot/memory"
+draft: false
+---
+
+## 要約
+
+GitHub は 2026 年 5 月 26 日に Copilot のガバナンス関連アップデートを 2 件同時に発表しました。Copilot を組織導入しているチームにとって、ガバナンス設計を一段整理し直せる内容です。
+
+### 1. Copilot Memory の制御強化（public preview、全有料 Copilot プラン）
+
+主な追加は 4 点です。
+
+- **削除ガイダンス**: ユーザーが「このメモリを忘れて」と依頼すると、削除可能な場所を案内し、可能なら downvote を提案。
+- **リポジトリレベル off スイッチ**: リポジトリ管理者が設定からメモリ機能をリポジトリ単位で無効化可能。OSS リポジトリや法務的に NG なリポジトリで Memory を強制 OFF にできる。
+- **`/memory` CLI**: `/memory on` / `/memory off` / `/memory show` で **セッション間維持の有効化 / 無効化 / 状態確認** が可能。`/memory show` で「いま自分の Copilot に何が記憶されているか」をその場で確認できる。
+- **scope の明示**: メモリ保存時に **user-level preference**（個人のみ表示、全リポジトリで使用）か **repository-level fact**（全貢献者に表示、特定リポジトリ限定）かを示す。特に repository-level fact は **全貢献者に共有される** 前提を意識した運用が必要。
+
+公式 docs: https://docs.github.com/copilot/how-tos/use-copilot-agents/copilot-memory
+
+### 2. Copilot Model rules（Copilot Business / Copilot Enterprise）
+
+Enterprise オーナーが **組織単位で利用可能な Copilot モデル**を制御できる機能。設定できることは次の通り。
+
+- 各組織のデフォルトモデルを選択。
+- モデル可用性を **`Enabled`（その組織で自動 ON）** または **`Optional`（組織側が判断）** として配布。
+
+これにより、セキュリティ要件の厳しいチームには限定モデル、その他チームには柔軟な選択肢、という **細粒度のモデル配布** を Enterprise 側で運用できます。
+
+公式: https://github.blog/changelog/2026-05-26-target-copilot-models-to-organizations-with-model-rules/
+
+### 同日発表の意味
+
+Memory が **リポジトリ単位 + ユーザー単位** の制御、Model rules が **Enterprise → 組織単位** の制御という形で、Copilot のガバナンス階層は次のように整理し直せます。
+
+- **Enterprise**: Model rules で組織ごとのモデル配布。
+- **組織（org）**: `Enabled` / `Optional` のモデル設定を受領し、組織内ポリシーを決定。
+- **リポジトリ**: リポジトリ管理者が Memory を ON / OFF。
+- **ユーザー**: `/memory` CLI でセッション状態を制御、scope を意識した保存。
+
+## 何が変わったか
+
+- Copilot Memory の削除ガイダンス追加（削除場所案内 + downvote 提案）。
+- リポジトリ管理者がメモリ機能をリポジトリ単位で無効化可能（**リポジトリレベル off スイッチ**）。
+- **`/memory on` / `/memory off` / `/memory show`** CLI を追加（セッション間維持）。
+- メモリ保存時に **user-level preference** か **repository-level fact** かを明示。
+- **Model rules**: Enterprise オーナーが組織単位でデフォルトモデルとモデル可用性（`Enabled` / `Optional`）を制御（Business / Enterprise プラン）。
+
+## 業務インパクト（一般企業向け）
+
+**Copilot Memory の制御強化** は、これまで「何が貯まっていて、どう消すのか」が見えにくかった部分に対する答えです。`/memory show` で状態を即時確認でき、リポジトリ管理者が **リポジトリ単位で Memory を OFF にできる** ため、OSS リポジトリ・法務的に NG なリポジトリでは Memory を強制 OFF にする運用が定常化できます。社内ガイドの「Copilot Memory 利用ルール」を見直す価値があります。
+
+scope の明示は、特に **repository-level fact が全貢献者に共有される** 前提を意識した運用に直結します。社内貢献者だけのリポジトリならまだしも、OSS リポジトリで repository-level fact を不用意に保存すると、「個人の好み」が外部貢献者に漏れる可能性があります。社内ガイドには **「OSS リポジトリで repository-level fact は保存しない」** を明示するのが安全です。
+
+**Copilot Model rules** は、Enterprise 配下で組織ごとに異なるモデルポリシーを持つ組織にとって、即時導入対象です。これまでは Enterprise 全体の一括設定しかなく、「セキュリティチームには限定モデル、開発チームには柔軟な選択肢」を運用するには手作業の運用ルールに頼るしかありませんでした。`Enabled` / `Optional` を組み合わせれば、**Enterprise オーナーが配布し、組織管理者が選ぶ** という責務分担が制度化されます。
+
+両者を合わせると、Copilot ガバナンスは **Enterprise → 組織 → リポジトリ → ユーザー** の 4 階層で何を制御できるかが整理されました。社内の「Copilot ガバナンス章立て」を持っている組織は、章のスコープ分けを階層に合わせて見直すチャンスです。
+
+## 副業・個人活用視点
+
+副業・フリーランスとして複数の組織で Copilot を使う人にとって、**`/memory show` でその場で状態を確認できる** のは大きな改善です。クライアント A の repository-level fact が、クライアント B の作業中の Copilot Chat に紛れ込んでいないかを、`/memory show` で即時チェックできます。
+
+repository-level fact が **全貢献者に共有される** 仕様は、外部協力者として参画する案件で注意が必要です。クライアントのリポジトリで自分が repository-level fact を保存すると、他のチームメンバーにも見えます。**「クライアントのリポジトリでは user-level preference のみ、repository-level fact は触らない」** という自分ルールを持っておくと事故が減ります。
+
+Model rules は基本的に Enterprise オーナー向けの機能ですが、副業先の組織から「うちの Copilot で使えるモデルが限定されているのはなぜ？」と聞かれた際に、`Enabled` / `Optional` の枠組みで答えられるようにしておくと、信頼が積み上がります。Enterprise 管理側に回ることは少なくても、**理解しているフリーランス** として振る舞える材料になります。

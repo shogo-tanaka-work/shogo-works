@@ -1,0 +1,76 @@
+---
+title: "OpenAI Codex rust-v0.134.0、ローカル会話履歴検索・`--profile` を主セレクタへ昇格（legacy 廃止）・MCP per-server env + OAuth・readOnly MCP 並列化・hook context に会話履歴と subagent identity 追加"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-05-26
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.134.0"
+summary: "OpenAI は 2026-05-26 19:13 UTC に Codex CLI **rust-v0.134.0**（stable）を公開した。前 stable rust-v0.133.0（2026-05-21）からのメジャー差分は、**会話履歴検索・profile 体系の整理・MCP 運用の本質的強化・hook context の拡張** が中心。新機能としては、rollout を元にローカルの会話履歴を case-insensitive に検索し result preview を出す **thread content search**、CLI / TUI permissions / sandbox の各フローで `--profile` が **主セレクタへ昇格**し legacy profile v1 の resolution / write path / telemetry が削除（互換は migration guidance のみ）、MCP server の per-server environment 切り出しと streamable HTTP MCP に対する OAuth option、connector tool schema の local `$ref`/`$defs` 保持と過大 schema の best-effort compact 化、`readOnlyHint` を申告する MCP tool の並列実行、hook context への conversation history と subagent identity の追加が入っている。バグ修正・運用改善としては、exec-server websocket client の reconnect、auth recovery 後の即時 retry、remote compaction v2 stream の retry、Windows TUI 描画崩れの VT モード復元、workspace 単位の usage-limit エラー文言、plugin skill 間での plugin-level icon asset 共有、auto-review 起動時の active permission profile metadata 保持、Node ベース tool が managed network proxy 環境を尊重するように、などが含まれる。docs では curl / PowerShell インストーラ手順、`just test` の優先、profile migration リンクが追加され、packaging では DotSlash fetching の reusable 化、Codex 自前 V8 artifact 経由の release build、macOS x64 zsh artifact 追加なども入った。"
+impact: "**`--profile` 主セレクタ化と legacy profile v1 廃止**は、**破壊的変更扱いに近い**運用影響を持つ。0.133 までの profile v1 設定をそのまま流用している環境では migration guidance に従った書き換えが必須。社内で profile v1 を前提とした手順書・スクリプトを持つチームは、0.134 アップグレード前に棚卸しが必要。**MCP per-server environment + OAuth** と **readOnly MCP の並列化** は、Codex を agentic / multi-tool ワークフローで本格運用しているチームの **MCP 設計の質を変える** 変更。これまで「全 MCP server が共有環境を見る」前提だった設計を、per-server に切り出して隔離 / 並列化 / OAuth 適用ができる前提に書き換える価値がある。**hook context 拡張**（会話履歴 + subagent identity）は、organization 配布の hook が「呼び出し元 subagent によって挙動を変える」設計を取りやすくする。**会話履歴検索**は `/goal` ベースの長時間セッション運用で「以前ここで議論した」を辿れるようになり、knowledge 蓄積に直接効く。"
+tags: ["codex", "profile", "mcp", "hooks", "thread-search", "stable", "release-note", "breaking-change"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/codex/cli-setup"
+  - "/knowledge/ai-tools/codex/mcp"
+  - "/knowledge/ai-tools/codex/hooks"
+draft: false
+---
+
+## 要約
+
+OpenAI は 2026 年 5 月 26 日 19:13 UTC（日本時間 5 月 27 日 4:13）に Codex CLI の **rust-v0.134.0**（stable）を公開しました。前 stable rust-v0.133.0（2026-05-21）からのメジャー差分は、**会話履歴検索・profile 体系の整理・MCP 運用の本質的強化・hook context の拡張** が中心で、運用フローを直接書き換える変更を多く含みます。
+
+最初に押さえたい新機能は **ローカル会話履歴検索（thread content search）**です。rollout（Codex の会話保存形式）を元に、過去の thread を **case-insensitive な本文検索** で辿れるようになり、result preview も表示されます。`/goal` を使った長時間タスクの中で「以前ここで議論した結論」を引っ張り出すフローが現実的になりました。
+
+次に、profile 体系の大きな整理です。**`--profile` が CLI / TUI permissions / sandbox の各フローで主セレクタに昇格**し、legacy profile v1 の resolution / write path / telemetry は削除されました。互換性は **migration guidance**（誤って legacy 形式を渡したときに出る案内）のみで提供され、profile v1 を前提にしたスクリプトはそのままでは通りません。これは事実上の破壊的変更です。`codex sandbox` でも `--profile` を直接受けられるようになり、profile の切替経路が CLI / TUI / sandbox / app-server で一本化されました。
+
+**MCP 周りの強化**も大きな変更です。MCP server を **per-server environment** にルーティングできるようになり、streamable HTTP MCP server に対しては **OAuth option** がサポートされました（`codex mcp add` 側も OAuth 対応）。connector tool schema は **local `$ref` / `$defs` を保持しつつ過大 schema は exposure 前に best-effort で compact 化** する処理が入り、tool schema の信頼性が一段上がっています。さらに **`readOnlyHint` を申告する MCP tool は並列実行** が許可され、複数の read 系 MCP を多用するワークフローのレイテンシが下がります。
+
+**hook context の拡張**（派生改善）として、extension tool に **conversation history** が渡されるようになり、hook input には **subagent identity** が含まれるようになりました。組織配布の hook 側で「どの subagent から呼ばれているか」「これまでの会話履歴で何が決まっているか」を見て挙動を分岐させる、いわゆる context-aware な hook 設計が現実的になります。
+
+バグ修正・運用改善も多めです。exec-server websocket client の reconnect、auth recovery 後の即時 retry、remote compaction v2 stream の retry など **remote 系の信頼性強化**、Windows TUI 描画崩れの VT モード復元、workspace 単位の usage-limit エラー文言、plugin skill 間での plugin-level icon asset 共有、auto-review 起動時の active permission profile metadata 保持、Node ベース tool が managed network proxy 環境を尊重するように、などが入りました。
+
+docs 側では curl / PowerShell インストーラ手順、`just test` の優先、profile migration リンクが追記され、packaging は DotSlash fetching の reusable 化、Codex 自前 V8 artifact 経由の release build、macOS x64 zsh artifact 追加など、配布パイプライン側もまとまった刷新が入っています。
+
+26 名の maintainer による寄与。
+
+## 何が変わったか
+
+- ローカル会話履歴検索（rollout-backed thread content search、case-insensitive、result preview 付き）。
+- `--profile` が CLI / TUI permissions / sandbox の主セレクタへ昇格。legacy profile v1 の resolution / write path / telemetry を削除（互換は migration guidance のみ）。
+- `codex sandbox` で `--profile` を受けるように。
+- MCP server を per-server environment にルーティング。
+- streamable HTTP MCP に OAuth option（`codex mcp add` も OAuth 対応）。
+- connector tool schema が local `$ref` / `$defs` を保持。過大 schema は exposure 前に best-effort で compact 化。
+- `readOnlyHint` を申告する MCP tool の並列実行を許可。
+- extension tool に conversation history を渡す + hook input に subagent identity を含める（hook 派生改善）。
+- exec-server websocket reconnect、auth recovery 後の retry、remote compaction v2 retry。
+- Windows TUI 描画崩れ修正（VT モード復元）。
+- workspace 単位の usage-limit エラー文言。
+- plugin skill 間で plugin-level icon asset を共有。
+- auto-review 起動時に active permission profile metadata を保持。
+- Node ベース tool が managed network proxy 環境を尊重。
+- docs: curl / PowerShell インストーラ追記、`just test` 優先、profile migration リンク。
+- packaging: DotSlash fetching の reusable 化、Codex 自前 V8 artifact 経由の release build、macOS x64 zsh artifact。
+- Bedrock Mantle GovCloud region 追加。
+
+## 業務インパクト（一般企業向け）
+
+**`--profile` 主セレクタ化と legacy profile v1 廃止** は、組織で Codex を運用しているチームにとっては **事実上の破壊的変更** として扱う必要があります。0.133 までの profile v1 形式の設定ファイル・配布スクリプトを持っている場合、0.134 アップグレード時に migration guidance に従って書き換える棚卸しが発生します。社内手順書で `--profile` 以外の経路（旧コマンド・設定ファイル直書き）で profile を切り替えていた箇所は、新方式に統一するチャンスでもあります。
+
+**MCP per-server environment + OAuth** は、複数の MCP server を並走させているチームの **MCP 設計** に効きます。これまで「全 MCP server が同じ環境変数を見る」前提だった設計を、「MCP server ごとに環境を切る」「特定の HTTP MCP に OAuth を当てる」前提に直せます。社内 MCP 一覧表（運用ドキュメント）を持っている組織は、`environment` 列と `auth` 列の追加が現実的になりました。
+
+**`readOnlyHint` を申告する MCP tool の並列化** は、複数の read-only MCP を一連の調査タスクで連続的に呼ぶ Codex agent ワークフローで効きます。MCP server 側に `readOnlyHint` を仕込めば、Codex が並列に投げてくれるようになるため、社内 MCP の **annotation 整備** がそのままパフォーマンス改善に直結します。
+
+**hook context 拡張**は、organization 配布の hook 設計を一段進める材料になります。「どの subagent から呼ばれたかで動作を変える hook」「会話履歴を見てフォーマット注入を切り替える hook」のような **context-aware hook** が、organization 配布の正規パターンとして書きやすくなりました。
+
+**会話履歴検索**は、Codex で長時間タスク（PR レビュー、リファクタ、設計議論など）を回しているチームのナレッジ追跡を変えます。「あのときの議論はどこにあったか」を grep ベースで辿れるため、knowledge 蓄積の手前にいるチームには即効性があります。
+
+## 副業・個人活用視点
+
+個人開発では、まず **会話履歴検索** が効きます。Codex で日々こなしているタスクから「あの時の問題、どう解決したっけ」を呼び戻すのは、これまで thread を順番に辿るしかなく実質できなかった操作でした。0.134 以降は本文検索が走るため、個人の knowledge base としても再利用しやすくなります。
+
+**`--profile` の整理** は、副業案件ごとに profile を切り替えているフリーランスにとって、設計を見直す機会になります。これまで「`--profile` と環境変数の組み合わせで状態を管理」していた人は、`--profile` を主とした切替に統一できます。0.133 までの profile v1 設定があるなら、案件中の作業に入る前に migration を済ませておくと安全です。
+
+**MCP per-server env** は、個人で自作 MCP server を複数走らせている人にとって、**「この MCP は API キー A、こちらは API キー B」を一発で切り分けられる**設計に変わります。OAuth option も組み合わせれば、自作 HTTP MCP の認証を Codex 側で完結できます。
+
+**hook context 拡張**は、自作 hook を持っている人にとって、**「subagent ごとに違う体裁を強制する hook」「会話履歴を踏まえてプロンプトを書き換える hook」**が現実的な設計選択肢になったことを意味します。Codex × Hooks を扱っている個人ブロガー・チュートリアル運営者にとっては、サンプル更新の余地が広い変更です。

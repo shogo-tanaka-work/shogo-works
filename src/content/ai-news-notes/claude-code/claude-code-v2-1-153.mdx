@@ -1,0 +1,18 @@
+---
+title: "Claude Code v2.1.153 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-153"
+date: 2026-05-28
+tags: ["claude-code", "model", "mcp", "plugins", "background-agents", "security"]
+---
+
+new-commands-2026 教材の `/model` 節を「セッション限定切替」前提から「**既定保存** + `s` でセッション限定切替」前提に書き換え候補。あわせて `modelPicker:setAsDefault` → `modelPicker:thisSessionOnly` のキーバインド名変更を周知。
+
+mcp 教材は、v2.1.147 リグレッション（stateful MCP `tools/list` reconnect ループ）について「**v2.1.147〜v2.1.152 を踏んだ場合は v2.1.153 へ即時アップグレード**」の注意を恒久情報として 1 行入れる。`--strict-mcp-config` が subagent frontmatter MCP server に再度適用されるようになった点も MCP × subagent の節に追記し、「ブロックされた subagent MCP は warning が出る」運用前提を補足。
+
+install-and-setup 教材は、custom API gateway 経由のクレデンシャル誤送信修正について「gateway 運用組織は v2.1.153 以降を強く推奨」を恒久情報として書く。Windows PowerShell installer の偽 "Installation complete!" 修正も Windows セクションに追記候補。
+
+plugins 教材があれば、`skipLfs` オプションを `github`/`git` plugin marketplace source の節に追加。LFS 同梱 plugin の clone コスト対策として説明。
+
+claude agents 教材は、dispatch input autocomplete のネイティブ slash command + bundled skill 対応、PR 列の `PR #N` / `N PRs` 表示を「v2.1.153 以降の挙動」として追記。
+
+background session 周りの修正（tmux 内 `/copy`、iTerm2 `cmd+k`、IME candidate window 位置、Windows での孤立 MCP server 解消、`Agent subagent_type: 'claude'` の temporary worktree 修正）は Knowledge 本体には残さず、本記事リンクからの参照に留める。

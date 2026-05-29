@@ -1,0 +1,18 @@
+---
+title: "Claude Code v2.1.152 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-152"
+date: 2026-05-27
+tags: ["claude-code", "code-review", "hooks", "skills", "auto-mode", "fallback-model"]
+---
+
+new-commands-2026 教材は `/code-review` の節を「結果を見るコマンド」から「`--fix` で適用までできるコマンド」に書き換え候補。`/simplify` が `/code-review --fix` のエイリアスとして同じ動作になった点も追記し、「軽く整える」用途のコマンドが内部的に同じ実体であることを明示する。
+
+hooks 教材は、`MessageDisplay` hook と `SessionStart.hookSpecificOutput.reloadSkills` / `sessionTitle` を扱う節を新設できる。`MessageDisplay` は「アシスタント出力を画面に出す直前に書き換えできる hook」という位置付けで、社外秘マスク・固定フッター挿入・条件付き非表示の例で説明するのが分かりやすい。
+
+skills 教材は、`disallowed-tools` frontmatter を「skill 設計時に最小権限化する仕組み」として節追加。`/reload-skills` を併記して「frontmatter を変えてもセッションを切らずに反映」を運用フローとして書く。
+
+managed-settings 教材があれば、`pluginSuggestionMarketplaces` の節を追加。「context-aware tip 経由で提案される org marketplace を allowlist 化する設定」と説明。
+
+`--fallback-model` の挙動変更（リクエスト単位失敗 → セッション残りを切替）は、install-and-setup 教材または cli-options 教材で、`--model` / `--fallback-model` の組み合わせを扱う節に短く追記。
+
+Vim 逆履歴検索（NORMAL モードで `/`）は、Vim キーバインドを扱う独立節を持っている場合にのみ追記。それ以外は本記事のみで完結させる。

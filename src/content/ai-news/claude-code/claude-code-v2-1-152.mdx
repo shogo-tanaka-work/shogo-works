@@ -1,0 +1,73 @@
+---
+title: "Claude Code v2.1.152、`/code-review --fix` で修正自動適用・`MessageDisplay` hook・`/reload-skills`・Auto mode 同意撤廃"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-27
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.152"
+summary: "Anthropic は 2026-05-27 01:30 UTC に Claude Code **v2.1.152** を公開した。前リリース v2.1.150 が user-facing change なしの内部修正だけだったのに対し、v2.1.152 は **レビューの自動適用、hook システムの拡張、skill 運用の改善** を中心に user-facing な変更を多数積み増している。最大の追加は `/code-review --fix`（レビュー結果を作業ツリーに直接適用するモード）で、`/simplify` も同じ動きにそろえた。続いて、アシスタントメッセージの表示時に hook で本文を変換・非表示にできる `MessageDisplay` hook、セッションを切らずに skill ディレクトリを再スキャンする `/reload-skills` コマンド、`SessionStart` hook 内から `reloadSkills: true` や `sessionTitle` を返せるフォーマット拡張、skill / slash command の frontmatter に `disallowed-tools` を書くと skill 有効中に特定ツールを model から外せる仕組みなど、運用設計のレバーがまとまって増えた。さらに Auto mode の同意要求が撤廃され、`pluginSuggestionMarketplaces` で管理者が context-aware tip で提案可能な org marketplace を allowlist 化できる managed setting も追加された。主モデルが見つからないとリクエスト単位で失敗していた挙動は、設定済み `--fallback-model` へセッション残りを切り替える形に変わり、Vim NORMAL モードでは `/` が逆履歴検索を起動するようになった。`/usage` の大セッションファイル対応（ストリーミング読み出しでメモリ平準化）、`claude plugin marketplace remove --scope` 対応など、地味だが効く改善も入っている。"
+impact: "`/code-review --fix` の登場は、Claude Code を組織導入したチームの **レビュー→修正適用** のフローを変える。これまで「レビュー出力を読んで `/edit` などで自分で当てる」必要があった部分が、`--fix` 1 つで作業ツリーへ反映される。社内ガイドの「コードレビュー手順」は、見直す価値がある。`MessageDisplay` hook と `disallowed-tools` frontmatter は、**社外秘マスク・固定文言注入・skill 単位の最小権限化** など、配布・統制側の設計余地を一段広げる。Auto mode 同意撤廃と `/reload-skills` は、skill を hook で動的に増減させる運用と相性が良く、社内 skill 配布の即時反映が現実的になる。Enterprise の `pluginSuggestionMarketplaces` は plugin suggestion の出所をホワイトリスト化できるため、社外 marketplace の plugin が混入しないようコントロールしたい組織に効く。`--fallback-model` のセッション継続化は、主モデル切替時の事故率を実務的に下げる修正。"
+tags: ["claude-code", "code-review", "hooks", "skills", "auto-mode", "fallback-model", "vim", "managed-settings", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/new-commands-2026"
+  - "/knowledge/ai-tools/claude-code/hooks"
+  - "/knowledge/ai-tools/claude-code/skills"
+draft: false
+---
+
+## 要約
+
+Anthropic は 2026 年 5 月 27 日 01:30 UTC（日本時間 10:30）に Claude Code **v2.1.152** を公開しました。直前の v2.1.150 が「内部基盤改善のみ（user-facing change なし）」だったのに対し、v2.1.152 は **レビューの自動適用、hook システムの拡張、skill 運用の改善** を中心に user-facing 変更を多数積み増したリリースです。
+
+最大の追加は **`/code-review --fix`** です。これまでの `/code-review` は再利用・簡略化・効率化の指摘を出力するだけで、適用は手作業でした。`v2.1.152` 以降は `--fix` フラグを付けるとレビュー結果が **作業ツリーへそのまま反映**されます。あわせて `/simplify` が `/code-review --fix` のエイリアスとして再定義され、「軽く整える」用途も同じ動きにそろいました。
+
+**`MessageDisplay` hook** の追加も大きな変化です。アシスタントメッセージが画面に出る瞬間に hook 側で本文を変換したり非表示にしたりできるため、社外秘トークンのマスク、組織共通の前置き挿入、配布構成での出力制御などを構成側で吸収できるようになりました。
+
+**`/reload-skills`** コマンドが追加され、セッションを切らずに skill ディレクトリを再スキャンできます。`SessionStart` hook 側も拡張され、`hookSpecificOutput.reloadSkills: true` を返すと hook が skill をインストールしたあと **同じセッションで** その skill が使えます。さらに `sessionTitle` を返すとセッションタイトルを上書きでき、起動・resume のラベリングを自動化できます。
+
+**skill / slash command の `disallowed-tools` frontmatter** は、skill が有効になっている間だけ model から特定ツールを取り上げる仕組みです。「この skill 中は web fetch を禁止」「この skill 中は edit 系を取り上げる」のような最小権限の設計が、frontmatter 1 行で書けるようになりました。
+
+運用面では **Auto mode の同意要求が撤廃**されました。これまでは Auto mode に切り替える際にオプトイン同意が必要でしたが、v2.1.152 からは即時遷移します。あわせて **`pluginSuggestionMarketplaces`** managed setting が追加され、管理者が context-aware tip で提案可能な org marketplace を allowlist 化できます。
+
+主モデルが見つからないと **リクエストごと**に失敗していた挙動は、設定済み `--fallback-model` へ **セッション残りを切り替える** 形に変わりました。Vim ユーザー向けには NORMAL モードで `/` が逆履歴検索を起動するようになり、bash/zsh の vi モードと挙動が揃いました。
+
+`/usage` は大きなセッションファイルもストリーミング読み出しで対応し、メモリ消費が平準化されています。`claude plugin marketplace remove` も `--scope user|project|local` を受け付けるようになり、`marketplace add` / `install` / `uninstall` と対称になりました。
+
+このほか、Workflow tool のインライン進捗表示の整理、Thinking 表示のマークダウン化と 10 行キャップ、OpenTelemetry の `app.entrypoint` 属性（opt-in）、長セッションでの terminal styling 崩れ修正、focus mode の偽 "N messages hidden" 修正、plugin MCP server の重複判定改善、`/doctor` の stale `enabledPlugins` 警告、Remote Control + 出口プロキシ下の MCP 接続修正など、運用上の細かい改善も多数入っています。
+
+## 何が変わったか
+
+- `/code-review --fix` でレビュー結果を作業ツリーへ自動適用。`/simplify` は `--fix` のエイリアスに。
+- `MessageDisplay` hook を追加。アシスタント出力を hook 側で変換・非表示にできる。
+- `/reload-skills` でセッション維持のまま skill ディレクトリを再スキャン。
+- `SessionStart` hook の `hookSpecificOutput` に `reloadSkills` と `sessionTitle` を追加。
+- skill / slash command frontmatter で `disallowed-tools` を指定すると、skill 有効中に model から特定ツールを外せる。
+- Auto mode のオプトイン同意を撤廃。
+- Enterprise 向けに `pluginSuggestionMarketplaces` managed setting を追加（context-aware tip で提案可能な org marketplace を allowlist 化）。
+- `claude plugin marketplace remove --scope user|project|local` を追加。
+- 主モデル不在時は、リクエスト単位の失敗ではなく `--fallback-model` へセッション残りを切り替え。
+- Vim NORMAL モードで `/` が逆履歴検索（Ctrl+R 相当）に。
+- `/usage` を大セッションファイルでもストリーミング読み出しで対応。
+- Workflow tool のインライン進捗表示・Thinking summary 表示・focus mode カウント・terminal styling・MCP plugin 重複判定 ほか多数の修正。
+
+## 業務インパクト（一般企業向け）
+
+`/code-review --fix` は、Claude Code を組織導入したチームの **「レビューを出してから、誰がいつ反映するか」** という工程を圧縮します。これまでは `/code-review` の出力を見て「修正を当てる人」が手作業で進めるフローが普通でしたが、`--fix` 経由で作業ツリーへ反映されれば、レビュー直後に diff を確認する流れが自然になります。社内ガイドの「コードレビュー手順」を見直す価値があります。
+
+**`MessageDisplay` hook** と **`disallowed-tools`** frontmatter は、配布・統制側に効きます。例えば、社外秘トークンや顧客名を含む出力を hook で自動マスクする運用、特定 skill 利用中は web fetch を取り上げる運用、組織共通のフッターを差し込む運用などが、設定ファイルベースで一元化できます。これまで wrapper を自作して挟んでいた組織にとっては、設計が一段スッキリします。
+
+**Auto mode の同意撤廃** と **`/reload-skills`** は、組織配布の skill を hook で動的に管理する運用と相性が良く、**「新しい skill を hook が入れて、その場で使える」** という流れが現実的になります。社内 skill リポジトリを `SessionStart` hook で同期するパターンを採っているチームは、起動体験が大きく改善するはずです。
+
+**`pluginSuggestionMarketplaces`** managed setting は、社外 marketplace の plugin が context-aware tip 経由で提案されないようコントロールしたい Enterprise 向けです。社内ガバナンス上「提案リストに何が出るか」を管理したい組織は、設定対象に追加してください。
+
+**`--fallback-model` のセッション継続化** は、主モデル切替時の事故率を実務的に下げます。これまでは「主モデル名を変えた瞬間にエラーが連続」していた状況で、自動で fallback へ切り替わるため、運用窓口の問い合わせを減らせます。
+
+## 副業・個人活用視点
+
+個人開発で効くのは、まず **`/code-review --fix`** です。`/code-review` を頻繁に使う人ほど、「指摘は出るが当てるのが面倒」を毎回踏みやすかったところで、`--fix` 1 つで効率が変わります。コミット前のチェックリストに `/code-review --fix → 差分確認 → コミット` を組み込むと体感が違います。
+
+**`/reload-skills`** と **`disallowed-tools`** は、自作 skill を試行錯誤しながら作っているフェーズで効きます。skill の frontmatter を変えるたびに再起動していた人は、`/reload-skills` でループを 1 段速くできます。`disallowed-tools` は「ある skill 中はネット禁止」のような明確な制約を、コメントではなく frontmatter で明文化できる点が重要です。
+
+Vim ユーザーには、NORMAL モードで `/` が **逆履歴検索** になった改善が地味に効きます。Ctrl+R の代替として馴染みのある操作になり、Vim キーバインドのみで履歴を辿れます。
+
+**Auto mode の同意撤廃** は、副業案件で短期スピンアップする人にとって、起動体験のストレスが 1 ステップ消えるメリットがあります。
