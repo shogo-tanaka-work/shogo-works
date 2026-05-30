@@ -1,0 +1,103 @@
+---
+title: "Claude Code v2.1.157、`.claude/skills` プラグイン自動ロードと EnterWorktree セッション中断なし切替を投入 — `claude plugin init` でスキャフォールド、`/plugin` 引数補完、worktree 自動 unlock、`tool_decision` に bash / MCP / skill 名、ゼロバイト画像 crash 修正、auto モードのネットワーク権限プロンプト誤発生修正ほか多数。翌 v2.1.158 で Bedrock / Vertex / Foundry の Opus 4.7 / 4.8 で Auto mode が opt-in 解禁"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-05-29
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.157"
+summary: "Anthropic は 2026-05-29 20:20 UTC（JST 2026-05-30 05:20）に Claude Code **v2.1.157** を公開した。前日 v2.1.154 が **Opus 4.8 既定化 + dynamic workflows** という当窓最大級のリリースだったのに対し、v2.1.157 は **プラグイン運用の摩擦削減**・**worktree 運用の自動化**・**telemetry 観測性の強化**・**多数のバグ修正** をまとめた整理リリース。最大の挙動変化は **`.claude/skills` 配下のプラグインがマーケットプレイス不要で自動ロード** されるようになった点で、`claude plugin init <name>` で `.claude/skills` 配下にスキャフォールドが切れ、`/plugin` 引数のオートコンプリート（サブコマンド名 / インストール済み plugin 名 / 既知マーケットプレイス由来）も追加された。`claude agents` では **`settings.json` の `agent` フィールドが dispatched セッションで尊重** され、**`EnterWorktree` がセッション中断なしに Claude 管理 worktree 間を切替可能**、終了時に worktree が **unlock 状態で残るため `git worktree remove`/`prune` でクリーンアップ可能** になった（`.claude/worktrees/` 配下の背景エージェント worktree が 30 日 retention sweep 後に orphan 化していた問題も修正）。telemetry では `tool_decision` イベントに **`tool_parameters`**（bash コマンド、MCP / skill 名）が含まれるようになり、`OTEL_LOG_TOOL_DETAILS=1` で Enterprise の監査・利用分析の解像度が上がる。バグ修正では **ゼロバイト / 破損画像** をペースト・MCP・ダイアログから添付するとリクエストがクラッシュしていた問題を text placeholder 化で解消、デスクトップアプリ・IDE 拡張・SDK 使用時に **auto / bypass-permissions モードでもサンドボックスのネットワーク許可プロンプトが出ていた問題** を修正、tmux + `set-clipboard on` の `claude agents` で copy-on-select がクリップボードに届かない問題（2.1.153 リグレッション）、`--worktree` / `--worktree --tmux` が linked worktree ではなく canonical root に戻る問題、`/model` ピッカーで最新モデル選択中の「Newer version available」誤表示、fullscreen での markdown 記号 literal 表示、起動時 managed-settings security ダイアログ後のフリーズ、VS Code / Cursor / Windsurf 統合ターミナルの右クリックペースト重複なども修正。UX 面では `/terminal-setup` が VS Code / Cursor / Windsurf 統合ターミナルで **GPU acceleration を無効化** して描画破損を防止、`claude agents` の dispatch 入力のスラッシュコマンド補完が部分一致対応、「bash commands will be sandboxed」 起動バナー削除、`/config` に **「Workflow keyword trigger」** 設定追加（プロンプト中の 「workflow」 が dynamic workflow を起動する挙動を停止可能）。翌 2026-05-30 02:42 UTC（JST 11:42）の **v2.1.158** では、**Bedrock / Vertex / Foundry 経由の Opus 4.7 / 4.8 でも Auto mode が利用可能**（環境変数 **`CLAUDE_CODE_ENABLE_AUTO_MODE=1`** でオプトイン）になり、AWS / GCP / Azure 経由で Claude を運用する Enterprise でも Auto mode を解禁できるようになった。"
+impact: "**`.claude/skills` プラグイン自動ロード** は、Claude Code を組織で運用しているチームにとって **「ローカル plugin を marketplace 経由にせず社内で配布できる」** ことを意味する。リポジトリに `.claude/skills/<plugin>` を入れておくだけでチームメンバー全員にスキルが行き渡るため、**社内 plugin ガバナンス** を marketplace 中心から git 中心に組み替えられる。`claude plugin init` でスキャフォールドが切れることで、社内 plugin の初期コスト障壁も下がる。**`EnterWorktree` の中断なし切替 + 終了時 unlock** は、worktree を実務で使っているチームに直接効く改善で、これまで「切り替えるとセッションが切れる」「終了後に worktree が locked のまま残って `prune` で消せない」という運用負荷が消える。**telemetry に bash コマンド / MCP / skill 名** が乗るようになったのは Enterprise 監査の重要な改善で、`OTEL_LOG_TOOL_DETAILS=1` を managed settings 経由で配布する設計が現実的になる（ただし bash 引数が外部 OTEL に流れる前提のため、機密情報の扱いは社内 DLP と整合させる必要あり）。**ゼロバイト画像 crash 修正** と **auto / bypass-permissions のネットワークプロンプト誤発生修正** は地味だが、デスクトップアプリ・IDE 拡張・SDK 経由で運用しているユーザーに直接影響する Severity 中のバグだったため即時アップグレード推奨。**`/config` の 「Workflow keyword trigger」 設定** は、v2.1.154 で入った dynamic workflows のキーワードトリガーが意図せず発火する問題への直接の対処で、社内ガイドに「ワークフロー誤起動を防ぐ設定」として記載する価値がある。**翌 v2.1.158 の Bedrock / Vertex / Foundry での Auto mode opt-in 解禁** は、AWS / GCP / Azure 経由で Claude を運用している Enterprise にとって **「クラウドプロバイダー経由は Auto mode を使えない」というこれまでの制約が解ける** 重要な変化で、`CLAUDE_CODE_ENABLE_AUTO_MODE=1` を managed settings の環境変数として配布する形で段階導入できる。"
+tags: ["claude-code", "plugins", "worktree", "telemetry", "auto-mode", "bedrock", "vertex", "foundry", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/skills"
+  - "/knowledge/ai-tools/claude-code/managed-settings"
+  - "/knowledge/ai-tools/claude-code/new-commands-2026"
+draft: false
+---
+
+## 要約
+
+Anthropic は 2026 年 5 月 29 日 20:20 UTC（JST 2026-05-30 05:20）に Claude Code **v2.1.157** を公開しました。前日の v2.1.154 が **Opus 4.8 既定化と dynamic workflows 導入** という当窓最大級のリリースだったのに対し、v2.1.157 は **プラグイン運用の摩擦削減**・**worktree 運用の自動化**・**telemetry 観測性の強化**・**多数のバグ修正** をまとめた整理リリースです。翌 2026-05-30 02:42 UTC（JST 11:42）には **v2.1.158** が出て、**Bedrock / Vertex / Foundry 経由の Opus 4.7 / 4.8 でも Auto mode が opt-in で利用可能** になりました。
+
+### プラグイン関連（v2.1.157）
+
+- **`.claude/skills` 配下のプラグインがマーケットプレイス不要で自動ロード**。これまでローカル plugin も `/plugin` で明示が必要だった。
+- **`claude plugin init <name>`** で `.claude/skills` 配下にスキャフォールド生成。
+- **`/plugin` 引数のオートコンプリート**: サブコマンド名、インストール済み plugin 名、既知マーケットプレイス由来 plugin 名。
+
+### `claude agents` / Worktree（v2.1.157）
+
+- `settings.json` の **`agent` フィールド** が dispatched セッションで尊重。`--agent <name>` で上書き可。
+- **`EnterWorktree` がセッション中断なしに切替可能**（Claude 管理 worktree 間）。
+- Claude 管理 worktree が **エージェント終了時に unlock 状態で残る** → `git worktree remove`/`prune` で素直にクリーンアップ可能。
+- `.claude/worktrees/` 配下の背景エージェント worktree が **30 日 retention sweep 後に orphan 化する問題** を修正。
+
+### Telemetry / 観測性（v2.1.157）
+
+- `tool_decision` telemetry イベントに **`tool_parameters`**（bash コマンド、MCP / skill 名）が含まれるように。`OTEL_LOG_TOOL_DETAILS=1` 設定時のみ。
+
+### バグ修正（v2.1.157、抜粋）
+
+- **ゼロバイト / 破損画像** をペースト・MCP・ダイアログ経由で添付するとリクエストがクラッシュしていた問題 → text placeholder に変換。
+- デスクトップアプリ・IDE 拡張・SDK 使用時に **auto / bypass-permissions モードでもサンドボックスのネットワーク許可プロンプト** が出る誤動作を修正。
+- `claude agents` 完了セッションが idle subagent の parked / leaked backgrounded shell で retire されない問題を修正。
+- tmux + `set-clipboard on` で `claude agents` の copy-on-select がシステムクリップボードに届かない問題（v2.1.153 のリグレッション）を修正。
+- `--resume` が前回プロセス終了時の背景 subagent を報告しない問題、セッションピッカーが fullscreen 終了後に残骸を残す問題を修正。
+- `--worktree` / `--worktree --tmux` が linked worktree ではなく canonical repo root に戻る問題を修正。
+- `/model` ピッカーで最新モデル選択中に 「Newer version available」 の誤表示が出る問題を修正。pinned-model 行は description を表示。
+- fullscreen モードでマークダウン記号（バッククォート、アスタリスク）が literal で残る問題を修正。
+- 起動時の managed-settings security ダイアログ承認後にターミナルがフリーズする問題を修正。
+- VS Code / Cursor / Windsurf 統合ターミナルで右クリックペーストがクリップボード重複する問題を修正。
+- WSL: image paste（`alt+v`）、Windows 11 のスクリーンショットペースト、Windows Explorer からのドラッグ追加対応。
+- 背景セッション再 attach 後にモデルへ正しい日付を伝えない問題、`--resume` 関連の取りこぼし修正など多数。
+
+### UX / 起動時挙動（v2.1.157）
+
+- 長時間・再開会話のメッセージレンダリング再計算の冗長を排し **パフォーマンス改善**。
+- `/terminal-setup` が VS Code / Cursor / Windsurf 統合ターミナルで **GPU acceleration を無効化** して描画破損を防止。
+- Feature of the Week のクレジット claim ステータスを **status area の notification** として表示（プロンプト上の行ではなくなった）。
+- `claude agents` dispatch 入力のスラッシュコマンド補完が **部分一致** に対応。
+- 「bash commands will be sandboxed」 起動バナー削除（`/status` とブロック時に表示維持）。
+- 「/ide for ...」 起動ヒント toast 削除。
+- ワークフロー trigger キーワード直後の backspace で **「ワークフロー要求のキャンセル」** として扱われる（`alt+w` 同等）。
+- `/config` に **「Workflow keyword trigger」** 設定追加。プロンプト中の 「workflow」 が dynamic workflow を起動する挙動を停止可能。
+
+### v2.1.158（翌 2026-05-30）
+
+- **Auto mode が Bedrock / Vertex / Foundry の Opus 4.7 / 4.8 で利用可能** に。
+- 利用には環境変数 **`CLAUDE_CODE_ENABLE_AUTO_MODE=1`** のオプトインが必要。
+- AWS / GCP / Azure 経由で Claude を運用している Enterprise でも Auto mode を解禁できるようになった。
+
+## 何が変わったか
+
+- `.claude/skills` 配下プラグインの自動ロード、`claude plugin init` スキャフォールド、`/plugin` 引数補完。
+- `claude agents` の `agent` フィールド尊重と `--agent <name>` 上書き、`EnterWorktree` セッション中断なし切替、worktree 自動 unlock、orphan 化修正。
+- `tool_decision` telemetry イベントに bash コマンド / MCP / skill 名を含められる（`OTEL_LOG_TOOL_DETAILS=1`）。
+- ゼロバイト / 破損画像 crash 修正、auto / bypass-permissions のネットワーク許可プロンプト誤発生修正、tmux copy-on-select 修正など多数のバグ修正。
+- `/terminal-setup` の GPU acceleration 無効化、`/config` 「Workflow keyword trigger」 追加、`claude agents` 補完の部分一致対応。
+- WSL の画像周り（paste / screenshot / drag）強化。
+- 翌 v2.1.158 で Bedrock / Vertex / Foundry の Opus 4.7 / 4.8 Auto mode opt-in 解禁（`CLAUDE_CODE_ENABLE_AUTO_MODE=1`）。
+
+## 業務インパクト（一般企業向け）
+
+**`.claude/skills` プラグイン自動ロード** は、Claude Code を組織で運用しているチームに **「ローカル plugin を marketplace 経由にせず社内で配布できる」** という意味を持ちます。リポジトリに `.claude/skills/<plugin>` を入れておくだけでチームメンバー全員にスキルが行き渡るため、**社内 plugin ガバナンス** を marketplace 中心から git 中心に組み替えられます。`claude plugin init` でスキャフォールドが切れることで、社内 plugin の初期コスト障壁も下がります。
+
+**`EnterWorktree` のセッション中断なし切替 + 終了時 unlock** は、worktree を実務で使っているチームに直接効く改善です。これまで「切り替えるとセッションが切れる」「終了後に worktree が locked のまま残って `prune` で消せない」という運用負荷がありました。Claude 管理 worktree を頻繁に使うチームほど体感が変わります。`.claude/worktrees/` の orphan 化修正と合わせて、worktree 中心の運用に乗り換えやすくなりました。
+
+**telemetry に bash コマンド / MCP / skill 名** が乗るようになったのは Enterprise 監査の重要な改善で、`OTEL_LOG_TOOL_DETAILS=1` を managed settings 経由で配布する設計が現実的になりました。ただし **bash 引数が外部 OTEL に流れる前提** のため、機密情報の扱いを社内 DLP と整合させる必要があります。Datadog / Grafana / Splunk などに流して **「誰がどんな bash を Claude 経由で打ったか」「どの skill を呼んだか」** を可視化できる粒度になりました。
+
+**ゼロバイト画像 crash 修正** と **auto / bypass-permissions のネットワークプロンプト誤発生修正** は地味ですが、デスクトップアプリ・IDE 拡張・SDK 経由で運用しているユーザーに直接影響する Severity 中のバグでした。即時アップグレード推奨です。
+
+**`/config` の 「Workflow keyword trigger」 設定** は、v2.1.154 で入った dynamic workflows のキーワードトリガーが意図せず発火する問題への直接の対処です。「説明文に 「workflow」 と書いたら dynamic workflows が走り始めた」というケースを **設定でオフ** にできます。社内ガイドに「ワークフロー誤起動を防ぐ設定」として記載する価値があります。
+
+**翌 v2.1.158 の Bedrock / Vertex / Foundry での Auto mode opt-in 解禁** は、AWS / GCP / Azure 経由で Claude を運用している Enterprise にとって **「クラウドプロバイダー経由は Auto mode を使えない」というこれまでの制約が解ける** 重要な変化です。`CLAUDE_CODE_ENABLE_AUTO_MODE=1` を managed settings の環境変数として配布することで、組織ポリシーに沿った段階導入が可能です。これまで「Auto mode を使うために Anthropic API キーを併用」していた構成を、Bedrock / Vertex / Foundry 一本に寄せられます。
+
+## 副業・個人活用視点
+
+個人開発で最も体感が変わるのは **`.claude/skills` プラグイン自動ロード** です。自作の skill を試行錯誤するときに `/plugin` で明示的に有効化する手順が消え、リポジトリに置くだけで動くようになりました。`claude plugin init` でスキャフォールドが一発で作れるため、**「skill 1 個作って試す」コスト** がほぼゼロになっています。副業案件ごとに専用 skill を用意して回すスタイルが現実的になりました。
+
+**`EnterWorktree` の中断なし切替** は、複数の案件 / ブランチを並行で見ている人に効きます。これまで worktree を切り替えるたびにセッションを切る必要があったのが、コンテキストを保ったまま移動できます。Claude 管理 worktree が **終了時に unlock** されることで `git worktree prune` が素直に効くようになり、`worktree` 中心の運用が日常化しやすくなりました。
+
+**ゼロバイト画像 crash 修正** と **`/model` の 「Newer version available」 誤表示修正** は、デスクトップアプリで毎日使っている人にとって細かい摩擦が消える改善です。WSL ユーザーは Windows Explorer からの画像ドラッグが効くようになった点が地味に効きます。
+
+**翌 v2.1.158 の Bedrock / Vertex / Foundry での Auto mode opt-in** は、副業案件で AWS Bedrock を指定されている人にとって、これまで諦めていた Auto mode が解禁される変化です。`CLAUDE_CODE_ENABLE_AUTO_MODE=1` を `.envrc` などに仕込んでおけば、案件ごとに Anthropic API キーを切り替える必要がなくなります。
