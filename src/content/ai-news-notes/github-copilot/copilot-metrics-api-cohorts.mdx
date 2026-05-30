@@ -1,0 +1,21 @@
+---
+title: "Copilot 利用メトリクス API コーホート対応 教材化メモ"
+noteFor: "github-copilot/copilot-metrics-api-cohorts"
+date: 2026-05-29
+tags: ["github-copilot", "metrics-api", "ai-adoption-phase", "enablement", "analytics"]
+---
+
+governance 教材は次を反映:
+
+- **利用分析** の章があれば「アクティビティカウントだけでなく **AI 採用フェーズ別分析**」を節追加。`ai_adoption_phase` / `totals_by_ai_adoption_phase` のフィールド名と取得粒度を明示。
+- BI ツール（Looker / Tableau / Power BI / Metabase）への流し込み手順例を 1 段加える。社内ダッシュボード化の運用パターンを示す。
+- 経営層向けの ROI 説明資料設計の節があれば「フェーズ別成熟度分布で投資効果を語る」推奨パターンを 1 段書く。
+
+社内 enablement / DevRel / 内製化推進向けの教材があれば次を 1 節加える:
+
+- フェーズ別ユーザーリスト抽出 → 個別研修プログラム設計のワークフロー例。
+- 「low-phase 層への Copilot Edit / Agent ハンズオン」「high-phase 層からの事例抽出と横展開」という回し方の運用テンプレート。
+
+副業 / コンサル向け教材ストックがあれば、**「Copilot 導入後の伴走支援を案件化」** するパッケージ提案ネタを 1 本立てる。フェーズ分布測定 → 研修設計 → 効果測定の継続案件化パターン。
+
+`ai_adoption_phase` の具体的な 4 フェーズ境界条件は公式ドキュメントの追加情報を待つ必要があるため、教材本文には「2026 年 6 月時点では分類定義の詳細は更新待ち、API 取得 → 分布確認 → 想定差分検証を 1 サイクル回す」と但し書きを入れる。

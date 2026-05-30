@@ -1,0 +1,26 @@
+---
+title: "Claude Code v2.1.157（+ v2.1.158 Auto mode 拡大）教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-157"
+date: 2026-05-29
+tags: ["claude-code", "plugins", "worktree", "telemetry", "auto-mode", "bedrock", "vertex", "foundry"]
+---
+
+skills 教材は次を反映:
+
+- **`.claude/skills` 配下プラグインがマーケットプレイス不要で自動ロード** されることを「ローカル plugin 配布」の節として追加。git 配布で社内チームに行き渡らせる運用パターンを記述。
+- **`claude plugin init <name>`** を「skill 雛形を即生成するコマンド」として運用例つきで追加。
+- **`/plugin` 引数オートコンプリート** は補助情報として 1 行追記。
+
+managed-settings 教材は次を反映:
+
+- **`OTEL_LOG_TOOL_DETAILS=1`** を「`tool_decision` イベントに bash / MCP / skill 名を含める」設定として節追加。Datadog / Grafana / Splunk への流し込み例を 1 段付ける。bash 引数が外部 OTEL に流れる前提のため、機密情報を扱う組織は社内 DLP との整合を取る必要があると注意書きを 1 行入れる。
+- **`CLAUDE_CODE_ENABLE_AUTO_MODE=1`**（v2.1.158）を「Bedrock / Vertex / Foundry 経由で Auto mode を opt-in で解禁するための環境変数」として節追加。managed settings 経由での組織配布パターンを示す。
+
+new-commands-2026 教材は次を反映:
+
+- **`/config` の "Workflow keyword trigger"** 設定を、dynamic workflows のキーワードトリガー誤発火を防ぐ設定として 1 節追加。v2.1.154 の dynamic workflows 節への参照リンクを付ける。
+- **`EnterWorktree`** の「セッション中断なし切替」「終了時 unlock」を worktree 運用節に追記。`git worktree prune` がそのまま効くようになった点まで書く。
+
+WSL ユーザー向けの記述があれば「image paste（`alt+v`）、Windows 11 スクリーンショットペースト、Windows Explorer からのドラッグ」対応を 1 行追記。
+
+v2.1.158 の Auto mode 拡大はクラウド経由運用への大きな変化のため、Bedrock / Vertex / Foundry 教材があれば各々で **「Auto mode を使うには `CLAUDE_CODE_ENABLE_AUTO_MODE=1` が必要」** と明示する。
