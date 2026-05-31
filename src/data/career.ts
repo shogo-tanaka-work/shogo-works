@@ -11,8 +11,10 @@ export const careerExperiences: CareerExperience[] = [
     role: "AI活用講師・コンサルタント・社内SE",
     employment: "業務委託",
     summary:
-      "法人・個人向けAIツール活用のレクチャーとコンサルティングに加え、社内向けのAIエージェント・業務自動化ツールを設計から運用まで一人称で担当。",
+      "中小企業・製造業向けのAI活用伴走支援を軸に、AI顧問契約・PoC推進・社内SE業務・研修コンサルまでを一貫して提供。",
     highlights: [
+      "中小製造業1社とAI顧問契約を締結し、業務課題の整理から導入方針策定までを継続支援",
+      "複数社で PoC（実証実験）案件を並行推進し、本格導入に向けた検証フェーズを伴走",
       "ChatGPT / Gemini / Claude / Claude Code / Microsoft Copilot / Dify / Make.com / n8n / Microsoft Copilot Studio など10種類以上のAIツールについて研修・コンサルを実施",
       "GA4・Google広告・Microsoft ClarityのデータをMCPサーバ経由で取得するマーケティング効率化ツールを開発",
       "LangGraph・n8nを用いたAIエージェントを複数構築（X投稿自動化、AIニュース自動収集・記事化、Discord連携カスタムBotなど）",
