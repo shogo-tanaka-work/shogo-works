@@ -191,3 +191,31 @@ export interface TechCategory {
   label: string;
   items: TechItem[];
 }
+
+// --- About page: career / education / certifications ---
+
+export type EmploymentType = "正社員" | "業務委託" | "フリーランス";
+
+export interface CareerExperience {
+  period: string;
+  company: string;
+  role: string;
+  employment: EmploymentType;
+  teamSize?: string;
+  summary: string;
+  highlights: string[];
+  technologies: string[];
+  current?: boolean;
+}
+
+export interface EducationRecord {
+  period: string;
+  school: string;
+  department?: string;
+  status: string;
+}
+
+export interface Certification {
+  name: string;
+  date: string;
+}
