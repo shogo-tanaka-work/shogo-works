@@ -1,6 +1,6 @@
 ---
 import { services } from "@/data";
-import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Button from "@/components/ui/Button.astro";
 
 const iconSvgs: Record<string, string> = {
   wrench:
@@ -16,34 +16,52 @@ const iconSvgs: Record<string, string> = {
 
 <section id="services" class="py-20">
   <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-    <SectionHeader
-      title="Services"
-      subtitle="Webアプリ開発からAI導入支援、セミナー開催まで。ビジネスの成長をテクノロジーで支援します。"
-    />
+    <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-10 lg:gap-16">
+      <!-- 左: 訴求コピー -->
+      <div class="animate-on-scroll lg:sticky lg:top-24 self-start">
+        <p class="text-sm font-medium text-teal-600 mb-3">Services</p>
+        <h2 class="text-3xl font-bold text-foreground mb-4">提供サービス</h2>
+        <p class="text-muted-foreground leading-relaxed mb-8">
+          業務自動化からAI顧問・研修、アプリ開発・システム刷新まで。課題の整理から運用まで、一人の窓口で一気通貫に伴走します。
+        </p>
+        <div class="flex flex-wrap gap-3">
+          <Button href="/contact" size="md">無料で相談する</Button>
+          <Button href="/services" variant="outline" size="md">
+            サービス一覧
+          </Button>
+        </div>
+      </div>
 
-    <div class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-      {services.map((service, index) => (
-        <a
-          href={service.href}
-          class={`bg-white/80 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300 group animate-on-scroll stagger-${index + 1} hover:ring-teal-500/20 hover:shadow-md`}
-        >
-          <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-5 group-hover:bg-teal-100 transition-colors">
-            <Fragment set:html={iconSvgs[service.icon] || ""} />
-          </div>
-          <h3 class="text-lg font-semibold text-foreground mb-3">
-            {service.title}
-          </h3>
-          <p class="text-sm text-muted-foreground leading-relaxed mb-4">
-            {service.description}
-          </p>
-          <span class="text-sm font-medium text-teal-600 group-hover:text-teal-700 transition-colors inline-flex items-center gap-1">
-            詳しく見る
-            <svg class="w-4 h-4 group-hover:translate-x-0.5 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- 右: サービスリスト -->
+      <div class="flex flex-col divide-y divide-gray-100">
+        {services.map((service, index) => (
+          <a
+            href={service.href}
+            class={`group flex items-start gap-4 py-5 first:pt-0 last:pb-0 animate-on-scroll stagger-${index + 1}`}
+          >
+            <div class="w-12 h-12 shrink-0 rounded-xl bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+              <Fragment set:html={iconSvgs[service.icon] || ""} />
+            </div>
+            <div class="min-w-0">
+              <h3 class="text-base font-semibold text-foreground mb-1 group-hover:text-teal-700 transition-colors">
+                {service.title}
+              </h3>
+              <p class="text-sm text-muted-foreground leading-relaxed">
+                {service.description}
+              </p>
+            </div>
+            <svg
+              class="w-5 h-5 shrink-0 mt-1 text-gray-300 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <path d="M5 12h14M12 5l7 7-7 7" />
             </svg>
-          </span>
-        </a>
-      ))}
+          </a>
+        ))}
+      </div>
     </div>
   </div>
 </section>
