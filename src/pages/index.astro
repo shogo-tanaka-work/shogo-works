@@ -1,9 +1,11 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import Hero from "@/components/sections/Hero.astro";
+import ProblemFinder from "@/components/sections/ProblemFinder.astro";
+import Services from "@/components/sections/Services.astro";
+import Difference from "@/components/sections/Difference.astro";
 import Stats from "@/components/sections/Stats.astro";
 import Testimonials from "@/components/sections/Testimonials.astro";
-import Services from "@/components/sections/Services.astro";
 import FeaturedKnowledge from "@/components/sections/FeaturedKnowledge.astro";
 import Media from "@/components/sections/Media.astro";
 import NoteArticles from "@/components/sections/NoteArticles.astro";
@@ -12,11 +14,14 @@ import TechStack from "@/components/sections/TechStack.astro";
 import Cta from "@/components/sections/Cta.astro";
 ---
 
+{/* 課題起点の導線: 悩み → サービス → 差別化 → 実績・信頼 の順で構成する */}
 <BaseLayout>
   <Hero />
+  <ProblemFinder />
+  <Services />
+  <Difference />
   <Stats />
   <Testimonials />
-  <Services />
   <FeaturedKnowledge />
   <Media />
   <NoteArticles />

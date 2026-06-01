@@ -1,0 +1,109 @@
+---
+import { problemCategories, services } from "@/data";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+
+// 悩み → 該当サービス名の解決用マップ（href で紐付け）
+const serviceTitleByHref = new Map(services.map((s) => [s.href, s.title]));
+
+// 初期表示するカテゴリ（先頭）
+const defaultKey = problemCategories[0]?.key ?? "";
+---
+
+<section id="problems" class="py-20 bg-gray-50/50">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <SectionHeader
+      title="解決できるお悩み"
+      subtitle="今ある課題から、お手伝いできるサービスへご案内します。気になるテーマを選んでください。"
+    />
+
+    <!-- カテゴリタブ -->
+    <div class="flex flex-wrap justify-center gap-2 mb-10" role="tablist">
+      {
+        problemCategories.map((category) => (
+          <button
+            type="button"
+            role="tab"
+            data-problem-tab={category.key}
+            aria-selected={category.key === defaultKey ? "true" : "false"}
+            class:list={[
+              "px-4 py-2 rounded-full text-sm font-medium ring-1 ring-gray-950/5 transition-colors",
+              category.key === defaultKey
+                ? "bg-teal-600 text-white"
+                : "bg-white text-muted-foreground hover:text-foreground",
+            ]}
+          >
+            {category.label}
+          </button>
+        ))
+      }
+    </div>
+
+    <!-- カテゴリ別パネル -->
+    {
+      problemCategories.map((category) => (
+        <div
+          data-problem-panel={category.key}
+          class:list={[
+            "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6",
+            category.key === defaultKey ? "" : "hidden",
+          ]}
+        >
+          {category.problems.map((problem) => (
+            <a
+              href={problem.serviceHref}
+              class="group bg-white/80 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300 hover:ring-teal-500/20 hover:shadow-md"
+            >
+              <p class="text-sm text-foreground leading-relaxed mb-5">
+                「{problem.text}」
+              </p>
+              <span class="text-sm font-medium text-teal-600 group-hover:text-teal-700 transition-colors inline-flex items-center gap-1">
+                {serviceTitleByHref.get(problem.serviceHref)} を見る
+                <svg
+                  class="w-4 h-4 group-hover:translate-x-0.5 transition-transform"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              </span>
+            </a>
+          ))}
+        </div>
+      ))
+    }
+  </div>
+</section>
+
+<script>
+  // カテゴリタブの切替。状態は最小限のため React 島ではなくネイティブscriptで処理する。
+  function setupProblemTabs() {
+    const tabs = document.querySelectorAll("[data-problem-tab]");
+    const panels = document.querySelectorAll("[data-problem-panel]");
+    if (tabs.length === 0) return;
+
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        const key = (tab as HTMLElement).dataset.problemTab;
+
+        tabs.forEach((t) => {
+          const isActive = t === tab;
+          t.classList.toggle("bg-teal-600", isActive);
+          t.classList.toggle("text-white", isActive);
+          t.classList.toggle("bg-white", !isActive);
+          t.classList.toggle("text-muted-foreground", !isActive);
+          t.setAttribute("aria-selected", isActive ? "true" : "false");
+        });
+
+        panels.forEach((panel) => {
+          const match = (panel as HTMLElement).dataset.problemPanel === key;
+          panel.classList.toggle("hidden", !match);
+        });
+      });
+    });
+  }
+
+  setupProblemTabs();
+  document.addEventListener("astro:page-load", setupProblemTabs);
+</script>
