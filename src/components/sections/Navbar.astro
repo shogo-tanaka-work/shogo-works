@@ -16,8 +16,8 @@ const currentPath = Astro.url.pathname;
         shogoworks
       </a>
 
-      <!-- Desktop Navigation -->
-      <div class="hidden md:flex items-center gap-1">
+      <!-- Desktop Navigation（項目数が多いため lg 以上で表示。md まではモバイルメニュー） -->
+      <div class="hidden lg:flex items-center gap-1">
         {
           navItems.map((item) => (
             <a
@@ -33,7 +33,10 @@ const currentPath = Astro.url.pathname;
             </a>
           ))
         }
-        <Button href="/contact" size="sm" class="ml-3">お問い合わせ</Button>
+        <Button href="/#resources" variant="outline" size="sm" class="ml-3">
+          資料請求
+        </Button>
+        <Button href="/contact" size="sm" class="ml-1">お問い合わせ</Button>
       </div>
 
       <!-- Mobile Menu (React Island) -->
