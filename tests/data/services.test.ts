@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { services } from "@/data/services";
+import { testimonials } from "@/data/testimonials";
 
 describe("services データ", () => {
   it("5つのサービスカテゴリが定義されていること", () => {
@@ -66,6 +67,24 @@ describe("services データ", () => {
       expect(typeof service.title).toBe("string");
       expect(typeof service.description).toBe("string");
       expect(typeof service.icon).toBe("string");
+    }
+  });
+
+  it("testimonialIdsが指定される場合は実在するレビューを指すこと", () => {
+    const testimonialIds = new Set(testimonials.map((t) => t.id));
+    for (const service of services) {
+      for (const id of service.testimonialIds ?? []) {
+        expect(testimonialIds.has(id)).toBe(true);
+      }
+    }
+  });
+
+  it("faqが指定される場合はquestionとanswerを持つこと", () => {
+    for (const service of services) {
+      for (const item of service.faq ?? []) {
+        expect(item.question).toBeTruthy();
+        expect(item.answer).toBeTruthy();
+      }
     }
   });
 });
