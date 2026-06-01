@@ -16,8 +16,16 @@ describe("navigation データ", () => {
     }
   });
 
-  it("6つのナビ項目が定義されていること", () => {
-    expect(navItems).toHaveLength(6);
+  it("7つのナビ項目が定義されていること（課題導線を追加）", () => {
+    expect(navItems).toHaveLength(7);
+  });
+
+  it("課題導線「お悩みから探す」がトップの #problems アンカーへ向くこと", () => {
+    const problemNav = navItems.find((item) => item.href === "/#problems");
+    expect(problemNav).toEqual({
+      label: "お悩みから探す",
+      href: "/#problems",
+    });
   });
 
   it("Contactリンクは Navbar の常設ボタンに集約するためナビ項目には含めないこと", () => {

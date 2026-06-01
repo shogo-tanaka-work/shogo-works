@@ -34,7 +34,7 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
   const closeMenu = () => setOpen(false);
 
   return (
-    <div className="md:hidden">
+    <div className="lg:hidden">
       <button
         onClick={() => setOpen(!open)}
         className="p-2 text-foreground hover:bg-gray-100 rounded-md transition-colors"
@@ -114,13 +114,20 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
                     {item.label}
                   </a>
                 ))}
-                <div className="mt-4">
+                <div className="mt-4 flex flex-col gap-2">
                   <a
                     href="/contact"
                     onClick={closeMenu}
                     className="block w-full text-center bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
                   >
                     お問い合わせ
+                  </a>
+                  <a
+                    href="/#resources"
+                    onClick={closeMenu}
+                    className="block w-full text-center border border-gray-200 hover:bg-gray-50 text-foreground rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
+                  >
+                    資料請求
                   </a>
                 </div>
               </nav>
