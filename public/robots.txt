@@ -1,13 +1,17 @@
-# Allow all crawlers including AI search
 User-agent: *
+Content-Signal: search=yes,ai-input=yes,ai-train=no
 Allow: /
 
-# Block AI training only
 User-agent: CCBot
 Disallow: /
 
 User-agent: Amazonbot
 Disallow: /
 
-# Sitemap
+User-agent: Bytespider
+Disallow: /
+
+User-agent: Applebot-Extended
+Disallow: /
+
 Sitemap: https://shogoworks.com/sitemap-index.xml
