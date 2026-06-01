@@ -112,6 +112,25 @@ export interface NavItem {
   href: string;
 }
 
+// 「課題から探す」セクション用。訪問者の悩みを該当サービスへ橋渡しする。
+export interface ProblemItem {
+  text: string; // 訪問者目線の悩み（「〜したい」「〜が課題」）
+  serviceHref: string; // 紐付くサービスの href（services.ts と整合させる）
+}
+
+export interface ProblemCategory {
+  key: string; // 一意なカテゴリキー（タブ切替の data 属性に使用）
+  label: string; // タブ表示名
+  problems: ProblemItem[];
+}
+
+// 「他社との違い」比較セクション用。
+export interface DifferenceItem {
+  aspect: string; // 比較の観点
+  others: string; // 一般的な外注・他社の傾向
+  mine: string; // 田中省伍の提供価値
+}
+
 export type KnowledgeCategory =
   | "ai-tools"
   | "web-development"
