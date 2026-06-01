@@ -2,9 +2,9 @@ import type { ServiceItem } from "@/types";
 
 export const services: ServiceItem[] = [
   {
-    id: "automation",
-    href: "/services/automation",
-    title: "現場の手作業をなくす自動化開発",
+    id: "hayawaza-automation",
+    href: "/services/hayawaza-automation",
+    title: "はやわざ業務自動化",
     description:
       "GAS / PowerShell / Webアプリで業務を自動化。AI活用のフルサイクル開発で、要件定義から運用保守まで一貫対応します。",
     icon: "wrench",
@@ -51,9 +51,9 @@ export const services: ServiceItem[] = [
     excludes: ["スマホアプリ", "ネイティブデスクトップアプリ"],
   },
   {
-    id: "ai-support",
-    href: "/services/ai-support",
-    title: "AI活用 伴走パートナー（顧問）",
+    id: "hayawaza-advisor",
+    href: "/services/hayawaza-advisor",
+    title: "はやわざAI顧問",
     description:
       "中小企業・製造業向けAI活用伴走の専門サービス。AI顧問契約とPoC伴走で、意思決定から運用までを継続支援します。",
     icon: "bot",
@@ -139,9 +139,9 @@ export const services: ServiceItem[] = [
     ],
   },
   {
-    id: "training",
-    href: "/services/training",
-    title: "現場で使える生成AI実践研修",
+    id: "hayawaza-training",
+    href: "/services/hayawaza-training",
+    title: "はやわざAI研修",
     description:
       "AI活用や技術研修を実践的なハンズオン形式で開催。すぐに業務に活かせるスキルを提供します。",
     icon: "graduation-cap",
@@ -209,9 +209,9 @@ export const services: ServiceItem[] = [
     ],
   },
   {
-    id: "web-development",
-    href: "/services/web-development",
-    title: "モダンWeb・業務アプリ開発",
+    id: "hayawaza-dev",
+    href: "/services/hayawaza-dev",
+    title: "はやわざアプリ開発",
     description:
       "Next.js / React を中心に、要件定義から設計・実装・運用まで対応。モダンな技術スタックで高品質なWebアプリケーションを構築します。",
     icon: "code",
@@ -256,9 +256,9 @@ export const services: ServiceItem[] = [
     ],
   },
   {
-    id: "system-modernization",
-    href: "/services/system-modernization",
-    title: "既存システム刷新・コスト最適化",
+    id: "hayawaza-renewal",
+    href: "/services/hayawaza-renewal",
+    title: "はやわざシステム刷新",
     description:
       "高止まりした維持費や運用負荷を可視化し、既存機能を守りながら段階的な刷新とコスト最適化を進めます。",
     icon: "server",

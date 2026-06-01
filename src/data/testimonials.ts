@@ -11,7 +11,7 @@ export const testimonials: Testimonial[] = [
     quote:
       "何を質問したらいいか分からない状態でしたが、業務で毎日AIを使えるようになりました。（※MENTA実レビューに差し替え予定）",
     authorAttribute: "40代・会社員",
-    serviceId: "training",
+    serviceId: "hayawaza-training",
     source: "MENTAレビューより",
   },
   {
@@ -21,7 +21,7 @@ export const testimonials: Testimonial[] = [
     quote:
       "資料作成にかかっていた時間を大幅に短縮できました。実務にそのまま落とし込める内容で助かりました。（※MENTA実レビューに差し替え予定）",
     authorAttribute: "50代・個人事業主",
-    serviceId: "ai-support",
+    serviceId: "hayawaza-advisor",
     source: "MENTAレビューより",
   },
   {
@@ -31,7 +31,7 @@ export const testimonials: Testimonial[] = [
     quote:
       "Claude Code や MCP の理解が一気に進み、開発の進め方が変わりました。（※MENTA実レビューに差し替え予定）",
     authorAttribute: "30代・エンジニア",
-    serviceId: "ai-support",
+    serviceId: "hayawaza-advisor",
     source: "MENTAレビューより",
   },
 ];

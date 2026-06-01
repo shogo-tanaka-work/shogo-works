@@ -28,11 +28,11 @@ describe("services データ", () => {
 
   it("期待されるカテゴリIDが含まれていること", () => {
     const ids = services.map((s) => s.id);
-    expect(ids).toContain("automation");
-    expect(ids).toContain("ai-support");
-    expect(ids).toContain("training");
-    expect(ids).toContain("web-development");
-    expect(ids).toContain("system-modernization");
+    expect(ids).toContain("hayawaza-automation");
+    expect(ids).toContain("hayawaza-advisor");
+    expect(ids).toContain("hayawaza-training");
+    expect(ids).toContain("hayawaza-dev");
+    expect(ids).toContain("hayawaza-renewal");
   });
 
   it("料金プランに定価とモニター価格が含まれていること", () => {
