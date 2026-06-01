@@ -55,6 +55,28 @@ export interface StatItem {
   description?: string;
 }
 
+export type TestimonialRating = 1 | 2 | 3 | 4 | 5;
+
+// 顧客属性。属性別にレビューを並べて「自分ごと」として刺さるようにする
+export type TestimonialAudience = "beginner" | "individual" | "developer";
+
+export interface Testimonial {
+  id: string;
+  quote: string; // レビュー本文（MENTA実テキスト）
+  rating: TestimonialRating;
+  authorAttribute: string; // 例: "40代・会社員"（フルネーム/IDは載せない）
+  audience: TestimonialAudience;
+  serviceId?: string; // 関連サービスLPに差し込む用
+  // 加工済みスクショ。未準備時は未設定で、引用のみ表示にフォールバックする
+  screenshot?: string;
+  source?: string; // 例: "MENTAレビューより"
+}
+
+export interface FaqItem {
+  question: string;
+  answer: string;
+}
+
 export interface ServiceDetail {
   heading: string;
   body: string;
@@ -79,6 +101,10 @@ export interface ServiceItem {
   pricing: PricingPlan[];
   technologies?: string[];
   excludes?: string[];
+  // --- LP拡張（任意。未設定のサービスは該当セクションを描画しない）---
+  achievements?: string[]; // 実績サマリ（数字ファースト表示用）
+  testimonialIds?: string[]; // このサービスに紐づくレビューID
+  faq?: FaqItem[];
 }
 
 export interface NavItem {

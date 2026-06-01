@@ -1,0 +1,54 @@
+---
+import type { Testimonial } from "@/types";
+
+interface Props {
+  testimonial: Testimonial;
+  class?: string;
+}
+
+const { testimonial, class: className } = Astro.props;
+
+// 5つ星のうち rating 個を塗りつぶす（評価の視認性を最優先で先頭に出す）
+const MAX_STARS = 5;
+const stars = Array.from({ length: MAX_STARS }, (_, i) => i < testimonial.rating);
+---
+
+<figure
+  class:list={[
+    "flex h-full flex-col rounded-3xl bg-white/80 p-6 shadow-sm ring-1 ring-gray-950/5",
+    className,
+  ]}
+>
+  <div class="flex items-center gap-0.5" aria-label={`評価 ${testimonial.rating} / ${MAX_STARS}`}>
+    {stars.map((filled) => (
+      <svg
+        class={filled ? "h-5 w-5 text-yellow-400" : "h-5 w-5 text-gray-200"}
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        aria-hidden="true"
+      >
+        <path d="M12 2l2.9 6.26L21.6 9.27l-4.8 4.68 1.13 6.62L12 17.77l-5.93 3.12 1.13-6.62-4.8-4.68 6.7-1.01z" />
+      </svg>
+    ))}
+  </div>
+
+  <blockquote class="mt-4 grow text-sm leading-relaxed text-foreground">
+    {testimonial.quote}
+  </blockquote>
+
+  {testimonial.screenshot && (
+    <img
+      src={testimonial.screenshot}
+      alt={`${testimonial.authorAttribute} のレビュー`}
+      loading="lazy"
+      class="mt-4 w-full rounded-xl ring-1 ring-gray-950/5"
+    />
+  )}
+
+  <figcaption class="mt-5 flex items-center justify-between border-t border-gray-100 pt-4">
+    <span class="text-sm font-medium text-foreground">{testimonial.authorAttribute}</span>
+    {testimonial.source && (
+      <span class="text-xs text-muted-foreground">{testimonial.source}</span>
+    )}
+  </figcaption>
+</figure>
