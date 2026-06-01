@@ -131,6 +131,18 @@ export interface DifferenceItem {
   mine: string; // 田中省伍の提供価値
 }
 
+// AI無料診断 LP 用。
+export interface DiagnosisStep {
+  title: string; // ステップ名
+  body: string; // 内容
+}
+
+export interface DiagnosisNextOption {
+  label: string; // 診断後に繋がるサービス名
+  href: string; // 該当サービスの href（services.ts と整合させる）
+  description: string; // どんな人向けか
+}
+
 export type KnowledgeCategory =
   | "ai-tools"
   | "web-development"
