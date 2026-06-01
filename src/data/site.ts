@@ -6,4 +6,7 @@ export const siteConfig = {
   url: "https://shogoworks.com",
   ogImage: "/og-image.png",
   twitter: "@shogo_works",
+  // TODO(プレースホルダー): MENTAプロフィールURLに差し替える。
+  // 第三者プラットフォーム上の評価への導線として使用する
+  mentaUrl: "https://menta.work/",
 } as const;

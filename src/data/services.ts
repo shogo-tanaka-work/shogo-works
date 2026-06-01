@@ -2,9 +2,9 @@ import type { ServiceItem } from "@/types";
 
 export const services: ServiceItem[] = [
   {
-    id: "automation",
-    href: "/services/automation",
-    title: "自動化・効率化ツール開発",
+    id: "hayawaza-automation",
+    href: "/services/hayawaza-automation",
+    title: "はやわざ業務自動化",
     description:
       "GAS / PowerShell / Webアプリで業務を自動化。AI活用のフルサイクル開発で、要件定義から運用保守まで一貫対応します。",
     icon: "wrench",
@@ -51,9 +51,9 @@ export const services: ServiceItem[] = [
     excludes: ["スマホアプリ", "ネイティブデスクトップアプリ"],
   },
   {
-    id: "ai-support",
-    href: "/services/ai-support",
-    title: "AI顧問・伴走支援",
+    id: "hayawaza-advisor",
+    href: "/services/hayawaza-advisor",
+    title: "はやわざAI顧問",
     description:
       "中小企業・製造業向けAI活用伴走の専門サービス。AI顧問契約とPoC伴走で、意思決定から運用までを継続支援します。",
     icon: "bot",
@@ -114,11 +114,34 @@ export const services: ServiceItem[] = [
       "ChatGPT",
       "Claude",
     ],
+    achievements: [
+      "中小製造業との PoC を1年以上継続",
+      "AI顧問契約（法人・個人）が稼働中",
+      "10種類以上のAIツールを導入・運用",
+    ],
+    testimonialIds: ["individual-01", "developer-01"],
+    faq: [
+      {
+        question: "スポット相談だけでもお願いできますか？",
+        answer:
+          "可能です。まずは1時間のスポット相談で現状の課題を整理し、必要に応じて月額の伴走支援へ移行いただけます。いきなり長期契約を求めることはありません。",
+      },
+      {
+        question: "特定ベンダーのツール導入が前提ですか？",
+        answer:
+          "いいえ。中立な立場で、貴社の課題と体制に合うツールを一緒に選定します。ベンダー営業ではない相談先として関わります。",
+      },
+      {
+        question: "製造業以外でも対応できますか？",
+        answer:
+          "対応可能です。製造業での PoC・顧問実績が中心ですが、業務の手作業やナレッジ活用の課題は業種を問わず共通します。",
+      },
+    ],
   },
   {
-    id: "training",
-    href: "/services/training",
-    title: "企業向け研修",
+    id: "hayawaza-training",
+    href: "/services/hayawaza-training",
+    title: "はやわざAI研修",
     description:
       "AI活用や技術研修を実践的なハンズオン形式で開催。すぐに業務に活かせるスキルを提供します。",
     icon: "graduation-cap",
@@ -161,11 +184,34 @@ export const services: ServiceItem[] = [
         price: "個別見積もり",
       },
     ],
+    achievements: [
+      "累計100名以上に研修・指導を実施",
+      "ハンズオン形式で受講後すぐ実務に活用",
+      "新人〜マネージャー層まで対応",
+    ],
+    testimonialIds: ["beginner-01"],
+    faq: [
+      {
+        question: "AIをまったく触ったことのない社員でも大丈夫ですか？",
+        answer:
+          "問題ありません。「何を質問すればいいか分からない」という段階から、業務で毎日使える状態までをハンズオンで支援します。",
+      },
+      {
+        question: "自社の業務に合わせた内容にできますか？",
+        answer:
+          "可能です。事前ヒアリングで業種・課題を確認し、貴社の実務に直結するカリキュラムをオーダーメイドで設計します。",
+      },
+      {
+        question: "オンラインでの実施は可能ですか？",
+        answer:
+          "対応可能です。オンライン／対面のいずれにも対応し、人数や開催形態に合わせて調整します。",
+      },
+    ],
   },
   {
-    id: "web-development",
-    href: "/services/web-development",
-    title: "Web開発",
+    id: "hayawaza-dev",
+    href: "/services/hayawaza-dev",
+    title: "はやわざアプリ開発",
     description:
       "Next.js / React を中心に、要件定義から設計・実装・運用まで対応。モダンな技術スタックで高品質なWebアプリケーションを構築します。",
     icon: "code",
@@ -210,9 +256,9 @@ export const services: ServiceItem[] = [
     ],
   },
   {
-    id: "system-modernization",
-    href: "/services/system-modernization",
-    title: "既存システム刷新・コスト最適化",
+    id: "hayawaza-renewal",
+    href: "/services/hayawaza-renewal",
+    title: "はやわざシステム刷新",
     description:
       "高止まりした維持費や運用負荷を可視化し、既存機能を守りながら段階的な刷新とコスト最適化を進めます。",
     icon: "server",

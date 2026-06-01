@@ -1,0 +1,54 @@
+---
+import { testimonials, siteConfig } from "@/data";
+import type { TestimonialAudience } from "@/types";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import TestimonialCard from "@/components/ui/TestimonialCard.astro";
+import Button from "@/components/ui/Button.astro";
+
+// 顧客属性ごとに並べると「自分ごと」として刺さる。表示順を属性で固定する
+const audienceOrder: { key: TestimonialAudience; label: string }[] = [
+  { key: "beginner", label: "AI初心者の方" },
+  { key: "individual", label: "個人事業主の方" },
+  { key: "developer", label: "開発者の方" },
+];
+
+const ordered = audienceOrder
+  .map(({ key, label }) => ({
+    label,
+    items: testimonials.filter((t) => t.audience === key),
+  }))
+  .filter((group) => group.items.length > 0);
+---
+
+<section id="testimonials" class="py-20">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+    <SectionHeader
+      title="受講者・ご利用者の声"
+      subtitle="AI活用の伴走・研修を通じて、実際に業務が変わった方々からの評価です。"
+    />
+
+    <div class="grid grid-cols-1 gap-6 md:grid-cols-3">
+      {ordered.map((group, index) => (
+        <div class={`flex flex-col gap-3 animate-on-scroll stagger-${index + 1}`}>
+          <p class="text-sm font-semibold text-teal-600">{group.label}</p>
+          {group.items.map((testimonial) => (
+            <TestimonialCard testimonial={testimonial} class="grow" />
+          ))}
+        </div>
+      ))}
+    </div>
+
+    <div class="mt-10 text-center">
+      <Button href={siteConfig.mentaUrl} variant="outline" external>
+        MENTAで評価一覧を見る
+        <svg class="ml-1.5 h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 7h10v10" />
+          <path d="M7 17 17 7" />
+        </svg>
+      </Button>
+      <p class="mt-3 text-xs text-muted-foreground">
+        第三者プラットフォーム上の評価をそのままご確認いただけます。
+      </p>
+    </div>
+  </div>
+</section>

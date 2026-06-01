@@ -14,11 +14,11 @@ describe("サービスLP導線", () => {
     expect(new Set(hrefs).size).toBe(5);
   });
 
-  it("既存システム刷新・コスト最適化のLP URLが定義されていること", () => {
+  it("はやわざシステム刷新のLP URLが定義されていること", () => {
     const modernization = services.find(
-      (service) => service.id === "system-modernization",
+      (service) => service.id === "hayawaza-renewal",
     );
 
-    expect(modernization?.href).toBe("/services/system-modernization");
+    expect(modernization?.href).toBe("/services/hayawaza-renewal");
   });
 });
