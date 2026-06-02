@@ -88,3 +88,28 @@ describe("services データ", () => {
     }
   });
 });
+
+describe("はやわざアプリ開発: ストック型運用保守の反映", () => {
+  const dev = services.find((s) => s.id === "hayawaza-dev");
+
+  it("hayawaza-dev が存在すること", () => {
+    expect(dev).toBeDefined();
+  });
+
+  it("月額のストック型（運用保守）プランを持ち、先頭で前面に出すこと", () => {
+    const firstPlan = dev?.pricing[0];
+    expect(firstPlan).toBeDefined();
+    // 「初期圧縮＋月額保守を前面」のため、月額プランを先頭に置く
+    expect(/月/.test(firstPlan?.price ?? "")).toBe(true);
+  });
+
+  it("AI・ノーコードの保守不能（ブラックボックス化）の悩みを扱うこと", () => {
+    const joined = (dev?.painPoints ?? []).join("");
+    expect(/保守|ブラックボックス|内製/.test(joined)).toBe(true);
+  });
+
+  it("運用保守・改善を details に含むこと", () => {
+    const headings = (dev?.details ?? []).map((d) => d.heading).join("");
+    expect(/保守|運用|改善/.test(headings)).toBe(true);
+  });
+});
