@@ -1,0 +1,20 @@
+---
+title: "OpenAI Codex rust-v0.136.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-136-0"
+date: 2026-06-01
+tags: ["codex", "session-archive", "tui", "remote-execution", "windows-sandbox", "bedrock", "python-sdk"]
+---
+
+cli-features 教材に **セッションアーカイブ**（TUI `/archive`、CLI `codex archive` / `codex unarchive`、復元まで resume / fork から保護）を節追加。長期運用での「完了案件はアーカイブ」を標準フローとして記述する。
+
+TUI の **OSC 8 クリッカブルリンク**と**狭い表の key/value レコード化**は、ターミナル閲覧性の改善として cli-features に1段追記。リンク先を失わない点を明記。
+
+リモート実行教材があれば、**`CODEX_API_KEY` 登録**と remote-control の**短命サーバートークン化**を「ChatGPT アクセストークン依存からの脱却」として記述。CI・サーバー常駐・自動化で API キー前提に組み替える運用を促す。
+
+computer-use / sandbox 教材は、Windows の **`codex sandbox setup --elevated`（alpha）** を「Windows での sandbox プロビジョニング経路（alpha 段階、本番前提にしない）」として注記。
+
+Bedrock / クラウド運用の教材は、認証の **`AWS_REGION` / `AWS_DEFAULT_REGION` フォールバック**、カタログへの **GPT-5.5 追加**、非対応 tier 非提示の挙動を反映。誤設定によるエラー・想定外コストの低減として書く。
+
+codex-sdk 教材は **Python SDK ベータ**（`pip install openai-codex` の標準導線、設定名 `CodexConfig` への統一、`python-v*` タグでの独立リリース）を反映。旧 `AppServerConfig` 名は deprecated / 置換と明示。
+
+security-threat-model 教材があれば、`/diff` がリポジトリ提供の Git ヘルパー/フックを実行しない・ブラウザ由来の exec-server websocket ハンドシェイク拒否を「リポジトリ経由 / ブラウザ経由の攻撃面を狭める堅牢化」として追記。

@@ -1,0 +1,16 @@
+---
+title: "GitHub Copilot 従量課金移行 教材化メモ"
+noteFor: "github-copilot/copilot-usage-based-billing"
+date: 2026-06-01
+tags: ["github-copilot", "billing", "usage-based", "github-ai-credits", "code-review", "budget"]
+---
+
+Copilot の料金・プラン教材があれば、「**PRU → GitHub AI Credits**」「**included usage + 超過は従量**」「**code review が Actions 分も消費**」を恒久情報として反映。価格自体は据え置き（Pro $10 / Pro+ $39 / Business $19 / Enterprise $39）で、変わったのは「枠の数え方」と「超過課金の仕組み」である点を強調。
+
+**コード補完（Code completions / Next Edit suggestions）は AI Credits 非消費**を明示。「補完中心の使い方なら影響は小さい」という読者判断の根拠にする。
+
+管理者向け教材には「**ユーザー単位予算が GA**」「**default runners 指定**」を追記。上限・アラート・特定ユーザー上書きの設計、CI 予算と Copilot 予算の連動（code review の Actions 分消費）への対応を運用手順として書く。
+
+コスト最適化の節に「**auto モデル選択で割引**（例: 1x → 0.9x 相当）」「auto のモデル評価が individual プランでも有効化」を追記し、「auto を既定にする」運用ガイドの根拠とする。
+
+注意点: 「フラット課金前提の運用ルール」はそのままでは通用しないため、調達・情シスは included usage の枠と超過挙動の棚卸しを促す。個人ユーザーへの影響にはコミュニティで懸念があるため、社内展開時は中立的に説明する。
