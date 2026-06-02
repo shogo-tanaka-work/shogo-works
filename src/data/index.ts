@@ -4,6 +4,12 @@ export { socialLinks } from "./social";
 export { services } from "./services";
 export { problemCategories } from "./problems";
 export { differences } from "./differences";
+export {
+  diagnosisCheckItems,
+  diagnosisSteps,
+  diagnosisNextOptions,
+  diagnosisFaq,
+} from "./diagnosis";
 export { webApps } from "./portfolio";
 export { skills } from "./skills";
 export {
