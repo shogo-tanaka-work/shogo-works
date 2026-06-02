@@ -20,6 +20,10 @@ export const problemCategories: ProblemCategory[] = [
         serviceHref: "/services/hayawaza-advisor",
       },
       {
+        text: "買った教材・講座が古く、最新のAIツールに追いつけていない",
+        serviceHref: "/services/hayawaza-training",
+      },
+      {
         text: "クラウド料金や保守費が高止まりしているが、どこを減らせるか分からない",
         serviceHref: "/services/hayawaza-renewal",
       },
@@ -31,6 +35,14 @@ export const problemCategories: ProblemCategory[] = [
     problems: [
       {
         text: "ChatGPTを試したが、自社業務にどう適用すべきか判断できていない",
+        serviceHref: "/services/hayawaza-advisor",
+      },
+      {
+        text: "他社のAI研修を受けたが、現場が変わらず止まってしまった",
+        serviceHref: "/services/hayawaza-training",
+      },
+      {
+        text: "ChatGPTは使えるが、Claude CodeなどCLIツールで手が止まる",
         serviceHref: "/services/hayawaza-advisor",
       },
       {
