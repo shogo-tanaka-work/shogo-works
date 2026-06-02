@@ -1,0 +1,66 @@
+---
+title: "OpenAI Codex v0.136.0、セッションアーカイブ（`/archive`）と TUI クリッカブルリンクを投入 — リモート exec の `CODEX_API_KEY` 登録、Windows sandbox elevated（alpha）、画像生成拡張、Bedrock の `AWS_REGION` フォールバック＋GPT-5.5 追加、Python SDK ベータ `pip install openai-codex`"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-06-01
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.136.0"
+summary: "OpenAI は 2026-06-01 17:49 UTC（JST 06-02 02:49）に Codex の stable **rust-v0.136.0** を公開した。前 stable（05-28 の v0.135.0）から、運用と統合まわりを底上げするリリース。最大の追加は **セッションのアーカイブ**（TUI の `/archive`、CLI の `codex archive` / `codex unarchive`）で、アーカイブしたセッションは復元するまで resume / fork から保護される。TUI は **OSC 8 メタデータで web リンクをクリッカブルに維持**し、狭い表を読みやすい key/value レコードに切り替える。app-server 統合は thread を初回ターンのページ付きで resume でき、MCP サーバーの詳細ステータス表示、`codex app-server --stdio` での stdio 起動に対応。リモート実行は承認済み OpenAI ホスト向けに **`CODEX_API_KEY` 登録**をサポートし、remote-control の websocket は ChatGPT トークンではなく短命のサーバートークンを使う。Windows 管理者には **`codex sandbox setup --elevated` の alpha** プロビジョニング経路が追加。feature-gate された **スタンドアロン画像生成拡張**がネイティブの画像アーティファクト完了パイプラインで動く。クラウド面では **Bedrock 認証が `AWS_REGION` / `AWS_DEFAULT_REGION` にフォールバック**し、Bedrock カタログに **GPT-5.5** を追加（非対応 tier は提示・送信しない）。開発者向けには **Python SDK ベータ**が `pip install openai-codex` の標準導線で整い、設定名は `CodexConfig` に統一された。安全面では `/diff` がリポジトリ提供の Git ヘルパー/フックを実行しない、ブラウザ由来の exec-server websocket ハンドシェイクを拒否する等の堅牢化も入っている。"
+impact: "**セッションアーカイブ**は、Codex を日常的に回しているチームの「過去セッションが溜まって resume 候補が探しにくい」問題に効く。`/archive` で整理し、誤 resume / 誤 fork を保護できるため、長期運用での履歴管理が一段締まる。**`CODEX_API_KEY` 登録と短命サーバートークン化**は、リモート実行を ChatGPT アクセストークン依存から外せる重要な変更で、CI・自動化・サーバー常駐での運用を API キー前提に組み替えられる。**Bedrock の `AWS_REGION` フォールバックと GPT-5.5 追加**は、AWS 経由で Codex を運用する組織にとって設定の取り回しが楽になり、利用可能モデルの選択肢が広がる（非対応 tier を出さない挙動で誤設定も減る）。**Windows sandbox の elevated（alpha）**は Windows 中心の組織での sandbox 運用を前進させる。**Python SDK ベータ**は `pip install openai-codex` で入る標準導線になり、Codex をアプリに組み込む開発の入口コストが下がる（設定名 `CodexConfig` への統一で旧 `AppServerConfig` 名は置換）。`/diff` のフック実行回避やブラウザ由来 websocket 拒否は、リポジトリ経由・ブラウザ経由の攻撃面を狭める地味だが重要な堅牢化で、Codex を社内に広げる際のセキュリティ説明材料になる。"
+tags: ["codex", "session-archive", "tui", "remote-execution", "windows-sandbox", "bedrock", "gpt-5-5", "python-sdk", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/codex/cli-features"
+  - "/knowledge/ai-tools/codex/codex-sdk"
+  - "/knowledge/ai-tools/codex/computer-use"
+draft: false
+---
+
+## 要約
+
+OpenAI は 2026 年 6 月 1 日 17:49 UTC（JST 06-02 02:49）に Codex の stable **rust-v0.136.0** を公開しました。前 stable は 05-28 の v0.135.0 です。今回は新機能の派手さよりも、**セッション運用・ターミナル表示・リモート実行・クラウド連携・SDK** といった「実務で毎日触る部分」をまとめて底上げするリリースです。
+
+### 主な新機能
+
+- **セッションのアーカイブ**: TUI の `/archive`、CLI の `codex archive` / `codex unarchive`。アーカイブ済みセッションは復元するまで resume / fork から保護される。
+- **TUI markdown のリンク・テーブル改善**: OSC 8 メタデータで web リンクをクリッカブルに維持。狭い表は読みやすい key/value レコード表示に切替（リンク先を失わない）。
+- **app-server 統合の強化**: thread を初回ターンのページ付きで resume、MCP サーバーの詳細ステータス表示、`codex app-server --stdio` で stdio モード起動。
+- **リモート実行の認証強化**: 承認済み OpenAI ホスト向けに `CODEX_API_KEY` 登録をサポート。remote-control の websocket は短命のサーバートークンを使用。
+- **Windows 管理者向け**: `codex sandbox setup --elevated` の alpha プロビジョニング経路、許可された Windows sandbox 実装の requirements サポート。
+- **画像生成拡張**: feature-gate されたスタンドアロン画像生成拡張が、ネイティブの画像アーティファクト完了パイプラインで動作。
+
+### バグ修正・堅牢化（抜粋）
+
+- ChatGPT 認証が 5 分の失効前にトークンを更新。再利用された refresh token は「再ログイン要求」として扱う。
+- `/diff` がリポジトリ提供の Git ヘルパー/フックを実行しない、非 Windows で PowerShell パーサ実行を回避、ブラウザ由来の exec-server websocket ハンドシェイクを拒否。
+- sandbox コマンドが中断・Windows のネットワーク拒否後により確実にクリーンアップ。`deny` read ルールが safe-command / approval-bypass 経路でも維持。
+- **Bedrock 認証が `AWS_REGION` / `AWS_DEFAULT_REGION` にフォールバック**。非対応 tier は提示・送信せず、カタログに **GPT-5.5** を追加。MCP 依存を `rmcp` 1.7.0 に更新。
+
+### 開発者向け（Python SDK ベータ）
+
+- 標準の `pip install openai-codex` 導線、quickstart / API リファレンス / FAQ / examples を整備。設定は公開名 `CodexConfig` に統一。`python-v*` タグで runtime とは独立にリリース可能。
+
+## 何が変わったか
+
+- セッションを `/archive` / `codex archive` でアーカイブでき、復元まで resume / fork から保護される。
+- TUI の web リンクが OSC 8 でクリッカブルに、狭い表が key/value レコードに。
+- app-server が thread の初回ターンページ付き resume、MCP ステータス表示、`--stdio` 起動に対応。
+- リモート実行が `CODEX_API_KEY` 登録に対応し、remote-control は短命サーバートークン化。
+- Windows に `codex sandbox setup --elevated`（alpha）。スタンドアロン画像生成拡張が追加。
+- Bedrock 認証が `AWS_REGION` フォールバック、カタログに GPT-5.5 追加、非対応 tier は非提示。
+- Python SDK が `pip install openai-codex` のベータ標準導線に、設定名は `CodexConfig` へ統一。
+
+## 業務インパクト（一般企業向け）
+
+**セッションアーカイブ**は、Codex を業務で常用しているチームの履歴管理を締めます。セッションが溜まると resume 候補が探しにくく、誤って別案件のセッションを再開・fork する事故も起きますが、`/archive` で整理し復元まで保護することでこれを防げます。運用ルールに「完了案件はアーカイブ」を組み込めます。
+
+**`CODEX_API_KEY` 登録と短命サーバートークン化**は、リモート実行を ChatGPT アクセストークン依存から外せる点で重要です。CI・サーバー常駐・自動化のように人の対話ログインを挟みにくい運用を、API キー前提に組み替えられます。remote-control の websocket が短命トークンになったことで、トークン漏えい時の影響時間も短くなります。
+
+**Bedrock 連携の改善**は、AWS 経由で Codex を運用する組織に直接効きます。`AWS_REGION` / `AWS_DEFAULT_REGION` へのフォールバックでリージョン設定の取り回しが楽になり、カタログへの GPT-5.5 追加で選択肢が広がります。非対応 tier を提示・送信しない挙動は、誤設定によるエラーや想定外コストを減らします。
+
+**Windows sandbox の elevated（alpha）** は Windows 中心の組織での sandbox 運用を前進させます。alpha 段階のため本番前提にはせず、検証環境での先行評価が現実的です。`/diff` のフック実行回避やブラウザ由来 websocket 拒否は、リポジトリ経由・ブラウザ経由の攻撃面を狭める堅牢化で、Codex を社内展開する際のセキュリティ説明材料になります。
+
+## 副業・個人活用視点
+
+個人で効くのはまず **TUI のクリッカブルリンクと読みやすいテーブル表示** です。エラーメッセージや調査結果のリンクをそのまま開ける、狭い端末でも表が崩れない、という日々の摩擦が消えます。**セッションアーカイブ**は、複数案件を 1 台で並行している人ほど効きます。案件ごとにセッションが散らかるのを `/archive` で畳み、誤再開を防げます。
+
+**Python SDK ベータ（`pip install openai-codex`）** は、Codex を自分のツールやスクリプトに組み込みたい個人開発者の入口を大きく下げます。`CodexConfig` で設定が統一され、quickstart や examples も整ったため、「Codex を API 的に呼ぶ自作ツール」を作る副業案件に乗りやすくなりました。AWS Bedrock を指定される案件では、`AWS_REGION` フォールバックと GPT-5.5 追加で設定と選択肢が改善しています。
