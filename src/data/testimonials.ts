@@ -20,7 +20,7 @@ export const testimonials: Testimonial[] = [
     rating: 5,
     quote:
       "別のAI研修を受けたものの、自社の業務にどう使えばいいか分からず止まっていました。手元の教材を活かしながら、自分の仕事に合わせて一から組み直してもらえたのが大きかったです。（※トップページ掲載の声を流用した仮テキスト。実レビューに差し替え予定）",
-    authorAttribute: "50代・製造業 経営者",
+    authorAttribute: "50代・経営者",
     serviceId: "hayawaza-training",
     source: "（仮・実レビューに差し替え予定）",
   },

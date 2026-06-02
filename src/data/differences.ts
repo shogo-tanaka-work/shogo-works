@@ -19,7 +19,7 @@ export const differences: DifferenceItem[] = [
   {
     aspect: "実践知",
     others: "クライアントワークのみで、運用まで踏み込んだ知見が薄い",
-    mine: "中小製造業とのPoCを1年以上継続する、現場の実践知に基づく",
+    mine: "AIベンチャー企業とのPoCを1年以上継続する、現場の実践知に基づく",
   },
   {
     aspect: "体制",

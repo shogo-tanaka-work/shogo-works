@@ -3,12 +3,12 @@ import type { StatItem } from "@/types";
 export const stats: StatItem[] = [
   {
     value: "1年+",
-    label: "製造業PoC継続中",
-    description: "中小製造業の現場でAI活用を伴走",
+    label: "AIベンチャーでPoC継続中",
+    description: "AIベンチャー企業の現場でAI活用を伴走",
   },
   {
     value: "2契約",
-    label: "AI顧問（法人 / 個人）",
+    label: "AI顧問（中小企業 / 個人）",
     description: "AI導入の意思決定から継続支援",
   },
   {
@@ -22,9 +22,8 @@ export const stats: StatItem[] = [
     description: "Dify / n8n / Make / RAG / 開発",
   },
   {
-    // TODO(プレースホルダー): MENTAの実評価値（例 ★4.9）に差し替える
-    value: "★ 高評価",
+    value: "★5.0",
     label: "MENTA レビュー",
-    description: "受講者・ご利用者から高評価を継続",
+    description: "累計3件すべて満点（★5.0）",
   },
 ];
