@@ -1,0 +1,14 @@
+---
+title: "OpenAI モデル・Codex の AWS（Bedrock）GA 教材化メモ"
+noteFor: "chatgpt-openai/openai-models-codex-aws-ga"
+date: 2026-06-02
+tags: ["openai", "codex", "aws", "amazon-bedrock", "enterprise"]
+---
+
+Codex / OpenAI モデルのエンタープライズ導入教材に「Amazon Bedrock での GA」を追記。OpenAI モデルの調達経路を **OpenAI 直販 / Azure / Amazon Bedrock** の 3 系統で整理し、それぞれのガバナンス・課金・リージョンの違いを比較表にできる。
+
+訴求の軸は「既存の AWS ガバナンス（IAM/VPC/KMS/CloudTrail）の中でフロンティアモデルを本番投入できる」点。情シス・調達・法務向けに、ベンダー審査をやり直さずに導入できることと、価格が直販と同額（AWS 追加マージンなし）・学習非利用である点を強調する。
+
+リージョン制約（GPT-5.5 は US East (Ohio) のみ等）とデータレジデンシーは、日本企業の導入判断の前提として必ず併記。国内データ保管要件があるケースでは提供経路の比較が必要になる旨を注記。
+
+副業・受託の文脈では、「AWS 中心のクライアントでも OpenAI / Codex を提案・実装できる」「Codex は従量課金でスポット案件と相性が良い」を活用フックとして接続できる。
