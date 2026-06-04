@@ -1,0 +1,12 @@
+---
+title: "Codex rust-v0.137.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-137-0"
+date: 2026-06-04
+tags: ["codex", "openai", "enterprise", "governance", "plugins"]
+---
+
+Codex 教材の「Enterprise 運用」章に、月次クレジット上限・クラウド管理の設定バンドル（config bundle）・EDU ワークスペース対応を追記。「個人 CLI から組織統制基盤へ」という流れの最新例として位置づける。
+
+「プラグイン」章には `codex plugin list --json` を追記し、CI/スクリプトでのプラグイン構成点検（許可外プラグインの検出）を自動化フックとして示す。Remote Control はペアリング開始＋コントローラー権限の一覧/取り消しを「リモート実行のガバナンス」論点に整理し、付与・取り消しフローの設計を1行注記。
+
+並列 Web 検索と code-mode での Web/画像ツール拡大は、調査系ワークフローの高速化フックとして扱う。alpha 並行リリースの存在には触れず、安定版（rust-vX.Y.Z）系列を教材の基準にする方針を維持。

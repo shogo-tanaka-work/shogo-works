@@ -6,6 +6,20 @@
 
 ---
 
+## 2026-06-04: openai.com 個別ポストの取りこぼし（403ブロック）
+
+### 学び: openai.com はサーバー直アクセス（WebFetch / curl）を 403 で全面ブロックする
+
+- **発見**: 日次巡回で `openai.com/news`・`openai.com/index/<slug>` が WebFetch も curl（ブラウザUA付き）も 403。結果、GPT-Rosalind 新機能・Wasmer×Codex 事例・frontier governance blueprint・public-policy-agenda の個別ポストを初回で取りこぼし、ユーザー指摘で追補した。
+- **原因**: Cloudflare のボット保護。`help.openai.com` だけでなく `openai.com` 本体ドメインも対象。検索スニペット経由でしか日付・本文を確認できない。
+- **対処**:
+  - OpenAI 個別ポストは **WebSearch（および二次報道）で本文・公開日を確認**するフローを正規ルートにする。`openai.com/index/<slug>` を直接 fetch できる前提で巡回しない。
+  - 可能なら外部のアナウンス集約（ユーザー提供の「OpenAI最新情報」フィードや releasebot.io）と突き合わせて取りこぼしを検知する。
+  - gemini-cli の googleSearch は trusted-folder 制約（exit 55）でこのリポジトリ内から使えない場合がある。WebSearch を一次手段にする。
+- **カタログ取り込み判断**: source-catalog.md の OpenAI 行に「openai.com は直 fetch 不可・WebSearch 経由で確認」の注記を追加する候補。次月レビューで反映。
+
+---
+
 ## 2026-05-15: OpenAI Status / Runway News / xAI記事カテゴリの補強
 
 ### 学び1: OpenAI StatusはCodex / Code Review incidentの一次情報になる
