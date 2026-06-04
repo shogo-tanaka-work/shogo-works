@@ -1,0 +1,12 @@
+---
+title: "Claude Code v2.1.162 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-162"
+date: 2026-06-03
+tags: ["claude-code", "anthropic", "permissions", "mcp", "windows"]
+---
+
+Claude Code 教材の「権限ルール」章に、WebFetch のプリ承認ドメインに対する明示 allow/deny/ask の優先順位と、Windows パス表記（バックスラッシュ・大文字小文字差）のマッチ修正を反映。権限設定が「意図通り効くか」を検証する観点で1項目追加する。
+
+「CLI オプション」章には `--tools` の Grep/Glob 明示（ネイティブビルドで有効）と `/effort` の既定化確認挙動を追記。「マルチセッション運用」章には `claude agents --json` の `waitingFor` を、待機要因の可視化・監視フックとして加える。
+
+MCP の timeout 下限（1000ms 未満で全ツール中断 → 修正）は、自作 MCP サーバー教材の「よくあるハマり」に注記。バグ修正中心のパッチであることを明記し、v2.1.157 以降の累積改善として位置づける。
