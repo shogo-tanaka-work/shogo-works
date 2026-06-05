@@ -1,0 +1,47 @@
+---
+title: "Claude Code v2.1.163 — 管理者がバージョンを強制できる requiredMinimum/MaximumVersion、/plugin list、Stop/SubagentStop hooks の additionalContext"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-04
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.163"
+summary: "Claude Code v2.1.163 がリリースされた。組織の管理設定で許可バージョンの範囲を強制できる `requiredMinimumVersion` / `requiredMaximumVersion` が加わり、範囲外のバージョンでは起動を拒否して承認済みバージョンへ誘導する。あわせて、インストール済みプラグインを一覧表示する `/plugin list`（`--enabled`/`--disabled` フィルタ付き）、Stop / SubagentStop hooks が `hookSpecificOutput.additionalContext` を返して hook エラー扱いにならずターンを継続できる仕組み、Skills の `\\$` エスケープ構文、stdio MCP サーバーへの `CLAUDE_CODE_SESSION_ID` 引き渡し（--resume 時）などを追加。`claude -p` の永久ハング、Bedrock/Vertex/Foundry の CI 起動失敗、bazel/EDR 下の `$TMPDIR` 回帰、Windows の EEXIST、org 管理権限がセッション全体に適用されない問題など、修正も多数含む。"
+impact: "バージョンガバナンスを敷きたい組織にとって `requiredMinimumVersion` / `requiredMaximumVersion` は大きい。社内で検証済みバージョン帯を強制し、未承認版での起動を止められる。Stop / SubagentStop hooks の `additionalContext` は、フックでターンを止めずに Claude へ追加文脈を渡せるため、自動レビューやガード処理を「割り込み」ではなく「会話継続」として組み込める。CI/CD では Bedrock/Vertex/Foundry の `CI=true` 起動失敗修正が、パイプライン安定化に直結する。"
+tags: ["claude-code", "anthropic", "managed-settings", "hooks", "mcp", "release"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**Claude Code v2.1.163** がリリースされました。今回は管理者向けのガバナンス機能と Hooks の拡張が目立ち、加えて起動・権限・プラットフォーム回りの不具合修正が多数入っています。
+
+特に注目は、組織の管理設定で許可するバージョンの範囲を強制できる **`requiredMinimumVersion` / `requiredMaximumVersion`** です。範囲外のバージョンでは Claude Code が起動を拒否し、ユーザーを承認済みバージョンへ誘導します。検証済みバージョンの統制を求められる企業環境で効きます。
+
+あわせて、Stop / SubagentStop hooks が **`hookSpecificOutput.additionalContext`** を返せるようになり、hook エラーとして扱われずに Claude へフィードバックを渡してターンを継続できます。フックを「処理を止めるガード」ではなく「文脈を足す補助」として使えるようになりました。
+
+## 何が変わったか
+
+- **バージョン強制（managed settings）**: `requiredMinimumVersion` / `requiredMaximumVersion` を指定でき、許可範囲外では起動を拒否し承認済みバージョンへ誘導。
+- **`/plugin list`**: インストール済みプラグインを一覧表示。`--enabled` / `--disabled` フィルタ付き。
+- **`/btw` に「c to copy」**: 回答の生 Markdown をクリップボードへコピーし、貼り付け先で書式を保持。
+- **Hooks**: Stop / SubagentStop hooks が `hookSpecificOutput.additionalContext` を返してターンを継続できる（hook エラー扱いにならない）。
+- **Skills**: コマンド本文で数字の前にリテラルの `$` を入れる `\$` エスケープ構文を追加。
+- **MCP**: stdio MCP サーバーが `--resume` 時に hooks / Bash と同じ `CLAUDE_CODE_SESSION_ID` を受け取る。
+- **主な修正**:
+  - `claude -p` が最終結果後に永久ハングする問題（バックグラウンドシェルを stdin クローズ後 ~5 秒で停止）。
+  - `CI=true` かつ Anthropic API キー未設定の Bedrock / Vertex / Foundry で `claude -p` が「ANTHROPIC_API_KEY required」で失敗する問題。
+  - bazel・EDR 保護下の Go ワークフローで `$TMPDIR` 上書きにより Bash が失敗する回帰（2.1.154 由来）。
+  - Windows で session-env ディレクトリが読み取り専用 / OneDrive 配下のとき EEXIST で Bash が失敗する問題。
+  - 起動中の管理設定取得完了時に、org 管理の権限ルールがセッション全体へ適用されない問題。
+  - ホームディレクトリパスの deny ルール（例 `Read(~/Desktop/**)`）が `$HOME` 経由参照の Bash をブロックしない問題。
+
+## 業務インパクト（一般企業向け）
+
+`requiredMinimumVersion` / `requiredMaximumVersion` は、バージョンガバナンスを敷く組織にとって実用的です。脆弱性対応や挙動検証の都合で「この帯のバージョンだけ使わせたい」という要件を、管理設定で強制できます。未承認版での起動を止め、承認済みバージョンへ誘導するため、現場任せのアップデート運用から脱却できます。
+
+org 管理の権限ルールがセッション全体に適用されない問題の修正も、権限ガバナンスを敷く環境では見落とせません。フックの `additionalContext` は、社内ポリシーチェックやレビュー補助を「会話を止めない形」で差し込めるため、ガード処理を業務フローへ自然に組み込めます。
+
+## 副業・個人活用視点
+
+個人・フリーランス利用では、`claude -p` の永久ハング修正と、Bedrock / Vertex / Foundry を CI で使う際の起動失敗修正が効きます。自動化スクリプトや CI パイプラインに `claude -p` を組み込んでいる場合、最終結果後に固まる / API キー要求で落ちる、といったハマりが解消します。`/plugin list` は導入プラグインの棚卸しに、`/btw` の「c to copy」は回答を書式付きで他ツールへ持ち出す際に便利です。

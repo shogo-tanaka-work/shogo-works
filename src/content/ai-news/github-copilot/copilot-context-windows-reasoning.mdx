@@ -1,0 +1,38 @@
+---
+title: "GitHub Copilot — コンテキストウィンドウ拡大と推論レベル設定、Agent tasks REST API を Pro/Pro+/Max へ開放"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-06-04
+sourceUrl: "https://github.blog/changelog/label/copilot/"
+summary: "GitHub Copilot の changelog に 2026-06-04 付で複数の更新が掲載された。最大の変更は、コンテキストウィンドウの拡大と推論レベル（reasoning level）の設定で、より多くの情報を扱いつつ問題解決の深さを調整できる。あわせて、エージェントタスクへプログラム的にアクセスできる Agent tasks REST API が Pro / Pro+ / Max でも利用可能になり（従来は上位プラン中心）、Copilot Chat のプルリクエストへの文脈強化、GitHub Actions 失敗を自動修正する『Fix with Copilot』の Pro / Pro+ / Max への対象拡大も行われた。"
+impact: "推論レベルの設定とコンテキストウィンドウ拡大は、コスト（トークン・レイテンシ）と精度のトレードオフを開発者側で調整できるようにする実用的な変更。Agent tasks REST API が下位プランへ開放されたことで、個人・小規模チームでも『失敗した CI を自動修正』『PR レビュー補助』をスクリプトから回す自動化が組みやすくなる。企業では、推論レベルをプロジェクト特性に応じて使い分ける運用設計が論点になる。"
+tags: ["github-copilot", "github", "agent", "rest-api", "enhancement"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+GitHub Copilot の changelog に **2026-06-04 付で複数の更新**が掲載されました。中心となるのは **コンテキストウィンドウの拡大と推論レベル（reasoning level）の設定** で、より多くの情報を処理しつつ、Copilot が問題解決にかける「深さ」を調整できるようになりました。
+
+あわせて、エージェントタスクへプログラム的にアクセスできる **Agent tasks REST API が Pro / Pro+ / Max でも利用可能**になりました（従来は上位プラン中心）。さらに、Copilot Chat のプルリクエストへの文脈強化、GitHub Actions の失敗を自動修正する **「Fix with Copilot」の Pro / Pro+ / Max への対象拡大**も行われています。
+
+なお、同日付の「Copilot in Visual Studio — May update」は前日に速報記事化済みのため、本記事では扱いません。
+
+## 何が変わったか
+
+- **コンテキストウィンドウ拡大 + 推論レベル設定**: 扱える情報量が増え、Copilot の問題解決の深さ（推論レベル）を設定可能に。
+- **Agent tasks REST API**: エージェントタスクへのプログラム的アクセスが Pro / Pro+ / Max でも利用可能に。
+- **Copilot Chat のプルリクエスト文脈強化**: PR ディスカッション時のコードレビュー情報が充実。
+- **Fix with Copilot for failing Actions**: GitHub Actions 失敗の自動修正提案が Pro / Pro+ / Max へ拡大。
+
+## 業務インパクト（一般企業向け）
+
+推論レベルの設定とコンテキストウィンドウ拡大は、**コスト（トークン・レイテンシ）と精度のトレードオフを調整できる**実用的な変更です。単純な補完作業では推論レベルを抑え、設計・デバッグなど難度の高い作業では深くする、といったプロジェクト特性に応じた使い分けが運用設計の論点になります。
+
+Agent tasks REST API が下位プランへ開放されたことで、エージェントによる作業（失敗 CI の修正、PR レビュー補助など）を社内ツールや CI から呼び出す自動化が組みやすくなります。権限・課金プランの割り当てとあわせて、どのリポジトリ・チームで API 自動化を許可するかを整理しておくとよいでしょう。
+
+## 副業・個人活用視点
+
+Pro / Pro+ / Max を使う個人開発者・フリーランスにとって、Agent tasks REST API の開放は大きいです。「失敗した GitHub Actions を Copilot に自動修正させる」フローをスクリプトから回せるため、CI のメンテ工数を減らせます。推論レベル設定は、軽い補完は速く・難所は深く、とトークン消費をコントロールしながら使えるため、コスト管理しながらの個人運用に向きます。
