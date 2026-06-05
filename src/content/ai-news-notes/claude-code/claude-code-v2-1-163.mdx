@@ -1,0 +1,12 @@
+---
+title: "Claude Code v2.1.163 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-163"
+date: 2026-06-04
+tags: ["claude-code", "anthropic", "managed-settings", "hooks", "mcp"]
+---
+
+「管理設定」章に `requiredMinimumVersion` / `requiredMaximumVersion` を追加し、社内で許可バージョン帯を固定する運用例（脆弱性対応・挙動検証との関係）を示す。v2.1.162 で扱った org 管理権限ルールの続きとして、「起動時の管理設定取得とセッション全体への適用」の修正を併記する。
+
+「Hooks」章には Stop / SubagentStop の `hookSpecificOutput.additionalContext` を、ターンを止めずに文脈を差し込む手段として追加。従来の「hook エラーで中断」との挙動差を明示し、ポリシーチェック・自動レビューを会話継続型で組む例を載せる。
+
+「CLI / プラグイン」章に `/plugin list`（--enabled/--disabled）と `/btw` の「c to copy」を追記。「MCP」章には `--resume` 時の `CLAUDE_CODE_SESSION_ID` 引き渡しを、セッション横断のフック連携の前提として加える。CI 観点では Bedrock/Vertex/Foundry の `CI=true` 起動失敗修正を「よくあるハマり」に注記。v2.1.157 以降の累積改善の一部として位置づける。
