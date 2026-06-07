@@ -1,0 +1,10 @@
+---
+title: "Claude Code v2.1.165〜v2.1.167 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-165-167"
+date: 2026-06-06
+tags: ["claude-code", "anthropic", "fallback-model", "permissions", "security"]
+---
+
+「モデル設定」章に `fallbackModel`（最大3つ・順次試行、`--fallback-model` が対話セッションにも適用）を追加し、過負荷時の可用性確保と1回フォールバックリトライの挙動を示す。「コスト/レイテンシ調整」に thinking 無効化制御（`MAX_THINKING_TOKENS=0` / `--thinking disabled`）を加える。
+
+「権限ルール / セキュリティ」章には、deny ルールの glob（`"*"` で全 deny、allow は非 MCP glob 拒否）と、クロスセッションメッセージが権限を持たない仕様（`SendMessage` 中継の安全性）を追記。後者はマルチエージェント運用のセキュリティ前提として強調する。managed settings の修正（無効エントリが残りのポリシーを無効化する問題、`${VAR}` 参照不一致）は v2.1.163 からの統制改善の連続として位置づける。165/167 はバグ修正中心で、実質追加は 166 に集約される点を明記。
