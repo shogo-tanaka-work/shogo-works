@@ -1,0 +1,12 @@
+---
+title: "Claude Code v2.1.166 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-166"
+date: 2026-06-06
+tags: ["claude-code", "anthropic", "fallback-model", "permissions", "security"]
+---
+
+「モデル設定」章に `fallbackModel`（最大3モデル・対話セッション対応・`--fallback-model`）を追加し、過負荷時の自動フェイルオーバー運用例を示す。API の non-retryable エラー時に fallback で1回リトライする挙動と、即時表面化する例外（auth / rate-limit / request-size / transport）を区別して説明する。
+
+「権限・管理設定」章に deny ルールの glob 対応（`"*"` 全拒否、allow は非 MCP glob を拒否、未知ツール名は起動時警告）を追記し、「デフォルト拒否＋必要分だけ allow」の設計テンプレートを載せる。v2.1.163 のクロスセッション・managed settings の続きとして、`SendMessage` でリレーされたメッセージが権限を引き継がない仕様を「マルチセッション／サブエージェント運用時の権限前提」として明示する。
+
+「thinking 制御」の補足として、`MAX_THINKING_TOKENS=0` / `--thinking disabled` / モデル別トグルでデフォルト思考モデルの thinking を切る方法を整理（サードパーティプロバイダーは対象外）。v2.1.165 / 167 / 168 はバグ修正のみで、累積改善の一部として位置づける。

@@ -1,0 +1,40 @@
+---
+title: "GitHub Copilot が GPT-5.2 / GPT-5.2-Codex を非推奨化 — 後継は GPT-5.5 / GPT-5.3-Codex、code review のみ GPT-5.2 継続"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-06-05
+sourceUrl: "https://github.blog/changelog/2026-06-05-gpt-5-2-and-gpt-5-2-codex-deprecated"
+summary: "GitHub Copilot で GPT-5.2 と GPT-5.2-Codex が非推奨化された。Copilot Chat、インライン編集、Ask / Agent モード、コード補完など大半の Copilot 体験で GPT-5.2 の後継は GPT-5.5、GPT-5.2-Codex の後継は GPT-5.3-Codex となる。例外として GPT-5.2 は Copilot code review の一部では引き続き利用できる。非推奨モデルの削除はシステム側で行われるため利用者の手動削除は不要だが、GPT-5.2 / GPT-5.2-Codex を明示指定していたワークフローや統合は後継モデルへ更新する必要がある。Enterprise 管理者は、必要に応じて Copilot 設定のモデルポリシーで代替モデルへのアクセスを有効化する。"
+impact: "モデル ID を固定指定して Copilot を組み込んでいる組織・利用者は、後継 GPT-5.5 / GPT-5.3-Codex への切り替えが必要。Enterprise では管理者がモデルポリシーで後継モデルを明示有効化しないと現場で選べないケースがあり、対応漏れがそのまま利用停止につながる。code review だけは GPT-5.2 が残るため、機能ごとに使えるモデルが分かれる点も周知が要る。"
+tags: ["github-copilot", "model-deprecation", "gpt-5-5", "gpt-5-3-codex", "policy"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**GitHub Copilot で GPT-5.2 と GPT-5.2-Codex が非推奨化**されました。Copilot Chat、インライン編集、Ask / Agent モード、コード補完といった大半の Copilot 体験で、GPT-5.2 の後継は **GPT-5.5**、GPT-5.2-Codex の後継は **GPT-5.3-Codex** になります。
+
+例外として、**GPT-5.2 は Copilot code review の一部では引き続き利用可能**です。機能によって使えるモデルが分かれる形になります。
+
+非推奨モデルの削除自体はシステム側で行われるため利用者の手動削除アクションは不要ですが、GPT-5.2 / GPT-5.2-Codex を明示的に選んでいたワークフローや統合は、後継モデルへ更新しておく必要があります。
+
+## 何が変わったか
+
+- **GPT-5.2 → GPT-5.5** へ移行推奨（Chat / インライン編集 / Ask / Agent / コード補完）。
+- **GPT-5.2-Codex → GPT-5.3-Codex** へ移行推奨。
+- **GPT-5.2 は Copilot code review の一部では継続利用可能**。
+- 非推奨モデルの削除はシステム側で実施。利用者の手動削除は不要。
+- Enterprise 管理者は、必要に応じて **Copilot 設定のモデルポリシーで代替モデルへのアクセスを有効化**する。
+- GPT-5.2 / GPT-5.2-Codex を固定指定していたワークフロー・統合は後継モデルへ要更新。
+
+## 業務インパクト（一般企業向け）
+
+Copilot を社内開発に組み込んでいる組織では、モデル ID を固定指定している箇所の棚卸しが必要です。CI 連携や独自スクリプト、IDE のモデル選択を GPT-5.2 / GPT-5.2-Codex で固定していた場合、後継への切り替えを怠ると意図しない挙動や利用不可につながります。
+
+Enterprise 環境では、管理者がモデルポリシーで GPT-5.5 / GPT-5.3-Codex へのアクセスを明示的に有効化しないと、現場の開発者が後継モデルを選べないことがあります。モデルの非推奨は定期的に発生するため、「使用中モデルの一覧」と「ポリシー設定」を定点で見直す運用にしておくと、こうした切り替えコストを平準化できます。
+
+## 副業・個人活用視点
+
+個人で Copilot を使っている場合は、モデル選択を GPT-5.2 のまま固定していないか確認しておくとよいでしょう。多くの体験では後継の GPT-5.5 に自動で寄っていきますが、Codex 系ワークフローを組んでいる人は GPT-5.3-Codex への置き換えを意識しておくと安全です。クライアントワークで Copilot の出力品質を売りにしている場合、後継モデルでの挙動・精度を一度試してから本番投入する流れにしておくと、移行後の品質ブレを避けられます。
