@@ -1,0 +1,10 @@
+---
+title: "GitHub Copilot VS Code エンタープライズ管理プラグイン 教材化メモ"
+noteFor: "github-copilot/copilot-vscode-enterprise-managed-plugins"
+date: 2026-06-05
+tags: ["github-copilot", "vscode", "enterprise", "mcp", "managed-plugins"]
+---
+
+Copilot のエンタープライズ運用章に、CLI 向けに先行提供されていた管理プラグインが VS Code（1.122+）へ拡張された経緯を追記する。`.github-private/.github/copilot/settings.json` を単一の配布ソースとして、カスタムエージェント / スキル / MCP 設定 / フックを VS Code と CLI の両方へ一括適用する構成図を示す。
+
+「Copilot の社内標準化」テンプレートとして、(1) 配布リポジトリの権限設計、(2) 認証時自動インストールを前提にしたオンボーディング手順、(3) MCP 接続先・フックを組織標準に固定する際のセキュリティ確認、を整理する。パブリックプレビュー段階である点（小規模検証→全社展開）と必要バージョンを明示し、CLI 版（既存記事）との対応関係を併記する。
