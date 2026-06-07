@@ -1,0 +1,10 @@
+---
+title: "Claude Opus 4.1 非推奨化 教材化メモ"
+noteFor: "claude/claude-opus-4-1-deprecation"
+date: 2026-06-05
+tags: ["claude", "anthropic", "model-deprecation", "claude-api"]
+---
+
+Claude のモデル一覧・モデル選定章で Claude Opus 4.1（`claude-opus-4-1-20250805`）を「非推奨（2026-08-05 Claude API 退役）」と記し、推奨移行先を Claude Opus 4.8（`claude-opus-4-8`）に更新する。Claude アプリ（UI）利用者には影響がなく、API 実装のみが対象である点を明示する。
+
+「モデル退役への備え」テンプレートとして、(1) 使用中モデル ID の棚卸し、(2) 退役スケジュールの管理、(3) 移行前のコスト・レイテンシ・出力差分の再評価、(4) モデル ID を設定で切り替えられる実装（ハードコード回避）、を一般化して載せる。OpenAI / Copilot 側の同時期の非推奨（GPT-4.5 / o3 退役、Copilot GPT-5.2 非推奨）と並べ、「モデル非推奨は定期イベント」として運用に織り込む文脈で扱う。
