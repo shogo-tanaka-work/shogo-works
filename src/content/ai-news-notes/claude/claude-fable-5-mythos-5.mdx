@@ -1,0 +1,10 @@
+---
+title: "Claude Fable 5 / Mythos 5 ローンチ 教材化メモ"
+noteFor: "claude/claude-fable-5-mythos-5"
+date: 2026-06-09
+tags: ["claude", "anthropic", "claude-fable-5", "claude-mythos-5", "model-release"]
+---
+
+Claude のモデル一覧・モデル選定章を更新し、最上位ティアとして Claude Fable 5（`claude-fable-5`、$10/$50、1M/128k、Adaptive thinking 常時オン、Extended thinking 非対応）を追加する。Opus 4.8（$5/$25）との使い分けを「難度・コスト・実トークン約30%増（Opus 4.7 トークナイザ）」の3点で整理し、常用ではなく高難度・高単価処理に絞る方針を示す。
+
+Mythos 5 は Project Glasswing の招待制限定提供（GA ではない）として注記し、Mythos Preview の後継であることを明記。実装面では `stop_reason: "refusal"`（HTTP 200・非課金）と `fallbacks` パラメータ（ベータ）・フォールバッククレジットを、安全分類器付きモデルの前提として整理する。クライアント側の同日対応（Claude Code v2.1.170、GitHub Copilot GA、Copilot のみ30日データ保持）を関連項目として横断リンクする。退役予定（Sonnet 4 / Opus 4 が 2026-06-15）も移行文脈で併記。
