@@ -1,0 +1,40 @@
+---
+title: "Anthropic が Claude Fable 5 / Claude Mythos 5 を発表 — Opus の上位に立つ最高性能モデルが GA（2026-06-09）"
+tool: "claude"
+toolLabel: "Claude"
+date: 2026-06-09
+sourceUrl: "https://www.anthropic.com/news/claude-fable-5-mythos-5"
+summary: "Anthropic が新しいモデルライン Claude Fable 5（claude-fable-5）を一般提供開始した。Opus / Sonnet / Haiku の上位に位置づく「これまでで最も高性能な一般公開モデル」で、要求の厳しい推論と長時間の自律エージェント作業向け。コンテキストウィンドウ 1M トークン、最大出力 128k トークン、Adaptive thinking が常時オン（Extended thinking は非対応）、価格は入力 $10 / 出力 $50 per MTok。Opus 4.7 由来のトークナイザを使うため同じテキストでも旧モデル比で約30%多くトークンを消費する点に注意。同時に Claude Mythos 5（claude-mythos-5）が Project Glasswing 内の招待制限定提供として登場（Claude Mythos Preview の後継）。GA 日は 2026-06-09 で、Claude API・Claude Platform on AWS・Amazon Bedrock・Vertex AI・Microsoft Foundry で同日提供。安全分類器により拒否時は HTTP 200 で stop_reason: \"refusal\" を返し課金されず、オプトインの fallbacks パラメータ（ベータ）で別モデルへ自動フォールバックできる。"
+impact: "Opus を超える最上位ティアが加わり、最高難度の推論・長時間エージェント作業に投じられる選択肢が増えた。一方で価格は Opus 4.8（$5/$25）の倍で、トークナイザ差により実消費トークンも約30%増えるため、コストは慎重に見積もる必要がある。Claude Code v2.1.170 や GitHub Copilot が同日に Fable 5 アクセスを開放しており、開発ツール側からも即日使える。"
+tags: ["claude", "anthropic", "claude-fable-5", "claude-mythos-5", "model-release", "project-glasswing"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**Anthropic が新しいモデルライン「Claude Fable 5（`claude-fable-5`）」を一般提供開始**しました。これは Opus / Sonnet / Haiku の上位に位置づく「**これまでで最も高性能な一般公開モデル**」で、要求の厳しい推論と長時間の自律エージェント作業に向けて設計されています。GA 日は **2026-06-09**、Claude API・Claude Platform on AWS・Amazon Bedrock・Vertex AI・Microsoft Foundry で同日提供されました。
+
+主要スペックは、コンテキストウィンドウ **1M トークン**、最大出力 **128k トークン**、**Adaptive thinking 常時オン**（Extended thinking は非対応）、価格は**入力 $10 / 出力 $50 per MTok**。Opus 4.7 で導入されたトークナイザを使うため、**同じテキストでも旧モデル比で約30%多くトークンを消費**する点に注意が必要です。
+
+同時に、**Claude Mythos 5（`claude-mythos-5`）** が Project Glasswing 内の**招待制限定提供**として登場しました（Claude Mythos Preview の後継）。こちらは一般提供ではありません。
+
+## 何が変わったか
+
+- **Claude Fable 5（`claude-fable-5`）が GA**。最上位ティアの一般公開モデル。コンテキスト 1M / 最大出力 128k / Adaptive thinking 常時オン。
+- 価格は**入力 $10 / 出力 $50 per MTok**（Opus 4.8 の $5/$25 の倍）。
+- **トークナイザは Opus 4.7 由来**で、同じテキストでも旧モデル比約30%多くトークンを消費。
+- **Claude Mythos 5** は Project Glasswing の招待制限定提供（GA ではない。AWS / Vertex でも Limited availability）。
+- 安全分類器により、拒否時は HTTP 200 で `stop_reason: "refusal"` を返し**課金されない**。オプトインの `fallbacks` パラメータ（ベータ）で別モデルへ自動フォールバック可能。
+- 提供面: Claude API / Claude Platform on AWS / Amazon Bedrock / Vertex AI / Microsoft Foundry。クライアント側では Claude Code v2.1.170・GitHub Copilot が同日に Fable 5 アクセスを開放。
+
+## 業務インパクト（一般企業向け）
+
+最高難度のタスク向けに「Opus を超える選択肢」が増えたことで、複雑な分析・長時間の自律エージェント・難度の高いコーディングを Fable 5 に任せる判断ができるようになりました。一方で、**コスト設計は慎重さが要ります**。価格は Opus 4.8 の倍に加え、トークナイザ差で実消費トークンも約30%増えるため、「単価×実トークン」で見ると体感以上にコストが上がり得ます。常時タスクに使うのではなく、難度が高く成果が金額に見合う処理に絞るのが現実的です。
+
+`stop_reason: "refusal"` が非課金で返る挙動と `fallbacks` パラメータ（ベータ）は、安全分類器付きモデルを本番に組み込む際の実装前提になります。拒否時のハンドリングと、フォールバック先モデルの品質・コストをあらかじめ設計しておくとよいでしょう。Mythos 5 は招待制のため、一般企業がすぐ使えるのは Fable 5 です。
+
+## 副業・個人活用視点
+
+個人・フリーランスにとっては、「ここぞ」の高難度案件に投入できる最上位モデルが増えた一方、価格が高めなので**使いどころの見極め**が重要です。日常の作業は Sonnet 4.6 / Opus 4.8 で回し、難しい設計・長時間の自律作業・高単価の成果物だけ Fable 5、という使い分けがコスト効率的です。Claude Code v2.1.170 へ更新すれば手元の CLI からすぐ試せます。GitHub Copilot 経由で使う場合は、Fable 5 のみプロンプト・出力が30日保持される点（他 Claude モデルはゼロ保持）に留意してください。
