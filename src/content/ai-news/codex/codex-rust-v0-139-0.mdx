@@ -1,0 +1,39 @@
+---
+title: "OpenAI Codex rust-v0.139.0（stable）— code mode から単体 web search、MCP スキーマの oneOf/allOf 保持、codex doctor 拡充"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-06-09
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.139.0"
+summary: "OpenAI Codex の stable リリース rust-v0.139.0 が公開された。code mode から（ネストした JavaScript ツール呼び出しを含め）単体の web search を直接呼べるようになり、検索結果をプレーンテキストで受け取れる。ツール／コネクタの入力スキーマが oneOf / allOf を保持し、大きなスキーマの圧縮時も浅い構造をより多く残すため、リッチな MCP ツールとの互換性が向上した。codex doctor がローカルレポートにエディタ・ページャの環境情報を含める（JSON 出力では生値をリダクト）ようになり、plugin marketplace は list --json に各 marketplace source を含めてキャッシュ済みカタログから先に返すなど応答性も上がった。codex resume/fork --last の末尾引数の扱い修正、サンドボックスの承認エスカレーション保持・proxy-only ネットワーキング強制などの修正も入った。"
+impact: "code mode から web search を直接呼べることで、コード実行とリアルタイム情報取得を1つのフローに統合しやすくなる。MCP スキーマの oneOf/allOf 保持は、複雑な入力スキーマを持つ MCP ツールを Codex から正しく扱えるようにし、リッチなツール連携の信頼性を高める。サンドボックスの承認保持・proxy-only 強制は、統制下でエージェントを動かす運用のセキュリティに効く。"
+tags: ["codex", "openai", "web-search", "mcp", "sandbox", "release"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**OpenAI Codex の stable リリース rust-v0.139.0** が公開されました。目を引くのは、**code mode から単体の web search を直接呼べる**ようになった点です。ネストした JavaScript ツール呼び出しからも呼べて、検索結果はプレーンテキストで受け取れます。コード実行とリアルタイム情報取得を1つのフローにまとめやすくなりました。
+
+MCP まわりも強化され、**ツール／コネクタの入力スキーマが `oneOf` / `allOf` を保持**するようになりました。大きなスキーマの圧縮時も浅い構造をより多く残すため、リッチな MCP ツールとの互換性が上がります。
+
+加えて、**`codex doctor`** がローカルレポートにエディタ・ページャの環境情報を含める（JSON 出力では生値をリダクト）ようになり、**plugin marketplace** は `list --json` に各 marketplace source を含めつつキャッシュ済みカタログから先に返すなど、応答性も改善しています。
+
+## 何が変わったか
+
+- **code mode から単体 web search を直接呼び出し**（ネストした JS ツール呼び出しからも可）。結果はプレーンテキストで取得。
+- **MCP スキーマの `oneOf` / `allOf` 保持**。大きなスキーマ圧縮時も浅い構造を維持し、リッチな MCP ツール互換が向上。
+- **`codex doctor`** がエディタ・ページャの環境情報を含む（JSON ではリダクト）。
+- **plugin marketplace** が `list --json` に marketplace source を含め、キャッシュ済みリモートカタログから先に返してからバックグラウンド更新。
+- **主な修正**: `codex resume --last "..."` / `codex fork --last "..."` の末尾引数を初期プロンプトとして扱う、サブエージェントの MCP 起動警告をスレッド内に留める、画像編集が参照ファイルパスをそのまま使用、`/new` `/clear` `/fork` でクラウド管理要件・フラグを落とさない、サンドボックスが承認済みエスカレーションを保持し proxy-only ネットワーキングを一貫強制。
+
+## 業務インパクト（一般企業向け）
+
+**code mode の web search 直接呼び出し**は、コードを動かしながら最新情報を取りに行く処理を1フローで完結させます。社内ツールやデータ処理に「実行＋最新情報参照」を組み込みやすくなります。**MCP スキーマの `oneOf`/`allOf` 保持**は、複雑な入力スキーマを持つ自社／サードパーティ MCP ツールを Codex から正しく扱えるようにするもので、ツール連携を本番運用する組織ほど効きます。
+
+セキュリティ面では、**サンドボックスが承認済みのエスカレーション判断を保持し、proxy-only ネットワーキングをより一貫して強制**する修正が重要です。統制下でエージェントを動かす環境で、承認の取りこぼしや想定外の通信経路を抑えられます。`codex doctor` の環境情報拡充（JSON ではリダクト）は、サポート・トラブルシュートの初動を速くします。
+
+## 副業・個人活用視点
+
+個人利用では、code mode から web search を呼べることで「コードで処理しつつ最新情報も引く」スクリプトを書きやすくなります。`codex resume --last "..."` / `fork --last "..."` の末尾引数修正は、前回セッションを引き継いで続きの指示を出す使い方の地味だが効くハマり解消です。MCP ツールを自作・連携している人は、`oneOf`/`allOf` 保持で複雑なスキーマのツールが安定して動くようになります。plugin marketplace の `--json` は、自前スクリプトで環境を再現・移行する際に役立ちます。

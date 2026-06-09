@@ -1,0 +1,36 @@
+---
+title: "GitHub Copilot で Claude Fable 5 が一般提供開始 — 長時間自律コーディング向け、ただし30日データ保持に注意"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-06-09
+sourceUrl: "https://github.blog/changelog/2026-06-09-claude-fable-5-is-generally-available-for-github-copilot"
+summary: "Anthropic の Mythos クラス初モデル「Claude Fable 5」が GitHub Copilot で一般提供開始された。Copilot Pro+ / Max / Business / Enterprise が対象で、VS Code / Visual Studio / Copilot CLI で選択できる。長時間の自律コーディング向けに設計され、少ないツール呼び出しで同等の作業を完了するとされる。重要な注意点として、他の Claude モデルがゼロデータ保持であるのに対し、本モデルのみ Anthropic の安全分類器運用のためプロンプト・出力が30日間保持される。"
+impact: "Copilot から Anthropic 最上位の Fable 5 を使えるようになり、長時間の自律コーディングを任せる選択肢が増えた。一方で、Fable 5 のみプロンプト・出力が30日保持される点は、コードや指示に機密を含む組織にとってデータガバナンス上の判断ポイントになる。モデル選択時にこの差異を周知する必要がある。"
+tags: ["github-copilot", "claude-fable-5", "anthropic", "data-retention", "enhancement"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**Anthropic の Mythos クラス初モデル「Claude Fable 5」が GitHub Copilot で一般提供開始**されました。対象は **Copilot Pro+ / Max / Business / Enterprise** で、**VS Code / Visual Studio / Copilot CLI** で選択できます。長時間の自律コーディング向けに設計され、少ないツール呼び出しで同等の作業を完了するとされています。
+
+重要な注意点として、**他の Claude モデルがゼロデータ保持であるのに対し、Fable 5 のみ Anthropic の安全分類器運用のためプロンプト・出力が30日間保持**されます。
+
+## 何が変わったか
+
+- **Claude Fable 5 が GitHub Copilot で GA**。VS Code / Visual Studio / Copilot CLI で選択可能。
+- 長時間の自律コーディング向け設計。少ないツール呼び出しで作業を完了。
+- **データ保持の例外**: 他の Claude モデルはゼロデータ保持だが、**Fable 5 のみプロンプト・出力を30日間保持**（安全分類器運用のため）。
+- 対象プラン: Pro+ / Max / Business / Enterprise。
+
+## 業務インパクト（一般企業向け）
+
+Copilot から Anthropic 最上位の Fable 5 を使えるようになり、**長時間の自律コーディングを任せる選択肢**が増えました。難度の高いリファクタや長い実装タスクで、少ないツール呼び出しで進められる点は実務的なメリットです。
+
+一方で、**データ保持の差異は無視できません**。他の Claude モデルがゼロ保持なのに対し、Fable 5 はプロンプト・出力が30日保持されます。コードや指示に機密・個人情報・社外秘が含まれる組織では、Fable 5 を使ってよい範囲を定めるか、機密リポジトリでは別モデルを使う、といったルール化が必要です。モデル選択 UI でこの差異が見えないと現場が気づきにくいため、社内ガイドラインで明示するのが安全です。
+
+## 副業・個人活用視点
+
+個人・フリーランスでは、Fable 5 を長時間タスクの「決め手」として使えますが、**クライアントのコードを扱う場合はデータ保持の差に注意**が要ります。受託先のソースや機密を含むやり取りを30日保持されることが契約・NDA 上問題ないかを確認し、必要ならゼロ保持の別モデルを使い分けましょう。自分の個人プロジェクトであれば、長い実装を任せる用途で積極的に試す価値があります。

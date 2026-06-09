@@ -1,0 +1,10 @@
+---
+title: "OpenAI Codex rust-v0.139.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-139-0"
+date: 2026-06-09
+tags: ["codex", "openai", "web-search", "mcp", "sandbox"]
+---
+
+Codex の「code mode」章に単体 web search の直接呼び出し（ネスト JS から可・プレーンテキスト結果）を追記し、「コード実行＋最新情報参照」を1フローで組む例を示す。「MCP 連携」章にスキーマの `oneOf`/`allOf` 保持を、複雑な入力スキーマを持つツール互換の前提として整理する。
+
+「診断」章に `codex doctor` の環境情報拡充（JSON ではリダクト）を、「セキュリティ／サンドボックス」章に承認済みエスカレーション保持・proxy-only ネットワーキングの一貫強制を追記する。`resume/fork --last` の末尾引数修正は「よくあるハマり」として記録。rust-v0.138.0 に続く stable として位置づけ、alpha（0.139 系）は件数言及に留める。
