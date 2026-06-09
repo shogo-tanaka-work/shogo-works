@@ -1,0 +1,10 @@
+---
+title: "OpenAI Codex rust-v0.138.0 教材化メモ"
+noteFor: "codex/codex-rust-v0-138-0"
+date: 2026-06-09
+tags: ["codex", "openai", "codex-desktop", "authentication", "plugins"]
+---
+
+Codex の「Desktop 連携」章に `/app` ハンドオフ（CLI ↔ Desktop、Windows のワークスペース直接展開）を追記する。「マルチモーダル」章にローカル画像保存先パスのモデル公開を加え、画像起点の反復編集ワークフロー例を示す。
+
+「認証」章に v2 personal access token（PAT）対応と、app-server のアカウントトークン使用量読み取りを追記し、社内組み込み時のコスト可視化の前提として整理する。「plugin 自動化」章は `--json` 対応（add/remove/marketplace）と plugin 詳細の構造化（marketplace source・デフォルトプロンプト・リモート MCP サーバー）を追記し、CI から plugin を機械的に扱う運用例を載せる。rust-v0.137.0 の続きの stable として位置づけ、alpha（0.138 系後半・0.139 系）は件数言及に留める。

@@ -1,0 +1,10 @@
+---
+title: "Claude Code v2.1.169 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-169"
+date: 2026-06-09
+tags: ["claude-code", "anthropic", "safe-mode", "mcp", "security"]
+---
+
+「トラブルシューティング」章に `--safe-mode`（`CLAUDE_CODE_SAFE_MODE`）を追加し、CLAUDE.md・プラグイン・スキル・フック・MCP を全無効化して切り分ける初動手順を載せる。「セッション操作」章に `/cd`（プロンプトキャッシュを保ったままのディレクトリ移動）を、「設定」章に `disableBundledSkills` を追記し、社内標準スキルだけをモデルに見せる絞り込み運用を示す。
+
+v2.1.166 のエンタープライズ MCP ポリシーの続きとして、再接続・IDE 入力設定・`--mcp-config`・初回セッション・リモート設定読込前の適用漏れ修正を「管理 MCP ポリシー運用時の前提」として明示する。OTEL クライアント証明書パスの trust 確認漏れ修正は、テレメトリ経路のセキュリティ注記として追加。`claude agents --json` の `--all` / `id` / `state` 追加は、エージェント運用の可観測性向上として触れる。
