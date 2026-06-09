@@ -1,0 +1,10 @@
+---
+title: "GitHub Copilot サードパーティエージェントのセキュリティ検証 教材化メモ"
+noteFor: "github-copilot/copilot-security-validation-third-party-agents"
+date: 2026-06-09
+tags: ["github-copilot", "security", "codeql", "coding-agents"]
+---
+
+GitHub / Copilot のセキュリティ章に、サードパーティ製エージェント生成コードへの自動検証（CodeQL・Advisory DB・機密情報検出、デフォルト有効・Advanced Security 不要）を追記する。「AI エージェントにコードを書かせる運用の一次セキュリティゲート」として位置づけ、(1) 自動検証で何を検出できるか、(2) 人手レビューとの二段構え、(3) 検出結果の扱い（鵜呑みにしない）を整理する。
+
+AI 駆動開発のガバナンス章とも連携させ、「生成→自動検査→人手レビュー→マージ」のフロー例を示す。受託開発での品質保証アピール（AI 生成だが自動検査済み）にも触れる。
