@@ -1,0 +1,41 @@
+---
+title: "OpenAI Codex rust-v0.138.0（stable）— /app で Codex Desktop へハンドオフ、画像パスのモデル公開、reasoning effort 選択の柔軟化、PAT v2 認証"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-06-09
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.138.0"
+summary: "OpenAI Codex の stable リリース rust-v0.138.0 が公開された。`/app` コマンドで現在の CLI スレッドを macOS / ネイティブ Windows の Codex Desktop へ引き渡せるようになり、Windows のワークスペース起動が手動プロンプトで止まらず Desktop に直接開ける。ローカル画像添付・画像生成の保存先パスをモデルへ公開して後続編集やファイル参照を確実にし、reasoning effort 選択を柔軟化（Alt バインドのない端末向け fallback ショートカット、モデル提示順での effort 反映）。app-server 連携がアカウントのトークン使用量を読めるようになり、CLI / app-server で v2 personal access token（PAT）をサポート。plugin 自動化は add/remove・marketplace の `--json` 対応や plugin 詳細の構造化（marketplace source・デフォルトプロンプト・リモート MCP サーバー公開）が進んだ。`/goal` ワークフローの予測可能性向上や起動の堅牢化など修正も多数。"
+impact: "`/app` の Desktop ハンドオフは、CLI で始めた作業を GUI へ滑らかに引き継げるようにし、特に Windows の起動体験を改善する。画像保存先パスのモデル公開は、画像を起点にした反復編集・ファイル参照の信頼性を高める。PAT v2 認証と app-server のトークン使用量読み取りは、Codex を自社システムへ組み込む際の認証・コスト可視化の前提を強化する。plugin の `--json` 対応は、CI から plugin を機械的に扱う自動化に効く。"
+tags: ["codex", "openai", "codex-desktop", "authentication", "plugins", "release"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**OpenAI Codex の stable リリース rust-v0.138.0** が公開されました。目を引くのは **`/app` コマンドによる Codex Desktop へのハンドオフ**です。現在の CLI スレッドを macOS / ネイティブ Windows の Codex Desktop へ引き渡せるようになり、Windows のワークスペース起動も手動プロンプトで止まらず Desktop へ直接開けます。CLI で始めた作業を GUI へ滑らかに移せます。
+
+開発体験まわりでは、**ローカル画像添付・画像生成の保存先パスをモデルへ公開**して後続編集やファイル参照を確実にし、**reasoning effort 選択を柔軟化**（Alt バインドのない端末向け fallback ショートカット、モデルが提示する順での effort 反映）しました。
+
+認証・連携では、**app-server 連携がアカウントのトークン使用量を読めるように**なり、CLI / app-server で **v2 personal access token（PAT）** をサポート。**plugin 自動化**は `--json` 対応と plugin 詳細の構造化が進みました。
+
+## 何が変わったか
+
+- **`/app` デスクトップハンドオフ**: CLI スレッドを macOS / ネイティブ Windows の Codex Desktop へ引き渡し。Windows のワークスペース起動は手動プロンプトで止まらず Desktop へ直接展開。
+- **画像パスのモデル公開**: ローカル画像添付・スタンドアロン画像生成の保存先パスをモデルへ公開し、後続編集・ファイル参照を確実化。
+- **reasoning effort 選択の柔軟化**: `Alt` バインドのない端末向けの fallback ショートカットを TUI に追加。モデル提示順で effort レベルが流れる。
+- **アカウント連携・認証**: app-server 連携がアカウントのトークン使用量を読めるように。CLI / app-server で **v2 PAT** をサポート。
+- **plugin 自動化の構造化出力**: add/remove・marketplace コマンドが `--json` 対応。plugin list JSON に marketplace source、plugin 詳細にデフォルトプロンプト・リモート MCP サーバー・利用不可アプリテンプレートを公開。
+- **主な修正**: `/goal` ワークフローの予測可能性向上（複数行ペーストの早期送信防止、アイドル自動ターンが Plan モードに入らない等）、フォークスレッドのタイトル保持、起動の堅牢化（`/usr/bin/bash` 対応、OAuth-backed MCP 資格情報の事前リフレッシュ）、リモート/シンボリックリンク ワークスペースでの `AGENTS.md` 読み込み精度向上。
+- 並行して alpha（rust-v0.138.0-alpha.7/8、rust-v0.139.0-alpha.1）も公開。
+
+## 業務インパクト（一般企業向け）
+
+Codex を社内開発に組み込む観点では、**PAT v2 認証**と **app-server のトークン使用量読み取り**が効きます。認証方式の更新は、社内システムや自動化基盤から Codex を呼ぶ際の前提になり、トークン使用量を取得できることはコスト可視化・予算管理に直結します。
+
+**plugin の `--json` 対応**と plugin 詳細の構造化は、CI や社内ツールから plugin を機械的に追加・確認する自動化を組みやすくします。marketplace source やリモート MCP サーバーが構造化データで取れるため、「どの plugin が何に接続しているか」を棚卸ししやすくなります。`/app` の Desktop ハンドオフは、CLI 中心の開発者と GUI 中心のメンバーが混在するチームで、作業の受け渡しを滑らかにします。
+
+## 副業・個人活用視点
+
+個人・フリーランス利用では、`/app` で CLI から Desktop へ作業を引き継げる点が、込み入った作業を GUI で続けたいときに便利です。画像保存先パスのモデル公開は、スクリーンショットやデザイン画像を起点に「ここを直して」と反復するワークフローの信頼性を上げます。reasoning effort の fallback ショートカットは、`Alt` が効きにくい端末で作業する人の操作性改善に直結します。plugin の `--json` は、自前のスクリプトで Codex 環境を再現・移行する際に使えます。
