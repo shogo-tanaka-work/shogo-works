@@ -1,0 +1,10 @@
+---
+title: "Claude Managed Agents スケジュール実行・Vault 教材化メモ"
+noteFor: "claude/claude-managed-agents-scheduled-vault"
+date: 2026-06-09
+tags: ["claude", "anthropic", "managed-agents", "automation", "security"]
+---
+
+Managed Agents の運用章に、スケジュール実行（cron）と Vault 環境変数管理を追記する。「リクエスト駆動」から「時刻駆動」への拡張として位置づけ、定期業務（夜間同期・週次レポート・定期監査）の自動化例を載せる。
+
+Vault 連携は「秘密情報をサンドボックスに常駐させず、ネットワーク境界でのみ注入する」設計を図示し、エージェント自動化のセキュリティ前提として整理する。パブリックベータ段階である点、対象業務を絞った検証→拡大の進め方、情シス承認を得やすくなる観点を添える。導入事例（Rakuten / Notion / Browserbase）は実運用パターンの参照として触れる。
