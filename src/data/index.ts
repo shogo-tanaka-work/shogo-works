@@ -25,6 +25,7 @@ export { featuredKnowledge } from "./featuredKnowledge";
 export { mediaOutlets } from "./mediaOutlets";
 export { resources } from "./resources";
 export { techStack } from "./techStack";
+export { techToolDetails } from "./techToolDetails";
 export {
   careerExperiences,
   educationHistory,
