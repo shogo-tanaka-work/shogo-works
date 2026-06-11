@@ -1,0 +1,76 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Badge from "@/components/ui/Badge.astro";
+import { caseStudies } from "@/data";
+---
+
+<BaseLayout
+  title="導入事例・指導実績 | shogoworks"
+  description="AI導入支援・開発・研修のこれまでの支援事例をご紹介します。"
+>
+  <section class="py-20 pt-32">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <SectionHeader
+        title="導入事例・指導実績"
+        subtitle="さまざまな規模・目的のお客様を支援してきました。"
+      />
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {
+          caseStudies.map((caseStudy) => (
+            <a
+              href={`/cases/${caseStudy.slug}`}
+              class="block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300 group hover:ring-teal-500/20 hover:shadow-md"
+            >
+              <div class="flex items-center gap-2 mb-3 flex-wrap">
+                <Badge variant="teal">{caseStudy.category}</Badge>
+                <span class="text-xs text-muted-foreground">
+                  {caseStudy.clientType}
+                </span>
+                {caseStudy.period && (
+                  <span class="text-xs text-muted-foreground">
+                    {caseStudy.period}
+                  </span>
+                )}
+              </div>
+              <h2 class="text-lg font-semibold text-foreground mb-2 leading-snug">
+                {caseStudy.title}
+              </h2>
+              <p class="text-sm text-muted-foreground leading-relaxed mb-4">
+                {caseStudy.summary}
+              </p>
+              {caseStudy.technologies && (
+                <div class="flex flex-wrap gap-1.5 mb-4">
+                  {caseStudy.technologies.map((tech) => (
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-secondary text-muted-foreground">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <span class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 group-hover:text-teal-700 transition-colors">
+                詳しく見る →
+              </span>
+            </a>
+          ))
+        }
+      </div>
+
+      <div class="mt-14 bg-secondary/50 rounded-3xl p-8 text-center">
+        <p class="text-foreground font-medium mb-2">
+          同じような課題をお持ちですか？
+        </p>
+        <p class="text-sm text-muted-foreground mb-6">
+          現状の課題をお聞きして、最適な進め方をご提案します。お気軽にご相談ください。
+        </p>
+        <a
+          href="/contact"
+          class="inline-block bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-lg px-6 py-3 text-sm font-medium transition-all"
+        >
+          無料で相談する
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
