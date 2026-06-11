@@ -231,10 +231,18 @@ export interface MediaOutlet {
 }
 
 export interface ResourceItem {
+  slug: string; // /resources/[slug] の URL に使用
   title: string;
   description: string;
-  href: string;
   comingSoon: boolean;
+  // --- 詳細ページ用（comingSoon: false の資料は必須で埋める）---
+  longDescription?: string; // 詳細ページ冒頭の説明
+  highlights?: string[]; // この資料でわかること
+  targetAudience?: string; // 想定読者
+  pageCount?: number;
+  fileUrl?: string; // 例: "/downloads/service-guide.pdf"
+  fileSize?: string; // 例: "120 KB"
+  updatedAt?: string; // 例: "2026-06"
 }
 
 export interface TechItem {
