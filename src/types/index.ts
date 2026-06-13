@@ -107,9 +107,18 @@ export interface ServiceItem {
   faq?: FaqItem[];
 }
 
+// ドロップダウン内のサブ項目。description はパネル内の補足1行（任意）。
+export interface NavChild {
+  label: string;
+  href: string;
+  description?: string;
+}
+
 export interface NavItem {
   label: string;
   href: string;
+  // children を持つ項目はデスクトップでドロップダウン、モバイルでアコーディオン表示になる
+  children?: NavChild[];
 }
 
 // 「課題から探す」セクション用。訪問者の悩みを該当サービスへ橋渡しする。
