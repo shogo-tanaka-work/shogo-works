@@ -1,0 +1,65 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Badge from "@/components/ui/Badge.astro";
+import { resources } from "@/data";
+---
+
+<BaseLayout
+  title="お役立ち資料 | shogoworks"
+  description="AI導入・業務自動化に役立つ資料を無料でダウンロードいただけます。"
+>
+  <section class="py-20 pt-32">
+    <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <SectionHeader
+        title="お役立ち資料"
+        subtitle="AI導入・業務自動化に役立つ資料を無料でダウンロードいただけます。"
+      />
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {
+          resources.map((res) => {
+            const card = (
+              <>
+                <div class="w-12 h-12 rounded-xl bg-teal-50 flex items-center justify-center mb-4 text-2xl">
+                  📄
+                </div>
+                <div class="flex items-center gap-2 mb-2 flex-wrap">
+                  <h2 class="text-lg font-semibold text-foreground">
+                    {res.title}
+                  </h2>
+                  {res.comingSoon && <Badge variant="default">準備中</Badge>}
+                </div>
+                <p class="text-sm text-muted-foreground leading-relaxed mb-4">
+                  {res.description}
+                </p>
+                {!res.comingSoon && (
+                  <div class="flex items-center gap-3 text-xs text-muted-foreground">
+                    {res.pageCount && <span>全{res.pageCount}ページ</span>}
+                    {res.updatedAt && <span>{res.updatedAt} 更新</span>}
+                  </div>
+                )}
+              </>
+            );
+
+            const wrapperClass =
+              "block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300";
+
+            return res.comingSoon ? (
+              <div class={`${wrapperClass} opacity-70`} aria-disabled="true">
+                {card}
+              </div>
+            ) : (
+              <a
+                href={`/resources/${res.slug}`}
+                class={`${wrapperClass} group hover:ring-teal-500/20 hover:shadow-md`}
+              >
+                {card}
+              </a>
+            );
+          })
+        }
+      </div>
+    </div>
+  </section>
+</BaseLayout>
