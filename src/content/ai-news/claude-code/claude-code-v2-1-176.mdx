@@ -1,0 +1,50 @@
+---
+title: "Claude Code v2.1.176 — availableModels 管理強化・Remote Control 大型修正・セッションタイトル多言語化"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-12
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.176"
+summary: "Claude Code v2.1.176 がリリース（2026-06-12T21:53:27Z）。availableModels enforcement の追加修正（ANTHROPIC_DEFAULT_*_MODEL 経由の抜け穴を塞ぐ）、セッションタイトルの会話言語での自動生成、Bedrock 認証情報キャッシュ改善、hook if 条件のパスマッチ修正、Remote Control の大型バグ修正9件、background sessions・agents view の多数の修正を含む。"
+impact: "Enterprise/Team managed 環境でモデル利用統制が完全に機能するようになった。Remote Control を使ったときにモデルが予期せず変わる問題が解消。hook の if 条件がドキュメント通りに動作するようになり、セキュリティ用途の hook 設定が確実に機能する。"
+tags: ["claude-code", "release", "enterprise", "remote-control", "hooks", "bedrock"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**Claude Code v2.1.176 がリリース**されました（2026-06-12T21:53:27Z）。前バージョン v2.1.175 で追加された `availableModels` enforcement の抜け穴を塞ぐ修正のほか、Remote Control の大型バグ修正9件、background sessions の多数の修正が含まれています。
+
+セッションタイトルが会話言語で自動生成される機能も追加されました（日本語で会話していれば日本語タイトルが生成されます）。
+
+## 何が変わったか
+
+**`availableModels` enforcement の追加修正（v2.1.175 に続く）:**
+- `ANTHROPIC_DEFAULT_*_MODEL` 環境変数経由で allowlist 外モデルへリダイレクトされる問題を修正
+- `/fast` が allowlist 外のモデルに切り替わる場合に拒否するように
+- auto mode が Fable 5 で失敗する問題（Fable 5 停止対応）を修正 — Opus 4.8 が無効な組織では最良の利用可能モデルにフォールバック
+
+**新機能・改善:**
+- セッションタイトルが**会話の言語で自動生成**される（`language` 設定でピン可能）
+- `footerLinksRegexes` 設定追加（フッターリンクバッジを正規表現でマッチ）
+- Bedrock の `awsCredentialExport` クレデンシャルが固定1時間でなく Expiration まで有効に
+
+**バグ修正:**
+- hook `if` 条件のパスパターン（`Edit(src/**)`, `Read(.env)` 等）が正しくマッチするように
+- Linux sandbox: `.claude/settings.json` が絶対パスのシンボリックリンクの場合に起動失敗する問題を修正
+- tmux over SSH 環境での `/copy` とクリップボード問題を修正
+- Remote Control: Web/モバイル接続がセッションのモデルをサイレントに変更する問題など9件を修正
+- background sessions / agents view: 多数の修正（`/bg` mid-turn 後の永続 "Working" 表示等）
+
+## 業務インパクト（一般企業向け）
+
+**Enterprise/Team 管理者にとって最重要**: v2.1.175 の `enforceAvailableModels` に続き、今バージョンで `ANTHROPIC_DEFAULT_*_MODEL` 環境変数経由の抜け穴も塞がれました。これにより、allowlist で指定したモデルのみが確実に使用される状態が完成します。組織でのモデル利用統制・コスト管理に直接影響します。
+
+**hook 設定を使っている場合**: `if` 条件のパスパターンが v2.1.176 以前では正しく動作していなかったことが判明しました。セキュリティ目的や自動化目的の hook が期待通りに機能しているか、アップデート後に確認することを推奨します。
+
+## 副業・個人活用視点
+
+日本語で Claude Code を使っている場合、セッションタイトルが自動的に日本語で生成されるようになります。複数セッションを管理する際の可読性が上がります。
+
+Bedrock 経由で Claude Code を使っている場合（AWS 環境）、長時間セッションでクレデンシャルが期限切れになる問題が改善されます。
