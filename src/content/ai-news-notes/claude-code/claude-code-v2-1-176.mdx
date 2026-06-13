@@ -1,0 +1,18 @@
+---
+title: "Claude Code v2.1.176 教材化メモ"
+noteFor: "claude-code/claude-code-v2-1-176"
+date: 2026-06-12
+tags: ["claude-code", "enterprise", "hooks", "remote-control", "bedrock"]
+---
+
+「Claude Code Enterprise 管理機能」章に追記。v2.1.175 → v2.1.176 と2バージョン連続で `availableModels` enforcement が強化されている経緯を説明する。
+
+**`availableModels` 管理の完成度**（段階的修正のパターン事例として）：
+- v2.1.175: `enforceAvailableModels` 設定追加、基本的な enforcement 実装
+- v2.1.176: `ANTHROPIC_DEFAULT_*_MODEL` 環境変数経由の抜け穴を塞ぐ、`/fast` コマンドも制御対象に
+
+「hook の if 条件パスパターン修正」は、セキュリティ用途の hook を使っている場合に必ずアップデートを促す注意点として記述する。v2.1.176 以前では `Edit(src/**)` や `Read(.env)` 等のパターンが正しく動作していなかった。
+
+「Remote Control 9件の修正」は、Claude Code をモバイル/Web から操作する使い方（claude.ai や iOS アプリ）のユーザー向けに、信頼性が大幅に向上したことを説明する。特に「Web からの接続がセッションのモデルをサイレントに変更していた」問題の修正は重要。
+
+Bedrock 経由でのクレデンシャルキャッシュ改善は、AWS 環境での長時間利用が多い企業ユーザー向けに説明する。

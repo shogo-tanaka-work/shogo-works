@@ -1,0 +1,37 @@
+---
+title: "Copilot CLI に /settings 統一設定コマンドが追加 — テーマ・実験機能・自動更新を1か所で管理"
+tool: "github-copilot"
+toolLabel: "GitHub Copilot"
+date: 2026-06-11
+sourceUrl: "https://github.blog/changelog/2026-06-11-copilot-cli-configure-everything-from-one-place-with-settings"
+summary: "GitHub Copilot CLI に /settings コマンドが追加され、これまで /theme・/streamer-mode・/experimental などに分散していた設定を1か所で管理できるようになった。フルスクリーン対話型・インラインコマンド・スクリプト実行の3モードに対応。設定タイプごとのエディタ（トグル・列挙値ピッカー・テキスト入力）、検索・リセット・エディタ起動のキーバインドを備える。"
+impact: "Copilot CLI の設定変更に必要なコマンドが /settings に一元化されたことで、設定の発見性・変更効率が向上する。スクリプト実行モードにより dotfiles や CI での設定自動化も可能になる。"
+tags: ["github-copilot", "copilot-cli", "settings", "ux", "enhancement"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**GitHub Copilot CLI の設定管理が `/settings` コマンドに統合**されました。これまでは `/theme`・`/streamer-mode`・`/experimental` など、変更したい設定ごとに異なるコマンドを覚える必要がありました。今回の変更でそれらが `/settings` 1か所に集約されます。
+
+3つの使い方に対応しています。`/settings` のみで実行するフルスクリーン対話型、`/settings autoUpdate true` のようにインラインで直接設定するモード、そして `copilot -p` 経由でのスクリプト実行モードです。特にスクリプト実行モードは、dotfiles での Copilot CLI 設定の自動化や、チーム標準設定の配布に使える可能性があります。
+
+## 何が変わったか
+
+- **`/settings` コマンド追加**: `/theme`・`/streamer-mode`・`/experimental` 等に分散していた設定を1か所に統合。
+- **フルスクリーン対話型**: セクション分けされたダイアログで全設定を一覧・編集。検索（`/`）・リセット（Ctrl+R）・エディタ起動（Ctrl+E）に対応。
+- **インラインコマンド**: `/settings <設定名> <値>` の形式で直接設定変更。
+- **スクリプト実行モード**: `copilot -p` 経由で設定の自動化に対応。dotfiles や CI での設定管理が可能に。
+- **設定タイプ別エディタ**: ブール値はトグル、列挙値はピッカー、テキストはテキスト入力と、設定タイプに応じたエディタが用意されている。
+
+## 業務インパクト（一般企業向け）
+
+チームで Copilot CLI を展開している環境では、スクリプト実行モードを使って標準設定をまとめて適用できます。例えば、`streamer-mode` や実験的機能の有効化状態をチーム内で揃えたい場合、dotfiles や onboarding スクリプトに `/settings` コマンドを組み込む運用が可能になります。
+
+## 副業・個人活用視点
+
+これまで「Copilot CLI でテーマを変えたい」「実験的機能を有効にしたい」と思っても、コマンド名がわからず設定変更を諦めるケースがありました。`/settings` で全設定を一覧できるようになったことで、設定の発見性が上がります。
+
+`copilot update` でアップデートして `/settings` を実行するだけで確認できます。
