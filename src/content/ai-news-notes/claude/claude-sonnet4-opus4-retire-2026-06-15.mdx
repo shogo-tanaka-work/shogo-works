@@ -1,0 +1,45 @@
+---
+title: "教材化メモ: Claude Sonnet 4・Opus 4 退役（2026-06-15）— モデルライフサイクル管理の教訓"
+noteFor: "claude/claude-sonnet4-opus4-retire-2026-06-15"
+date: 2026-06-14
+tags: ["claude", "model-deprecation", "claude-api", "lifecycle"]
+---
+
+## 教材化ポイント
+
+### モデル退役の仕組みと周期
+
+Claude のモデルライフサイクルは概ね以下のパターンで進む。
+
+1. 新モデルリリース（例: Claude Sonnet 4 — 2025-05 リリース）
+2. 後継モデルリリース（例: Sonnet 4.6 — 2026-01 頃）
+3. 旧モデルへの非推奨宣言（公式ドキュメントに Warning 表示）
+4. 退役（例: 2026-06-15。リリースから約 13 ヶ月後）
+
+Anthropic は「最低 90 日前に告知」を方針としており、[Commitments on model deprecation and preservation](https://www.anthropic.com/research/deprecation-commitments) に明記されている。
+
+### 価格変化のモデル
+
+- Sonnet 4（$3/$15）→ Sonnet 4.6（$3/$15）: 価格は同じだがコンテキスト窓が 200k → 1M に拡大（実質改善）
+- Opus 4（$15/$75）→ Opus 4.8（$5/$25）: 約 67% 値下がり。Anthropic はフラッグシップモデルを数ヶ月ごとに更新し、価格を引き下げる傾向がある
+
+### 実装上の教訓
+
+「モデル ID をハードコードしない」が最も重要な設計原則。
+
+```python
+# 悪い例（ハードコード）
+client.messages.create(model="claude-sonnet-4-20250514", ...)
+
+# 良い例（設定で外部化）
+model_id = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-6")
+client.messages.create(model=model_id, ...)
+```
+
+退役スケジュールの確認先: `platform.claude.com/docs/en/about-claude/model-deprecations`
+
+### 教材での使い方
+
+- 「APIを使ったプロダクト開発」の単元で、運用フェーズの注意点として紹介できる
+- 「コスト管理」の観点から、モデル更新に追随することのメリット（Opus 4.8 への移行で 67% コスト削減）を実例として使える
+- Anthropic のモデル命名規則（世代 + バリアント + 日付）の解説にも活用できる
