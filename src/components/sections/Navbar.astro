@@ -4,6 +4,10 @@ import MobileMenu from "@/components/islands/MobileMenu";
 import Button from "@/components/ui/Button.astro";
 
 const currentPath = Astro.url.pathname;
+
+// 親項目のアクティブ判定: 自身の href か、配下リンクのいずれかに一致
+const isActive = (href: string, children?: { href: string }[]) =>
+  currentPath === href || (children?.some((c) => currentPath === c.href) ?? false);
 ---
 
 <header id="main-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
@@ -19,19 +23,81 @@ const currentPath = Astro.url.pathname;
       <!-- Desktop Navigation（項目数が多いため lg 以上で表示。md まではモバイルメニュー） -->
       <div class="hidden lg:flex items-center gap-1">
         {
-          navItems.map((item) => (
-            <a
-              href={item.href}
-              class:list={[
-                "px-3 py-2 text-sm transition-colors rounded-md hover:bg-gray-100",
-                currentPath === item.href
-                  ? "text-foreground font-medium"
-                  : "text-muted-foreground hover:text-foreground",
-              ]}
-            >
-              {item.label}
-            </a>
-          ))
+          navItems.map((item, index) =>
+            item.children ? (
+              <div class="relative" data-nav-dropdown>
+                <button
+                  type="button"
+                  class:list={[
+                    "flex items-center gap-1 px-3 py-2 text-sm transition-colors rounded-md hover:bg-gray-100",
+                    isActive(item.href, item.children)
+                      ? "text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground",
+                  ]}
+                  aria-expanded="false"
+                  aria-haspopup="true"
+                  aria-controls={`nav-dropdown-panel-${index}`}
+                >
+                  {item.label}
+                  <svg
+                    class="w-3.5 h-3.5 transition-transform duration-200"
+                    data-dropdown-chevron
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                <div
+                  id={`nav-dropdown-panel-${index}`}
+                  data-dropdown-panel
+                  class="invisible opacity-0 translate-y-1 transition-all duration-200 absolute left-0 top-full pt-2 w-72"
+                >
+                  <div class="bg-white rounded-xl border border-gray-100 shadow-lg p-2">
+                    {item.children.map((child) => (
+                      <a
+                        href={child.href}
+                        class:list={[
+                          "block px-3 py-2.5 rounded-lg transition-colors hover:bg-gray-50",
+                          currentPath === child.href ? "bg-gray-50" : "",
+                        ]}
+                      >
+                        <span
+                          class:list={[
+                            "block text-sm",
+                            currentPath === child.href
+                              ? "text-foreground font-medium"
+                              : "text-foreground",
+                          ]}
+                        >
+                          {child.label}
+                        </span>
+                        {child.description && (
+                          <span class="block text-xs text-muted-foreground mt-0.5">
+                            {child.description}
+                          </span>
+                        )}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <a
+                href={item.href}
+                class:list={[
+                  "px-3 py-2 text-sm transition-colors rounded-md hover:bg-gray-100",
+                  currentPath === item.href
+                    ? "text-foreground font-medium"
+                    : "text-muted-foreground hover:text-foreground",
+                ]}
+              >
+                {item.label}
+              </a>
+            )
+          )
         }
         <Button href="/#resources" variant="outline" size="sm" class="ml-3">
           資料請求
@@ -68,6 +134,90 @@ const currentPath = Astro.url.pathname;
     onScroll();
   }
 
+  // ホバー・クリック・キーボードの3操作に対応したドロップダウン制御。
+  // ホバー離脱時は即閉じせず遅延を入れ、パネルへのマウス移動を許容する。
+  function setupNavDropdowns() {
+    const CLOSE_DELAY_MS = 150;
+    const dropdowns = document.querySelectorAll<HTMLElement>("[data-nav-dropdown]");
+
+    const instances = Array.from(dropdowns).map((root) => {
+      const button = root.querySelector<HTMLButtonElement>("button[aria-haspopup]");
+      const panel = root.querySelector<HTMLElement>("[data-dropdown-panel]");
+      const chevron = root.querySelector<HTMLElement>("[data-dropdown-chevron]");
+      if (!button || !panel) return null;
+
+      let closeTimer: ReturnType<typeof setTimeout> | undefined;
+
+      const setOpen = (open: boolean) => {
+        button.setAttribute("aria-expanded", String(open));
+        panel.classList.toggle("invisible", !open);
+        panel.classList.toggle("opacity-0", !open);
+        panel.classList.toggle("translate-y-1", !open);
+        chevron?.classList.toggle("rotate-180", open);
+      };
+
+      const isOpen = () => button.getAttribute("aria-expanded") === "true";
+
+      const scheduleClose = () => {
+        clearTimeout(closeTimer);
+        closeTimer = setTimeout(() => setOpen(false), CLOSE_DELAY_MS);
+      };
+
+      root.addEventListener("mouseenter", () => {
+        clearTimeout(closeTimer);
+        setOpen(true);
+      });
+      root.addEventListener("mouseleave", scheduleClose);
+
+      button.addEventListener("click", () => {
+        clearTimeout(closeTimer);
+        setOpen(!isOpen());
+      });
+
+      // パネル内リンクからフォーカスが外れたら閉じる（Tab 移動対応）
+      root.addEventListener("focusout", (event) => {
+        const next = (event as FocusEvent).relatedTarget;
+        if (!(next instanceof Node) || !root.contains(next)) {
+          setOpen(false);
+        }
+      });
+
+      return { root, button, setOpen, isOpen };
+    });
+
+    // ページ遷移ごとに最新のインスタンスへ差し替える（document リスナーは1組のみ維持）
+    currentDropdowns = instances.filter((d) => d !== null);
+  }
+
+  let currentDropdowns: Array<{
+    root: HTMLElement;
+    button: HTMLButtonElement;
+    setOpen: (open: boolean) => void;
+    isOpen: () => boolean;
+  }> = [];
+
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Node)) return;
+    currentDropdowns.forEach((d) => {
+      if (!d.root.contains(target)) d.setOpen(false);
+    });
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    currentDropdowns.forEach((d) => {
+      if (d.isOpen()) {
+        d.setOpen(false);
+        d.button.focus();
+      }
+    });
+  });
+
   setupScrollHeader();
-  document.addEventListener("astro:page-load", setupScrollHeader);
+  setupNavDropdowns();
+  document.addEventListener("astro:page-load", () => {
+    setupScrollHeader();
+    setupNavDropdowns();
+  });
 </script>

@@ -107,9 +107,18 @@ export interface ServiceItem {
   faq?: FaqItem[];
 }
 
+// ドロップダウン内のサブ項目。description はパネル内の補足1行（任意）。
+export interface NavChild {
+  label: string;
+  href: string;
+  description?: string;
+}
+
 export interface NavItem {
   label: string;
   href: string;
+  // children を持つ項目はデスクトップでドロップダウン、モバイルでアコーディオン表示になる
+  children?: NavChild[];
 }
 
 // 「課題から探す」セクション用。訪問者の悩みを該当サービスへ橋渡しする。
@@ -231,16 +240,26 @@ export interface MediaOutlet {
 }
 
 export interface ResourceItem {
+  slug: string; // /resources/[slug] の URL に使用
   title: string;
   description: string;
-  href: string;
   comingSoon: boolean;
+  // --- 詳細ページ用（comingSoon: false の資料は必須で埋める）---
+  longDescription?: string; // 詳細ページ冒頭の説明
+  highlights?: string[]; // この資料でわかること
+  targetAudience?: string; // 想定読者
+  pageCount?: number;
+  fileUrl?: string; // 例: "/downloads/service-guide.pdf"
+  fileSize?: string; // 例: "120 KB"
+  updatedAt?: string; // 例: "2026-06"
 }
 
 export interface TechItem {
   name: string;
   iconSlug: string;
   url?: string;
+  // 設定されたツールは /tech/[slug] の詳細ページへ内部リンクする（techToolDetails.ts と整合させる）
+  detailSlug?: string;
 }
 
 export interface TechCategory {
@@ -265,6 +284,22 @@ export interface CaseStudy {
   outcomes: string[]; // 成果
   technologies?: string[];
   serviceHref?: string; // 関連サービスLP（services.ts と整合させる）
+// 主要ツールの詳細ページ（/tech/[slug]）用。
+export interface TechUseCase {
+  title: string;
+  description: string;
+}
+
+export interface TechToolDetail {
+  slug: string;
+  name: string;
+  iconSlug: string; // simple-icons の slug
+  tagline: string; // 1行キャッチ
+  overview: string; // ツール概要
+  strengths: string[]; // 田中省伍の強み・経験
+  useCases: TechUseCase[]; // 活用例
+  relatedServiceHref?: string; // 関連サービスLP（services.ts と整合させる）
+  relatedKnowledgeHref?: string; // 関連 Knowledge ページ
 }
 
 // --- About page: career / education / certifications ---

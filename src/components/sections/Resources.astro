@@ -8,7 +8,7 @@ import Badge from "@/components/ui/Badge.astro";
   <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
     <SectionHeader
       title="お役立ち資料"
-      subtitle="サービス紹介資料・ホワイトペーパー・テンプレート集を順次公開予定です。"
+      subtitle="サービス紹介資料・ホワイトペーパー・テンプレート集を無料でダウンロードいただけます。"
     />
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -39,7 +39,7 @@ import Badge from "@/components/ui/Badge.astro";
             </div>
           ) : (
             <a
-              href={res.href}
+              href={`/resources/${res.slug}`}
               class={`${wrapperClass} group hover:ring-teal-500/20 hover:shadow-md`}
             >
               {card}

@@ -26,6 +26,7 @@ export { mediaOutlets } from "./mediaOutlets";
 export { resources } from "./resources";
 export { techStack } from "./techStack";
 export { caseStudies } from "./cases";
+export { techToolDetails } from "./techToolDetails";
 export {
   careerExperiences,
   educationHistory,
