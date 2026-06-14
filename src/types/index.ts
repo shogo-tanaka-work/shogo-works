@@ -258,12 +258,32 @@ export interface TechItem {
   name: string;
   iconSlug: string;
   url?: string;
+  // 設定されたツールは /tech/[slug] の詳細ページへ内部リンクする（techToolDetails.ts と整合させる）
+  detailSlug?: string;
 }
 
 export interface TechCategory {
   key: string;
   label: string;
   items: TechItem[];
+}
+
+// 主要ツールの詳細ページ（/tech/[slug]）用。
+export interface TechUseCase {
+  title: string;
+  description: string;
+}
+
+export interface TechToolDetail {
+  slug: string;
+  name: string;
+  iconSlug: string; // simple-icons の slug
+  tagline: string; // 1行キャッチ
+  overview: string; // ツール概要
+  strengths: string[]; // 田中省伍の強み・経験
+  useCases: TechUseCase[]; // 活用例
+  relatedServiceHref?: string; // 関連サービスLP（services.ts と整合させる）
+  relatedKnowledgeHref?: string; // 関連 Knowledge ページ
 }
 
 // --- About page: career / education / certifications ---
