@@ -1,0 +1,46 @@
+---
+title: "GitHub Agentic Workflows 教材化メモ — Actions 上のエージェント自動化のアーキテクチャ"
+noteFor: "github-copilot/github-agentic-workflows-public-preview"
+date: 2026-06-11
+tags: ["github-copilot", "github-actions", "agentic-ai", "ci-cd", "automation"]
+---
+
+## 教材化の着眼点
+
+### Actions + Agent の統合アーキテクチャ
+
+Agentic Workflows の本質は「**自然言語 → Actions YAML へのコンパイル**」と「**既存 Actions 基盤の再利用**」の組み合わせ。
+
+- **従来の自動化**: YAML で明示的なステップを書く（人が判断ロジックを事前に記述）
+- **Agentic Workflows**: Markdown で目的を書く → エージェントが実行時に判断（人が判断ロジックを書かなくていい）
+
+この違いは「**決定論的な自動化 vs 推論ベースの自動化**」という軸で整理できる。
+
+### セキュリティ設計の多層防御
+
+Agentic Workflows のセキュリティ設計は「エージェントに権限を与えつつ被害を最小化する」という課題への回答:
+
+| 層 | 仕組み |
+| --- | --- |
+| 権限デフォルト | 読み取り専用。変更には明示的な権限付与が必要 |
+| 実行環境 | サンドボックスコンテナ + Agent Workflow Firewall |
+| 出力検証 | Safe outputs プロセスで全出力を検証 |
+| 変更前審査 | 脅威検出ジョブが提案変更をスキャン |
+
+この多層防御はエンタープライズでの「エージェントを安全に使うためのガバナンス設計」の参照例として使える。
+
+### ユースケースと既存パターンの対応
+
+Agentic Workflows が対象とするタスクを既存の GitHub 機能と対比:
+
+| タスク | 従来 | Agentic Workflows |
+| --- | --- | --- |
+| Issue トリアージ | 手動 or YAML ルールベース | 自然言語でエージェントが判断 |
+| CI 失敗分析 | 人がログを読む | エージェントが原因を推論 |
+| ドキュメント更新 | 手動 PR | エージェントが差分から更新 |
+
+## 研修・教材への応用
+
+- 「AI エージェントを CI/CD に組み込むアーキテクチャ」の具体事例として使える。
+- 「エージェント活用のガバナンス設計」テーマで、セキュリティ多層防御の事例として使える。
+- Agentic Workflows と Copilot Chat・Copilot Cloud Agent の違いを整理するポジショニング教材として有用。

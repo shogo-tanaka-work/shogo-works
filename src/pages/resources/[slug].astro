@@ -1,0 +1,149 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import { resources } from "@/data";
+import type { ResourceItem } from "@/types";
+
+export function getStaticPaths() {
+  // 準備中の資料は詳細ページを生成しない
+  return resources
+    .filter((res) => !res.comingSoon)
+    .map((res) => ({
+      params: { slug: res.slug },
+      props: { resource: res },
+    }));
+}
+
+interface Props {
+  resource: ResourceItem;
+}
+
+const { resource } = Astro.props;
+---
+
+<BaseLayout
+  title={`${resource.title} | お役立ち資料 | shogoworks`}
+  description={resource.description}
+>
+  <section class="py-20 pt-32">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+      <nav class="text-sm text-muted-foreground mb-8" aria-label="パンくず">
+        <a href="/resources" class="hover:text-foreground transition-colors">
+          お役立ち資料
+        </a>
+        <span class="mx-2">/</span>
+        <span class="text-foreground">{resource.title}</span>
+      </nav>
+
+      <div class="w-14 h-14 rounded-2xl bg-teal-50 flex items-center justify-center mb-6 text-3xl">
+        📄
+      </div>
+
+      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-4">
+        {resource.title}
+      </h1>
+
+      <div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground mb-8">
+        <span>PDF形式</span>
+        {resource.pageCount && <span>全{resource.pageCount}ページ</span>}
+        {resource.fileSize && <span>{resource.fileSize}</span>}
+        {resource.updatedAt && <span>{resource.updatedAt} 更新</span>}
+      </div>
+
+      {
+        resource.longDescription && (
+          <p class="text-muted-foreground leading-relaxed mb-10">
+            {resource.longDescription}
+          </p>
+        )
+      }
+
+      {
+        resource.highlights && resource.highlights.length > 0 && (
+          <div class="bg-secondary/50 rounded-2xl p-6 sm:p-8 mb-10">
+            <h2 class="text-lg font-semibold text-foreground mb-4">
+              この資料でわかること
+            </h2>
+            <ul class="space-y-3">
+              {resource.highlights.map((point) => (
+                <li class="flex items-start gap-3 text-sm text-foreground">
+                  <svg
+                    class="w-5 h-5 text-teal-600 shrink-0 mt-0.5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width={2}
+                      d="M5 13l4 4L19 7"
+                    />
+                  </svg>
+                  {point}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )
+      }
+
+      {
+        resource.targetAudience && (
+          <div class="mb-10">
+            <h2 class="text-lg font-semibold text-foreground mb-2">
+              こんな方におすすめ
+            </h2>
+            <p class="text-sm text-muted-foreground leading-relaxed">
+              {resource.targetAudience}
+            </p>
+          </div>
+        )
+      }
+
+      <div class="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-3xl p-8 sm:p-10 text-center">
+        <p class="text-white font-semibold text-lg mb-6">
+          資料は無料でダウンロードいただけます
+        </p>
+        <a
+          href={resource.fileUrl}
+          download
+          class="inline-flex items-center gap-2 bg-white text-teal-700 hover:bg-white/90 rounded-lg px-6 py-3 text-sm font-medium transition-colors"
+        >
+          <svg
+            class="w-4 h-4"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            aria-hidden="true"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width={2}
+              d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"
+            />
+          </svg>
+          PDFをダウンロード
+        </a>
+      </div>
+
+      <div class="mt-10 text-center">
+        <a
+          href="/resources"
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ← 資料一覧へ戻る
+        </a>
+      </div>
+
+      <div class="mt-12 border-t border-gray-100 pt-8 text-center">
+        <p class="text-sm text-muted-foreground mb-4">
+          資料の内容についてのご質問・個別のご相談はお気軽にどうぞ
+        </p>
+        <Button href="/contact" size="md">お問い合わせ</Button>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
