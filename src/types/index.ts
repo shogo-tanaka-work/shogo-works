@@ -284,6 +284,8 @@ export interface CaseStudy {
   outcomes: string[]; // 成果
   technologies?: string[];
   serviceHref?: string; // 関連サービスLP（services.ts と整合させる）
+}
+
 // 主要ツールの詳細ページ（/tech/[slug]）用。
 export interface TechUseCase {
   title: string;
