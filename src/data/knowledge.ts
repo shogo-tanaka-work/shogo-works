@@ -73,6 +73,12 @@ export const subcategories: Partial<
         "Anthropic公式のエージェント型コーディングCLI。Skills / MCP / Hooks / Sub-agentsの活用",
     },
     {
+      slug: "claude-code-curriculum",
+      label: "Claude Code カリキュラム",
+      description:
+        "ゼロから Claude Code を業務で使いこなすための全10章・30レッスンの学習コース。非エンジニアでも順番に読み進められる構成",
+    },
+    {
       slug: "codex",
       label: "OpenAI Codex",
       description:
