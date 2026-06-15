@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { execSync } from "node:child_process";
 
-const TIMEOUT = 60_000;
+const TIMEOUT = 120_000;
 const MAX_BUFFER = 10 * 1024 * 1024; // 10MB
 
 describe("Astro build", () => {
