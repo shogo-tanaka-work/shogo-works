@@ -268,6 +268,24 @@ export interface TechCategory {
   items: TechItem[];
 }
 
+// --- 導入事例 / 指導実績（/cases）---
+
+export type CaseCategory = "導入支援" | "開発" | "研修・指導";
+
+export interface CaseStudy {
+  slug: string; // /cases/[slug] の URL に使用
+  title: string;
+  category: CaseCategory;
+  clientType: string; // 例: "AIベンチャー企業"（実名・特定可能情報は載せない）
+  period?: string;
+  summary: string; // 一覧カード用の短い説明
+  challenge: string; // 課題・背景
+  support: string[]; // 支援内容
+  outcomes: string[]; // 成果
+  technologies?: string[];
+  serviceHref?: string; // 関連サービスLP（services.ts と整合させる）
+}
+
 // 主要ツールの詳細ページ（/tech/[slug]）用。
 export interface TechUseCase {
   title: string;
