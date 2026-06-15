@@ -1,7 +1,9 @@
 ---
 import { mediaOutlets } from "@/data";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
-import Badge from "@/components/ui/Badge.astro";
+
+// 準備中の媒体はトップに出さない（URL が決まったら comingSoon を外すだけで再表示される）
+const activeOutlets = mediaOutlets.filter((outlet) => !outlet.comingSoon);
 
 function iconUrl(slug: string, color?: string): string {
   // simple-icons CDN（公式・無料・CC0）
@@ -17,12 +19,12 @@ function iconUrl(slug: string, color?: string): string {
   <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
     <SectionHeader
       title="メディア発信"
-      subtitle="各プラットフォームで発信中／準備中です。気になる媒体からフォローいただけると嬉しいです。"
+      subtitle="各プラットフォームで発信中です。気になる媒体からフォローいただけると嬉しいです。"
     />
 
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
       {
-        mediaOutlets.map((outlet, i) => {
+        activeOutlets.map((outlet, i) => {
           const inner = (
             <div class="flex items-start gap-3">
               <img
@@ -38,9 +40,6 @@ function iconUrl(slug: string, color?: string): string {
                   <span class="text-base font-semibold text-foreground">
                     {outlet.name}
                   </span>
-                  {outlet.comingSoon && (
-                    <Badge variant="default">準備中</Badge>
-                  )}
                 </div>
                 <p class="text-xs text-muted-foreground leading-relaxed">
                   {outlet.description}
@@ -51,11 +50,7 @@ function iconUrl(slug: string, color?: string): string {
 
           const wrapperClass = `block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-2xl p-5 transition-all duration-300 animate-on-scroll stagger-${(i % 5) + 1}`;
 
-          return outlet.comingSoon ? (
-            <div class={`${wrapperClass} opacity-60`} aria-disabled="true">
-              {inner}
-            </div>
-          ) : (
+          return (
             <a
               href={outlet.url}
               target="_blank"

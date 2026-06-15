@@ -37,6 +37,15 @@ import SectionHeader from "@/components/ui/SectionHeader.astro";
                     <span>{tech.name}</span>
                   </>
                 );
+                // 詳細ページ持ち > 外部URL > リンクなし の優先順でリンク先を決める
+                if (tech.detailSlug) {
+                  return (
+                    <a href={`/tech/${tech.detailSlug}`} class={chipClass}>
+                      {chipInner}
+                      <span class="text-xs text-teal-600">詳しく見る →</span>
+                    </a>
+                  );
+                }
                 return tech.url ? (
                   <a
                     href={tech.url}
