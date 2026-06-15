@@ -1,0 +1,161 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Badge from "@/components/ui/Badge.astro";
+import Button from "@/components/ui/Button.astro";
+import { caseStudies } from "@/data";
+import type { CaseStudy } from "@/types";
+
+export function getStaticPaths() {
+  return caseStudies.map((caseStudy) => ({
+    params: { slug: caseStudy.slug },
+    props: { caseStudy },
+  }));
+}
+
+interface Props {
+  caseStudy: CaseStudy;
+}
+
+const { caseStudy } = Astro.props;
+---
+
+<BaseLayout
+  title={`${caseStudy.title} | 導入事例 | shogoworks`}
+  description={caseStudy.summary}
+>
+  <section class="py-20 pt-32">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+      <nav class="text-sm text-muted-foreground mb-8" aria-label="パンくず">
+        <a href="/cases" class="hover:text-foreground transition-colors">
+          導入事例・指導実績
+        </a>
+        <span class="mx-2">/</span>
+        <span class="text-foreground">{caseStudy.title}</span>
+      </nav>
+
+      <div class="flex items-center gap-2 mb-4 flex-wrap">
+        <Badge variant="teal">{caseStudy.category}</Badge>
+      </div>
+
+      <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-foreground mb-6 leading-snug">
+        {caseStudy.title}
+      </h1>
+
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-secondary/50 rounded-2xl p-6 mb-10 text-sm">
+        <div>
+          <dt class="text-muted-foreground mb-1">クライアント</dt>
+          <dd class="font-medium text-foreground">{caseStudy.clientType}</dd>
+        </div>
+        {
+          caseStudy.period && (
+            <div>
+              <dt class="text-muted-foreground mb-1">期間</dt>
+              <dd class="font-medium text-foreground">{caseStudy.period}</dd>
+            </div>
+          )
+        }
+        {
+          caseStudy.technologies && (
+            <div class="sm:col-span-2">
+              <dt class="text-muted-foreground mb-1">主な技術・ツール</dt>
+              <dd class="flex flex-wrap gap-1.5">
+                {caseStudy.technologies.map((tech) => (
+                  <span class="text-xs px-2 py-0.5 rounded-full bg-background border border-border text-foreground">
+                    {tech}
+                  </span>
+                ))}
+              </dd>
+            </div>
+          )
+        }
+      </dl>
+
+      <div class="mb-10">
+        <h2 class="text-xl font-bold text-foreground mb-3">課題・背景</h2>
+        <p class="text-muted-foreground leading-relaxed">
+          {caseStudy.challenge}
+        </p>
+      </div>
+
+      <div class="mb-10">
+        <h2 class="text-xl font-bold text-foreground mb-4">支援内容</h2>
+        <ul class="space-y-3">
+          {
+            caseStudy.support.map((item) => (
+              <li class="flex items-start gap-3 text-sm text-foreground leading-relaxed">
+                <span class="w-1.5 h-1.5 rounded-full bg-teal-500 shrink-0 mt-2" />
+                {item}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <div class="mb-10">
+        <h2 class="text-xl font-bold text-foreground mb-4">成果</h2>
+        <ul class="space-y-3">
+          {
+            caseStudy.outcomes.map((item) => (
+              <li class="flex items-start gap-3 text-sm text-foreground leading-relaxed">
+                <svg
+                  class="w-5 h-5 text-teal-600 shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                {item}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      {
+        caseStudy.serviceHref && (
+          <div class="mb-10">
+            <a
+              href={caseStudy.serviceHref}
+              class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+            >
+              この事例に関連するサービスを見る →
+            </a>
+          </div>
+        )
+      }
+
+      <div class="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-3xl p-8 sm:p-10 text-center">
+        <p class="text-white font-semibold text-lg mb-2">
+          同じような課題をお持ちですか？
+        </p>
+        <p class="text-white/90 text-sm mb-6">
+          現状を伺ったうえで、最適な進め方をご提案します。
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button href="/contact" size="md" class="bg-white text-teal-700 hover:bg-white/90">
+            無料で相談する
+          </Button>
+          <Button href="/diagnosis" variant="ghost" size="md" class="text-white border border-white/50 hover:bg-white/10">
+            AI無料診断を試す
+          </Button>
+        </div>
+      </div>
+
+      <div class="mt-10 text-center">
+        <a
+          href="/cases"
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ← 事例一覧へ戻る
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>
