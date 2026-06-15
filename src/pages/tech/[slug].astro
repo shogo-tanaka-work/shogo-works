@@ -1,0 +1,157 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import Button from "@/components/ui/Button.astro";
+import { techToolDetails } from "@/data";
+import type { TechToolDetail } from "@/types";
+
+export function getStaticPaths() {
+  return techToolDetails.map((tool) => ({
+    params: { slug: tool.slug },
+    props: { tool },
+  }));
+}
+
+interface Props {
+  tool: TechToolDetail;
+}
+
+const { tool } = Astro.props;
+---
+
+<BaseLayout
+  title={`${tool.name} | 取り扱い技術 | shogoworks`}
+  description={`${tool.name} — ${tool.tagline}`}
+>
+  <section class="py-20 pt-32">
+    <div class="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+      <nav class="text-sm text-muted-foreground mb-8" aria-label="パンくず">
+        <a href="/#tech-stack" class="hover:text-foreground transition-colors">
+          取り扱い技術
+        </a>
+        <span class="mx-2">/</span>
+        <span class="text-foreground">{tool.name}</span>
+      </nav>
+
+      <div class="flex items-center gap-4 mb-4">
+        <div class="w-14 h-14 rounded-2xl bg-secondary flex items-center justify-center">
+          <img
+            src={`https://cdn.simpleicons.org/${tool.iconSlug}`}
+            alt=""
+            width="32"
+            height="32"
+            aria-hidden="true"
+          />
+        </div>
+        <h1 class="text-3xl sm:text-4xl font-bold tracking-tight text-foreground">
+          {tool.name}
+        </h1>
+      </div>
+
+      <p class="text-lg text-teal-700 font-medium mb-8">{tool.tagline}</p>
+
+      <div class="mb-10">
+        <h2 class="text-xl font-bold text-foreground mb-3">概要</h2>
+        <p class="text-muted-foreground leading-relaxed">{tool.overview}</p>
+      </div>
+
+      <div class="bg-secondary/50 rounded-2xl p-6 sm:p-8 mb-10">
+        <h2 class="text-xl font-bold text-foreground mb-4">
+          私が提供できる価値
+        </h2>
+        <ul class="space-y-3">
+          {
+            tool.strengths.map((strength) => (
+              <li class="flex items-start gap-3 text-sm text-foreground leading-relaxed">
+                <svg
+                  class="w-5 h-5 text-teal-600 shrink-0 mt-0.5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width={2}
+                    d="M5 13l4 4L19 7"
+                  />
+                </svg>
+                {strength}
+              </li>
+            ))
+          }
+        </ul>
+      </div>
+
+      <div class="mb-10">
+        <h2 class="text-xl font-bold text-foreground mb-4">活用例</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {
+            tool.useCases.map((useCase) => (
+              <div class="bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-2xl p-5">
+                <h3 class="text-base font-semibold text-foreground mb-2">
+                  {useCase.title}
+                </h3>
+                <p class="text-sm text-muted-foreground leading-relaxed">
+                  {useCase.description}
+                </p>
+              </div>
+            ))
+          }
+        </div>
+      </div>
+
+      {
+        (tool.relatedServiceHref || tool.relatedKnowledgeHref) && (
+          <div class="mb-10">
+            <h2 class="text-xl font-bold text-foreground mb-4">関連リンク</h2>
+            <div class="flex flex-wrap gap-3">
+              {tool.relatedServiceHref && (
+                <a
+                  href={tool.relatedServiceHref}
+                  class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                >
+                  関連サービスを見る →
+                </a>
+              )}
+              {tool.relatedKnowledgeHref && (
+                <a
+                  href={tool.relatedKnowledgeHref}
+                  class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                >
+                  Knowledge Base の関連記事 →
+                </a>
+              )}
+            </div>
+          </div>
+        )
+      }
+
+      <div class="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-3xl p-8 sm:p-10 text-center">
+        <p class="text-white font-semibold text-lg mb-2">
+          {tool.name} を活用した業務改善のご相談はお気軽に
+        </p>
+        <p class="text-white/90 text-sm mb-6">
+          現状の課題をお聞きして、最適な活用方法をご提案します。
+        </p>
+        <div class="flex flex-col sm:flex-row gap-3 justify-center">
+          <Button href="/contact" size="md" class="bg-white text-teal-700 hover:bg-white/90">
+            お問い合わせ
+          </Button>
+          <Button href="/diagnosis" variant="ghost" size="md" class="text-white border border-white/50 hover:bg-white/10">
+            AI無料診断を試す
+          </Button>
+        </div>
+      </div>
+
+      <div class="mt-10 text-center">
+        <a
+          href="/#tech-stack"
+          class="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          ← 取り扱い技術一覧へ戻る
+        </a>
+      </div>
+    </div>
+  </section>
+</BaseLayout>

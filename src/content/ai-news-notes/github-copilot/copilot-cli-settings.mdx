@@ -1,0 +1,29 @@
+---
+title: "Copilot CLI /settings 教材化メモ — 設定 UX の統合とスクリプト活用パターン"
+noteFor: "github-copilot/copilot-cli-settings"
+date: 2026-06-11
+tags: ["github-copilot", "copilot-cli", "developer-experience", "dotfiles"]
+---
+
+## 教材化の着眼点
+
+### CLI ツールの設定 UX 統合という設計パターン
+
+Copilot CLI `/settings` の統合は、分散したサブコマンドを「単一エントリポイント」に集約するという UI 設計の典型例。同様のパターンは npm config・git config・AWS configure 等でも見られる。
+
+ツールが成熟するにつれて設定が増え、発見性が下がる → 設定を一元化してナビゲーション可能にする、という進化の流れを示す事例として使える。
+
+### スクリプト実行モードの活用パターン
+
+`copilot -p` 経由のスクリプト実行は以下の場面で使える:
+
+1. **dotfiles**: チームの標準 Copilot CLI 設定を dotfiles に記述して自動適用
+2. **onboarding スクリプト**: 新しい開発環境のセットアップ時に Copilot の設定を自動化
+3. **CI/CD**: CI 環境でのテスト時に特定の設定を強制適用
+
+「CLI ツールを自動化・標準化する」というエンジニアリングプラクティスの事例として教材化できる。
+
+## 研修・教材への応用
+
+- Copilot CLI の使い方入門で「まず `/settings` で設定を確認する」という習慣を教えるポイントとして。
+- dotfiles や開発環境の標準化テーマで、Copilot CLI のスクリプト設定例として紹介できる。

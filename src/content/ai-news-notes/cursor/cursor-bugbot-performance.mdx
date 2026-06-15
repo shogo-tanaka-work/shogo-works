@@ -1,0 +1,10 @@
+---
+title: "Cursor Bugbot パフォーマンス改善 教材化メモ"
+noteFor: "cursor/cursor-bugbot-performance"
+date: 2026-06-10
+tags: ["cursor", "bugbot", "code-review"]
+---
+
+「Cursor Bugbot」章を新設または拡充。改善前後の数値（5分→90秒、精度 0.56→0.62、コスト 22%削減）を具体的に示す。`/review` コマンドを「push 前チェック」の標準手順として提案し、GitHub/GitLab 統合の差分レビューの仕組みも説明する。
+
+開発フロー章で Bugbot の組み込みタイミングを提案する（例: feature branch の PR draft 作成前 or 最終コミット前）。実行環境（Cursor 3.7 以上・cursor.com/agents）も前提として明記する。

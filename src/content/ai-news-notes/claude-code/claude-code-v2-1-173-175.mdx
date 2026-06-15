@@ -1,0 +1,32 @@
+---
+title: "Claude Code v2.1.173–175 教材化メモ — enforceAvailableModels とモデル統制の設計パターン"
+noteFor: "claude-code/claude-code-v2-1-173-175"
+date: 2026-06-12
+tags: ["claude-code", "enterprise", "managed-settings", "model-governance"]
+---
+
+## 教材化の着眼点
+
+### enforceAvailableModels とモデル統制の二段階設計
+
+v2.1.175 の `enforceAvailableModels` は、組織のモデル利用ポリシーを技術的に施行する際の「穴を塞ぐ」設定として位置づけられる。
+
+段階を整理すると:
+1. `availableModels`（v2.1.172 以前から存在）: 使えるモデルの allowlist を定義
+2. v2.1.172: `availableModels` の制限がサブエージェント・エージェントディスパッチ・アドバイザーモデルに適用されていなかった問題を修正
+3. v2.1.175 `enforceAvailableModels`: Default モデルの解決にも allowlist を適用し、ユーザーやプロジェクト設定からの拡張も不可にする
+
+この設計から読み取れるパターン: 「制限を定義する → 抜け穴を発見して塞ぐ → さらに完全に施行する」という反復的なガバナンス強化の流れは、エンタープライズ向け機能の成熟過程として典型的。
+
+### Bedrock GovCloud の事例
+
+`us-gov-east-1` / `us-gov-west-1` の修正は、AWS の Government 専用リージョンでの Claude 活用を示唆する。公共機関向けに Claude を安全に使う基盤が整備されつつあることの反映。
+
+### /model ピッカーの改善から読む「Default」の複雑性
+
+`ANTHROPIC_DEFAULT_SONNET_MODEL` 環境変数や、プランによって解決先が変わる Default の挙動は、開発者が意図せず使うモデルを誤認しやすい領域。ピッカーの表示修正は UX 改善だが、裏側には「Default が実際に何を指すか」という複雑な解決ロジックがある。
+
+## 研修・教材への応用
+
+- エンタープライズ向け Claude Code 導入研修で「モデル利用ポリシーの技術的施行方法」として `availableModels` + `enforceAvailableModels` の組み合わせを解説できる。
+- 「AI ツールの組織導入でガバナンスをどう設計するか」というテーマの事例として使える。
