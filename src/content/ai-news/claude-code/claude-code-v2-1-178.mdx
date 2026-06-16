@@ -1,0 +1,64 @@
+---
+title: "Claude Code v2.1.178 — Tool(param:value) 権限構文・ネスト skills 対応・auto mode 分類改善"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-16
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.178"
+summary: "Claude Code v2.1.178 がリリース（2026-06-15T21:35:55Z）。権限ルールにツール入力パラメータをマッチする Tool(param:value) 構文が追加。ネストした .claude/skills ディレクトリのサポート、auto mode でのサブエージェント事前分類、Remote Control エラーメッセージ改善、多数のバグ修正を含む。"
+impact: "Tool(param:value) 構文で「Opus モデルのサブエージェントのみブロック」などのコスト・権限制御が可能に。auto mode のサブエージェント事前分類でブロックされたアクションの意図しない実行を防止。"
+tags: ["claude-code", "release", "permissions", "skills", "auto-mode", "remote-control"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**Claude Code v2.1.178 がリリース**されました（2026-06-15T21:35:55Z）。権限ルールで `Tool(param:value)` という新構文が使えるようになり、ツールの入力パラメータを条件にしたブロックが可能になりました。またネストした `.claude/skills` ディレクトリのサポート、auto mode でのサブエージェント事前分類など、マルチエージェント・マルチプロジェクト構成に関わる改善が含まれています。
+
+## 何が変わったか
+
+**`Tool(param:value)` 権限構文（新機能）:**
+- 権限ルールでツールの入力パラメータを条件に指定できるようになった
+- `*` ワイルドカード対応
+- 例: `Agent(model:opus)` で Opus サブエージェントのみをブロック
+- managed settings や `.claude/settings.json` の `allowedTools` / `disallowedTools` で利用可能
+
+**ネスト `.claude/skills` ディレクトリのサポート（新機能）:**
+- ネストされた `.claude/skills` 配下のスキルが、そのディレクトリ内のファイルを扱うときに自動ロードされる
+- 名前衝突時は `<dir>:<name>` 形式で両方のスキルが利用可能
+
+**ネスト `.claude/` 設定の優先度（新機能）:**
+- agent / workflow / output-style は作業ディレクトリに最も近い `.claude/` 設定が優先
+- プロジェクトスコープの workflow 保存も最も近い `.claude/workflows/` をターゲットに
+
+**auto mode 改善:**
+- サブエージェントの起動がクラシファイアで事前評価されるようになった
+- 以前はサブエージェントがブロックされたアクションをレビューなしに要求できるケースがあった
+
+**その他の改善:**
+- `/doctor`: 全セクションで一貫したフラットツリーレイアウト・明確なステータスアイコン
+- ワークフローキーワード: 「run a workflow」「workflow:」などの明示的フレーズのみで発火、単語「workflow」では発火しない
+- Remote Control: 接続失敗時にフッターへの "/rc failed" 表示、エラー種別（gate / check failure / stale entitlement / org policy）の明示
+- `/bug`: 説明入力が必須に、モデル拒否テキストが issue タイトルに使われなくなった
+
+**バグ修正（主要なもの）:**
+- stale な websocket/OAuth FD 環境変数によるOOMクラッシュを修正
+- 別アカウントの Chrome OAuth トークンで接続がサイレント失敗していた問題を修正
+- `ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN` 環境変数使用時の `401 Invalid bearer token` を修正
+- コンパクションが `--fallback-model` を尊重するように修正
+- `/bg` 後に background sessions が "Working" のままになる問題を修正
+
+## 業務インパクト（一般企業向け）
+
+**権限管理の精度向上**: `Tool(param:value)` 構文を使うと、たとえば「Opus モデルを使うサブエージェントのみブロック」「特定パスへの書き込みのみ制限」など、ツールの種類だけでなく実行パラメータに基づいた細粒度の制御が可能になります。Enterprise の managed settings での利用が特に有効です。
+
+**auto mode の安全性向上**: サブエージェントが起動前に権限チェックを受けるようになったため、意図しないアクションが実行されるリスクが低減されます。自律エージェントを業務フローに組み込んでいる場合に重要な変更です。
+
+**マルチプロジェクト構成の改善**: モノレポや複数プロジェクトが並存するリポジトリで、プロジェクトごとに `.claude/skills` や `.claude/workflows` を持つ構成が正しく動作するようになりました。
+
+## 副業・個人活用視点
+
+コストを気にしながら Claude Code を使っている場合、`Agent(model:opus)` 権限ルールを設定することで、サブエージェントが Opus（高コスト）モデルを使うのを防ぎつつ、Sonnet や Haiku のサブエージェントは許可するという使い分けが可能になります。
+
+ネスト `.claude/skills` 対応により、プロジェクトごとにカスタムスキルを局所化する設計が実用的になりました。

@@ -1,0 +1,63 @@
+---
+title: "OpenAI Codex v0.140.0 — /usage・/delete・/import（Claude Code から）・Bedrock 認証・@ 統合メンション"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-06-16
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.140.0"
+summary: "OpenAI Codex v0.140.0（stable）がリリース（2026-06-15T21:06:37Z）。/usage でトークン使用状況を日次・週次・累計で確認できる新ビューが追加。/delete でセッション完全削除、/import で Claude Code のセットアップ・設定・チャット履歴を Codex にインポートする機能が追加。Amazon Bedrock マネージド API キー認証も対応。"
+impact: "Codex から Claude Code のプロジェクト設定をインポートできる /import が追加され、Claude Code から Codex への移行が公式にサポートされた。/usage でトークンコストの自己管理が可能に。Amazon Bedrock 認証で企業利用のハードルが下がった。"
+tags: ["codex", "release", "usage", "import", "claude-code", "bedrock", "mentions"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**OpenAI Codex v0.140.0（stable）がリリース**されました（2026-06-15T21:06:37Z）。今バージョンでは複数の大型機能が追加されており、中でも `/import`（Claude Code からのインポート）と Amazon Bedrock マネージド API キー認証は企業・移行ユーザーに直接関わる変更です。また `/usage` でトークン消費量を日次・週次・累計で確認できるようになりました。
+
+## 何が変わったか
+
+**`/usage` ビューの追加（新機能）:**
+- 日次・週次・累計のアカウントトークン使用状況が確認できる
+- API コスト管理・使いすぎ防止に活用できる
+
+**`/delete` — 永続的なセッション削除（新機能）:**
+- `codex delete`、`/delete`、app-server の `thread/delete` でセッションを完全削除できる
+- 確認ガード付き、サブエージェントのクリーンアップも実施
+
+**`/import` — Claude Code からのインポート（新機能）:**
+- セットアップ・プロジェクト設定・最近のチャット履歴を選択して Codex にインポートできる
+- Claude Code から Codex に移行したいユーザー向けの公式移行手段の初実装
+
+**`@` による統合メンションメニュー（新機能）:**
+- `@` を入力するとファイル・プラグイン・スキルを一括で検索できるメニューが表示される
+
+**Amazon Bedrock マネージド API キー認証（新機能）:**
+- CLI と MCP OAuth 認証情報を暗号化ローカルストレージで管理できるようになった
+- AWS 環境・Enterprise 利用での Codex 導入がしやすくなった
+
+**`/goal` の大きなコンテンツ対応（改善）:**
+- 大容量テキスト・大量貼り付けブロック・画像添付がリモート app-server セッションを含めて正しく保持される
+
+**パフォーマンス改善:**
+- 大規模リポジトリ・長期セッションでの応答性向上（Git fsmonitor 保持、重複履歴読み取り回避、ターン差分レンダリングキャッシュ等）
+
+**バグ修正（主要なもの）:**
+- 破損した SQLite 状態DBをロールアウトデータから自動再構築
+- `/review` の `Esc` 押下によるクラッシュを修正
+- MCP 起動失敗時のリトライ改善
+
+## 業務インパクト（一般企業向け）
+
+**Claude Code → Codex 移行の公式手段が登場**: `/import` により、Claude Code で使っていたプロジェクト設定や最近のチャット履歴を Codex 側に持ち込めるようになりました。従来はサードパーティ製ツールに頼るしかなかった移行ルートが、公式サポートされた形になります。
+
+**Amazon Bedrock 認証対応**: AWS 環境で Codex を使いたい Enterprise ユーザーにとって、認証情報を安全に扱える仕組みが整いました。既に AWS インフラで Claude を使っている組織が Codex を評価・導入するハードルが下がります。
+
+**トークンコストの可視化**: `/usage` でチームメンバーが自分のトークン消費量を確認できるようになります。コスト意識を持ちながら Codex を活用する運用が組み立てやすくなります。
+
+## 副業・個人活用視点
+
+`/usage` は月々の API コストを把握するために実用的な機能です。日次・週次で消費トークンを確認しながら、使いすぎを防ぐ運用ができます。
+
+Claude Code も Codex も使っている場合、`/import` でプロジェクト設定を同期すれば、ツール切り替え時のセットアップ手間が減ります。
