@@ -1,0 +1,37 @@
+---
+title: "教材化メモ: OpenAI Codex v0.140.0 — /import・/usage・Bedrock 認証"
+noteFor: "codex/codex-v0-140-0"
+date: 2026-06-16
+tags: ["codex", "import", "usage", "bedrock", "claude-code", "migration"]
+---
+
+## 教材化の観点
+
+### /import（Claude Code からのインポート）
+
+**教材的意義**: 「Claude Code と Codex の使い分け・移行」の教材に加えられる。
+
+perception-gaps.md（2026-05-09）に「Claude Code → Codex への公式移行手段はない」とあったが、今回の `/import` でその状況が変わった。ただし:
+- `/import` が対象とするのは「セットアップ・プロジェクト設定・チャット履歴」
+- 「完全な環境移行」よりも「コンテキスト引き継ぎ」に近い機能
+- Claude Code 側のエクスポート機能ではなく Codex 側のインポート機能
+
+perception-gaps.md の該当エントリを更新する候補（公式手段が一部追加されたため「部分的に解消」と追記）。
+
+### /usage
+
+**教材的意義**: API コスト管理の教材で「CLI でトークン消費量を確認する方法」として紹介できる。日次・週次・累計の3ビューがあることを明示すると実用的。
+
+### Amazon Bedrock マネージド API キー認証
+
+**教材的意義**: Enterprise 向け Codex 導入の教材で「AWS 環境での認証設定」として説明できる。Claude Platform on AWS と組み合わせた構成例として使える。
+
+## 既存教材への影響
+
+- Codex の基本操作教材があれば `/usage`・`/delete`・`/import` コマンドの説明を追記する候補
+- Claude Code vs Codex 比較教材があれば「Codex が /import で Claude Code の設定を取り込める」点を更新
+
+## 研究メモ参照
+
+- 詳細: `docs/research/openai-codex/official-updates/2026-06-16T060637-codex-v0-140-0.md`
+- 公式URL: https://github.com/openai/codex/releases/tag/rust-v0.140.0
