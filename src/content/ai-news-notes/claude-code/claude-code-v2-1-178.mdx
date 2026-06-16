@@ -1,0 +1,40 @@
+---
+title: "教材化メモ: Claude Code v2.1.178 — Tool(param:value) 権限・ネスト skills"
+noteFor: "claude-code/claude-code-v2-1-178"
+date: 2026-06-16
+tags: ["claude-code", "permissions", "skills", "auto-mode", "enterprise"]
+---
+
+## 教材化の観点
+
+### Tool(param:value) 権限構文
+
+**教材的意義**: 権限設定の教材で「ツール種別によるブロック」から「パラメータ値によるブロック」への進化を説明できる。
+
+例として示せるユースケース:
+- `Agent(model:opus)` — コスト制御（Opus サブエージェントのみブロック、Sonnet は許可）
+- `Bash(path:/etc/*)` — セキュリティ制御（特定パスへのアクセスをブロック）
+
+`.claude/settings.json` 側での設定例として教材に加えると実用的。
+
+### ネスト .claude/skills 対応
+
+**教材的意義**: スキル設計の教材で「プロジェクトローカルスキル」のパターンを説明できる。モノレポや複数プロジェクトが並存するリポジトリでの活用事例として有効。
+
+`<dir>:<name>` 形式の名前衝突解決は、実際の運用でつまずきやすいポイントとして言及できる。
+
+### auto mode のサブエージェント事前分類
+
+**教材的意義**: 「Claude Code が安全になった理由」として説明できる。エージェントを業務フローに組み込む文脈で、意図しないアクション実行を防ぐ仕組みとして紹介できる。
+
+v2.1.172 以降の auto mode 進化の文脈（classifier 導入）と連続した改善として位置付けると理解しやすい。
+
+## 既存教材への影響
+
+- Claude Code 権限設定の教材（`claude/settings.json` の `allowedTools` / `disallowedTools` 解説）があれば、`Tool(param:value)` 構文の追加として追記の余地がある
+- スキルの教材があれば、ネスト対応と名前解決ルールを追記する候補
+
+## 研究メモ参照
+
+- 詳細: `docs/research/zenn-claude-code-release-basic/official-updates/2026-06-16T063555-claude-code-v2-1-178.md`
+- 公式URL: https://github.com/anthropics/claude-code/releases/tag/v2.1.178
