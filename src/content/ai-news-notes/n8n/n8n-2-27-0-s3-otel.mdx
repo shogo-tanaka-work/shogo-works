@@ -1,0 +1,8 @@
+---
+title: "n8n 2.27.0 S3 ストレージ・OpenTelemetry 教材化メモ"
+noteFor: "n8n/n8n-2-27-0-s3-otel"
+date: 2026-06-16
+tags: ["n8n", "s3", "opentelemetry", "enterprise", "self-hosted"]
+---
+
+n8n の本番エンタープライズ運用アーキテクチャの教材化候補。S3 ストレージモード（実行データの外部ストレージ化 → DB 肥大化対策）と OpenTelemetry UI 設定（可観測性の簡素化）の組み合わせを「n8n セルフホスト本番構成」の章で図解すると実践的。DB マイグレーションを伴う点（execution_entity テーブルへのインデックス追加）と pre-release である点の注意書きも追記する。stable 確定後に教材への反映を検討する。
