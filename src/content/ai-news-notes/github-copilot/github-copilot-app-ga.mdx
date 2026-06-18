@@ -1,0 +1,47 @@
+---
+noteFor: "github-copilot/github-copilot-app-ga"
+title: "教材化メモ: GitHub Copilot App GA"
+tool: "github-copilot"
+date: 2026-06-17
+draft: false
+---
+
+## 教材化のポイント
+
+### Technical Preview → GA の意味
+
+企業の IT 導入フローでは「GA になったかどうか」が重要な判断基準になることが多い。教材では:
+
+- Preview: 機能検証・試験的利用フェーズ
+- GA: SLA・サポート・セキュリティ審査の対象になる本番利用フェーズ
+
+という区別を明示すると、IT 部門の担当者にも伝わりやすい。
+
+### 位置づけの整理
+
+```
+IDE 拡張（VS Code / JetBrains の Copilot）
+  ↓ を超えた
+デスクトップアプリ（Copilot App）
+  ↓ で実現する
+エージェントセッション管理 + 並列作業 + スケジュール自動化
+```
+
+「IDE の補完ツール」という認識を更新するきっかけとして使える。
+
+### 並列マルチリポジトリの具体例
+
+- マイクロサービス: service-a の型変更が service-b と service-c にも波及する場合に並列対応
+- ライブラリ更新: 複数の内製ライブラリを同時アップデート
+- セキュリティパッチ: 横断的な脆弱性修正
+
+### 管理者向け確認事項
+
+- GitHub Organization の「Preview policies」で Copilot App を有効化が必要
+- MCP サーバー連携のセキュリティポリシー確認が必要になるケースあり
+
+## 関連トピック
+
+- GitHub Copilot のプラン比較（Business vs Enterprise）
+- MCP サーバーの導入と管理
+- エージェントセッションの権限設計
