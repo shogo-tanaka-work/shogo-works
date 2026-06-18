@@ -1,0 +1,46 @@
+---
+noteFor: "xai-grok/grok-on-amazon-bedrock"
+title: "教材化メモ: Grok on Amazon Bedrock"
+tool: "xai-grok"
+date: 2026-06-17
+draft: false
+---
+
+## 教材化のポイント
+
+### Amazon Bedrock の位置づけ
+
+教材で Amazon Bedrock を説明する際のフレーム:
+
+```
+Amazon Bedrock = 複数の AI モデルを束ねるマネージドサービス
+  - Anthropic Claude シリーズ
+  - Meta Llama シリーズ
+  - Mistral
+  - Stability AI（画像生成）
+  - xAI Grok （← 今回追加）
+```
+
+「なぜ直接 API を叩かずに Bedrock を使うか」という問いへの答えを整理できる:
+- AWS の認証（IAM）で一元管理
+- VPC 内で閉じた通信
+- コスト・ログを AWS 上で可視化
+- 既存の AWS セキュリティポリシーが適用される
+
+### マルチモデル戦略の文脈
+
+「モデルを複数使い分ける」という設計パターンが Bedrock 上で作りやすくなる。教材では:
+- 要件: タスク別にモデルを最適化したい
+- 解決: Bedrock 上でモデルを切り替えるルーター設計
+
+というアーキテクチャパターンとして説明できる。
+
+### Bedrock 統合の広がりというトレンド
+
+Claude（Anthropic）、Llama（Meta）、Grok（xAI）と主要プレイヤーが揃いつつある。「AI モデルは直接 API で使う」から「インフラレイヤーに統合されて使う」という流れとして紹介できる。
+
+## 関連トピック
+
+- Amazon Bedrock の基礎
+- AI API のマルチプロバイダー設計
+- AWS セキュリティと AI ツール統合
