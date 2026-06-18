@@ -1,0 +1,37 @@
+---
+title: "Gemini API が TTS ストリーミングに対応 — 音声合成をリアルタイム受信可能"
+tool: "gemini"
+toolLabel: "Gemini"
+date: 2026-06-17
+sourceUrl: "https://ai.google.dev/gemini-api/docs/changelog"
+summary: "Gemini API の gemini-3.1-flash-tts-preview が streamGenerateContent 経由のストリーミング音声生成に対応。音声合成の結果を最初の音声から順次受信できるようになった。"
+impact: "音声インターフェースを実装する開発者にとって、最初の音声が出るまでのレイテンシを大幅に短縮できる。チャットボット・音声アシスタント・リアルタイム読み上げなどの用途で体感品質が上がる。"
+tags: ["gemini", "gemini-api", "tts", "streaming", "voice"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+Gemini API の `gemini-3.1-flash-tts-preview` モデルが、ストリーミング音声生成に対応しました。`streamGenerateContent` エンドポイントと、Interactions API の `stream: true` パラメータ経由で利用できます。
+
+従来は音声合成の結果を全部生成してから一括で受け取る必要がありましたが、ストリーミング対応により、生成が進むにつれて順次音声データを受信できるようになります。長いテキストを読み上げる場合に、最初の音声が出るまでの待ち時間が大幅に短縮されます。
+
+## 何が変わったか
+
+- `gemini-3.1-flash-tts-preview` が `streamGenerateContent` で音声をストリーミング配信可能に
+- Interactions API でも `stream: true` で対応
+- 音声データを生成しながら順次受信できる
+
+## 業務インパクト（一般企業向け）
+
+音声チャットボットや読み上げ機能を実装している開発チームに直接影響します。ストリーミングにより、ユーザーが「話しかけてから音声が返ってくるまでの時間」を短縮できます。
+
+顧客対応 AI や社内の音声インターフェース、アクセシビリティ機能（読み上げ）を実装している場合、ユーザー体験の改善が期待できます。
+
+## 副業・個人活用視点
+
+音声アプリや音声読み上げツールを副業で開発する場合、ストリーミング TTS は体験品質を大きく左右する機能です。Gemini API を使ったリアルタイム音声応答アプリのデモとして説得力が増します。
+
+ポートフォリオや受託案件で「AI 音声機能を実装したもの」を見せる際、ストリーミング対応の有無はわかりやすい差別化ポイントになります。

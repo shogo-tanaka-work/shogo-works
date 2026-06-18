@@ -1,0 +1,56 @@
+---
+noteFor: "gemini/gemini-api-tts-streaming"
+title: "教材化メモ: Gemini API TTS ストリーミング"
+tool: "gemini"
+date: 2026-06-17
+draft: false
+---
+
+## 教材化のポイント
+
+### ストリーミング vs 非ストリーミング TTS
+
+```
+非ストリーミング:
+  [テキスト入力] → [全文生成（数秒待機）] → [音声データ受信] → [再生開始]
+  遅延: 全文生成完了まで再生開始不可
+
+ストリーミング:
+  [テキスト入力] → [生成開始] → [先頭部分受信 → 即再生開始] → [後続データ順次受信]
+  遅延: 最初のチャンクが届いた時点で再生開始可能
+```
+
+体感の差は長いテキストほど顕著になる。短い応答（2〜3文）では差が小さく、長い応答（段落・ページ単位）で大きな差が出る。
+
+### API の使い方（教材コード例イメージ）
+
+```python
+# ストリーミング TTS の基本パターン
+import google.generativeai as genai
+
+model = genai.GenerativeModel("gemini-3.1-flash-tts-preview")
+
+# ストリーミングで順次受信
+for chunk in model.generate_content(text, stream=True):
+    # chunk を音声バッファに追加して再生
+    audio_buffer.append(chunk.audio_data)
+    playback.feed(chunk.audio_data)
+```
+
+具体的なコードは公式ドキュメントで確認してから提示する。
+
+### ユースケース別の教材活用
+
+- **チャットボット**: 応答を読み上げるリアルタイム音声 UI
+- **アクセシビリティ**: 長文コンテンツの途中から再生を始めるのに有効
+- **語学学習アプリ**: 例文の読み上げをすばやく提供
+
+### gemini-3.1-flash-tts-preview の位置づけ
+
+`preview` モデルなので本番環境での利用には注意が必要（将来廃止・変更の可能性）。教材では「現時点での最新機能を試すモデル」として文脈を明記する。
+
+## 関連トピック
+
+- Gemini API の TTS 機能概要
+- 音声インターフェースの実装パターン
+- ストリーミング API の活用

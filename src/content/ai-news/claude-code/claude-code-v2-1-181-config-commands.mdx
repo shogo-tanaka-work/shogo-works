@@ -1,0 +1,44 @@
+---
+title: "Claude Code v2.1.181 — /config key=valueでプロンプトから設定を即時変更"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-18
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.181"
+summary: "Claude Code v2.1.181 がリリース。/config key=value 構文でセッション中にモデルや設定を即時変更できるようになった。macOS サンドボックスの Apple Events 許可オプション追加、Bun 1.4 アップグレードも含む。"
+impact: "セッションを再起動せずにモデル切り替えや thinking モードのオンオフができるため、試行錯誤の多い開発フローで時間短縮になる。macOS 環境でサンドボックスから GUI アプリを操作するユースケースにも対応。"
+tags: ["claude-code", "release-note", "config", "sandbox", "bun"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/daily-operations"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.181 がリリースされました。今回のメイン変更は `/config key=value` 構文の導入です。これまで設定を変えるには設定ファイルを編集してセッションを再起動する必要がありましたが、今後はプロンプトから直接設定を変えられます。
+
+たとえば `/config model=claude-opus-4-8` と打てばモデルが切り替わり、`/config thinking=false` で thinking モードをその場でオフにできます。試行錯誤が多い作業で「設定を変えてすぐ試す」というループが速くなります。
+
+その他、macOS サンドボックスで Apple Events を許可するオプション、モバイル通知を抑制する環境変数、Bun 1.4 へのアップグレードが含まれます。
+
+## 何が変わったか
+
+- `/config key=value` 構文でセッション中に設定を即時変更可能（例: `/config thinking=false`、`/config model=claude-opus-4-8`）
+- macOS サンドボックスに `--dangerously-allow-apple-events` オプション追加（GUI アプリ連携コマンドが実行可能に）
+- `CLAUDE_DISABLE_MOBILE_NOTIFICATIONS` 環境変数でモバイル通知を抑制可能
+- Bun 1.4 にアップグレード（ランタイム安定性・パフォーマンス向上）
+- ストリーミングとサブエージェントの内部改善
+
+## 業務インパクト
+
+設定変更のたびにセッションを再起動していた手間がなくなります。特に効果が出るのは、モデルを場面によって使い分けている運用です。軽いタスクは安価なモデル、複雑な推論は上位モデルへの切り替えを、作業を止めずに行えます。
+
+macOS の Apple Events オプションは、Automator や AppleScript と連携するワークフローで Claude Code を使う場面で必要になります。通常の開発用途では影響なし。
+
+チームでの運用では、`CLAUDE_DISABLE_MOBILE_NOTIFICATIONS` を CI/CD 環境の起動スクリプトに入れておくと、バッチ処理中の不要な通知を防げます。
+
+## 副業・個人活用視点
+
+副業や個人開発でよく起きる「このタスクには重いモデルが要るけど、前の作業はまだ途中」という場面に使えます。セッションを継続したまま `/config model=...` で切り替えられるため、コンテキストを失わずに対応できます。
+
+Claude Code を教材化する場合は、「設定ファイルで固定する方法」と「/config で試す方法」を対で説明するとわかりやすいです。前者は再現性重視の本番運用向け、後者は試行錯誤向けと使い分けを整理できます。
