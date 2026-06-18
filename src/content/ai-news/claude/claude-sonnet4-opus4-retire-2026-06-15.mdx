@@ -1,10 +1,11 @@
 ---
-title: "Claude Sonnet 4・Opus 4 が明日 2026-06-15 に退役 — Sonnet 4.6・Opus 4.8 への移行が必須"
+title: "Claude Sonnet 4・Opus 4 退役：Sonnet 4.6・Opus 4.8への移行手順"
 tool: "claude"
 toolLabel: "Claude"
 date: 2026-06-14
 sourceUrl: "https://platform.claude.com/docs/en/docs/about-claude/models/overview"
 summary: "Claude Sonnet 4（claude-sonnet-4-20250514）と Claude Opus 4（claude-opus-4-20250514）が 2026年6月15日に Claude API から退役する。退役後はこれらのモデル ID へのリクエストがエラーを返すようになる。移行先はそれぞれ Claude Sonnet 4.6（claude-sonnet-4-6）と Claude Opus 4.8（claude-opus-4-8）。Opus 4.8 は Opus 4 と比べて大幅な価格改善（$15/$75 → $5/$25 per MTok）を伴う。"
+description: "Claude Sonnet 4とOpus 4が2026年6月15日にAPIから退役。移行先のモデルIDと確認すべきコード箇所を把握することで、本番障害を未然に防げます。Opus 4.8は約67%の価格下落でコスト削減にも直結します。"
 impact: "Claude API で Sonnet 4 または Opus 4 のモデル ID を固定指定している実装は、本日中（2026-06-14）に Sonnet 4.6 または Opus 4.8 へ切り替えておく必要がある。退役後は当該 ID へのリクエストがエラーを返すため、対応が遅れると本番障害に直結する。"
 tags: ["claude", "anthropic", "model-deprecation", "claude-api", "policy", "sonnet-4", "opus-4"]
 status: "candidate"

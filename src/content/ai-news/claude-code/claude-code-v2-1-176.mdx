@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.176 — availableModels 管理強化・Remote Control 大型修正・セッションタイトル多言語化"
+title: "Claude Code v2.1.176：モデル統制強化・Remote Control大型修正・セッションタイトル多言語化"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-06-12
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.176"
 summary: "Claude Code v2.1.176 がリリース（2026-06-12T21:53:27Z）。availableModels enforcement の追加修正（ANTHROPIC_DEFAULT_*_MODEL 経由の抜け穴を塞ぐ）、セッションタイトルの会話言語での自動生成、Bedrock 認証情報キャッシュ改善、hook if 条件のパスマッチ修正、Remote Control の大型バグ修正9件、background sessions・agents view の多数の修正を含む。"
+description: "Enterprise環境でのモデル利用統制が完全に機能するようになった本バージョン。ANTHROPIC_DEFAULT_*_MODEL経由の抜け穴も塞がれ、allowlist外モデルへの意図しない切り替えを防止。hook if条件のパスマッチ修正でセキュリティ設定が確実に動作し、日本語セッションタイトル自動生成も追加。"
 impact: "Enterprise/Team managed 環境でモデル利用統制が完全に機能するようになった。Remote Control を使ったときにモデルが予期せず変わる問題が解消。hook の if 条件がドキュメント通りに動作するようになり、セキュリティ用途の hook 設定が確実に機能する。"
 tags: ["claude-code", "release", "enterprise", "remote-control", "hooks", "bedrock"]
 status: "candidate"

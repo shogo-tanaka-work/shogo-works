@@ -1,10 +1,11 @@
 ---
-title: "OpenAI Codex rust-v0.138.0（stable）— /app で Codex Desktop へハンドオフ、画像パスのモデル公開、reasoning effort 選択の柔軟化、PAT v2 認証"
+title: "Codex rust-v0.138.0：/appデスクトップ連携・PAT v2・plugin JSON対応"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-06-09
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.138.0"
 summary: "OpenAI Codex の stable リリース rust-v0.138.0 が公開された。`/app` コマンドで現在の CLI スレッドを macOS / ネイティブ Windows の Codex Desktop へ引き渡せるようになり、Windows のワークスペース起動が手動プロンプトで止まらず Desktop に直接開ける。ローカル画像添付・画像生成の保存先パスをモデルへ公開して後続編集やファイル参照を確実にし、reasoning effort 選択を柔軟化（Alt バインドのない端末向け fallback ショートカット、モデル提示順での effort 反映）。app-server 連携がアカウントのトークン使用量を読めるようになり、CLI / app-server で v2 personal access token（PAT）をサポート。plugin 自動化は add/remove・marketplace の `--json` 対応や plugin 詳細の構造化（marketplace source・デフォルトプロンプト・リモート MCP サーバー公開）が進んだ。`/goal` ワークフローの予測可能性向上や起動の堅牢化など修正も多数。"
+description: "OpenAI Codex rust-v0.138.0の変更点を解説。/appコマンドでCLI作業をGUIへ引き継ぎ、PAT v2認証でシステム連携を強化、plugin --jsonでCI自動化が容易になる。"
 impact: "`/app` の Desktop ハンドオフは、CLI で始めた作業を GUI へ滑らかに引き継げるようにし、特に Windows の起動体験を改善する。画像保存先パスのモデル公開は、画像を起点にした反復編集・ファイル参照の信頼性を高める。PAT v2 認証と app-server のトークン使用量読み取りは、Codex を自社システムへ組み込む際の認証・コスト可視化の前提を強化する。plugin の `--json` 対応は、CI から plugin を機械的に扱う自動化に効く。"
 tags: ["codex", "openai", "codex-desktop", "authentication", "plugins", "release"]
 status: "candidate"

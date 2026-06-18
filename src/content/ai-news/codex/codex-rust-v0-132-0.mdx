@@ -1,10 +1,11 @@
 ---
-title: "Codex stable rust-v0.132.0、Python SDK の認証フロー刷新と goal continuation 暴走防止"
+title: "Codex rust-v0.132.0：Python SDK認証刷新・Goal暴走防止・Windows改善"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-05-20
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.132.0"
 summary: "Codex の stable リリース rust-v0.132.0 が公開。Python SDK に API キー / ChatGPT ブラウザ / device-code の認証フローが first-class でサポートされ、Turn API は plain string 入力とメトリクス入り TurnResult に簡素化された。`codex exec resume` で `--output-schema` を渡せるようになり、TUI の起動も高速化。Goal continuation は usage limit を超えてループしなくなり、Remote Executor 登録は別レジストリ認証が不要に。Windows のインストール堅牢性向上、MSVC バイナリの外部 VC++ ランタイム依存も解消。"
+description: "Codex rust-v0.132.0では、Python SDKにAPI キー/ChatGPTブラウザ/device-codeの3認証フローが追加され、業務組み込みがしやすくなった。Goal continuationがusage limit超過でループしなくなりAPIコスト暴走を防止。WindowsはVC++ランタイム不要で社内配布も容易に。"
 impact: "Python SDK で Codex を業務システムに組み込んでいる組織は認証フロー刷新の確認が必須。Goal continuation の usage limit 対応はコスト暴走を防ぐ重要修正で、エージェントを長時間回す運用に直接効く。Windows 配布が安定化したため、社内配布の選択肢が広がる。"
 tags: ["codex", "python-sdk", "goal-continuation", "remote-executor", "windows", "release-note"]
 status: "candidate"

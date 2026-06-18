@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.172 — サブエージェントが5階層ネスト可能に、Bedrock のリージョン自動検出も"
+title: "Claude Code v2.1.172：5階層サブエージェント・Bedrock自動検出"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-06-11
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.172"
 summary: "Claude Code v2.1.172 がリリースされた。最大の変更はサブエージェントが自分のサブエージェントを生成できるようになったこと（最大5階層）。これによりオーケストレーション型のマルチエージェントワークフローでより深い並列化が可能になる。Amazon Bedrock 利用時に `~/.aws/config` からリージョンを自動解決する機能、`/plugin` マーケットプレイスへの検索バー追加、OTEL メトリクスへの `model` 属性追加も含まれる。バグ修正は20件超で、`availableModels` 制限のサブエージェントへの不適用、Bedrock モデルピッカーの誤表示、モデルID への 1M サフィックス二重付与などを修正。"
+description: "サブエージェントが最大5階層ネスト可能になり、マルチエージェントワークフローの並列化設計が広がります。Amazon Bedrock利用時は~/.aws/configからリージョンを自動取得でき、環境変数の手動管理が不要に。20件超のバグ修正も含まれます。"
 impact: "サブエージェントの5階層ネストは、マルチエージェント構成を使う開発者にとって設計の自由度が上がる。Bedrock 利用者はリージョン設定の手動管理が不要になる。バグ修正のうち `availableModels` 関連は、組織がモデル利用を統制している環境では影響が大きい。"
 tags: ["claude-code", "anthropic", "multi-agent", "bedrock", "release"]
 status: "candidate"

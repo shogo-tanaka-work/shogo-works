@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.165〜v2.1.167 — fallbackModel で過負荷時に自動切替、deny ルールの glob、クロスセッションメッセージのセキュリティ強化"
+title: "Claude Code v2.1.165〜167：fallbackModel・deny glob・セキュリティ強化"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-06-06
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.166"
 summary: "直近24時間で Claude Code が v2.1.165 / v2.1.166 / v2.1.167 と立て続けにリリースされた。実質的な機能追加は v2.1.166 に集約されている。最大の追加は `fallbackModel` 設定で、プライマリモデルが過負荷・利用不可のときに順番に試すフォールバックモデルを最大3つ指定でき、`--fallback-model` が対話セッションにも適用される。あわせて deny ルールでツール名に glob を使えるように（`\"*\"` で全ツール拒否）、他の Claude セッションから `SendMessage` で中継されたメッセージがユーザー権限を持たないようにするクロスセッションのセキュリティ強化、`MAX_THINKING_TOKENS=0` などによる thinking の無効化制御が入った。v2.1.165 と v2.1.167 はバグ修正・信頼性改善が中心。"
+description: "Claude Code v2.1.166でfallbackModelが追加され、モデル過負荷時に最大3つのフォールバックを自動試行できるように。denyルールのglob対応、クロスセッションの権限昇格防止、thinkingの無効化制御など、CI/自動化・マルチエージェント運用に直結する変更をまとめて解説。"
 impact: "`fallbackModel` は、モデル過負荷で作業が止まるリスクを下げる実務的な設定で、CI/自動化や長時間セッションの可用性を上げる。クロスセッションメッセージが権限を持たない仕様は、複数の Claude セッション／サブエージェントを連携させる運用におけるセキュリティ前提として重要で、中継経由の権限昇格を防ぐ。deny ルールの glob と managed settings の修正（無効エントリが残りのポリシーを黙って無効化する問題など）は、権限ガバナンスを敷く組織の統制精度を高める。"
 tags: ["claude-code", "anthropic", "fallback-model", "permissions", "security", "release"]
 status: "candidate"

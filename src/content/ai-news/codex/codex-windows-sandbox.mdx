@@ -1,10 +1,11 @@
 ---
-title: "OpenAI、Codex on Windowsの安全なサンドボックス設計を解説"
+title: "Codex on Windows：サンドボックス設計と専用ユーザー・Firewall制御"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-05-13
 sourceUrl: "https://openai.com/index/building-codex-windows-sandbox/"
 summary: "OpenAIがCodexをWindows上で安全に動かすためのサンドボックス設計を公開した。専用Windowsユーザー、restricted token、firewall rule、setup binary、command runnerを組み合わせ、ファイル書き込みとネットワークアクセスを制御する。"
+description: "OpenAIがWindows上でCodexを安全に動かすためのサンドボックス設計を公開。専用Windowsユーザー・restricted token・Firewall ruleを組み合わせることで、AI coding agentのファイル書き込みと外部通信を制限できる仕組みを理解できます。"
 impact: "WindowsでCodexを使う企業は、AI coding agentのローカル実行を許可する際に、管理者権限、専用ユーザー、firewall rule、workspace境界をレビューしやすくなる。"
 tags: ["codex", "openai", "windows", "sandbox", "security", "engineering"]
 status: "candidate"

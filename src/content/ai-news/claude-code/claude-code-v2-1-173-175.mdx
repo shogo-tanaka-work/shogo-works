@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.173–175 — enforceAvailableModels で Default モデルも組織統制の対象に"
+title: "Claude Code v2.1.173–175：enforceAvailableModels・Bedrock GovCloud修正"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-06-12
 sourceUrl: "https://github.com/anthropics/claude-code/releases"
 summary: "Claude Code が v2.1.173・v2.1.174・v2.1.175 と3リリース連続で更新された。最大の変更は v2.1.175 で追加された enforceAvailableModels managed setting。有効にすると availableModels allowlist が Default モデルの解決にも適用され、ユーザーやプロジェクト設定から managed な許可リストを拡張できなくなる。v2.1.174 では /model ピッカーの表示精度改善と Bedrock GovCloud の推論プロファイル誤導出バグが修正された。v2.1.173 では Fable 5 モデル名の [1m] サフィックス自動除去が追加。"
+description: "v2.1.175で追加されたenforceAvailableModels設定により、組織のモデル許可リストをDefaultモデルにも適用できるようになりました。Bedrock GovCloud（us-gov-east-1/west-1）の400エラー修正や/modelピッカーの表示精度改善も含みます。"
 impact: "enforceAvailableModels は、組織内で利用モデルを allowlist で統制している Enterprise・Team 環境で重要。v2.1.172 でサブエージェントへの availableModels 制限適用が修正されたが、Default モデルが allowlist 外に解決するケースは残っていた。今回の設定でその穴が塞がれた。Bedrock GovCloud（us-gov-east-1 / us-gov-west-1）を使う政府・公共機関向けの修正も含まれる。"
 tags: ["claude-code", "anthropic", "enterprise", "managed-settings", "bedrock", "release"]
 status: "candidate"

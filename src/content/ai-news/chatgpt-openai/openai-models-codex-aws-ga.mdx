@@ -1,10 +1,11 @@
 ---
-title: "OpenAI のフロンティアモデルと Codex が AWS（Amazon Bedrock）で GA — GPT-5.5 / GPT-5.4 と Codex を既存の AWS ガバナンス内で本番利用、価格は直販と同額・追加マージンなし"
+title: "GPT-5.5/Codex on AWS：Bedrock GA・追加マージンなし・IDE連携対応"
 tool: "chatgpt-openai"
 toolLabel: "ChatGPT / OpenAI"
 date: 2026-06-02
 sourceUrl: "https://openai.com/index/openai-frontier-models-and-codex-are-now-available-on-aws/"
 summary: "OpenAI と AWS が、OpenAI のフロンティアモデル **GPT-5.5 / GPT-5.4** と コーディングエージェント **Codex** を **Amazon Bedrock で一般提供（GA）** したと告知した（2026-04 の Limited Preview からの昇格）。企業は IAM・VPC・KMS・CloudTrail といった既存の AWS セキュリティ／ガバナンスと、調達・課金・コンプラのワークフローをそのまま使って OpenAI モデルと Codex を本番投入できる。Bedrock 上の価格は OpenAI ファーストパーティ料金と一致し AWS の追加マージンはなく、Codex はシート課金なしの従量課金（pay-per-token）。プロンプト・応答はモデル学習に使われず、提供元とも共有されない。GPT-5.5 は US East (Ohio)、GPT-5.4 は US East (Ohio) / US West (Oregon) で提供。（openai.com / help.openai.com は当環境で本文取得が制限されたため、一次確認は AWS 公式 ML ブログの GA 告知と OpenAI 公式 index URL で行い、両者を出典として記録している。）"
+description: "GPT-5.5・GPT-5.4・CodexがAmazon Bedrockで正式GA。既存のIAM/VPC/KMS/CloudTrailをそのまま使い、OpenAI直販と同額・追加マージンなしでフロンティアモデルを本番投入できる。AWS環境でOpenAIを使いたい企業・エンジニアの導入障壁を下げる変更点を解説。"
 impact: "「OpenAI を使いたいが、調達・セキュリティ・データガバナンスの都合で AWS の外には出せない」という企業の障壁を取り除く動き。既存の AWS 契約・IAM・VPC・KMS・CloudTrail の枠内でフロンティアモデルと Codex を本番投入でき、稟議・ベンダー審査をやり直さずに導入を進められる。価格が直販と同額（AWS 追加マージンなし）で、プロンプト／応答が学習に使われない点も、情シス・法務・調達の論点をクリアしやすい。一方で GPT-5.5 が US East (Ohio) 限定などリージョン制約があり、データレジデンシー要件のある日本企業は提供リージョンとレイテンシを前提に設計する必要がある。"
 tags: ["openai", "codex", "aws", "amazon-bedrock", "gpt-5-5", "enterprise", "ga"]
 status: "candidate"

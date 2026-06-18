@@ -48,6 +48,7 @@ const aiNews = defineCollection({
     date: z.coerce.date(),
     sourceUrl: z.string().url(),
     summary: z.string(),
+    description: z.string().optional(),
     impact: z.string().optional(),
     tags: z.array(z.string()).default([]),
     status: z.enum(["captured", "candidate", "promoted"]).default("captured"),

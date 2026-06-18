@@ -1,10 +1,11 @@
 ---
-title: "Claude Enterprise、コネクタアクセスを custom roles で制御 — Always allow / Needs approval / Blocked を connector × tool × ロール単位で設定、加算的合成と階層構造で権限管理"
+title: "Claude Enterprise：コネクタアクセスをcustom rolesで部門別制御"
 tool: "claude"
 toolLabel: "Claude"
 date: 2026-05-28
 sourceUrl: "https://support.claude.com/en/articles/13930452-manage-custom-roles-on-enterprise-plans"
 summary: "Anthropic は 2026-05-28 の Release Notes で **Enterprise プランの custom roles にコネクタアクセス制御を統合** したと発表した。これまで custom roles では chat / Claude Code / Cowork / web search / skills / Claude for Chrome などの機能可用性を制御していたが、ここに **コネクタ（Slack / Google Drive など接続済みサービス）の利用権限** が組み込まれた。設定単位は **connector 単位** と **connector tool 単位** の 2 階層で、各単位に **Always allowed（常に許可）/ Needs approval（都度承認）/ Blocked（不可）** の 3 状態を割り当てられる。全 connector に対する一括設定と、connector / tool ごとのカスタム設定の両方が可能。権限は **加算的（additive）合成**：いずれかのロールが特定機能を許可していればメンバーはアクセス可。組織レベルのトグルが一次的な制御で、custom roles はその下のセカンダリスイッチ。最終的には **プラットフォーム override → 組織 → ロール → ユーザー設定** の 4 階層で **最も制限の強い設定が勝つ** 形。Enterprise 限定機能（custom roles 自体が Enterprise）。同日の Opus 4.8 / dynamic workflows / Series H の大型発表に隠れがちだが、Enterprise 管理者にとっては運用設計の実務影響が最も大きいリリース。"
+description: "Claude EnterpriseのカスタムロールにSlack・Google Driveなどのコネクタ権限が統合。Always allow/Needs approval/Blockedをconnector単位・tool単位で設定でき、部門ごとの利用ポリシーを1つのロール表で一元管理できるようになった変更点を解説します。"
 impact: "Claude Enterprise を導入している組織にとって、これまで「コネクタは組織レベルでオン / オフのみ」だった運用を **部門別 / 業務別の差別化** に進化させられる。例: 営業ロールには Slack コネクタを Always allow、Salesforce ツールだけ Needs approval、データチームには Google Drive を Always allow、Slack を Blocked、など。**機能（chat / Claude Code / Cowork など）の可用性とコネクタの可用性を、同じ role 定義の中で一気通貫に管理** できるようになるため、社内の「Claude 利用ポリシー」を 1 つのロール表に集約できる。**加算的合成（いずれかのロールが許可なら可）** と **最終的に最も制限の強い設定が勝つ階層構造** という 2 つの合成則を理解しておかないと、想定外の許可漏れや過剰制限が発生する。管理者は **`プラットフォーム override → 組織 → ロール → ユーザー設定`** の 4 階層の判断順序を社内ドキュメント化する必要がある。SOC 2 / ISO 27001 などの監査対応で「誰がどの connector の何のツールを使えるか」を聞かれる場面でも、ロール単位の表で示せるようになった点は監査対応のコストを下げる。同日の Series H・Opus 4.8 のニュースに目を奪われがちだが、**Enterprise 管理者は今週中に role 表の見直し** を始めるべき。"
 tags: ["claude", "enterprise", "connectors", "custom-roles", "rbac", "governance", "permissions"]
 status: "candidate"

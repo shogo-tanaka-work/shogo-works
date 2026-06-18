@@ -1,9 +1,10 @@
 ---
-title: "GitHub Copilot in VS Code 5月リリース — Agents window が Stable、リモートエージェントセッション、Air-gapped BYOK、コマンドリスク評価"
+title: "GitHub Copilot VS Code 5月版：Agents window安定化・リモートセッション・Air-gapped BYOK"
 tool: "github-copilot"
 toolLabel: "GitHub Copilot"
 date: 2026-06-03
 sourceUrl: "https://github.blog/changelog/2026-06-03-github-copilot-in-visual-studio-code-may-releases"
+description: "GitHub Copilot VS Code 5月更新で、Agents windowがStableに昇格しエージェントを並行実行できるように。SSH/Dev Tunnels経由のリモートエージェントセッションでPCを閉じてもタスク継続、Air-gapped BYOKで分離環境でも導入可能に。"
 summary: "VS Code 向け GitHub Copilot の5月分アップデートがまとめて公開された。柱はエージェント運用の本格化と企業向け強化。(1) **Agents window が Stable（preview）に昇格**し、プロジェクト横断の agent-first 体験とレビュー高速化に対応。(2) **複数セッションの並行実行**（ドラッグ/Alt+クリック/Open to the Side）。(3) **リモートエージェントセッション（preview）**で SSH または Dev Tunnels 経由でリモートマシン上で実行し、クライアント切断後もセッションが継続。(4) **Air-gapped BYOK**（認証不要の分離環境向け）やカスタムエンドポイント、実トークン使用量の可視化、コミットメッセージ生成等の configurable utility models。(5) ターミナルの **コマンドリスク評価（experimental）** で AI 生成のリスク評価と説明を表示し、パスワード等の機密は LLM へ送らない。"
 impact: "Copilot を「補完ツール」から「エージェントを並行・遠隔で回す開発基盤」へ押し上げる月次更新。リモートエージェントセッションは、ローカルを離れても継続する長時間タスク（大規模リファクタ・移行）の運用を変える。Air-gapped BYOK は、金融・公共などネットワーク分離が必須の環境での Copilot 採用を後押しする。コマンドリスク評価は、エージェントにターミナルを触らせる際の安全弁として、企業のガバナンス要件に応えやすくする。"
 tags: ["github-copilot", "vscode", "agent", "byok", "enterprise", "security", "release"]

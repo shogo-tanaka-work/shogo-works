@@ -1,9 +1,10 @@
 ---
-title: "Claude Opus 4.8 リリース — Terminal-Bench 2.1 首位、Fast mode 3倍安価・2.5倍速、料金は4.7同等、API は `claude-opus-4-8`、Claude Code dynamic workflows / Effort Control / Messages API システムエントリ拡張も同時"
+title: "Claude Opus 4.8：コード欠陥1/4・Fast mode3倍安価・dynamic workflows"
 tool: "claude"
 toolLabel: "Claude"
 date: 2026-05-28
 sourceUrl: "https://www.anthropic.com/news/claude-opus-4-8"
+description: "Claude Opus 4.8はコード欠陥見逃しを4分の1に削減し、Fast modeが前世代比3倍安価・2.5倍速に。dynamic workflows・Effort Control・Messages APIのシステムエントリ拡張も同時発表。モデル切替やFast mode移行の判断材料を整理します。"
 summary: "Anthropic は 2026-05-28 に Claude **Opus 4.8** を公開した。前世代 Opus 4.7 との差分は **コーディング・エージェント能力・推論・実務知識作業の全面向上** に加え、**誠実性（honesty）面の強化** が中心で、公式は「不確実性をフラグ立てし、根拠のない主張を避ける傾向が強まり、コード欠陥を見過ごす確率が 4 分の 1 に低減」と説明している。ベンチマークでは **Terminal-Bench 2.1 で首位**、**法務エージェント評価で業界初の 10% 超**、**OSWorld-Verified 82.3%** を記録。料金は **入力 $5 / 出力 $25 / 100 万トークンと 4.7 同等**で、**Fast mode は入力 $10 / 出力 $50 / 100 万トークン**となり、前世代比 **3 倍安価 + 2.5 倍速**。同時に **Claude Code の dynamic workflows**（数十〜数百のサブエージェントを並列オーケストレート、Enterprise/Team/Max）、**Effort Control**（claude.ai / Cowork で品質と速度のトレードオフをユーザー選択、全プラン）、**Messages API のシステムエントリ拡張**（メッセージ配列内にシステムエントリを置けるようになり、プロンプトキャッシュ維持のままタスク途中で指示更新が可能）も発表された。API モデル識別子は `claude-opus-4-8`、Claude API / Amazon Bedrock / Google Vertex AI / Microsoft Foundry で即時利用可能。同日 **GitHub Copilot Pro+ / Business / Enterprise でも GA**（別記事）。"
 impact: "**Opus 4.7 → 4.8 の差分** は単なる性能向上ではなく、4.7 までで指摘されていた「不確実性を明示しない」「コード欠陥を見過ごす」という具体的な弱点に対して **コード欠陥見逃し 1/4** という定量的な改善が公式に提示された点が大きい。組織で Claude を運用しているチームは、**社内ガイドのモデル既定を Opus 4.8 に切り替える** 判断材料が揃った。**Fast mode の 3 倍安価 + 2.5 倍速** は実務インパクトが大きく、これまで「Fast mode は速いがコストが理由で使いにくい」だった反復ワークフロー（PR レビュー、コード生成、長尺会話）に Fast を入れる判断が現実的になる。**Messages API のシステムエントリ拡張** はプロンプトキャッシュを切らずにシステム指示を差し替えられるため、エージェント実装の **「途中で振る舞いを変える」** パターンが書きやすくなる。**dynamic workflows / Effort Control** は同じ日に発表された連動機能で、Opus 4.8 と組み合わせることで「`/effort xhigh` で `/workflows` を回す」運用が成立する。Claude Code 上での dynamic workflows は別記事で詳細を扱う。**Opus 4.6 の Fast mode override（`CLAUDE_CODE_OPUS_4_6_FAST_MODE_OVERRIDE`）は 2026-06-01 に削除予告** が出ているため、4.6 Fast を使い続けている組織は `/model claude-opus-4-6[1m]` + `/fast on` への移行手順を週内に整理する必要がある。"
 tags: ["claude", "opus-4-8", "model-release", "fast-mode", "messages-api", "claude-code", "dynamic-workflows", "effort-control", "pricing"]

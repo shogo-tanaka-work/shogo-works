@@ -1,10 +1,11 @@
 ---
-title: "n8n 1.123.47、1.x stable backport で依存ライブラリの脆弱性 16 件をまとめ修正"
+title: "n8n 1.123.47：依存脆弱性16件をセキュリティ専用バックポートで修正"
 tool: "n8n"
 toolLabel: "n8n"
 date: 2026-05-25
 sourceUrl: "https://github.com/n8n-io/n8n/releases/tag/n8n%401.123.47"
 summary: "n8n の 1.x 系 stable backport である 1.123.47 が 2026-05-25 に公開。vm2 / ws / protobufjs ほか 16 件の依存脆弱性を解消し、urllib3 も 2.6.3 → 2.7.0 にマイナーアップ。新機能なしのセキュリティ専用リリース。"
+description: "n8n 1.x stable を本番運用中の組織向け。vm2・ws・protobufjs ほか16件の依存脆弱性を2.x昇格なしで解消できるセキュリティ専用リリースの内容と適用判断を解説。"
 impact: "1.x stable に固定したまま運用しているテナントが、メジャー昇格なしで CVE クラスのリスクを下げられる。自社の n8n が 1.x なら適用優先度は高い。"
 tags: ["n8n", "security", "stable", "backport", "vm2"]
 status: "candidate"

@@ -1,10 +1,11 @@
 ---
-title: "n8n 2.27.0 (pre-release) — 実行データの S3 保存・OpenTelemetry UI 設定・ノード多数強化"
+title: "n8n 2.27.0：S3ストレージ・OpenTelemetry UI・ノード強化"
 tool: "n8n"
 toolLabel: "n8n"
 date: 2026-06-16
 sourceUrl: "https://github.com/n8n-io/n8n/releases/tag/n8n%402.27.0"
 summary: "n8n 2.27.0 が pre-release として公開。実行データを S3 互換ストレージに保存する S3 ストレージモード、OpenTelemetry の管理 UI での設定・テストエンドポイント追加、GitHub / Kafka / JWT / OneDrive などのノード強化が含まれる。データベース移行（execution_entity テーブルへのインデックス追加）があり、大規模インスタンスでは数分の処理時間が必要。"
+description: "n8n 2.27.0 pre-releaseでは、実行データをS3互換ストレージに保存してDB肥大化を防ぐS3ストレージモードと、管理UIからOpenTelemetryを設定できる可観測性強化が追加。GitHubやKafka、JWT、OneDriveノードも強化され、エンタープライズ運用に必要な機能が揃う。"
 impact: "S3 ストレージと OpenTelemetry UI 設定が加わったことで、n8n の本番エンタープライズ運用に必要な可観測性とスケーラブルなデータ管理が整備されつつある。ただし pre-release のため本番環境への適用は stable 確定後が推奨。"
 tags: ["n8n", "s3", "opentelemetry", "workflow", "pre-release", "enterprise"]
 status: "candidate"

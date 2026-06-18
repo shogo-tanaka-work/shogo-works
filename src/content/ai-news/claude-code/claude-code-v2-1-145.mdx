@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.145、agents の JSON 出力・OTEL 強化・Read tool の PARTIAL 表示"
+title: "Claude Code v2.1.145：agents JSON出力・OTEL強化・Read PARTIAL表示"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-05-19
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.145"
 summary: "Claude Code v2.1.145 が公開された。`claude agents --json` でライブセッション一覧が JSON 取得できるようになり、tmux-resurrect・ステータスバー・セッションピッカーへの組み込みが現実的になった。OTEL spans に agent_id / parent_agent_id 属性が追加され、バックグラウンドサブエージェントのトレースが扱いやすくなった。Read tool は token 上限超過時にハードエラーを返さず PARTIAL view を返す挙動に変更。Bash の裸変数代入での permission-prompt バイパス、agent view の voice push-to-talk、タスクリストの並び順など重要修正も入った。"
+description: "`claude agents --json`でライブセッションをJSON取得できるようになり、tmuxステータスバーや監視ダッシュボードへの組み込みが実現。OTELスパンへのagent_id追加でサブエージェントのトレースも追跡しやすくなった。Bash裸変数代入でのpermission-promptバイパス修正も含むためアップデート推奨。"
 impact: "外部ツール・観測基盤との連携強化が中心。Claude Code をチームの常用プラットフォームに据える組織には地味だが大きい改善で、特に複数エージェント運用と OTEL 連携を進めている組織に直接効く。セキュリティ修正（permission-prompt バイパス）も含まれるためアップデート推奨。"
 tags: ["claude-code", "agents-json", "otel", "read-tool", "security-fix", "release-note"]
 status: "candidate"

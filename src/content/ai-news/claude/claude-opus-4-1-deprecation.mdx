@@ -1,10 +1,11 @@
 ---
-title: "Claude Opus 4.1 が非推奨に — Claude API 退役は 2026-08-05、移行先は Claude Opus 4.8"
+title: "Claude Opus 4.1 非推奨：退役日・移行先・対応手順"
 tool: "claude"
 toolLabel: "Claude"
 date: 2026-06-05
 sourceUrl: "https://platform.claude.com/docs/en/release-notes/overview"
 summary: "Anthropic が Claude Opus 4.1（`claude-opus-4-1-20250805`）の非推奨を発表した。Claude API 上での退役は 2026年8月5日に予定されており、移行先として Claude Opus 4.8（`claude-opus-4-8`）への切り替えが推奨されている。影響を受けるのは API 経由でモデル ID を固定指定している開発者・企業で、Claude アプリ（UI）のエンドユーザーへの直接的な影響はない。移行ガイドも提供されている。"
+description: "Claude Opus 4.1（claude-opus-4-1-20250805）が2026年8月5日にAPI退役。モデルIDをハードコードしている実装はOpus 4.8へ切り替えが必須で、退役後はリクエストが通らなくなる。影響範囲の確認方法と安全な移行手順を解説。"
 impact: "Claude Opus 4.1 のモデル ID をハードコードして API を呼んでいる実装は、2026-08-05 の退役までに Opus 4.8 へ切り替える必要がある。退役後は当該 ID へのリクエストが通らなくなるため、コスト・レイテンシ・出力差分を再評価したうえで計画的に移行することが求められる。UI 利用者への影響はない。"
 tags: ["claude", "anthropic", "model-deprecation", "claude-api", "policy"]
 status: "candidate"

@@ -1,10 +1,11 @@
 ---
-title: "Google Workspace — Policy API に DLP の書き込み（Create/Update/Delete）エンドポイントを追加、DLP ルールを API でフル自動管理"
+title: "Workspace Policy API：DLP書き込みエンドポイント追加でIaC運用が可能に"
 tool: "gemini"
 toolLabel: "Gemini / Workspace"
 date: 2026-06-08
 sourceUrl: "https://workspaceupdates.googleblog.com/2026/06/introducing-workspace-policy-api-mutate-endpoints-for-DLP.html"
 summary: "Google Workspace の Policy API に、DLP（データ損失防止）ルールとディテクタの Create / Update / Delete（書き込み）エンドポイントが追加された。これまでの Get / List（読み取り専用）と組み合わせることで、DLP ポリシーのライフサイクル全体を API で自動管理できる。対象は Drive / Gmail / Chat / Chrome の機密情報スキャン。操作できるのはスーパー管理者のみで、全 Google Workspace プランが対象。Rapid Release / Scheduled Release 両ドメインに即日展開される。"
+description: "Google Workspace Policy APIにDLPルールのCreate/Update/Deleteが追加。Drive・Gmail・Chat・ChromeのDLPポリシーをコードで定義してGit管理・複数環境へ一括展開するIaC的な自動化が実現できる。"
 impact: "これまで管理コンソールで手作業に頼っていた DLP ルールを、コードで定義・レビュー・反映できるようになる。ポリシーをバージョン管理し、差分レビューを経て複数環境へ一括反映する IaC 的な運用が可能になり、設定ミスや属人化を抑えられる。情シス・セキュリティ部門にとって、DLP ガバナンスの自動化・監査性向上に直結する。"
 tags: ["gemini", "google-workspace", "dlp", "policy-api", "security", "enhancement"]
 status: "candidate"

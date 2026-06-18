@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.136 / 137はMCP・OAuth・思考ブロックまわりの大型修正"
+title: "Claude Code v2.1.136/137：MCP・OAuth・思考ブロックのバグ修正"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-05-09
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.136"
 summary: "Claude Code v2.1.136 では、`/clear` で MCP 設定が消える、複数 MCP 同時リフレッシュで OAuth トークンが落ちる、redacted thinking 後に 400 が出る、といった運用直撃のバグをまとめて修正。あわせて自動モード分類器の絶対ブロックを設定する `hard_deny` を追加。直後に出た v2.1.137 は Windows × VSCode 拡張のリグレッション修正。"
+description: "/clearでMCP設定が消える・OAuth複数リフレッシュでトークンが落ちる・redacted thinking後に400エラーが出るなど、日常運用で直撃するバグをまとめて修正。hard_deny追加でEnterpriseの自動モードをより安全に設計できる。"
 impact: "MCP を使うチームと、Windows + VSCode で Claude Code を運用しているチームは、即時更新の価値がある。Enterprise 運用者は `hard_deny` で自動モードのガード設計を見直せる。"
 tags: ["claude-code", "mcp", "oauth", "extended-thinking", "windows", "release-note"]
 status: "candidate"

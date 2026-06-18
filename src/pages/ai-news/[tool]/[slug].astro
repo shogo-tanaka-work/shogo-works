@@ -31,7 +31,7 @@ const formattedDate = entry.data.date.toLocaleDateString("ja-JP", {
 
 <BaseLayout
   title={`${entry.data.title} | AI News | shogoworks`}
-  description={entry.data.summary}
+  description={entry.data.description ?? entry.data.summary}
   ogType="article"
 >
   <article class="py-20 px-4">

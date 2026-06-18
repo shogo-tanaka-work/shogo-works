@@ -1,10 +1,11 @@
 ---
-title: "GitHub Copilot、Memory の削除/スコープ/CLI 制御強化と Model rules を同日発表、Enterprise → 組織 → リポジトリの階層ガバナンスが整う"
+title: "GitHub Copilot：Memory制御強化・CLIと組織別Model rules"
 tool: "github-copilot"
 toolLabel: "GitHub Copilot"
 date: 2026-05-26
 sourceUrl: "https://github.blog/changelog/2026-05-26-copilot-memory-has-more-controls-for-deletion-scope-and-the-copilot-cli/"
 summary: "GitHub は 2026-05-26 に Copilot のガバナンス関連アップデートを 2 件同時に発表した。1 つ目は **Copilot Memory の制御強化（public preview、全有料 Copilot プラン）**。ユーザーが「忘れて」と依頼したときの削除ガイダンス、リポジトリ管理者がメモリ機能をリポジトリ単位で OFF にできる **リポジトリレベル off スイッチ**、`/memory on` / `/memory off` / `/memory show` の **`/memory` CLI**、保存時の scope（**user-level preference**: 個人 + 全リポジトリ、**repository-level fact**: 全貢献者 + 該当リポジトリ限定）の明示が入った。2 つ目は **Copilot Model rules**（Copilot Business / Copilot Enterprise）。Enterprise オーナーが **組織単位で利用可能な Copilot モデル**を制御でき、各組織のデフォルトモデル選択や `Enabled`（自動 ON）/ `Optional`（組織側が判断）の可用性切替が可能になる。これにより、企業全体一括の単一設定ではなく **組織ごとに異なるモデル配布** が現実的になる。同日発表のため、Copilot のガバナンスは **Enterprise → 組織 → リポジトリ → ユーザー** の階層で「何を制御できるか」が一段整理された。"
+description: "Copilot Memoryに/memory CLIとリポジトリ単位OFFスイッチが追加。scopeの種類も明示され、OSS・法務NGリポジトリでの安全運用が可能に。Model rulesでEnterpriseオーナーが組織ごとに使えるモデルを制御できるようになり、階層ガバナンス設計を一段整理できる。"
 impact: "Copilot Memory の制御強化は、これまで「Memory に何が貯まっていて、どう消すか」が見えにくかった問題に対する答え。`/memory show` で状態を即時確認でき、リポジトリ管理者がメモリ機能自体をリポジトリ単位で止められるようになるため、**OSS / 法務的に NG なリポジトリでは Memory を OFF にする** という運用が定常化できる。scope の明示（user-level preference か repository-level fact か）は、特に **repository-level fact が全貢献者に共有される** 前提を意識した運用に直結するため、社内ガイドの『Copilot Memory 利用ガイド』に明記しておきたい。Copilot Model rules は **Enterprise 配下の組織別モデル配布** を制御する機能で、規制業界・契約上のモデル制限が組織横断的に異なる場合の運用に直接効く。`Enabled` / `Optional` の挙動差を社内テンプレートに落とし込んでおけば、Enterprise オーナーと各組織管理者の責務分担が明確になる。両者を合わせると、Enterprise → 組織 → リポジトリ → ユーザーの階層ガバナンスを設計し直す材料が一気に揃った形になる。"
 tags: ["github-copilot", "memory", "model-rules", "governance", "enterprise", "business", "public-preview", "scope"]
 status: "candidate"
