@@ -1,10 +1,11 @@
 ---
-title: "OpenAI Codex v0.130.0でリモート操作・プラグイン詳細にbundled hooks表示・AWS console-login認証に対応"
+title: "Codex v0.130.0：リモート操作・Bedrock SSO認証・Hooksプラグイン可視化"
 tool: "chatgpt-openai"
 toolLabel: "ChatGPT / OpenAI"
 date: 2026-05-09
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.130.0"
 summary: "OpenAI Codex の v0.130.0 が 2026-05-08 23:09 UTC（5/9 08:09 JST）に公開。`codex remote-control` でヘッドレス・リモート操作可能なアプリサーバーを起動できるエントリポイント、プラグイン詳細での bundled hooks 表示、AWS console-login 経由の Bedrock 認証、large thread のページング、画像参照の multi-environment 対応など、運用機能の拡張が中心。"
+description: "OpenAI Codex v0.130.0では`codex remote-control`でCIやサーバーからヘッドレス実行が可能になり、AWS SSOのconsole-loginプロファイルでBedrockを認証できるようになった。プラグインのbundled hooks可視化で組織内配布も管理しやすくなる。"
 impact: "Codex を CI / リモート実行・プラグイン経由運用しているチームに直接効く。Bedrock を AWS SSO 経由で使っている組織は認証フローが整い、プラグイン共有を組織内で回す運用がやりやすくなる。Hooks 機能自体は v0.124.0 で Stable 化済みだが、プラグインとの組み合わせで可視化が一段進んだ。"
 tags: ["openai-codex", "remote-control", "hooks", "plugins", "bedrock", "release-note"]
 status: "candidate"

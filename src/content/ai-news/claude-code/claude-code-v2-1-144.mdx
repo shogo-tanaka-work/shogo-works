@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.144、background sessionの再開・運用性と起動安定性を強化"
+title: "Claude Code v2.1.144：background session再開・起動ハング解消・MCP修正"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-05-19
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.144"
 summary: "Claude Code v2.1.144が公開された。background sessionが/resumeの対象になり、完了通知に経過時間が表示されるなど継続運用が扱いやすくなった。/modelのデフォルト挙動変更、'usage credits'への用語統一、api.anthropic.com到達不可時の起動ハング解消、MCPやBedrock/Vertexまわりの重要修正も入った。"
+description: "/resumeがbackground sessionにも対応し、複数agentの継続運用がしやすくなった。起動時の75秒ハング解消やMCPのツール取りこぼし修正など、チーム運用基盤としての安定性が向上したリリースノートを解説。"
 impact: "background agentを長時間・複数回す運用ほど効くリリース。起動安定性とMCP/クラウドモデル選択の修正により、Claude Codeをチーム運用基盤として使う際の事故とストレスが減る。"
 tags: ["claude-code", "background-sessions", "resume", "mcp", "bedrock", "release-note"]
 status: "candidate"

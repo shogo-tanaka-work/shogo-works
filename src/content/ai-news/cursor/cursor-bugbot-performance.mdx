@@ -1,10 +1,11 @@
 ---
-title: "Cursor Bugbot が大幅改善 — レビュー時間 5分→90秒、精度10%向上、/review コマンドで push 前チェックも"
+title: "Cursor Bugbot 改善：レビュー90秒・精度10%向上・/reviewコマンド追加"
 tool: "cursor"
 toolLabel: "Cursor"
 date: 2026-06-10
 sourceUrl: "https://cursor.com/changelog"
 summary: "Cursor の Bugbot（コードレビュー自動化機能）が大幅に改善された。Composer 2.5 のモデル訓練によりレビュー速度が約3倍に（5分→90秒）、バグ検出精度が10%向上（0.56→0.62 bugs/review）、コストも22%削減。新たに `/review` コマンドが追加されコードを push する前にローカルでレビューを実行できるようになった。GitHub・GitLab 統合により最後のレビュー以降の変更だけを対象にする差分レビューも可能。"
+description: "Cursor BugbotがComposer 2.5訓練で大幅強化。レビュー時間が5分から90秒に短縮され、バグ検出精度も10%向上。新たに追加された/reviewコマンドでpush前のローカルチェックも可能になった。"
 impact: "Bugbot のレビューを待つ時間が大幅に短縮され、PR 作成フローに組み込みやすくなった。/review コマンドにより push 前のローカルチェックが手軽になり、セキュリティや品質の早期発見に使える。"
 tags: ["cursor", "bugbot", "code-review", "performance", "enhancement"]
 status: "candidate"

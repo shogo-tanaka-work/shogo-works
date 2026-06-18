@@ -1,10 +1,11 @@
 ---
-title: "GitHub Copilot が全プランで GitHub AI Credits ベースの従量課金へ移行 — PRU 廃止、Copilot code review が Actions 分も消費、ユーザー単位予算が GA。プラン価格（Pro $10 / Pro+ $39 / Business $19 / Enterprise $39）は据え置き、コード補完は AI Credits 非消費"
+title: "GitHub Copilot：PRU廃止・AI Credits従量課金・ユーザー予算GA"
 tool: "github-copilot"
 toolLabel: "GitHub Copilot"
 date: 2026-06-01
 sourceUrl: "https://github.blog/changelog/2026-06-01-updates-to-github-copilot-billing-and-plans/"
 summary: "GitHub は 2026-06-01 付の Changelog で、GitHub Copilot の **全プランを GitHub AI Credits ベースの従量課金（usage-based billing）へ移行**したことを告知した。各プランには月次の included usage（含まれる利用枠）が付き、超過分は AI Credits の追加購入になる。従来の **premium request units（PRU）は GitHub AI Credits に置き換え** られ、モデルごとの公開 API レート（入力・出力・キャッシュトークン）に基づいて消費される。あわせて **Copilot code review が AI Credits に加えて GitHub Actions の実行分（minutes）も消費** するようになり、組織管理者は標準ランナー（default runners）を指定して全リポジトリで統一できる。**ユーザー単位予算が GA** となり、組織・Enterprise の管理者は全ユーザー共通の予算設定や特定ユーザー群への上書きが可能。**auto モデル選択を使うと割引**（例: 1x 乗数のモデルが 0.9x 相当）が付き、auto のモデル評価が individual プランでも有効化された。重要なのは、**プラン価格自体は据え置き**（Pro $10 / 月、Pro+ $39 / 月、Business $19 / user・月、Enterprise $39 / user・月）で、**Code completions と Next Edit suggestions は全プランに含まれ AI Credits を消費しない**点。変わったのは「枠の数え方」と「超過課金の仕組み」であり、利用量連動のコスト構造になった。"
+description: "GitHub CopilotがAI Credits従量課金へ移行。PRU廃止・code reviewのActions分消費・ユーザー単位予算GAの3点を理解し、組織のコスト設計を見直す方法を解説します。"
 impact: "これは Copilot を導入している全組織が今すぐ確認すべき **コスト構造の変更** である。席数 × 固定額で予算化していた前提が崩れ、**利用量（トークン）連動** になるため、ヘビーユーザーが多いチームや code review / cloud agent / CLI を多用する組織はコストが読みにくくなる。特に **Copilot code review が Actions 分を消費** する変更は、CI 予算と Copilot 予算が連動することを意味し、Actions のランナー設計・コスト配賦の見直しが要る。管理者は GA となった **ユーザー単位予算** を使い、上限・アラート・特定ユーザーへの上書きを設計するのが先決。auto モデル選択の割引は、コスト最適化の観点で「auto を既定にする」運用ガイドの根拠になる。価格据え置き・コード補完は非消費という点は安心材料だが、「フラット課金前提の運用ルール」はそのままでは通用しないため、調達・情シスは included usage の枠と超過時の挙動を早めに棚卸しすべき。なお個人ユーザーへの影響にはコミュニティで懸念の声もあり、社内展開時は中立的な説明が望ましい。"
 tags: ["github-copilot", "billing", "usage-based", "github-ai-credits", "code-review", "actions", "budget", "policy"]
 status: "candidate"

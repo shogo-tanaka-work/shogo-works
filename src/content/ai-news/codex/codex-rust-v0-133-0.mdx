@@ -1,10 +1,11 @@
 ---
-title: "OpenAI Codex 0.133.0、Goals が既定で有効化・権限プロファイルが本格的な統制機能に"
+title: "Codex CLI v0.133.0：Goals標準化・権限プロファイル強化"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-05-21
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.133.0"
 summary: "OpenAI Codex の stable リリース 0.133.0 が公開された。これまで experimental だった Goals 機能が既定で有効化され、専用ストレージに保存されてターンをまたいで進捗を追跡するようになった。権限プロファイルには list API・継承（inheritance）・managed な requirements.toml 対応・実行時リフレッシュが加わり、組織が Codex の権限を統制する仕組みが本格化。拡張（extensions）が観測できるライフサイクルイベントも拡充され、SubagentStart / SubagentStop フックが追加された。同日には Codex アプリ 26.519（Appshots と Goal mode の正式化）も公開されている。"
+description: "OpenAI Codex CLI 0.133.0では、Goals機能がexperimentalを卒業しデフォルト有効化。複数ターンにわたって目標を保持しながらタスクを進めるエージェントとして標準的に使えるようになり、権限プロファイルの継承・requirements.toml管理で組織の統制設計も可能になった変更点を解説。"
 impact: "Goals の既定有効化により、Codex を「単発でコマンドを実行するツール」から「目標を保持して進捗を追うエージェント」として使う前提が標準になる。権限プロファイルの list API・継承・requirements.toml 管理は、組織が複数チーム・複数環境で Codex の権限境界を統制するための実務基盤であり、情シス・セキュリティ部門の評価対象になる。"
 tags: ["codex", "goals", "permission-profiles", "extensions", "release-note"]
 status: "candidate"

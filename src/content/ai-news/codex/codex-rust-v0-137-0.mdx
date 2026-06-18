@@ -1,10 +1,11 @@
 ---
-title: "Codex rust-v0.137.0 — Enterprise クレジット上限・クラウド管理設定、Remote Control の権限取り消し、plugin list --json、Web 検索の並列実行"
+title: "Codex rust-v0.137.0：Enterpriseガバナンス・Remote Control権限管理・並列Web検索"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-06-04
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.137.0"
 summary: "OpenAI Codex の安定版 rust-v0.137.0 がリリースされた。柱は4つ。(1) Enterprise/管理者向けに **月次クレジット上限の表示**と**クラウド管理の設定バンドル**適用、**EDU ワークスペース**対応。(2) Remote Control を app-server v2 RPC で扱えるようになり、**ペアリング開始・コントローラー権限の一覧表示/取り消し**が可能に。(3) プラグインで `codex plugin list --json` の機械可読出力とリモートカタログ提案のキャッシュ。(4) ホスト型 Web/画像ツールがより多くの code-mode フローで使え、**単独 Web 検索を並列実行**できる。加えて TUI が F13〜F24 のキーバインドや検索メニューでのペーストに対応し、マルチエージェント v2 はスレッドごとにランタイム選択を保持する。"
+description: "OpenAI Codex rust-v0.137.0では、月次クレジット上限表示とクラウド管理設定バンドルで組織全体のCodex利用を中央集権的に統制できるようになった。Remote Controlの権限取り消しでリモート実行の監査も対応。"
 impact: "Codex の企業展開（ガバナンスとコスト管理）が一段進んだリリース。月次クレジット上限・クラウド管理の設定バンドル・EDU 対応により、情シスが組織全体の Codex 利用を中央集権的にコントロールしやすくなる。Remote Control の権限取り消しは、リモート実行を許す運用での監査・権限管理の前提になる。`codex plugin list --json` は CI やスクリプトでプラグイン構成を点検する自動化フックになり、並列 Web 検索は調査系ワークフローの実行時間を短縮する。"
 tags: ["codex", "openai", "enterprise", "governance", "remote-control", "plugins", "release"]
 status: "candidate"

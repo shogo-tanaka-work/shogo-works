@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.163 — 管理者がバージョンを強制できる requiredMinimum/MaximumVersion、/plugin list、Stop/SubagentStop hooks の additionalContext"
+title: "Claude Code v2.1.163：バージョン強制・HooksのadditionalContext・CI修正"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-06-04
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.163"
 summary: "Claude Code v2.1.163 がリリースされた。組織の管理設定で許可バージョンの範囲を強制できる `requiredMinimumVersion` / `requiredMaximumVersion` が加わり、範囲外のバージョンでは起動を拒否して承認済みバージョンへ誘導する。あわせて、インストール済みプラグインを一覧表示する `/plugin list`（`--enabled`/`--disabled` フィルタ付き）、Stop / SubagentStop hooks が `hookSpecificOutput.additionalContext` を返して hook エラー扱いにならずターンを継続できる仕組み、Skills の `\\$` エスケープ構文、stdio MCP サーバーへの `CLAUDE_CODE_SESSION_ID` 引き渡し（--resume 時）などを追加。`claude -p` の永久ハング、Bedrock/Vertex/Foundry の CI 起動失敗、bazel/EDR 下の `$TMPDIR` 回帰、Windows の EEXIST、org 管理権限がセッション全体に適用されない問題など、修正も多数含む。"
+description: "requiredMinimumVersion/MaximumVersionで組織が許可バージョン帯を強制できるガバナンス機能、Stop/SubagentStop hooksがadditionalContextで会話継続しながらフィードバックを返せる仕組み、Bedrock/Vertex/Foundry環境でのCIパイプライン起動失敗修正など多数のアップデートを解説。"
 impact: "バージョンガバナンスを敷きたい組織にとって `requiredMinimumVersion` / `requiredMaximumVersion` は大きい。社内で検証済みバージョン帯を強制し、未承認版での起動を止められる。Stop / SubagentStop hooks の `additionalContext` は、フックでターンを止めずに Claude へ追加文脈を渡せるため、自動レビューやガード処理を「割り込み」ではなく「会話継続」として組み込める。CI/CD では Bedrock/Vertex/Foundry の `CI=true` 起動失敗修正が、パイプライン安定化に直結する。"
 tags: ["claude-code", "anthropic", "managed-settings", "hooks", "mcp", "release"]
 status: "candidate"

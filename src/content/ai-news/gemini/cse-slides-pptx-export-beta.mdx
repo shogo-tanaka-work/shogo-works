@@ -1,10 +1,11 @@
 ---
-title: "Google Workspace、CSE Slides を Vault / Takeout エクスポート後に PowerPoint へ変換可能（ベータ）— Enterprise Plus / Education Standard・Plus / Frontline Plus / Assured Controls 系対象、CSE Office Interop beta 登録が前提"
+title: "Google Workspace CSE Slides：Vault/Takeout後にPPTX変換がベータ対応"
 tool: "gemini"
 toolLabel: "Google Workspace"
 date: 2026-05-29
 sourceUrl: "https://workspaceupdates.googleblog.com/2026/05/available-in-beta-convert-your-client-side-encrypted-Slides-after-a-Vault-or-Takeout-export.html"
 summary: "Google は 2026-05-29 公開の Workspace Updates Blog で、**クライアントサイド暗号化（CSE: Client-Side Encryption）された Slides を Vault または Data Takeout でエクスポートしたあとに PowerPoint 形式へ変換** できる機能をベータ提供開始した。これまで CSE Documents・CSE Sheets では同等の変換機能が提供されていたが、**Slides まで対応領域が広がった** ことで CSE で運用している Office Suite 全体が Vault / Takeout → PowerPoint / Word / Excel に揃ったことになる。対象プランは **Enterprise Plus、Education Standard / Plus、Frontline Plus、Assured Controls、Assured Controls Plus**。利用には管理者が **CSE Office Interop beta** プログラムに登録され、Google から承認される必要がある。承認済み組織はベータ機能が即時利用可能、新規申請組織は承認時点から利用可。Vault エクスポートで取り出した CSE Slides を復号して `.pptx` に変換でき、Data Takeout 経由のユーザー単位エクスポートにも対応する。これにより、ガバナンス / コンプライアンス要件下で **「Vault に残した暗号化データを後から別形式で取り出して利用継続する」** シナリオが Slides で完結する。退職者対応、訴訟対応 e-discovery、行政機関向けの長期保存データの形式変換など、CSE 運用組織の幅広いユースケースに直接効く改善。"
+description: "クライアントサイド暗号化（CSE）したSlidesをVault/Data Takeoutでエクスポート後にPowerPoint形式へ変換できるようになり、法務・監査・e-discoveryでCSE全体のOffice互換運用を一本化できます。"
 impact: "CSE を業務利用している **規制業種（金融・医療・公共・防衛）** や **Assured Controls 系プラン** を採用している組織にとって、これまで「Slides は CSE を使うと Vault / Takeout 後に閉じた形式でしか取り出せない」という制約が解ける改善。**法務 / 監査 / 退職対応** の e-discovery プロセスで、CSE Slides の証跡を PowerPoint に変換して関係者に共有できるようになるため、社外への開示プロセスを既存の Office 互換ワークフローに統合できる。CSE Documents・CSE Sheets と同等の運用パターンを Slides にも適用できるため、**CSE 全体のガバナンスポリシーを 1 本化** しやすい。`CSE Office Interop beta` への登録が前提のため、**まだ未登録の組織はベータ申請を 6 月中に出す** のが現実的。Education Standard / Plus / Frontline Plus も対象に含まれている点は、**生徒・職員データを CSE で保護している教育機関 / 医療現場 / 公共セクター** にとって地味だが重要な改善。Slides 利用シーンの多い研修教材・カリキュラム資料の長期保存と相互運用性が両立する。"
 tags: ["gemini", "google-workspace", "cse", "client-side-encryption", "vault", "data-takeout", "powerpoint", "beta", "enterprise-plus", "assured-controls", "compliance"]
 status: "candidate"

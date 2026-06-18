@@ -1,10 +1,11 @@
 ---
-title: "Claude Managed Agents — スケジュール実行（cron）と Vault 環境変数管理をパブリックベータで追加"
+title: "Claude Managed Agents：cron定期実行とVault環境変数管理をベータ追加"
 tool: "claude"
 toolLabel: "Claude"
 date: 2026-06-09
 sourceUrl: "https://claude.com/blog/whats-new-in-claude-managed-agents"
 summary: "Claude Managed Agents に、スケジュール実行（cron）と Vault を使った環境変数管理の2機能がパブリックベータで追加された。スケジュール実行により、夜間データ同期・週次コンプライアンス確認・定期レポートなどの繰り返しタスクを自動化できる。Vault に格納した環境変数はサンドボックス内には保持されず、ネットワーク境界でのみ添付される設計で、秘密情報をエージェント実行環境に常駐させないようにしている。導入事例として Rakuten・Notion・Browserbase が紹介されている。"
+description: "Claude Managed Agentsにcronスケジュール実行とVault環境変数管理がパブリックベータで追加。定期バッチ・週次レポートをトリガーなしで自動化でき、APIキーをサンドボックスに残さずネットワーク境界でのみ注入するセキュアな設計でエージェント本番運用の障壁を下げる。"
 impact: "エージェントを『呼ばれたら動く』だけでなく『決めた時刻に自分で動く』形に拡張でき、定期業務の自動化に直結する。Vault による環境変数管理は、API キーなどの秘密情報をサンドボックスに残さずネットワーク境界でのみ注入する設計のため、エージェント自動化のセキュリティ・ガバナンス面の不安を下げる。" 
 tags: ["claude", "anthropic", "managed-agents", "automation", "scheduling", "security"]
 status: "candidate"

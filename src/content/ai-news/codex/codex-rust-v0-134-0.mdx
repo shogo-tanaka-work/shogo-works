@@ -1,10 +1,11 @@
 ---
-title: "OpenAI Codex rust-v0.134.0、ローカル会話履歴検索・`--profile` を主セレクタへ昇格（legacy 廃止）・MCP per-server env + OAuth・readOnly MCP 並列化・hook context に会話履歴と subagent identity 追加"
+title: "Codex rust-v0.134.0：会話履歴検索・profile昇格・MCP強化"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-05-26
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.134.0"
 summary: "OpenAI は 2026-05-26 19:13 UTC に Codex CLI **rust-v0.134.0**（stable）を公開した。前 stable rust-v0.133.0（2026-05-21）からのメジャー差分は、**会話履歴検索・profile 体系の整理・MCP 運用の本質的強化・hook context の拡張** が中心。新機能としては、rollout を元にローカルの会話履歴を case-insensitive に検索し result preview を出す **thread content search**、CLI / TUI permissions / sandbox の各フローで `--profile` が **主セレクタへ昇格**し legacy profile v1 の resolution / write path / telemetry が削除（互換は migration guidance のみ）、MCP server の per-server environment 切り出しと streamable HTTP MCP に対する OAuth option、connector tool schema の local `$ref`/`$defs` 保持と過大 schema の best-effort compact 化、`readOnlyHint` を申告する MCP tool の並列実行、hook context への conversation history と subagent identity の追加が入っている。バグ修正・運用改善としては、exec-server websocket client の reconnect、auth recovery 後の即時 retry、remote compaction v2 stream の retry、Windows TUI 描画崩れの VT モード復元、workspace 単位の usage-limit エラー文言、plugin skill 間での plugin-level icon asset 共有、auto-review 起動時の active permission profile metadata 保持、Node ベース tool が managed network proxy 環境を尊重するように、などが含まれる。docs では curl / PowerShell インストーラ手順、`just test` の優先、profile migration リンクが追加され、packaging では DotSlash fetching の reusable 化、Codex 自前 V8 artifact 経由の release build、macOS x64 zsh artifact 追加なども入った。"
+description: "Codex CLI rust-v0.134.0では、過去の会話履歴をキーワード検索できるthread content search追加、--profileが主セレクタに昇格しlegacy v1が廃止、MCP per-server環境変数とOAuth対応、readOnlyHint申告ツールの並列実行が可能になりました。"
 impact: "**`--profile` 主セレクタ化と legacy profile v1 廃止**は、**破壊的変更扱いに近い**運用影響を持つ。0.133 までの profile v1 設定をそのまま流用している環境では migration guidance に従った書き換えが必須。社内で profile v1 を前提とした手順書・スクリプトを持つチームは、0.134 アップグレード前に棚卸しが必要。**MCP per-server environment + OAuth** と **readOnly MCP の並列化** は、Codex を agentic / multi-tool ワークフローで本格運用しているチームの **MCP 設計の質を変える** 変更。これまで「全 MCP server が共有環境を見る」前提だった設計を、per-server に切り出して隔離 / 並列化 / OAuth 適用ができる前提に書き換える価値がある。**hook context 拡張**（会話履歴 + subagent identity）は、organization 配布の hook が「呼び出し元 subagent によって挙動を変える」設計を取りやすくする。**会話履歴検索**は `/goal` ベースの長時間セッション運用で「以前ここで議論した」を辿れるようになり、knowledge 蓄積に直接効く。"
 tags: ["codex", "profile", "mcp", "hooks", "thread-search", "stable", "release-note", "breaking-change"]
 status: "candidate"

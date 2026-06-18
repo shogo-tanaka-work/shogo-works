@@ -1,10 +1,11 @@
 ---
-title: "GitHub Copilot 利用メトリクス API に「AI 採用フェーズ」コーホート追加 — 28 日利用パターンから 4 フェーズ分類、`ai_adoption_phase` / `totals_by_ai_adoption_phase` フィールド新設、code-first から multi-agent まで成熟度を測定可能"
+title: "GitHub Copilot メトリクスAPI：AI採用フェーズ別コーホート追加"
 tool: "github-copilot"
 toolLabel: "GitHub Copilot"
 date: 2026-05-29
 sourceUrl: "https://github.blog/changelog/2026-05-29-copilot-usage-metrics-api-adds-cohorts-for-ai-adoption"
 summary: "GitHub は 2026-05-29 公開の Copilot Changelog で、Copilot **利用メトリクス API** に **AI 採用フェーズ（adoption phase）コーホート** を追加したと発表した。エンゲージしているユーザーを **28 日間の利用パターン** から **4 つのフェーズ** に分類し、REST API レスポンスに **`ai_adoption_phase`** フィールドと **`totals_by_ai_adoption_phase`** 配列が追加された。フェーズは **「code-first（コード補完中心）」から「multi-agent ワークフロー」までの成熟度** を段階表現する設計で、組織は **単純なアクティビティカウント（誰がどのくらい使ったか）** ではなく **「Copilot をどこまで使いこなしているか」** を測定できるようになる。これにより、Enterprise 管理者・組織オーナーは社内チームの **AI 利活用成熟度** をセグメント別に集計し、低フェーズユーザー向けの enablement イニシアチブ（社内研修・支援投資・伴走サポート）を **的を絞って実施** できる。高フェーズユーザーは社内事例化のターゲットとして特定でき、社内発信やトレーニング教材の素材として活用可能。**「Copilot 活用率」というだけでは経営層に説明しづらかった ROI** を、「フェーズ別の到達度」と「フェーズ移行による生産性向上の証跡」として再構築できるため、GitHub Copilot Enterprise / Business 契約の継続判断材料が一段強くなる。BI ツール（Looker / Tableau / Power BI / Metabase）への流し込みで **社内ダッシュボード化** する運用が現実的になった。"
+description: "Copilot利用メトリクスAPIにAI採用フェーズ（4段階）のコーホートが追加。28日間の利用パターンから成熟度を分類し、Enterprise管理者がcode-firstからmulti-agentまでの活用度をチーム別に可視化・ROI説明できるようになる。"
 impact: "Copilot Enterprise / Business を運用している組織にとって、これは **「Copilot ROI を経営層に説明する」材料の構造的改善**。これまで多くの組織が苦戦していた「アクティブユーザー数だけ示しても『で、何の効果が？』と返される」問題に対して、**フェーズ別の成熟度分布** を提示できるようになる。「全社の 60% は code-first 段階、20% は chat 活用段階、15% は edit ワークフロー段階、5% は multi-agent 段階」のような分布が出ると、**enablement 投資の ROI** を「何段階上に押し上げたか」で測れる。逆に言えば **「全員が code-first から進まない」状態の可視化** にも使えるため、社内の研修・伴走支援の必要性を定量的に示せる。社内 enablement チーム（DevOps / DevRel / 内製化推進室）にとっては、**フェーズ別ユーザーリストを抽出して個別の研修プログラム** を設計するワークフローが組める。BI ツールでダッシュボード化すると、四半期レビューや経営会議で「Copilot 投資の成熟度推移」を 1 枚で示せるようになる。ガバナンス側にとっても、**「ライセンス購入したが使われていない」「使われているが浅い」** という 2 種類の問題を区別できるため、削減・再配分の意思決定が早くなる。**`ai_adoption_phase`** の具体的分類定義（4 フェーズの境界条件、28 日窓の集計ロジック）は今後のドキュメント更新と運用知見の蓄積で明確化していくため、まずは API 取得 → 自社ユーザーへの分布確認 → 想定との差分検証、というステップを 2026 年 6 月中に 1 サイクル回すのが現実的。"
 tags: ["github-copilot", "metrics-api", "ai-adoption-phase", "cohorts", "enablement", "enterprise", "business", "analytics", "rest-api"]
 status: "candidate"

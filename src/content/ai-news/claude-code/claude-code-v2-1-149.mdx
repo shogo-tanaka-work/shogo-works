@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.149、`/usage` がスキル・サブエージェント・MCP 単位の内訳に対応・Enterprise で claude.ai クラウド MCP 一括許可も"
+title: "Claude Code v2.1.149：/usageコスト内訳・Enterprise MCP一括許可・セキュリティ修正"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-05-22
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.149"
 summary: "Anthropic は 2026-05-22 22:09 UTC に Claude Code **v2.1.149** を公開した。最大の変化は `/usage` の内訳化で、これまで「合計でいくら使ったか」しか見えなかったコストが、**スキル / サブエージェント / プラグイン / MCP サーバー単位**に分解されて表示されるようになった。Enterprise 向けには、`managed-mcp.json` と組み合わせて claude.ai クラウド MCP コネクタを一括許可する `allowAllClaudeAiMcps` マネージド設定を追加。あわせて、PowerShell の `cd` 系組み込み関数経由でワークスペース外へ抜けられたパーミッションバイパスと、macOS で `find` がシステムごとクラッシュさせる挙動も修正された。`/diff` 詳細ビューのキーボードスクロール、Markdown 出力の GFM タスクリストチェックボックス描画も入っている。"
+description: "`/usage` でスキル・サブエージェント・MCPサーバー単位のコスト内訳が確認できるようになり、組織導入チームのトークン管理が大幅に改善。EnterpriseのMCP一括許可設定、PowerShellの権限バイパス修正も含む重要アップデートを解説。"
 impact: "`/usage` の内訳化は、Claude Code を組織導入したチームのコスト管理運用に直接効く。どのスキル・どのサブエージェント・どの MCP サーバーがトークンを食っているかを見ながら削減できるようになるため、運用ガイドの『コスト確認は `/usage` を週次で見る』という指示を一段詳細にできる。Enterprise の `allowAllClaudeAiMcps` は、claude.ai クラウド MCP コネクタを社内ポリシー側で集中許可する手段が増えたことを意味し、MCP 運用の管理者観点を見直す価値がある。PowerShell の権限バイパス修正は、Windows 環境のセキュリティモデルを再確認したい更新。アップデートは v2.1.149 以降に揃えるのが安全。"
 tags: ["claude-code", "usage", "mcp", "enterprise", "security", "powershell", "macos", "release-note"]
 status: "candidate"

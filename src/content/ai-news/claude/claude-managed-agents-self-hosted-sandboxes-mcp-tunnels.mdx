@@ -1,9 +1,10 @@
 ---
-title: "Anthropic、Claude Managed Agents に Self-hosted sandboxes（public beta）と MCP tunnels（research preview）を追加発表（Code w/ Claude London 2026）"
+title: "Claude Managed Agents：Self-hosted sandboxes・MCP tunnels追加"
 tool: "claude"
 toolLabel: "Claude"
 date: 2026-05-26
 sourceUrl: "https://claude.com/blog/code-w-claude-london-2026-rethinking-how-we-build"
+description: "Claude Managed AgentsにSelf-hosted sandboxes（public beta）とMCP tunnels（research preview）が追加。自社インフラやCloudflare等で実行環境を保ちながらManaged Agentsを使えるようになり、社内MCP serverを外部公開せずに接続できる仕組みも解説。"
 summary: "Anthropic は 2026-05-26 のロンドンイベント **Code w/ Claude London 2026** で、Claude Managed Agents の機能拡張を 2 点発表した。1 つ目は **Self-hosted sandboxes（public beta）** で、Managed Agents の tool execution を **ユーザー側がカスタマイズした sandbox 環境**で走らせる仕組み。自社の自前インフラに加え、Cloudflare、Daytona、Modal、Vercel 等が想定先として挙げられている。これまで Managed Agents の実行環境は Anthropic ホスト側に限定されており、依存・ネットワーク・データ局所性などの要件を持つ組織は「Managed の使い勝手は欲しいが実行環境は外せない」というジレンマを抱えていた。public beta としての提供で、その制約を解く第一歩になる。2 つ目は **MCP tunnels（research preview）** で、Managed Agents から **private network 内の MCP server** に、インターネット露出なしの暗号化トンネル経由で到達できる機能。社内 MCP server（内部 API ラッパー、社内 DB を持つ MCP）を外部公開しなくても Managed Agents から呼び出せる設計が現実的になる。research preview のため本番運用には Anthropic 側の追加調整が必要。同イベントでは Boris Cherny（Claude Code 責任者）の基調講演に加え、Cat Wu、Katelyn Lesse、Angela Jiang、Lisa Crofoot らが登壇し、Spotify、Base44、Legora、Amplitude、Clay、Rogo などの参加企業の事例が共有された。次回は東京（2026-06-05〜06）でも同等のイベントが続く予定。"
 impact: "Claude Managed Agents の **「実行環境はどこか」「社内 MCP にどう繋ぐか」** という 2 つの根源的なアーキ判断が動いた。**Self-hosted sandboxes** は、コンプライアンス・データ局所性・社内システム連携が論点になるエンタープライズで「Managed の使い勝手のまま、実行は自社/許可済みクラウドで」というオプションを開く。Cloudflare / Daytona / Modal / Vercel が想定先に挙がっているのは、すでにこれらで agent ランタイムを運用している組織にとって移行コストが下がるメッセージとして読める。**MCP tunnels** は社内 MCP server をインターネットに露出させずに Managed Agents から呼べる仕組みで、社内 API ラッパー / 社内 DB 系の MCP を Managed Agents で活用する道筋が現実化する。research preview のため即時導入は早いが、社内 MCP の設計を進めている組織は「将来 MCP tunnel に乗せる前提」で MCP 単位の権限境界を整理しておく価値がある。Self-hosted sandboxes は public beta、MCP tunnels は research preview と、提供段階の差を取り違えないよう注意。"
 tags: ["claude", "managed-agents", "mcp", "self-hosted", "sandbox", "enterprise", "code-w-claude", "public-beta", "research-preview"]

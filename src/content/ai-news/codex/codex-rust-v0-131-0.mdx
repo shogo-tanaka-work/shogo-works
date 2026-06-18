@@ -1,10 +1,11 @@
 ---
-title: "OpenAI Codex v0.131.0（stable）、TUI・plugin・remote・Python SDKを大幅強化"
+title: "Codex rust-v0.131.0：plugin hooks既定有効化・remote-control・codex doctor追加"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-05-18
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.131.0"
 summary: "OpenAI Codexのstable版v0.131.0が公開された。TUIの拡充、@メンションの横断検索、plugin marketplace CLIとplugin hooks既定有効化、daemon管理のcodex remote-control、Python SDKのopenai-codexへの移行、codex doctorの追加が中心。旧apply_patch形式とafter-tool-use hooksは削除された。"
+description: "OpenAI Codex stable版v0.131.0でplugin hooksが既定有効化され、daemon管理のremote-controlやcodex doctorが追加。TUIの使用量表示改善や@メンション横断検索など、チーム運用に影響する変更点と破壊的変更（apply_patch削除）を解説。"
 impact: "Codexをチームの実行基盤として使う組織に影響が大きい。plugin・remote運用の標準化が進む一方、レガシーapply_patch削除は破壊的変更となるため移行確認が必要。"
 tags: ["codex", "tui", "plugins", "remote-control", "python-sdk", "release-note"]
 status: "candidate"

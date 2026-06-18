@@ -1,10 +1,11 @@
 ---
-title: "OpenAI Codex rust-v0.139.0（stable）— code mode から単体 web search、MCP スキーマの oneOf/allOf 保持、codex doctor 拡充"
+title: "Codex rust-v0.139.0：code modeからweb search・MCPスキーマ保持"
 tool: "codex"
 toolLabel: "OpenAI Codex"
 date: 2026-06-09
 sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.139.0"
 summary: "OpenAI Codex の stable リリース rust-v0.139.0 が公開された。code mode から（ネストした JavaScript ツール呼び出しを含め）単体の web search を直接呼べるようになり、検索結果をプレーンテキストで受け取れる。ツール／コネクタの入力スキーマが oneOf / allOf を保持し、大きなスキーマの圧縮時も浅い構造をより多く残すため、リッチな MCP ツールとの互換性が向上した。codex doctor がローカルレポートにエディタ・ページャの環境情報を含める（JSON 出力では生値をリダクト）ようになり、plugin marketplace は list --json に各 marketplace source を含めてキャッシュ済みカタログから先に返すなど応答性も上がった。codex resume/fork --last の末尾引数の扱い修正、サンドボックスの承認エスカレーション保持・proxy-only ネットワーキング強制などの修正も入った。"
+description: "OpenAI Codex rust-v0.139.0では、code modeから単体のweb searchを直接呼び出せるようになり、コード実行とリアルタイム情報取得を1フローで扱えます。MCP連携でoneOf/allOfスキーマが保持され、複雑な入力スキーマを持つMCPツールの信頼性も向上します。"
 impact: "code mode から web search を直接呼べることで、コード実行とリアルタイム情報取得を1つのフローに統合しやすくなる。MCP スキーマの oneOf/allOf 保持は、複雑な入力スキーマを持つ MCP ツールを Codex から正しく扱えるようにし、リッチなツール連携の信頼性を高める。サンドボックスの承認保持・proxy-only 強制は、統制下でエージェントを動かす運用のセキュリティに効く。"
 tags: ["codex", "openai", "web-search", "mcp", "sandbox", "release"]
 status: "candidate"

@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.152、`/code-review --fix` で修正自動適用・`MessageDisplay` hook・`/reload-skills`・Auto mode 同意撤廃"
+title: "Claude Code v2.1.152：レビュー自動適用・MessageDisplay hook・skill再スキャン"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-05-27
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.152"
 summary: "Anthropic は 2026-05-27 01:30 UTC に Claude Code **v2.1.152** を公開した。前リリース v2.1.150 が user-facing change なしの内部修正だけだったのに対し、v2.1.152 は **レビューの自動適用、hook システムの拡張、skill 運用の改善** を中心に user-facing な変更を多数積み増している。最大の追加は `/code-review --fix`（レビュー結果を作業ツリーに直接適用するモード）で、`/simplify` も同じ動きにそろえた。続いて、アシスタントメッセージの表示時に hook で本文を変換・非表示にできる `MessageDisplay` hook、セッションを切らずに skill ディレクトリを再スキャンする `/reload-skills` コマンド、`SessionStart` hook 内から `reloadSkills: true` や `sessionTitle` を返せるフォーマット拡張、skill / slash command の frontmatter に `disallowed-tools` を書くと skill 有効中に特定ツールを model から外せる仕組みなど、運用設計のレバーがまとまって増えた。さらに Auto mode の同意要求が撤廃され、`pluginSuggestionMarketplaces` で管理者が context-aware tip で提案可能な org marketplace を allowlist 化できる managed setting も追加された。主モデルが見つからないとリクエスト単位で失敗していた挙動は、設定済み `--fallback-model` へセッション残りを切り替える形に変わり、Vim NORMAL モードでは `/` が逆履歴検索を起動するようになった。`/usage` の大セッションファイル対応（ストリーミング読み出しでメモリ平準化）、`claude plugin marketplace remove --scope` 対応など、地味だが効く改善も入っている。"
+description: "`/code-review --fix` でレビュー結果を作業ツリーへ即反映、`MessageDisplay` hookで出力制御、`/reload-skills` でセッション維持のままskillを再スキャンできるようになった変更点を解説。"
 impact: "`/code-review --fix` の登場は、Claude Code を組織導入したチームの **レビュー→修正適用** のフローを変える。これまで「レビュー出力を読んで `/edit` などで自分で当てる」必要があった部分が、`--fix` 1 つで作業ツリーへ反映される。社内ガイドの「コードレビュー手順」は、見直す価値がある。`MessageDisplay` hook と `disallowed-tools` frontmatter は、**社外秘マスク・固定文言注入・skill 単位の最小権限化** など、配布・統制側の設計余地を一段広げる。Auto mode 同意撤廃と `/reload-skills` は、skill を hook で動的に増減させる運用と相性が良く、社内 skill 配布の即時反映が現実的になる。Enterprise の `pluginSuggestionMarketplaces` は plugin suggestion の出所をホワイトリスト化できるため、社外 marketplace の plugin が混入しないようコントロールしたい組織に効く。`--fallback-model` のセッション継続化は、主モデル切替時の事故率を実務的に下げる修正。"
 tags: ["claude-code", "code-review", "hooks", "skills", "auto-mode", "fallback-model", "vim", "managed-settings", "release-note"]
 status: "candidate"

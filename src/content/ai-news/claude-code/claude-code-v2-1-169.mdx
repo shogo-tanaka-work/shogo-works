@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.169 — トラブルシュート用 --safe-mode、セッション中にディレクトリを移す /cd、disableBundledSkills"
+title: "Claude Code v2.1.169：--safe-mode・/cdコマンド・MCPポリシー修正"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-06-09
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.169"
 summary: "Claude Code v2.1.169 がリリースされた。全カスタマイズ（CLAUDE.md・プラグイン・スキル・フック・MCP サーバー）を無効化して起動する `--safe-mode` フラグ（`CLAUDE_CODE_SAFE_MODE`）が加わり、設定起因の不具合を素早く切り分けられるようになった。あわせて、プロンプトキャッシュを壊さずセッション中に作業ディレクトリを移す `/cd` コマンド、バンドル済みスキル・ワークフロー・組み込みスラッシュコマンドをモデルから隠す `disableBundledSkills` 設定を追加。さらに、エンタープライズ管理 MCP ポリシー（`allowedMcpServers`/`deniedMcpServers`）が再接続時・IDE 入力設定・`--mcp-config`・インストール直後の初回セッション・リモート設定読込前に適用されない問題を修正し、信頼されていないプロジェクト設定が trust 確認なしに OTEL クライアント証明書パスを設定できた問題も塞いだ。macOS の UI スタール、Windows の `claude -p` ハングなど修正多数。"
+description: "Claude Code v2.1.169では、CLAUDE.mdやフック・MCPを一括無効化する--safe-modeフラグでトラブル切り分けが即座に行えるようになった。プロンプトキャッシュを保持したままディレクトリを移動できる/cdコマンドも追加され、モノレポ作業の効率が向上。エンタープライズ向けMCPポリシーの適用漏れも修正。"
 impact: "`--safe-mode` は、CLAUDE.md やフック・MCP の設定が原因で挙動がおかしいときの切り分けを一発でできるようにする実用的な追加。`/cd` はプロンプトキャッシュを保ったままディレクトリを移せるため、モノレポや複数プロジェクトを横断する作業でキャッシュ再構築のコストを避けられる。エンタープライズ管理 MCP ポリシーの適用漏れ修正は、MCP 接続をガバナンスで統制する組織にとって重要なセキュリティ修正。"
 tags: ["claude-code", "anthropic", "safe-mode", "mcp", "security", "release"]
 status: "candidate"

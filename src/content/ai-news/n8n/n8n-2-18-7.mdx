@@ -1,10 +1,11 @@
 ---
-title: "n8n 2.18.7"
+title: "n8n 2.18.7：Webhookテスト実行のredaction処理を修正"
 tool: "n8n"
 toolLabel: "n8n"
 date: 2026-05-04
 sourceUrl: "https://github.com/n8n-io/n8n/releases/tag/n8n%402.18.7"
 summary: "webhook test execution pathでredactionに必要なuserIdが渡されるようになった、コアのバグ修正リリース。"
+description: "n8n 2.18.7では、Webhookのテスト実行パスでredactionに必要なuserIdが渡されない不具合が修正。テスト環境でも本番と同等の秘匿・マスキング処理が動作し、セキュリティ要件の整合性を確認できるようになります。"
 impact: "Webhookテスト実行時の秘匿・マスキング処理の一貫性に影響。"
 tags: ["n8n", "webhook", "redaction"]
 status: "captured"

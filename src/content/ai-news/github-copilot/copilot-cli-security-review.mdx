@@ -1,10 +1,11 @@
 ---
-title: "Copilot CLI にセキュリティレビューコマンド `/security-review` — push 前にターミナルで脆弱性チェック（実験的プレビュー）"
+title: "GitHub Copilot CLI：/security-review で push 前に脆弱性チェック"
 tool: "github-copilot"
 toolLabel: "GitHub Copilot"
 date: 2026-06-10
 sourceUrl: "https://github.blog/changelog/2026-06-10-dedicated-security-review-command-now-available-in-copilot-cli"
 summary: "GitHub Copilot CLI に `/security-review` コマンドが追加された（実験的パブリックプレビュー）。ローカルのコード変更を分析し、インジェクション・XSS・パストラバーサルなどの脆弱性を信頼度・重大度でスコアリングして検出結果と改善提案をターミナル内で提供する。Code Scanning・Dependabot・Secret Scanning の補完ツールとして位置付けられており、開発者が PR 作成前にセキュリティチェックを完結させる用途を想定している。"
+description: "GitHub Copilot CLI に追加された `/security-review` コマンドを使うと、XSS・インジェクション・パストラバーサルなどの脆弱性をターミナルから PR 作成前にチェックでき、セキュリティゲートを開発フローに組み込むコストを下げられます。"
 impact: "コードを push する前に、ターミナルを離れずにセキュリティ観点のチェックを挟める。開発フローにセキュリティゲートを組み込むコストが下がる。現時点は実験的プレビューであり、CI/CD のゲートとして本番利用する前に精度の検証が必要。"
 tags: ["github-copilot", "security", "cli", "code-review", "preview", "enhancement"]
 status: "candidate"

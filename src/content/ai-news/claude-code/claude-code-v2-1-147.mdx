@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.147、/code-review が本格コードレビューコマンドに進化・ピン留めセッション常駐化"
+title: "Claude Code v2.1.147：/code-review がPRレビュー実務ツールに進化・ピン留め常駐化"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-05-21
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.147"
 summary: "Claude Code v2.1.147 が公開された。前日 v2.1.146 で `/simplify` から改名された `/code-review` が、選択した effort level で correctness バグ（正しさの不具合）を報告し、`--comment` で GitHub PR にインラインコメントを投稿できる本格的なコードレビューコマンドへと実体化した。旧来の cleanup-and-fix 挙動は削除。`claude agents` でピン留めしたバックグラウンドセッションがアイドル時も常駐し、更新時はその場で再起動、メモリ逼迫時は非ピン留めより後に解放されるようになった。プロンプト履歴の重複排除や、headless / プラグイン / フック / Windows 周りのバグ修正も多数。直後の v2.1.148 は v2.1.147 で混入した Bash ツールの exit code 127 リグレッションのホットフィックス。"
+description: "`/code-review --comment` でGitHub PRにインラインコメントを自動投稿できるようになり、correctnessバグ検出をCI前段に組み込める。ピン留めセッション常駐化でバックグラウンドエージェントの安定運用も実現。"
 impact: "`/code-review` が「改名されただけのコマンド」から「PR にインラインコメントを返すレビュー実務ツール」になったため、レビュー運用ガイドや CI 連携の設計を見直す価値がある。ピン留めセッションの常駐化は、バックグラウンドエージェントを常用するチームの運用安定性に直結する。v2.1.147 → v2.1.148 と短時間でリグレッション修正が出ているので、更新する場合は v2.1.148 以降を選ぶのが安全。"
 tags: ["claude-code", "code-review", "background-sessions", "hooks", "release-note"]
 status: "candidate"

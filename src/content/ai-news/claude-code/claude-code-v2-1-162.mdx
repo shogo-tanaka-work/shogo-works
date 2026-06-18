@@ -1,10 +1,11 @@
 ---
-title: "Claude Code v2.1.162 — agents --json に waitingFor、--tools の Grep/Glob 明示が有効化、/effort の既定化確認、権限ルールの修正多数"
+title: "Claude Code v2.1.162：agents waitingFor追加・権限ルール修正多数"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-06-03
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.162"
 summary: "Claude Code v2.1.162 がリリースされた。新機能の追加というより、`claude agents` まわりの操作性改善と、権限ルール・起動処理の不具合修正が中心のパッチ。主な変更は、(1) `claude agents --json` に **waitingFor** が加わり待機セッションのブロック要因（例: 権限プロンプト）が分かる、(2) `--tools` で **Grep/Glob を明示**するとネイティブビルドで専用検索ツールが提供される（従来は無視）、(3) `/effort` が選択レベルを新規セッションの既定として保持する旨を確認表示、(4) オートコンプリートのスラッシュコマンドはクリックで即実行せずプロンプトへ挿入。あわせて WebFetch のプリ承認ドメインへの権限ルール適用、Windows のパス表記マッチ、MCP の timeout 下限、起動時の無言ハングなど多数の不具合を修正している。"
+description: "claude agents --jsonにwaitingForが加わり並行セッションのブロック要因を特定できるようになったほか、WebFetch権限ルールのプリ承認ドメイン適用やWindowsパスのマッチ不具合など権限ガバナンス周りの修正が多数入ったパッチリリース。"
 impact: "日常運用の安定性と権限まわりの正確さを底上げするパッチ。特に WebFetch のプリ承認ドメインに対して明示的な allow/deny/ask が効くようになった点と、Windows でバックスラッシュ表記や大文字小文字差で権限ルールがマッチしなかった問題の修正は、権限ガバナンスを敷いている組織にとって重要。`claude agents --json` の waitingFor は、複数セッションを並行運用する際の監視・自動化に組み込める。"
 tags: ["claude-code", "anthropic", "permissions", "mcp", "windows", "release"]
 status: "candidate"
