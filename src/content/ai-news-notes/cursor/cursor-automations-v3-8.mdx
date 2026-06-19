@@ -1,0 +1,31 @@
+---
+noteFor: "cursor/cursor-automations-v3-8"
+title: "教材化メモ: Cursor Automations v3.8"
+date: 2026-06-18
+tags: ["cursor", "automations", "slash-command", "slack", "github"]
+draft: false
+---
+
+## 教材化のポイント
+
+### /automate コマンドが意味する「メタ自動化」
+
+「自動化を作る作業を自動化する」というコンセプトは教材として説明しやすい。「まず自分でやってみて、それを録画して自動化する」(Codex Record & Replay)との対比で、「会話で作る」という Cursor 流のアプローチを語れる。
+
+### Slack + GitHub のトリガー組み合わせで作れる自動化例
+
+具体的なユースケースを示すと理解しやすい:
+- 「PR レビュー承認 → Slack に通知 → 自動マージ」
+- 「Slack の ✅ 絵文字 → デプロイ開始」
+- 「Issue コメントで /label をつける → 自動ラベル付け」
+
+これらはコードレベルの Webhook 設定なしで実現できる、という点が革新性。
+
+### クラウドエージェント + コンピュータ使用権限
+
+この機能はエージェントが「自分でパソコンを操作しながら作業する」ことを可能にする。Codex の Computer Use や Claude の Computer Use と同じ文脈で、「AIエージェントの作業範囲の拡大」として教材に位置づけられる。
+
+## 関連トピック
+
+- Cursor の Automations 全体像
+- AI エージェントのトリガー設計パターン
