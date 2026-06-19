@@ -1,0 +1,59 @@
+---
+title: "Claude Code v2.1.183：破壊的コマンドブロック・deprecatedモデル警告"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-19
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.183"
+summary: "Claude Code v2.1.183 がリリース。コンテキスト外での git reset --hard や terraform destroy などの破壊的コマンドをブロックする安全機能、deprecated モデルへの警告表示、/config コマンドの操作性改善が含まれる。"
+description: "Claude Code v2.1.183で追加された安全機能を解説。git reset --hard / terraform destroyなどの破壊的コマンドを文脈外で実行しようとした場合にブロックされる。deprecated・自動変更されたモデル使用時にはstderr警告も出力される。"
+impact: "誤操作による作業内容の消失リスクが軽減される。エージェントfrontmatterでモデル指定している場合は deprecated 警告が出る可能性があるため、利用中モデルを確認しておくと安心。"
+tags: ["claude-code", "release-note", "safety", "destructive-commands", "deprecated"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/daily-operations"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.183 がリリースされました。今回の目玉は**破壊的コマンドのブロック**です。`git reset --hard` や `terraform destroy` のような取り消しのきかないコマンドを、明示的な指示がないコンテキストで実行しようとした場合に Claude Code が止めてくれるようになりました。
+
+エージェントとしての安全性を高める方向での継続的な強化で、「うっかり削除した」「間違えて本番環境を壊した」というリスクを減らすことを目的とした変更です。
+
+あわせて、deprecated または自動更新されたモデルを使用している場合に stderr へ警告を出力するようになりました。エージェントの frontmatter でモデルを明示指定している場合は、今後このアラートに注意が必要です。
+
+## 何が変わったか
+
+**安全ブロック機能:**
+
+- `git reset --hard` / `git checkout -- .` / `git clean -fd` / `git stash drop` を、ローカル作業の破棄指示がないコンテキストでブロック
+- `git commit --amend` をそのセッションで行っていないコミットに対してブロック
+- `terraform destroy` / `pulumi destroy` / `cdk destroy` を、対象スタック指定なしでブロック
+
+**モデル警告:**
+
+- 非推奨・自動更新されたモデルを使用している場合に stderr へ警告出力
+- エージェント frontmatter で指定したモデルにも適用
+
+**`/config` 操作改善:**
+
+- `/config --help` で利用可能な全ショートハンドキーを一覧表示
+- `/config` トグルを Enter / Space で変更、Esc で保存終了する操作性改善
+
+その他 WebSearch や思考ブロックに関する複数のバグ修正が含まれます。
+
+## 業務インパクト（一般企業向け）
+
+最も実務的な影響は「意図しない作業消失の防止」です。開発環境での Claude Code 利用時に、誤って `git reset --hard` が走ってローカルの未コミット変更が消えるケースや、インフラ操作で `terraform destroy` が実行されるケースへの安全弁が入りました。
+
+ただし、「明示的に作業を破棄させたい場合」はコンテキストに意図を示すことで実行できます。安全機能は禁止ではなく文脈確認です。
+
+エージェント構成（frontmatter でモデル指定）を使っているチームは、deprecated モデル警告の出力先（stderr）を CI ログで確認する仕組みを作っておくと、気づかないまま旧モデルを使い続けるリスクを防げます。
+
+## 副業・個人活用視点
+
+個人開発でも `git reset --hard` の誤実行は痛手です。特に Claude Code に「前の状態に戻して」と頼むつもりが意図より広い範囲を消されるケースが減ります。
+
+terraform や pulumi を使ったインフラ副業（クラウド構築案件など）でも安全弁になります。「スタック名を指定しない destroy はブロック」というルールは案件ごとの本番環境を守る意味で実践的です。
+
+`/config` の操作改善は小さな変更ですが、「前バージョン（v2.1.181）で追加された `/config key=value` 構文」と合わせて使うと設定管理がより快適になります。
