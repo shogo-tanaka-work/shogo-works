@@ -1,0 +1,37 @@
+---
+noteFor: "claude-code/claude-code-v2-1-183"
+title: "教材化メモ: Claude Code v2.1.183 破壊的コマンドブロック"
+date: 2026-06-19
+tags: ["claude-code", "safety", "destructive-commands"]
+draft: false
+---
+
+## 教材化のポイント
+
+### 「何をブロックするか」の整理
+
+破壊的コマンドのブロックは3つのカテゴリに分かれる:
+
+1. **git 作業消失系**: `git reset --hard` / `git checkout -- .` / `git clean -fd` / `git stash drop`
+2. **git 履歴書き換え系**: `git commit --amend`（セッション内でやっていないコミットへ）
+3. **インフラ削除系**: `terraform destroy` / `pulumi destroy` / `cdk destroy`（スタック指定なし）
+
+「禁止」ではなく「コンテキスト確認」という点を強調する。明示的に「リセットしたい」という意図があれば実行される。
+
+### モデル deprecated 警告の実務的な意味
+
+- エージェント frontmatter でモデルを明示している場合に警告が出る
+- CI/CD で Claude Code を動かしている場合、stderr を監視しないと気づかない
+- 「いつの間にかモデルが変わっていた」を防ぐ安全策として機能する
+
+### /config コマンドの学習順序
+
+1. v2.1.181: `/config key=value` で即時変更
+2. v2.1.183: `/config --help` でキー一覧確認、トグル操作改善
+
+セットで教えると「設定の試行錯誤フロー」として完結する。
+
+## 関連トピック
+
+- Claude Code の安全機能の歴史的変化
+- エージェント実行の安全設計

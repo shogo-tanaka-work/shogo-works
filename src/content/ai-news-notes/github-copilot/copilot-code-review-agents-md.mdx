@@ -1,0 +1,36 @@
+---
+noteFor: "github-copilot/copilot-code-review-agents-md"
+title: "教材化メモ: Copilot コードレビューの AGENTS.md 対応"
+date: 2026-06-18
+tags: ["github-copilot", "code-review", "agents-md", "customization"]
+draft: false
+---
+
+## 教材化のポイント
+
+### AGENTS.md / CLAUDE.md / .cursorrules の並列理解
+
+AI ツールのコンテキスト設定ファイルが増えている:
+- Claude Code: `CLAUDE.md`
+- GitHub Copilot コードレビュー: `AGENTS.md`
+- Cursor: `.cursorrules` / `CURSOR.md`
+
+それぞれのツールが「どのファイルで何を制御するか」の対応表を作ると、複数ツールを使う開発者にとって整理しやすい。
+
+### AGENTS.md に書くべき内容の例
+
+- コーディング規約（命名規則、インデント）
+- 必須のエラーハンドリングパターン
+- 禁止事項（特定ライブラリの使用禁止など）
+- レビュー観点（パフォーマンス・セキュリティ・可読性の優先度）
+
+具体的な AGENTS.md のサンプルを教材に含めると実践的になる。
+
+### ドラフト PR + Copilot レビューの活用パターン
+
+PR を作成したら「まず Copilot にドラフトレビューしてもらい、指摘を直してから人間レビューに出す」というフローが組みやすくなった点を教材化できる。
+
+## 関連トピック
+
+- AI ツールのコンテキスト設定ファイル管理
+- 自動コードレビューの活用パターン
