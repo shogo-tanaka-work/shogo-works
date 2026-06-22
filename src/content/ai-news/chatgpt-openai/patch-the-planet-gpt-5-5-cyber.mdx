@@ -1,0 +1,48 @@
+---
+title: "OpenAI GPT-5.5-Cyber リリースと Patch the Planet：AI が OSS の脆弱性を自動修正"
+tool: "chatgpt-openai"
+toolLabel: "ChatGPT / OpenAI"
+date: 2026-06-22
+sourceUrl: "https://openai.com/index/patch-the-planet/"
+summary: "防衛的セキュリティ特化モデル「GPT-5.5-Cyber」の正式リリースと、AI が 30 以上の OSS プロジェクトの脆弱性を発見・修正する「Patch the Planet」イニシアチブを発表。第1週でマージ済みパッチ 37 件を達成。"
+description: "GPT-5.5-Cyber は CyberGym 85.6%・ExploitGym 39.5% を達成したセキュリティ特化モデル。Trail of Bits・HackerOne と共同で cURL・Go・Python・Sigstore などの OSS を対象に AI 支援の脆弱性修正プログラムを開始。Codex Security プラグインも同時リリースされた。"
+impact: "AI を使った防衛的セキュリティ研究の具体的な実績が示された。OSS メンテナーは Patch the Planet への参加申請で無償の AI 支援を受けられる。Codex Security プラグインにより、通常の開発フロー内で脆弱性検出と修正が可能になる。"
+tags: ["chatgpt-openai", "security", "gpt-5-5-cyber", "codex", "oss"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## アップデート概要
+
+OpenAI は防衛的セキュリティに特化した新モデル「GPT-5.5-Cyber」を正式リリースし、Trail of Bits・HackerOne と共同で OSS の脆弱性を AI 支援で修正する「Patch the Planet」イニシアチブを発表した。
+
+## GPT-5.5-Cyber
+
+セキュリティタスクに特化してトレーニングされたモデルで、主要ベンチマークで単一モデル最高スコアを達成した。
+
+- **CyberGym**: 85.6%
+- **ExploitGym**: 39.5%
+- **SEC-bench Pro**: 69.8%
+
+防衛的セキュリティ（脆弱性発見・パッチ提案）に重点を置いており、攻撃的な用途には制限がかかっている。
+
+## Patch the Planet イニシアチブ
+
+広く使われている OSS の脆弱性を AI が発見し、Trail of Bits のセキュリティエンジニアが人手でレビューしたうえで各プロジェクトに PR を提出するプログラム。
+
+**対象プロジェクト**（主要）: cURL・Go・Python・Sigstore ほか計 30 以上
+
+**第1週の実績**:
+- PR 64 件、Issue 51 件（うち 19 件修正済み）
+- マージ済みパッチ 37 件
+
+AI が発見した脆弱性に対し、人間がレビューして実際のコードに反映するという「AI 発見 + 人間レビュー」パターンを採用している。
+
+## Codex Security プラグイン
+
+Codex のインターフェースに統合された新プラグイン。コードの脆弱性を検出し、修正後のコードを検証する機能を提供する。Patch the Planet の参加プロジェクト以外でも利用可能。
+
+## Patch the Planet への参加
+
+OSS メンテナーは参加申請することで、GPT-5.5-Cyber による脆弱性診断・Codex Security プラグイン・API クレジットの無償提供を受けられる。
