@@ -1,0 +1,49 @@
+---
+title: "Claude Code v2.1.186：MCP CLI 認証・Bash 自動応答など 20件以上のアップデート"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-22
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.186"
+summary: "MCP サーバーへの CLI 認証コマンド追加、`!` Bash コマンドへの Claude 自動応答、/workflows フィルタリングなど多数の改善が含まれる大規模リリース。"
+description: "claude mcp login/logout コマンドで SSH 環境でも MCP 認証が可能に。`!` で実行した Bash コマンドの出力を Claude が自動受け取って応答する機能も追加。スリープ復帰後のストリーミング失敗など 20件以上のバグも修正された。"
+impact: "自動化スクリプトや CI/CD パイプラインで MCP 認証が容易になる。Bash 自動応答により、Claude Code がシェル操作結果を継続的に解釈して次のアクションを取れるエージェント動作が強化される。"
+tags: ["claude-code", "mcp", "cli", "bug-fix", "release"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## アップデート概要
+
+Claude Code v2.1.186 がリリースされた。MCP サーバーへの CLI 直接認証、Bash コマンド出力への自動応答機能など、日常的なワークフローに大きく影響する改善が含まれている。
+
+## 主な変更点
+
+### MCP 認証の CLI 対応
+
+`claude mcp login <name>` と `claude mcp logout <name>` コマンドが追加された。
+
+これまで MCP サーバーの認証はインタラクティブメニューを介して行う必要があったが、今回の変更でコマンドラインから直接実行できるようになった。`--no-browser` フラグを指定すれば、ブラウザが使えない SSH 接続環境でも stdin への URL 貼り付けで認証が完了する。
+
+### `!` Bash コマンドへの自動応答
+
+`!` プレフィックスで実行した Bash コマンドの出力を、Claude が自動的に受け取って応答するようになった。
+
+これにより「コマンドを実行 → 出力を確認 → 次のアクションを Claude に依頼」という手順が一つのフローにまとまる。従来の動作（手動で出力を渡す）に戻したい場合は、設定に `"respondToBashCommands": false` を追加すればよい。
+
+### /workflows フィルタリング・Skills セクション
+
+`/workflows` のエージェント詳細ビューで `f` キーによるステータスフィルタリングが追加された。並行して複数のエージェントを走らせるケースで、完了・失敗・実行中のエージェントを素早く確認できるようになる。
+
+`/plugin` の Installed タブにも「Skills」セクションが追加され、インストール済みスキルの一覧確認が容易になった。
+
+### AWS 認証リフレッシュ対応
+
+`/login` 画面に「Claude Platform on AWS - refresh credentials」オプションが追加された。AWS 環境で長期セッションを維持する際に、セッション切れを手動でリフレッシュできる。
+
+## 主要バグ修正
+
+- **スリープ復帰後のストリーミング失敗**: マシンがスリープから復帰した後にストリーミングリクエストが "Content block not found" や JSON パースエラーで失敗していた問題を修正
+- **取り消し線の表示**: `~~取り消し線~~` がリテラルのチルダとして表示されていた問題を修正
+- **Workflow の無限ループ**: `agent({schema})` でスキーマ検証が失敗し続けた場合に無限ループしていた問題（5回失敗後に中断するよう修正）
+- **バックグラウンドエージェント後の入力無効化**: エージェント実行後に Esc と Ctrl+C が反応しなくなる問題を修正
