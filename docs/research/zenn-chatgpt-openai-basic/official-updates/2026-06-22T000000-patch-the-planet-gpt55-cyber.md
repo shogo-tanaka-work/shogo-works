@@ -1,19 +1,19 @@
 ---
 date: 2026-06-22
-title: "OpenAI GPT-5.5-Cyber リリース・Patch the Planet — OSS 脆弱性を AI で自動修正"
+title: "Patch the Planet 導入事例・GPT-5.5-Cyber 活用 — AI が OSS 脆弱性を自動診断・修正"
 service: "ChatGPT / OpenAI"
 source: https://openai.com/index/patch-the-planet/
 fetched_at: 2026-06-23T07:44:10+09:00
 published_at: 2026-06-22T00:00:00Z
 date_precision: date-only
-category: release
+category: use-case
 ---
 
 # 2026-06-22 OpenAI GPT-5.5-Cyber + Patch the Planet
 
 ## 公式内容の日本語要約
 
-防衛的セキュリティ特化モデル「GPT-5.5-Cyber」を正式リリース。同日に Trail of Bits・HackerOne と共同で OSS の脆弱性を AI 支援で発見・修正する「Patch the Planet」イニシアチブを発表。Codex Security プラグインもリリースされた。
+Trail of Bits・HackerOne と共同で OSS の脆弱性を AI 支援で発見・修正する「Patch the Planet」イニシアチブの導入事例を公開。GPT-5.5-Cyber を活用して 30 以上の OSS プロジェクトを対象に脆弱性診断と PR 提出を実施しており、Codex Security プラグインも活用している。
 
 ## できるようになったこと
 
