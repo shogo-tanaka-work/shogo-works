@@ -1,0 +1,54 @@
+---
+title: "Claude Code v2.1.187：組織モデル制限・credential セキュリティ・CJK ペースト修正など 19件"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-23
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.187"
+summary: "sandbox.credentials 設定で認証情報の漏洩を防ぐセキュリティ強化、組織設定によるモデル制限の UI 反映、CJK テキストのペースト文字化けバグ修正が含まれる。v2.1.186 の翌日に公開された。"
+description: "組織管理者が設定したモデル制限が model picker と CLI に反映されるよう。サンドボックス内コマンドが credential ファイルを読めないようにブロックする sandbox.credentials 設定を追加。韓国語・中国語・日本語テキストのペースト文字化け、MCP ツールの 5分ハング、Remote Control 起動遅延など複数のバグも修正。"
+impact: "企業展開で AI ガバナンスを強化したい管理者に直接効く。モデル制限を Claude Code 側で強制できるため、組織ポリシーとツール動作を一致させやすくなる。日本語ユーザーはペースト文字化けが解消されるため、即アップデートを推奨。"
+tags: ["claude-code", "security", "enterprise", "bug-fix", "cjk", "mcp"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## アップデート概要
+
+Claude Code v2.1.187 が公開された。前バージョン（v2.1.186）のリリースから約 24 時間後のアップデートで、セキュリティ設定の強化、組織レベルのモデル制限の適用、そして日本語・韓国語・中国語テキストのペーストが文字化けするバグの修正が主な内容だ。
+
+## 主な変更点
+
+### sandbox.credentials — 認証情報の漏洩防止
+
+新たに `sandbox.credentials` 設定が追加された。有効にすると、サンドボックス内で実行されるコマンドが認証情報ファイルや秘密環境変数を読み取れなくなる。
+
+Claude Code を CI/CD パイプラインや共有環境で使う場合、意図せず `.env` や `~/.aws/credentials` がコマンドに渡るリスクをブロックできる。組織展開時のセキュリティポリシー設計で活用できる設定だ。
+
+### 組織モデル制限の UI 反映
+
+管理者が組織設定でモデルを制限している場合、model picker・`--model` フラグ・`/model` コマンド・`ANTHROPIC_MODEL` 環境変数のすべてに制限が適用されるようになった。制限されたモデルを選択しようとすると "restricted by your organization's settings" と表示される。
+
+これまでは組織ポリシーで禁じたモデルでも Claude Code 側では選べてしまう状態だったが、今回の変更で一致するようになる。
+
+### CJK テキストのペースト文字化けを修正
+
+韓国語・中国語・日本語（CJK）テキストをターミナルにペーストすると、一部のターミナル（バイト単位で拡張キーイベントを送る実装）で文字化けしていた問題が修正された。
+
+日本語ユーザーが Claude Code を使う上で頻繁に遭遇していたバグで、今回のリリースで解消される。
+
+## その他の主要バグ修正
+
+- **リモート MCP ツールの 5分ハング**: 応答なしのまま 5 分待ち続けていたバグを修正。`CLAUDE_CODE_MCP_TOOL_IDLE_TIMEOUT` でタイムアウト値を上書き可能
+- **フルスクリーンモードのマウス操作**: パーミッションプロンプト・`/model`・`/config` などのメニューでマウスクリックによる選択が可能に
+- **Remote Control 起動遅延**: CA トラスト処理追加により生じていた約 2.7s の起動遅延を修正
+- **`--resume` のエラー**: `-p` で生成なしの場合に `--resume` が "No conversation found" で失敗していた問題を修正
+- **構造化出力の無限再呼び出し**: `--json-schema` / `agent({schema})` で成功後も `StructuredOutput` を繰り返し呼んでいたバグを修正
+
+## 業務インパクト（一般企業向け）
+
+Claude Code の組織展開を検討している場合、今回の 2 つの設定追加（sandbox.credentials・モデル制限 UI 反映）は導入判断に関わる改善だ。セキュリティチームやコンプライアンス担当が懸念しやすい「認証情報の漏洩」と「使用モデルの制御」に具体的な対策が入ったことになる。
+
+## 副業・個人活用視点
+
+日本語ユーザーへの最大の恩恵は CJK ペースト修正だ。プロンプトや日本語テキストをコピペする際の文字化けがなくなるため、日常的な Claude Code の使用体験が改善する。`copilot update` ではなく `claude update` で最新版に更新しておこう。
