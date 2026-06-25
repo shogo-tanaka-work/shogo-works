@@ -1,0 +1,31 @@
+---
+noteFor: "gemini/gemini-35-flash-computer-use"
+title: "教材化メモ：Gemini 3.5 Flash Computer Use — エージェントがPC操作する時代"
+date: 2026-06-24
+tags: ["gemini", "computer-use", "agent", "security", "automation"]
+draft: false
+---
+
+## 教材化ポイント
+
+### Claude vs Gemini の Computer Use 比較
+
+Anthropic の Claude が Computer Use を発表したのに続き、Gemini 3.5 Flash にも同機能が統合された。「複数の主要 AI が PC 操作機能を搭載する」という業界トレンドの具体例として、2 社の実装アプローチを比較する授業ができる。
+
+Anthropic: Claude 3.5 で先行。モデル単体での Computer Use。
+Google: Gemini 3.5 Flash に統合。Enterprise Agent Platform との組み合わせを強調。
+
+### エージェントのセキュリティリスクをどう扱うか
+
+Computer Use は「AI がキーボードとマウスを操作する」ため、誤操作・権限越えのリスクが高い。Google が提供する対策（敵対的トレーニング・人間承認・プロンプトインジェクション検出）は、エージェント設計の「安全弁」として教材化できる。
+
+「どこまで AI に委任し、どこに人間が介在するか」という AI エージェントのリスク管理論の具体例として使いやすい。
+
+### サンドボックス推奨という設計思想
+
+Google が「サンドボックス環境で試すことを強く推奨」としている点は、「エージェントを本番環境で直接動かすな」という設計原則の実例として使える。テスト → ステージング → 本番という標準的なソフトウェア開発フローを AI エージェントにも適用する考え方。
+
+## 関連教材コンテキスト
+
+- Claude Code のサンドボックス・credentials 設定（2026-06-23）と並べると「AI ツールのサンドボックス設計」シリーズになる
+- n8n の AI エージェントワークフローと組み合わせると「AI オーケストレーション + PC 操作」の実装パターンとして深掘りできる
