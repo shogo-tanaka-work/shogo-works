@@ -1,0 +1,64 @@
+---
+title: "Claude Code v2.1.193：全シェルコマンドを auto-mode 判定・OTel 応答ログ・bash パス補完など"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-25
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.193"
+summary: "全 Bash/PowerShell コマンドを auto-mode classifier 経由でルーティングする `autoMode.classifyAllShell` 設定を追加。OTel の `claude_code.assistant_response` ログイベント追加（デフォルトリダクション）、bash モードでのファイルパス補完、MCP headersHelper の 401/403 自動再接続など多数の改善。"
+description: "autoMode.classifyAllShell でシェルコマンドの自動判定範囲を拡大。OTel 応答ログが新たに追加されデプロイ環境のオブザーバビリティが向上。bash モード（!）でファイルパスがライブ補完されるように。MCP headersHelper が 401/403 応答時に自動再実行・再接続するようになった。バックグラウンドエージェントのファントム生成バグなど複数修正。"
+impact: "組織デプロイで Claude Code の応答ログを OTel パイプラインに流す用途が開ける。bash モードの補完改善で `!` コマンドの UX が向上。MCP 接続安定性の向上でエージェント運用コストが下がる。"
+tags: ["claude-code", "auto-mode", "otel", "mcp", "bash", "observability"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## アップデート概要
+
+Claude Code v2.1.193 が 2026-06-25 にリリースされた。全シェルコマンドを auto-mode classifier 経由でルーティングする設定の追加、OpenTelemetry による応答ログ収集機能の追加、bash モード（`!`）でのファイルパス補完、MCP 接続の自動再接続が主な改善点。バックグラウンドエージェント関連の複数バグも修正されている。
+
+## 主な変更点
+
+### autoMode.classifyAllShell — 全シェルコマンドを auto-mode 判定に
+
+新しく `autoMode.classifyAllShell` 設定が追加された。有効にすると、全ての Bash/PowerShell コマンドが auto-mode classifier を経由してルーティングされる。従来は任意コード実行パターンのみが auto-mode の判定対象だった。
+
+auto-mode の判定理由が transcript・denial toast・`/permissions` の「最近の拒否」にも表示されるようになり、なぜ許可/拒否されたかの把握がしやすくなった。
+
+### OTel assistant_response ログイベント
+
+`claude_code.assistant_response` という新しい OpenTelemetry ログイベントが追加された。モデルの応答テキストを含み、OTel パイプラインで Claude Code の入出力を一元管理できるようになる。
+
+デフォルトはリダクション（出力しない）。環境変数で制御できる。
+
+| 変数 | 動作 |
+|---|---|
+| `OTEL_LOG_ASSISTANT_RESPONSES=1` | 応答を記録 |
+| `OTEL_LOG_ASSISTANT_RESPONSES=0` | 応答を記録しない |
+| 未設定 | `OTEL_LOG_USER_PROMPTS` に従う |
+
+すでにユーザープロンプトのログを有効にしている環境では、アップデート後に応答ログも自動で記録されるようになる点に注意。止めたい場合は `=0` を明示設定する。
+
+### bash モード（`!`）でファイルパスをライブ補完
+
+`!` bash モードでファイルパスのライブ補完機能が追加された。シェルコマンドにファイルを渡すときにパスを手入力する手間が減る。
+
+### MCP headersHelper の自動再接続
+
+MCP のツール呼び出しが 401/403 を返した場合、`headersHelper` が自動的に再実行・再接続するようになった。認証トークンの有効期限切れなどで接続が切れてもエラーを処理しながら継続できる。
+
+### バックグラウンドエージェントの複数バグ修正
+
+- ピン留めバックグラウンドエージェントが auto-update のたびに「続きから再開しますか？」を再度尋ねる問題を修正
+- メインターンをバックグラウンド化したときにファントムの「general-purpose (resumed)」サブエージェントが生成されメイン会話を再実行する問題を修正
+- エージェントパネルがサブエージェント表示時に兄弟エージェントを非表示にする問題を修正
+
+## 業務インパクト（一般企業向け）
+
+OTel 応答ログの追加は、Claude Code を組織デプロイしている環境に大きく影響する。すでに `OTEL_LOG_USER_PROMPTS` でプロンプトログを有効にしている場合、アップデート後にモデル応答もログに流れるようになる。データの取り扱い方針によっては `OTEL_LOG_ASSISTANT_RESPONSES=0` を設定して応答をリダクションする必要がある。
+
+バックグラウンドエージェントのファントム生成バグ修正は、エージェントを並行実行している環境で意図しない重複実行が起きていた可能性を排除する。
+
+## 副業・個人活用視点
+
+bash モードでのパス補完は日常的な使い心地の改善。ファイルを参照するシェルコマンドを頻繁に実行する場合は体感的に操作が速くなる。MCP の headersHelper 自動再接続は、外部サービスと連携したエージェント運用での接続安定性に貢献する。
