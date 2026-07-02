@@ -1,0 +1,36 @@
+---
+noteFor: "github-copilot/opus-4-6-fast-deprecated"
+title: "教材化メモ：GitHub Copilot Opus 4.6 (fast) 廃止"
+tool: "github-copilot"
+date: 2026-06-29
+draft: false
+---
+
+## 教材化ポイント
+
+### 1. モデル廃止時の Enterprise 管理者アクション
+
+「廃止後は自動除外されるが、代替を事前に有効化しないとユーザーが選択できない」という設計は、Copilot の モデルポリシー管理の典型例。
+
+**教材への落とし込み方:**
+
+- Enterprise 管理者向け教材の「モデルポリシー管理」セクションで、廃止時のチェックリストとして使える
+- 「自動除外 ≠ 代替の自動有効化」というギャップを具体例で示す材料
+
+### 2. モデル廃止サイクルの理解
+
+Grok Code Fast 1（2026-05-15廃止）、Gemini 系 Web 版削除（2026-05-20）、Opus 4.6 (fast)（2026-06-29廃止）と続く廃止事例は、「Copilot は定期的にモデル整理を行う」という認識を伝える教材になる。
+
+**教材への落とし込み方:**
+
+- モデル選定教材で「特定モデルへの固定依存はリスク」という説明の実例として使える
+- 廃止予告期間（今回は約11日間）が短い場合もある、という注意喚起に使える
+
+### 3. "fast" モデルの位置づけ
+
+Opus 4.6 (fast) → Opus 4.8 (fast) という移行は、「速度最適化モデルは世代交代が速い」というパターンの例として参照可能。
+
+## 関連する過去の廃止事例
+
+- [GitHub Copilot：Grok Code Fast 1廃止](/ai-news/github-copilot/grok-code-fast-1-eol) — 2026-05-08発表、05-15廃止
+- [GitHub Copilot Web版：GeminiモデルとGPT-5.2 Codex等が廃止](/ai-news/github-copilot/copilot-web-models-retired) — 2026-05-20
