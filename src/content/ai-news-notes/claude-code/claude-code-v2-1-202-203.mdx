@@ -1,0 +1,21 @@
+---
+noteFor: "claude-code/claude-code-v2-1-202-203"
+title: "教材化メモ：Claude Code v2.1.202-203 Workflows/OTel/安定性改善"
+tool: "claude-code"
+date: 2026-07-07
+draft: false
+---
+
+## 教材化ポイント
+
+### 1. Workflows教材へのDynamic workflow size追記
+
+Workflows機能の設定教材があれば、「エージェント数の目安を指定するsmall/medium/large設定」を追記できる。強制上限ではない点を明記しておくと誤解を防げる。
+
+### 2. OTel計装の実務ガイド素材
+
+`workflow.run_id`/`workflow.name`属性の追加は、Claude Codeを可観測性基盤に統合する実務ガイドの具体的な設定例として使える。
+
+**教材への落とし込み方:**
+
+- 既存のOTel連携教材があれば、ワークフロー単位のトレース再構築という新しい活用例を追記する
