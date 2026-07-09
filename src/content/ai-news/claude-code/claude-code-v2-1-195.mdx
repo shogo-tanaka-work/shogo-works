@@ -1,0 +1,60 @@
+---
+title: "Claude Code v2.1.195：hook matcher の部分一致バグ修正・日本語音声入力 auto-submit 対応など"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-06-26
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.195"
+summary: "ハイフン付き識別子を持つ hook matcher が誤って部分一致していたバグを修正し、完全一致のみになった。日本語・中国語・タイ語で voice dictation の auto-submit が発火しなかった問題も解消。CLAUDE_CODE_DISABLE_MOUSE_CLICKS 追加、バックグラウンドエージェント関連の複数バグ修正も含む。"
+description: "hook matcher で `code-reviewer` が `reviewer` を含む全ツールに誤ってマッチしていたバグを修正。スペースなし言語の音声入力 auto-submit 修正はロケール利用者に直接影響。バックグラウンドエージェントのデータ消失・クラッシュ後ブランクスクリーン・到達不能デーモンも修正。"
+impact: "hook matcher を使っている場合は既存設定の動作が変わる可能性あり（意図しない部分一致が止まる）。日本語音声入力ユーザーは auto-submit が正常に動くようになる。バックグラウンドエージェントの安定性が向上する。"
+tags: ["claude-code", "hook", "voice-dictation", "bug-fix", "background-agent", "japanese"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## アップデート概要
+
+Claude Code v2.1.195 が 2026-06-26 にリリースされた。hook matcher のハイフン付き識別子バグ修正、日本語・中国語・タイ語での voice dictation auto-submit 修正が目立つ変更点。バックグラウンドエージェント関連のバグも複数解消された。
+
+## 主な変更点
+
+### hook matcher の部分一致バグ修正
+
+ハイフン（`-`）を含む識別子を使っている hook matcher が、誤って文字列の部分一致で動作していた。たとえば `code-reviewer` という matcher が `reviewer` を名前に含む全ての識別子にマッチしてしまっていた。
+
+今回の修正で **完全一致（exact-match）のみ** に変わった。ハイフン付き MCP サーバーの全ツールにマッチさせたい場合は、ワイルドカードを使った正規表現形式（例: `mcp__brave-search__.*`）に変更する必要がある。
+
+hooks 設定でハイフン付き識別子を使っている場合は動作が変わる可能性があるため、アップデート後の動作確認を推奨する。
+
+### 日本語・中国語・タイ語の voice dictation auto-submit 修正
+
+スペースなしで書く言語（日本語・中国語・タイ語）では、voice dictation の auto-submit が正しく発火しないバグがあった。今回の修正でこれらの言語でも音声入力から自動的に送信されるようになった。
+
+日本語環境で Claude Code の音声入力機能を使っていたユーザーは、アップデートで音声入力の体験が改善される。
+
+### macOS 音声入力の無音キャプチャ修正
+
+macOS でデフォルト入力デバイスが変わった後の長時間セッションで、音声ではなく無音をキャプチャしてしまう問題も修正された。外部マイクや AirPods の接続・切断が多い環境での利用に影響する。
+
+### CLAUDE_CODE_DISABLE_MOUSE_CLICKS
+
+フルスクリーンモードでマウスのクリック・ドラッグ・ホバーイベントを無効化する環境変数 `CLAUDE_CODE_DISABLE_MOUSE_CLICKS` が追加された。ホイールスクロールは引き続き有効なため、スクロール操作を残しつつクリック系操作を無効化できる。
+
+### バックグラウンドエージェントの複数バグ修正
+
+- 新しい Claude Code バージョンが書いたジョブが `claude agents` から消えたりデータが失われる問題を修正
+- クラッシュしたバックグラウンドタスクを再度開いたとき最大5秒間ブランクスクリーンが表示される問題を修正
+- control socket の起動が失敗したとき、バックグラウンドエージェントデーモンが到達不能のまま動き続けてリスタートをブロックする問題を修正
+
+## 業務インパクト（一般企業向け）
+
+hooks を使って Claude Code の動作をカスタマイズしている場合は特に注意が必要だ。ハイフン付き識別子（`code-reviewer`・`mcp__brave-search` など）を matcher に使っていた場合、今回の修正で意図しない部分一致がなくなり、想定していた hook が発火しなくなる可能性がある。アップデート前後で hooks の動作を確認することを推奨する。
+
+バックグラウンドエージェントのデータ消失バグの修正は、エージェントを並行実行している環境での信頼性に直接関わる。
+
+## 副業・個人活用視点
+
+日本語音声入力で Claude Code を使っていた場合、今回の auto-submit 修正が直接の体験改善になる。これまで音声認識後に手動で送信していた操作が不要になる。
+
+hooks のカスタマイズをしていない個人利用であれば、アップデートの恩恵のみで影響はない。
