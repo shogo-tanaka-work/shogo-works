@@ -15,6 +15,8 @@
 - **対処**: source-catalog.mdのRunway行・注記に `docs.dev.runwayml.com/api-details/api_changelog/` を追加。「Runway Devの変更履歴は消費者向けchangelogではなくこちらに出る」という注記を追加。
 - **カタログ取り込み判断**: 反映済み（2026-07-10）。
 
+---
+
 ## 2026-07-09: Pika補助ソース `pika.pika.page/posts` は無関係の別サービスだった
 
 ### 学び: `pika.pika.page` は Pika Labs（AI動画生成の pika.art）ではなく、`Good Enough` 社のブログ執筆ツール「Pika」の公式ブログ
