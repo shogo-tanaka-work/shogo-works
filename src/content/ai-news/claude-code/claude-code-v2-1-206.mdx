@@ -1,0 +1,45 @@
+---
+title: "Claude Code v2.1.206：Gatewayの公開エンドポイント対応、/doctorのCLAUDE.md削減提案"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-07-09
+sourceUrl: "https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md"
+summary: "Claude Code v2.1.206で、Gateway機能がAnthropic運営の公開ゲートウェイエンドポイントへのログインに対応。`/doctor`がチェックイン済みCLAUDE.mdの削減提案を行うようになり、`/commit-push-pr`が設定済みpushリモートへのgit pushを自動許可するようになった。バックグラウンドエージェントの自動アップグレード対応など安定性改善も多数含む。"
+description: "Gatewayの公開エンドポイント対応、/doctorのCLAUDE.md削減提案、/commit-push-prのpush自動許可、worktree確認強化など。バックグラウンドエージェントの安定性改善も多数。"
+impact: "Gateway運用者・CLAUDE.mdを肥大化させがちなチーム・worktree運用者に直接影響する改善。バックグラウンドエージェントの自動アップグレード対応で運用の手間も減る。"
+tags: ["claude-code", "gateway", "claude-md", "worktree", "release"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/claude-md-memory"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.206（2026-07-09公開、npm registry上のタイムスタンプで確認）は、Gateway機能・`/doctor`・worktree運用まわりの改善が中心です。
+
+**Gateway機能**が、Anthropic運営の公開ゲートウェイエンドポイントへの`/login`に対応しました。自前でゲートウェイを立てなくても、公式提供のエンドポイント経由で接続できる選択肢が増えたことになります。**`/doctor`**は、チェックイン済み`CLAUDE.md`が肥大化している場合に削減を提案するようになりました。CLAUDE.mdは便利な反面、放置すると膨らみがちなファイルなので、この提案機能は地味ながら実務に効きます。
+
+このほか、`/cd`に`/add-dir`と同様のディレクトリパス補完が追加され、`/commit-push-pr`が設定済みのpushリモートへの`git push`を自動許可するようになりました。`EnterWorktree`はプロジェクトディレクトリ外のworktreeに入る際に確認を求めるようになり、誤操作を防ぎます。バックグラウンドエージェントは、Claude Code更新後にバックグラウンドで自動アップグレードされるようになりました。
+
+なお、本リリースは執筆時点でGitHub Releasesページへの反映がまだで、CHANGELOG.mdとnpm registryのみ先行更新されている状態です。正式なGitHub Release公開後、内容の変更がないか確認するとよいでしょう。
+
+## 何が変わったか
+
+- **Gateway機能**がAnthropic運営の公開ゲートウェイエンドポイントへの`/login`に対応
+- **`/doctor`**がチェックイン済みCLAUDE.mdの削減提案を行うように
+- `/cd`に**ディレクトリパス補完**を追加
+- **`/commit-push-pr`**が設定済みpushリモートへの`git push`を自動許可
+- **`EnterWorktree`**がプロジェクト外worktreeに入る際に確認を要求
+- バックグラウンドエージェントが**Claude Code更新後に自動アップグレード**
+- 期限切れログイン時の誤ったモデルエラー表示、`--resume`/`--continue`のキー入力無反応など多数のバグ修正
+
+## 業務インパクト（一般企業向け）
+
+自前のGatewayインフラを持たない組織でも、Anthropic運営の公開エンドポイント経由でGateway機能を使える選択肢が増えたことは、導入障壁を下げる変化です。CLAUDE.mdが長年の運用でどんどん膨らんでしまっているプロジェクトが多い組織にとって、`/doctor`の削減提案は定期的なメンテナンスの起点として使えます。
+
+worktreeを多用しているチームは、`EnterWorktree`の確認強化によって、誤って意図しないディレクトリに入ってしまう事故を防げます。
+
+## 副業・個人活用視点
+
+CLAUDE.mdを書き足すだけで整理していなかった人は、`/doctor`を実行して削減提案を受けてみると、ファイルがすっきりして読み込み効率も上がります。バックグラウンドエージェントの自動アップグレードは、更新の手間を減らしてくれる地味に嬉しい改善です。
