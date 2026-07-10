@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-07-10: Runway Devの変更履歴は消費者向けchangelogとは別ドメインに出る
+
+### 学び: Runway Dev（開発者/エンタープライズAPIプラットフォーム）自身の変更履歴は `docs.dev.runwayml.com/api-details/api_changelog/` にある
+
+- **発見**: 2026-07-08にRunway News（`runwayml.com/news/introducing-runway-dev`）で発表された「Runway Dev」が、消費者向け製品changelog（`runwayml.com/changelog`）に何日経っても反映されないため継続保留にしていたが、実際にはRunway Dev自身が別ドメインで独自のAPI changelogを運用しており、2026-07-08付で「Seedream 5.0 Pro in Runway API」というエントリが既に存在していた。
+- **原因**: source-catalogのRunway補助ソースが`runwayml.com/news`のみで、Runway Devという新製品ライン自体が別ドメイン・別changelogを持つ可能性を想定していなかった。
+- **対処**: source-catalog.mdのRunway行・注記に `docs.dev.runwayml.com/api-details/api_changelog/` を追加。「Runway Devの変更履歴は消費者向けchangelogではなくこちらに出る」という注記を追加。
+- **カタログ取り込み判断**: 反映済み（2026-07-10）。
+
 ## 2026-07-09: Pika補助ソース `pika.pika.page/posts` は無関係の別サービスだった
 
 ### 学び: `pika.pika.page` は Pika Labs（AI動画生成の pika.art）ではなく、`Good Enough` 社のブログ執筆ツール「Pika」の公式ブログ

@@ -18,7 +18,7 @@
 | Dify | https://github.com/langgenius/dify/releases | https://dify.ai/blog | 週1〜2回 | docs/research/zenn-dify-basic/official-updates |
 | n8n | https://github.com/n8n-io/n8n/releases | https://docs.n8n.io/release-notes/ | ほぼ毎日（stable + pre-release） | docs/research/zenn-n8n-basic/official-updates |
 | Meta AI | https://ai.meta.com/blog/ | https://www.meta.ai/ | 月数回 | docs/research/zenn-meta-ai-basic/official-updates |
-| Runway | https://runwayml.com/changelog | https://runwayml.com/news | 月数回 | docs/research/zenn-runway-basic/official-updates |
+| Runway | https://runwayml.com/changelog | https://runwayml.com/news 、https://docs.dev.runwayml.com/api-details/api_changelog/（Runway Dev API changelog） | 月数回 | docs/research/zenn-runway-basic/official-updates |
 | xAI / Grok | https://docs.x.ai/docs/release-notes | https://x.ai/news | 週1〜2回 | docs/research/zenn-xai-grok-basic/official-updates |
 | ByteDance Seed | https://seed.bytedance.com/en/blog/ | なし | 月数回 | docs/research/zenn-bytedance-seed-basic/official-updates |
 | Pika | https://pika.art/blog | https://pika.art/ | 月数回 | docs/research/zenn-pika-basic/official-updates |
@@ -69,7 +69,7 @@ Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行
 - n8n GitHub Releasesは必ずpagination込みで確認します。HTMLの1ページ目だけを見て完了扱いにしません。
 - **Workspace Updates Blog** は週次Recap（`weekly-recap-MM-DD-2026.html`）に集約されますが、**個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細**で日付もはっきりします。多言語対応・地域ロールアウト・GA切替などは個別ポストにのみ載るため、Recap だけで完了扱いにしません。
 - Difyのpre-releaseは、対象期間内であれば `channel: pre-release` として含めます。
-- Runway は changelog だけでなく News に新製品発表が出ることがあります。`Introducing Runway Agent` のような大型発表は changelogに載らない場合があるため、`runwayml.com/news` も確認します。
+- Runway は changelog だけでなく News に新製品発表が出ることがあります。`Introducing Runway Agent` のような大型発表は changelogに載らない場合があるため、`runwayml.com/news` も確認します。**「Runway Dev」（開発者/エンタープライズ向けAPIプラットフォーム、2026-07-08 News発表）自体の変更履歴は `runwayml.com/changelog`（消費者向け製品changelog）には反映されず、別ドメイン `docs.dev.runwayml.com/api-details/api_changelog/` に出ます**（2026-07-09に「Seedream 5.0 Pro in Runway API」を確認）。Runway Devの続報を追う場合はこちらも確認します。
 - Pikaは日付付きchangelogが少ないため、公式Blogの日付を優先します。トップページ観測に留まる場合は `date_precision: observed` を付けます。**`pika.pika.page`（`pika.page`）はPika Labs（AI動画生成のpika.art）とは無関係の別サービス**（`Good Enough`社のブログ執筆ツール「Pika」）です。過去のカタログでは補助ソースとして誤って併記していましたが、2026-07-09の巡回で無関係と確認したため対象から除外しました。Pika Labsの補助確認は `pika.art/` トップページ観測のみとします。
 
 ## 二次ソース（一次ソース URL 探索の補助のみ）
