@@ -1,0 +1,22 @@
+---
+noteFor: "github-copilot/copilot-cli-no-pat-github-actions"
+title: "教材化メモ：Copilot CLIのGitHub Actions認証簡素化"
+tool: "github-copilot"
+date: 2026-07-02
+draft: false
+---
+
+## 教材化ポイント
+
+### 1. CI/CD教材のセキュリティベストプラクティスに追加
+
+「長期間有効なシークレットを避け、短命なトークン（GITHUB_TOKEN）を優先する」というCI/CDセキュリティの基本原則の実例として使える。
+
+**教材への落とし込み方:**
+
+- GitHub Actions教材があれば、`permissions: copilot-requests: write` の設定例を追記
+- 「組織所有リポジトリではAIクレジットが組織課金になる」という点をコスト管理の注意点として明記
+
+### 2. 既存PAT運用からの移行手順
+
+すでにPATベースでCopilot CLIをCI連携している読者向けに、移行チェックリスト（ポリシー有効化→ワークフロー権限追加→PAT無効化）を教材化できる。
