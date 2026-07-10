@@ -1,0 +1,44 @@
+---
+title: "Claude Code v2.1.202-203：Dynamic workflow size設定・MCP roots対応・バックグラウンドエージェント安定性改善"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-07-07
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.203"
+summary: "Claude Code v2.1.202-203では、`/config`にワークフローのエージェント数目安を設定する「Dynamic workflow size」、OTelテレメトリへのワークフロー実行単位属性の追加、ログイン期限切れ前の警告表示、MCPの`roots/list`対応、バックグラウンドエージェントの応答不能・PATH継承などの安定性バグ修正がまとめて入った。"
+description: "ワークフローのエージェント数目安を設定できるDynamic workflow size、OTel計装の拡張、ログイン期限警告、MCP roots対応、バックグラウンドエージェントの複数安定性バグ修正を含む2リリース分の変更をまとめて紹介。"
+impact: "Workflows機能やバックグラウンドエージェントを運用チームに組み込んでいる組織にとって、可観測性と安定性が両方向上する。ログイン期限警告は、気づかないうちに認証切れで作業が止まるトラブルを防ぐ。"
+tags: ["claude-code", "workflows", "opentelemetry", "mcp", "reliability", "release"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.202（2026-07-06T22:51Z）とv2.1.203（2026-07-07T21:06Z）は、いずれもWorkflows機能とバックグラウンドエージェント運用の使い勝手・信頼性を高める内容です。
+
+v2.1.202では、`/config`に**「Dynamic workflow size」**（small/medium/large）が追加されました。これはワークフローで使うエージェント数の目安を指定するもので、強制的な上限ではなく「だいたいこのくらいの規模で動かしたい」という希望を伝える設定です。あわせて、ワークフロー生成エージェントのOTelテレメトリに`workflow.run_id`・`workflow.name`属性が追加され、外部の可観測性基盤でワークフロー実行単位のログを再構築できるようになりました。
+
+v2.1.203では、**ログイン期限切れ前の警告表示**が追加され、気づかないうちに認証が切れて作業が止まるという事態を防ぎやすくなりました。また手動権限モード時のフッターバッジ追加、MCPの`roots/list`に追加の作業ディレクトリを反映し変更通知を送る対応も入っています。バックグラウンドエージェント関連では、応答不能状態・PATH継承の不具合・`ANTHROPIC_BASE_URL`の消失・daemon自動アップグレード時に全セッションが停止する不具合など、複数の安定性バグがまとめて修正されました。VSCodeには「Enable Remote Control for all sessions」設定も追加されています。
+
+## 何が変わったか
+
+- **Dynamic workflow size**（small/medium/large）を`/config`に追加 — ワークフローのエージェント数目安を指定
+- ワークフロー生成エージェントのOTelテレメトリに**`workflow.run_id`/`workflow.name`属性**を追加
+- **ログイン期限切れ前の警告表示**を追加
+- 手動権限モード時の**フッターバッジ**追加
+- MCPの`roots/list`が追加の作業ディレクトリを反映、変更通知を送信
+- バックグラウンドエージェントの**応答不能・PATH継承・`ANTHROPIC_BASE_URL`消失・daemon自動アップグレード時の全セッション停止**を修正
+- VSCodeに**「Enable Remote Control for all sessions」**設定を追加
+- Remote Control(モバイル/web)からのコマンド送信失敗、キャプションなし添付の消失を修正
+- `/review <pr>`が単発高速レビューの挙動に戻る変更
+
+## 業務インパクト（一般企業向け）
+
+Workflows機能を使ってタスクを複数エージェントに分散させている組織は、Dynamic workflow sizeで「どのくらいの規模感で動かすか」を制御しやすくなります。OTelへの`workflow.run_id`属性追加は、既存の可観測性基盤（Datadog等）でワークフロー単位のトレースを再構築したい運用チームにとって有用です。
+
+ログイン期限切れ前の警告は地味ながら実務上重要です。特に長時間のバックグラウンドタスクを走らせている最中に認証が切れて気づかないまま止まっていた、というトラブルを防げます。バックグラウンドエージェントの一連の安定性修正も、CI的にエージェントへタスクを任せる運用を安心して続けられる材料になります。
+
+## 副業・個人活用視点
+
+複数のリモートセッションを使い分けている人は、VSCodeの「Enable Remote Control for all sessions」設定で、いちいちセッションごとに有効化する手間が省けます。ログイン期限切れの警告表示も、作業中に急に認証エラーで止まるストレスを減らしてくれる地味だが嬉しい改善です。

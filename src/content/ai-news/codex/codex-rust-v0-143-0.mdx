@@ -1,0 +1,47 @@
+---
+title: "Codex rust-v0.143.0：リモートプラグイン既定有効化・OS標準プロキシ対応・Bedrock GPT-5.6追加"
+tool: "codex"
+toolLabel: "OpenAI Codex"
+date: 2026-07-08
+sourceUrl: "https://github.com/openai/codex/releases/tag/rust-v0.143.0"
+summary: "OpenAI Codexのstable版v0.143.0が公開された。リモートプラグインの既定有効化、macOS/WindowsのシステムプロキシPAC/WPAD対応、Amazon Bedrock向けGPT-5.6系モデル追加、MCPツールのtool search既定化、`codex remote-control pair`コマンド追加が中心。"
+description: "Codex stable版v0.143.0でリモートプラグインが既定有効化、企業プロキシ経由の接続に対応、Bedrock向けGPT-5.6系モデルとmax reasoning effortを追加。MCPツールもtool search既定化で運用性が向上。"
+impact: "企業プロキシ配下のユーザー、Bedrock利用者、プラグイン・MCPサーバー運用チームに直接影響する大型リリース。hooks.jsonの設定バリデーションも緩和され、設定の自由度が上がった。"
+tags: ["codex", "plugins", "proxy", "bedrock", "mcp", "release-note"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/codex/plugins-overview"
+draft: false
+---
+
+## 要約
+
+OpenAIは2026年7月8日、Codexのstable版 `rust-v0.143.0` を公開しました。直近数日はalphaが連日出る状態が続いていましたが、今回はそれらを取り込んだstableで、プラグイン運用・ネットワーク環境対応・クラウド連携・MCPの4領域がまとめて強化された大型リリースです。
+
+まず**リモートプラグインが既定で有効化**され、npmマーケットプレイスソース対応やカタログでのローカル/リモートバージョン表示が強化されました。ネットワーク面では、macOS/WindowsのシステムプロキシをPAC/WPAD経由で認識し、認証・Responses API通信を適切にルーティングできるようになっています。これは社内プロキシを経由する企業環境でCodexを使う際の障壁を下げる変更です。
+
+クラウド連携では、**Amazon Bedrock向けにGPT-5.6系（Sol/Terra/Luna）モデルが追加**され、`max` reasoning effortが正式サポートされました。MCP関連では、MCPツールが既定でtool searchを使用するようになり、ChatGPTホスト型MCPサーバーがセッション認証を明示的に利用できるようになっています。また `codex remote-control pair` コマンドが追加され、稼働中のdaemonから手動でペアリングコードを生成できるようになりました。
+
+このほか、hooks.jsonのトップレベルメタデータ検証が緩和されるなど、既存機能の派生改善も含まれています。
+
+## 何が変わったか
+
+- **リモートプラグインが既定で有効化**（npmマーケットプレイスソース対応、カタログ表示強化）
+- macOS/Windowsの**システムプロキシ（PAC/WPAD）**経由の認証・通信ルーティングに対応
+- `codex remote-control pair` コマンド追加（稼働中デーモンからのペアリングコード生成）
+- **Amazon Bedrock向けGPT-5.6系（Sol/Terra/Luna）モデル**追加、`max` reasoning effortを正式サポート
+- MCPツールが**既定でtool searchを使用**、ChatGPTホスト型MCPサーバーのセッション認証利用に対応
+- app-serverクライアントが環境情報取得・子スレッド一覧取得・任意ターンからの履歴フォークに対応
+- **hooks.json**のトップレベルメタデータ検証を緩和（派生改善）
+- Windows ConPTY・サンドボックス資格情報再試行・TUI安全確認プロンプト残留など多数のバグ修正
+- OpenSSL/Hono/fast-uri/quick-xml/crossbeam-epochの更新（セキュリティ対応）
+
+## 業務インパクト（一般企業向け）
+
+企業プロキシ配下でCodexを使おうとして接続に苦労していた組織にとって、PAC/WPAD経由のシステムプロキシ対応は導入障壁を下げる直接的な改善です。情シス部門は、これで社内ネットワークポリシーとの整合性を取りやすくなります。
+
+Amazon Bedrock経由でGPT-5.6系モデルが使えるようになったことは、AWS環境でAIエージェント基盤を統一したい組織にとって選択肢が広がる変化です。リモートプラグインの既定有効化とMCP tool searchの既定化は、複数チームでプラグイン・MCPサーバーを共有運用している組織の管理性を高めます。`codex remote-control pair`は、リモート実行環境の運用を手動で制御したい場面で役立ちます。
+
+## 副業・個人活用視点
+
+個人でCodexを使っている場合も、システムプロキシ対応は在宅外の作業環境（カフェのWi-Fi経由の社内VPN等）での接続安定性に効いてきます。hooks.jsonの設定バリデーション緩和は、自分用のカスタムhookを試行錯誤しながら作っている人にとって、細かい制約に引っかかりにくくなる嬉しい変更です。

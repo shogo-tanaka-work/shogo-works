@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-07-09: Pika補助ソース `pika.pika.page/posts` は無関係の別サービスだった
+
+### 学び: `pika.pika.page` は Pika Labs（AI動画生成の pika.art）ではなく、`Good Enough` 社のブログ執筆ツール「Pika」の公式ブログ
+
+- **発見**: 日次巡回で `pika.pika.page/posts` を確認したところ、投稿内容（テーブル機能・変数挿入・Bandcamp埋め込み・多言語ブログ対応など）がAI動画/画像生成と無関係で、ブログCMS機能の話であることが判明。過去の日次サマリーでは「直前投稿2026-06-24」「直後投稿2026-07-08予定」という観測を`pika.pika.page`の投稿日から拾っており、Pika Labs本体の更新と誤認していた可能性が高い。
+- **原因**: source-catalogのPika補助ソースに `https://pika.pika.page/posts` を「本文を取りやすい補助ソース」として登録していたが、ドメイン名の類似（pika）のみで同一サービスと誤認していた。
+- **対処**: source-catalog.md のPika行・注記から `pika.pika.page` を削除。Pika Labs（pika.art）の補助確認は `pika.art/` トップページ観測のみとする。過去の日次サマリーで「pika.pika.page由来の観測」を根拠にしていた記述は、今後参照する際は無効な情報として扱う。
+- **カタログ取り込み判断**: 反映済み（2026-07-09）。
+
+---
+
 ## 2026-06-04: openai.com 個別ポストの取りこぼし（403ブロック）
 
 ### 学び: openai.com はサーバー直アクセス（WebFetch / curl）を 403 で全面ブロックする

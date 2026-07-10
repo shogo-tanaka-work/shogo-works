@@ -1,0 +1,42 @@
+---
+title: "n8n 2.30.0：Instance AI課金分離・Kafka mTLS・Microsoft Service Principal認証など機能集約"
+tool: "n8n"
+toolLabel: "n8n"
+date: 2026-07-07
+sourceUrl: "https://github.com/n8n-io/n8n/releases/tag/n8n%402.30.0"
+summary: "n8n 2.30.0がpre-releaseとして公開。Instance AI課金の専用クレジットプール化、コミュニティノード型定義のAI Assistant対応、KafkaのmTLS認証、Microsoft Excel/Teams/To DoのService Principal認証、プライベート資格情報共有の再有効化など、6月〜7月上旬分の機能を集約したマイナーリリース。n8nは通常バグ修正中心のリリースは記事化を見送っているが、今回は複数の実質的な新機能を含むため取り上げる。"
+description: "n8n 2.30.0では、Instance AI課金の専用クレジットプール化、Kafka mTLS認証、Microsoft 365系ノードのService Principal認証など実質的な機能追加が集約されている。"
+impact: "Instance AI利用組織はクレジット管理がより明確になる。Kafka連携でmTLS認証が使えるようになり、Microsoft 365系ノードでService Principal認証が使えるようになったことで、セキュリティ要件の厳しい環境での運用がしやすくなった。"
+tags: ["n8n", "billing", "kafka", "microsoft", "release"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+**n8n 2.30.0がpre-releaseとして公開**されました。n8nは通常、バグ修正中心のマイナーリリースは記事化を見送っていますが、今回は6月〜7月上旬にかけて積み上がった**複数の実質的な新機能**を集約した内容のため、まとめて取り上げます。
+
+目玉は次の3点です。**Instance AI課金の専用クレジットプール化**（AI利用コストを他の利用と切り分けて管理可能に）、**KafkaノードのmTLS認証対応**（証明書ベースの相互認証）、**Microsoft Excel / Teams / To DoノードのService Principal認証対応**（個人アカウントに依存しないエンタープライズ認証）です。加えて、**コミュニティノードの型定義がAI Assistantに対応**し、**プライベート資格情報共有が再有効化**されました。
+
+## 何が変わったか
+
+- **Instance AI課金**: AIクレジットが専用のクレジットプールとして分離管理可能に
+- **コミュニティノードの型定義**: n8n AI Assistantが型定義を認識できるように対応
+- **Kafka**: mTLS認証（証明書ベースの相互認証）に対応
+- **Microsoft 365系ノード（Excel / Teams / To Do）**: Service Principal認証に対応
+- **プライベート資格情報共有**: 再有効化
+
+## 業務インパクト（一般企業向け）
+
+**Instance AI課金の専用クレジットプール化**は、n8nインスタンス全体のAI利用コストを他のリソース利用と切り分けて把握したい組織にとって、コスト管理の透明性を高める変更です。AI機能の利用が増えるほど、この分離管理の価値は大きくなります。
+
+**Kafka mTLS認証**は、証明書ベースの相互認証が要求されるセキュリティ要件の厳しい環境でのKafka連携を可能にします。金融・医療などコンプライアンス要件の厳しい業界でKafkaを使ったイベント駆動アーキテクチャとn8nを連携させたい組織にとって、導入のハードルが下がります。
+
+**Microsoft 365系ノードのService Principal認証**は、これまで個人のMicrosoftアカウントに依存していたExcel / Teams / To Doとの連携を、組織のService Principal（アプリケーション単位の認証）で運用できるようにします。担当者の退職・異動でワークフローが止まるリスクを避けたいエンタープライズ運用にとって、重要な改善です。
+
+## 副業・個人活用視点
+
+複数のクライアントのn8nワークフローを構築している人にとって、Microsoft 365系ノードのService Principal認証対応は、クライアント企業のセキュリティポリシーに適合しやすくなるという実務的なメリットがあります。個人アカウント連携を避けたいクライアントにも、この認証方式なら提案しやすくなります。
+
+**プライベート資格情報共有の再有効化**は、チームで開発する際の運用を楽にします。以前無効化されていた機能が戻ってきた形なので、以前使っていた人は改めて設定を確認するとよいでしょう。

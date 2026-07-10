@@ -21,7 +21,7 @@
 | Runway | https://runwayml.com/changelog | https://runwayml.com/news | 月数回 | docs/research/zenn-runway-basic/official-updates |
 | xAI / Grok | https://docs.x.ai/docs/release-notes | https://x.ai/news | 週1〜2回 | docs/research/zenn-xai-grok-basic/official-updates |
 | ByteDance Seed | https://seed.bytedance.com/en/blog/ | なし | 月数回 | docs/research/zenn-bytedance-seed-basic/official-updates |
-| Pika | https://pika.art/blog | https://pika.art/、https://pika.pika.page/posts | 月数回 | docs/research/zenn-pika-basic/official-updates |
+| Pika | https://pika.art/blog | https://pika.art/ | 月数回 | docs/research/zenn-pika-basic/official-updates |
 
 「想定更新頻度」は巡回時の「無更新が想定通りか異常か」を判別する目安です。`ほぼ毎日`カテゴリで何日も無更新が続く場合はソース取得失敗を疑います。
 
@@ -70,7 +70,7 @@ Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行
 - **Workspace Updates Blog** は週次Recap（`weekly-recap-MM-DD-2026.html`）に集約されますが、**個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細**で日付もはっきりします。多言語対応・地域ロールアウト・GA切替などは個別ポストにのみ載るため、Recap だけで完了扱いにしません。
 - Difyのpre-releaseは、対象期間内であれば `channel: pre-release` として含めます。
 - Runway は changelog だけでなく News に新製品発表が出ることがあります。`Introducing Runway Agent` のような大型発表は changelogに載らない場合があるため、`runwayml.com/news` も確認します。
-- Pikaは日付付きchangelogが少ないため、公式Blogの日付を優先します。トップページ観測に留まる場合は `date_precision: observed` を付けます。`pika.pika.page/posts` が補助ソースとして本文を取りやすい場合があります。
+- Pikaは日付付きchangelogが少ないため、公式Blogの日付を優先します。トップページ観測に留まる場合は `date_precision: observed` を付けます。**`pika.pika.page`（`pika.page`）はPika Labs（AI動画生成のpika.art）とは無関係の別サービス**（`Good Enough`社のブログ執筆ツール「Pika」）です。過去のカタログでは補助ソースとして誤って併記していましたが、2026-07-09の巡回で無関係と確認したため対象から除外しました。Pika Labsの補助確認は `pika.art/` トップページ観測のみとします。
 
 ## 二次ソース（一次ソース URL 探索の補助のみ）
 
