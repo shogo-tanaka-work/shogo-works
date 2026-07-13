@@ -1,0 +1,44 @@
+---
+title: "Claude Code v2.1.207：Auto modeがBedrock/Vertex/Foundryでopt-in不要に、Opus 4.8がデフォルトへ"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-07-11
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.207"
+summary: "Claude Code v2.1.207で、Auto modeがAmazon Bedrock・Google Vertex AI・Microsoft Foundry上で環境変数によるopt-inなしに利用可能になった。あわせてこれらクラウド連携のデフォルトモデルがClaude Opus 4.8に変更。Plugin hooks等でのシェルインジェクション対策強化という互換性破壊変更も含まれる。"
+description: "Auto modeのopt-in撤廃とOpus 4.8デフォルト化、Plugin hooksのシェルインジェクション対策、多数のバグ修正。"
+impact: "Bedrock/Vertex/Foundry経由でClaude Codeを利用する企業ユーザーと、Pluginを開発するサードパーティ開発者に直接影響する変更。"
+tags: ["claude-code", "auto-mode", "bedrock", "vertex-ai", "security", "release"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/auto-mode"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.207（2026-07-11公開）は、クラウド連携まわりの挙動変更とセキュリティ強化が中心のリリースです。
+
+**Auto mode**が、Amazon Bedrock・Google Vertex AI・Microsoft Foundry上で`CLAUDE_CODE_ENABLE_AUTO_MODE`によるopt-inなしに利用可能になりました。無効化したい場合は設定の`disableAutoMode`を使います。あわせて、Bedrock・Vertex・Claude Platform on AWSのデフォルトモデルが**Claude Opus 4.8**に変更されました。Auto modeの設定読み込み元も、リポジトリ内`.claude/settings.local.json`からユーザー単位の`~/.claude/settings.json`に変更されています。
+
+セキュリティ面では、Plugin hooks・monitors・MCP headersHelperのシェル形式コマンド内で`${user_config.*}`を直接展開することが拒否されるようになりました。シェルインジェクション対策で、hooksはexec形式（`args`配列）または`$CLAUDE_PLUGIN_OPTION_<KEY>`を使う必要があります。Plugin option値（`pluginConfigs`）もプロジェクトレベルの`.claude/settings.json`からは読み込まれなくなり、ユーザー設定・`--settings`・管理設定のみが有効になりました。
+
+このほか、長い応答ストリーミング時のターミナルフリーズ・キー入力遅延の修正、非対話実行（`claude -p`、SDK）時にセキュリティ同意ダイアログを表示せず同意済みとして記録してしまう不具合の修正、自動アップデータが`~/.local/bin/claude`のカスタムランチャーを毎リリース上書きしてしまう不具合の修正（`/doctor`が外部管理ランチャーを報告するように）など、多数のバグ修正が含まれます。
+
+## 何が変わったか
+
+- **Auto mode**がBedrock/Vertex AI/Foundry上でopt-inなしに利用可能に（`disableAutoMode`で無効化可）
+- Bedrock/Vertex/Claude Platform on AWSの**デフォルトモデルがClaude Opus 4.8**へ変更
+- Auto mode設定の読み込み元がプロジェクト単位からユーザー単位（`~/.claude/settings.json`）に変更
+- **Plugin hooks等でのシェルインジェクション対策強化**（`${user_config.*}`直接展開を拒否、破壊的変更）
+- 自動アップデータのカスタムランチャー上書き問題を修正、`/doctor`が外部管理ランチャーを検知
+- 非対話実行時のセキュリティ同意記録の不具合、ストリーミング時のターミナルフリーズなど多数のバグ修正
+
+## 業務インパクト（一般企業向け）
+
+Bedrock・Vertex AI・Foundry経由でClaude Codeを導入している組織は、これまで明示的なopt-inが必要だったAuto modeが既定で有効になる点に注意が必要です。承認ダイアログの自動化が進む一方、デフォルトモデルがOpus 4.8に切り替わることで**利用料が変化する可能性**があります。予算管理を厳密に行っているチームは、`disableAutoMode`設定とモデル選定を早めに確認しておくとよいでしょう。
+
+Pluginを配布・利用している組織は、シェルインジェクション対策によって既存のhooks/monitors設定が動かなくなる可能性がある**互換性破壊変更**です。`${user_config.*}`をシェル形式コマンドで直接使っている箇所がないか、アップデート前に棚卸しすることを推奨します。
+
+## 副業・個人活用視点
+
+個人でBedrock/Vertex経由のClaude Codeを使っている場合も、Opus 4.8への切り替わりで体感速度や出力の質、コストが変わる可能性があります。Pluginを自作している人は、hooksの実装をexec形式に寄せておくと今後の破壊的変更にも強くなります。
