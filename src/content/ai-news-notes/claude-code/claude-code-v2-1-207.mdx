@@ -1,0 +1,17 @@
+---
+noteFor: "claude-code/claude-code-v2-1-207"
+title: "教材化メモ：Claude Code v2.1.207"
+tool: "claude-code"
+date: 2026-07-11
+draft: false
+---
+
+## 教材化ポイント
+
+### 1. Auto Mode解説教材への追記候補
+
+`src/content/knowledge/ai-tools/claude-code/auto-mode.mdx`は現状Maxプラン向けの説明が中心。Bedrock/Vertex/Foundry経由のopt-in撤廃・Opus 4.8デフォルト化はクラウド連携固有の変更で、既存記事の前提を誤りにするものではないため、今回はKnowledge最小反映を見送り。クラウド連携版のAuto mode運用について独立した教材が必要になった場合に、この更新を起点として追記する。
+
+### 2. Pluginセキュリティ教材の素材
+
+Plugin hooks/monitors/MCP headersHelperのシェルインジェクション対策（`${user_config.*}`直接展開拒否）は、Plugin開発のベストプラクティス教材（exec形式推奨、`$CLAUDE_PLUGIN_OPTION_<KEY>`の使い方）の素材になる。既存のPlugin/hooks系教材があれば、破壊的変更の注意書きとして追記候補。
