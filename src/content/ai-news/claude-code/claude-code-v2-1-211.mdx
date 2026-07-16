@@ -1,0 +1,43 @@
+---
+title: "Claude Code v2.1.211：権限プレビューの視覚偽装対策とキャッシュ課金バグ修正"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-07-15
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.211"
+summary: "Claude Code v2.1.211はセキュリティ強化が中心のリリース。チャットチャンネルに中継される権限プレビューが双方向オーバーライド文字やゼロ幅文字による視覚偽装を許してしまう不具合を修正し、Bedrock/Vertex/Mantle/Foundryでプロンプトキャッシュが毎リクエスト新規課金されてしまう回帰バグも修正した。"
+description: "権限プレビューへの視覚偽装対策、auto modeのPreToolUse ask判定上書きバグ修正、Bedrock/Vertex等のキャッシュ課金バグ修正、--forward-subagent-textの追加、permission ruleの保存先変更など。"
+impact: "チャットチャンネル連携でClaude Codeを承認しているチーム、Bedrock/Vertex/Mantle/Foundry経由の運用者、worktreeで権限ルールを共有したいチームに直接影響する修正。"
+tags: ["claude-code", "security", "permissions", "bedrock", "vertex", "release"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/hooks"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.211（2026-07-15公開）はセキュリティ強化が中心のリリースです。チャットチャンネルに中継される権限プレビューが、双方向オーバーライド文字・ゼロ幅文字・見た目が引用符に似た文字を無害化していなかったため、ツール入力が承認メッセージを視覚的に改ざんできてしまう不具合を修正しました。あわせて、auto modeがサンドボックス外Bashに対するPreToolUseフックの`ask`判定を上書きしてしまう不具合や、権限プレビューの入力検証が複数ハードリンクを持つファイルを見逃す不具合など、関連するセキュリティ修正も複数含まれています。
+
+コスト面では、Bedrock・Vertex・Mantle・Foundryで末尾のシステムコンテキストブロックが毎リクエスト新規入力トークンとして課金されてしまうプロンプトキャッシュの回帰バグが修正されました。クラウド経由でClaude Codeを運用しコストを注視している組織には実質的な影響があります。
+
+このほか、新機能として`--forward-subagent-text`フラグ（環境変数`CLAUDE_CODE_FORWARD_SUBAGENT_TEXT`）が追加され、stream-json出力にsubagentのテキストとthinkingを含められるようになりました。「always allow」の権限ルール保存先がgitリポジトリルートに変更され、worktree間で承認設定が引き継がれるようになった点も運用上のポイントです。
+
+## 何が変わったか
+
+- 権限プレビューの視覚偽装対策（双方向オーバーライド文字・ゼロ幅文字・偽装引用符文字の無害化）
+- auto modeがPreToolUseフックの`ask`判定を上書きしてしまう不具合を修正
+- 権限プレビューの入力検証が複数ハードリンクを持つファイルを見逃す不具合を修正
+- Bedrock/Vertex/Mantle/Foundryのプロンプトキャッシュ課金バグを修正（コスト影響あり）
+- `--forward-subagent-text`でsubagentのテキスト・thinkingをstream-json出力に含められるように
+- 「always allow」権限ルールの保存先がリポジトリルートになり、worktree間で共有されるように
+- スリープ復帰後の複数セッション同時ログアウト、プラグインMCPサーバーの再接続不良、`/clear`後のコストカウンター未リセットなど多数のバグ修正
+
+## 業務インパクト（一般企業向け）
+
+Slack等のチャットチャンネルにClaude Codeの権限プレビューを中継して承認フローを回している組織にとって、視覚偽装対策は見過ごせない修正です。特殊文字で承認メッセージの見た目を偽装される攻撃経路が塞がれたことで、チャット越しの承認運用の安全性が上がります。
+
+Bedrock/Vertex/Mantle/Foundry経由でClaude Codeを利用している企業は、プロンプトキャッシュが正しく効かず想定より高いコストが発生していた可能性があります。該当環境を使っている場合は、直近の利用コストを見直す価値があります。worktreeを使ったチーム開発では、権限ルールがリポジトリ単位で共有されるようになったことで、各worktreeで同じ承認を繰り返す手間が減ります。
+
+## 副業・個人活用視点
+
+個人開発でBedrock/Vertex経由のクラウド課金を使っている人は、今回の修正でキャッシュが正しく効くようになりコストが下がる可能性があります。チャットチャンネル経由でClaude Codeを操作している人も、セキュリティ修正の恩恵をそのまま受けられるためアップデートしておいて損はありません。
