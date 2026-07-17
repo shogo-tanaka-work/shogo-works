@@ -1,0 +1,21 @@
+---
+noteFor: "claude-code/claude-code-v2-1-210"
+title: "教材化メモ：Claude Code v2.1.210"
+tool: "claude-code"
+date: 2026-07-14
+draft: false
+---
+
+## 教材化ポイント
+
+### 1. worktree隔離の検証手順を教材に追加
+
+`src/content/knowledge/ai-tools/claude-code/plan-mode-worktrees.mdx`に、「subagentのworktree隔離は今回のようなgit操作漏れが過去に起きた」ことと、「隔離が期待どおり効いているかを確認する習慣」を追記する価値がある。
+
+### 2. subagent権限設計の注意点として権限ルール警告を紹介
+
+`src/content/knowledge/ai-tools/claude-code/subagents.mdx`に、`Write(path)`等の実質無効な権限ルールがあること、`Edit(path)`/`Read(path)`が正しい書き方であることを補足できる。
+
+### 3. 外部トリガー自動化のセキュリティ注意点
+
+`ultracode`のWebhook/中継コメント誤発火防止は、GitHub ActionsやWebhook経由でClaude Codeを操作する自動化構成を紹介する教材で、「人間以外の入力からの権限昇格リスク」の実例として使える。
