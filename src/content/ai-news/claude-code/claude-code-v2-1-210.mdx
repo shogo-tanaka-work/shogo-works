@@ -1,0 +1,45 @@
+---
+title: "Claude Code v2.1.210：worktree分離subagentのgit操作漏れ修正、危険な権限ルールへの起動時警告"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-07-14
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.210"
+summary: "Claude Code v2.1.210で、`isolation: 'worktree'`で起動したsubagentが本来隔離されるべきworktreeではなくメインリポジトリのcheckoutにgit変更コマンドを実行できてしまう不具合を修正。`Write(path)`等の実質無効な権限ルールへの起動時警告、`ultracode`キーワードの人間以外の入力での誤発火防止も行われた。"
+description: "worktree分離subagentのgit操作隔離を修正するセキュリティ関連アップデート。危険な権限ルールへの起動時警告、ツールサマリー行のライブ経過時間表示、多数のバグ修正も含む。"
+impact: "subagentでworktree隔離を使う開発者、Claude Codeで自動化パイプラインを組む運用者に直接影響するセキュリティ修正。権限ルール警告は設定ミスの早期発見に役立つ。"
+tags: ["claude-code", "worktree", "subagent", "security", "permissions", "release"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/subagents"
+  - "/knowledge/ai-tools/claude-code/plan-mode-worktrees"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.210（2026-07-14公開）は、セキュリティ関連の修正が中心のリリースです。`isolation: 'worktree'`で起動したsubagentが、本来隔離されるべき自分のworktreeではなく、メインリポジトリのcheckoutに対してgit変更コマンドを実行できてしまう不具合が修正されました。worktree隔離は「subagentが本体のリポジトリに影響を与えない」ことを前提に使う機能なので、この修正は隔離設定を使っているユーザーにとって重要です。
+
+あわせて、`Write(path)`・`NotebookEdit(path)`・`Glob(path)`という権限ルールが実質的に無効（正しくは`Edit(path)`や`Read(path)`を使うべき）であるため、起動時に警告を表示するようになりました。設定ミスに気づかないまま「許可したつもり」で運用してしまうリスクを減らす改善です。
+
+また、`ultracode`キーワードによるopt-inが、Webhookペイロードや中継されたPRコメントなど人間以外の入力でも誤発火してしまう不具合も修正されています。外部トリガー経由でClaude Codeを操作する自動化構成では、意図しない権限昇格を防ぐ意味で見逃せない修正です。
+
+このほか、折りたたまれたツールサマリー行への経過時間ライブカウンター追加、`claude attach`のセッション遷移失敗、hookコールバックのタイムアウトがユーザー拒否と誤解釈され無人セッションが停止する問題、`claude agents --effort ultracode`の値が破棄される問題など、多数のバグ修正が含まれます。Auto modeの権限判定モデルはSonnet 5がデフォルトとなり、セッションの最初のリクエストで検証・固定されるよう改善されました。
+
+## 何が変わったか
+
+- **worktree分離subagentのgit操作隔離を修正**（セキュリティ上重要）：メインリポジトリへの意図しないgit変更を防止
+- `Write(path)`・`NotebookEdit(path)`・`Glob(path)`など**実質無効な権限ルールへの起動時警告**を追加
+- `ultracode`キーワードの**Webhook/中継コメント経由の誤発火を防止**
+- 折りたたまれたツールサマリー行に**経過時間のライブカウンター**を追加
+- Auto modeの権限判定モデルがSonnet 5デフォルトで**セッション開始時に検証・固定**
+- `claude attach`のセッション遷移失敗、hookタイムアウトの誤解釈による無人セッション停止など多数のバグ修正
+
+## 業務インパクト（一般企業向け）
+
+subagentのworktree隔離を使って並行タスクを回している組織では、今回の修正前は「隔離されているはずのsubagentが本体リポジトリに変更を加えてしまう」リスクがありました。CI/CDや自動化パイプラインにClaude Codeを組み込んでいるチームは、`ultracode`誤発火防止とあわせて、意図しない外部入力による権限昇格を防ぐ観点で早めのアップデートが望ましいです。
+
+権限ルールの起動時警告は、`.claude/settings.json`で権限設定をしているチームにとって、設定ミスの早期発見に直結します。
+
+## 副業・個人活用視点
+
+subagentやworktreeを使いこなして複数タスクを並行処理している個人開発者は、今回の修正で隔離の信頼性が上がるため、より安心して並行作業を任せられます。権限ルールの警告表示が出た場合は、`Write(path)`を`Edit(path)`に書き換えるなど、設定を見直す良い機会です。
