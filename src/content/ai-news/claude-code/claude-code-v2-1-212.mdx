@@ -1,0 +1,44 @@
+---
+title: "Claude Code v2.1.212：/forkのバックグラウンドセッション化とWebSearch/subagent暴走防止の上限追加"
+tool: "claude-code"
+toolLabel: "Claude Code"
+date: 2026-07-17
+sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.212"
+summary: "Claude Code v2.1.212は/forkの挙動変更が中心。会話をバックグラウンドセッションとしてコピーし継続作業できるようになり、従来の/fork挙動は/subtaskに分離された。あわせてWebSearch呼び出し数・subagent起動数にセッション単位の既定200回上限が追加され、agenticワークフローの暴走を防止する。"
+description: "/forkのバックグラウンドセッション化と/subtask分離、WebSearch/subagent呼び出し数のセッション上限追加、長時間MCPツール呼び出しの自動バックグラウンド化、claude auto-mode resetコマンド追加、plan mode/worktree/フック関連のバグ修正。"
+impact: "agent viewやauto-mode、MCPを活用し長時間セッション・大量委譲を行う運用者に直接影響。暴走防止の上限追加はagenticワークフローの安全運用に関わる。"
+tags: ["claude-code", "fork", "subagent", "websearch", "auto-mode", "mcp", "release"]
+status: "candidate"
+relatedKnowledge:
+  - "/knowledge/ai-tools/claude-code/subagents"
+  - "/knowledge/ai-tools/claude-code/auto-mode"
+draft: false
+---
+
+## 要約
+
+Claude Code v2.1.212（2026-07-17公開）の目玉は`/fork`の挙動変更です。`/fork`は会話をバックグラウンドセッションにコピーしてユーザーがそのまま作業を継続できるようになり、コピー先は`claude agents`に自分の行として表示されます。従来`/fork`が担っていたセッション内サブエージェント起動は、`/subtask`という別コマンドに分離されました。
+
+もう一つの大きな変更が、agenticワークフローの暴走防止です。セッション全体でのWebSearchツール呼び出し数に既定200回の上限（`CLAUDE_CODE_MAX_WEB_SEARCHES_PER_SESSION`で調整可）、セッションあたりのsubagent起動数にも既定200件の上限（`CLAUDE_CODE_MAX_SUBAGENTS_PER_SESSION`で上書き可、`/clear`でリセット）が追加され、検索ループや委譲ループが際限なく続く事態を止められるようになりました。また2分以上かかるMCPツール呼び出しは自動でバックグラウンドに移行するようになり（`CLAUDE_CODE_MCP_AUTO_BACKGROUND_MS`で閾値調整・無効化可）、セッションが固まる問題も緩和されています。
+
+このほか`claude auto-mode reset`コマンド（確認プロンプト付き、`--yes`でスキップ可）が追加され、agent viewの`/resume`は削除済みセッションも含むピッカーを開いてバックグラウンドセッションとして再開できるようになりました。バグ修正では、plan modeが`touch`・`rm`等のファイル変更を伴うBashコマンドを権限確認なしに実行してしまう不具合、`.claude/worktrees`のシンボリックリンクを辿ってリポジトリ外にファイルを作成し得るworktree作成の不具合、`continue:false`フックの停止がツール失敗時に握りつぶされる不具合、print/SDKモードでのBash実行中SIGTERMがプロセスツリーを孤立させる不具合などが修正されました。
+
+## 何が変わったか
+
+- `/fork`がバックグラウンドセッション化され、`claude agents`から追跡・再開可能に
+- 従来の`/fork`挙動（セッション内サブエージェント起動）は`/subtask`コマンドに分離
+- WebSearch呼び出し数にセッション単位で既定200回の上限を追加（環境変数で調整可）
+- subagent起動数にセッション単位で既定200件の上限を追加（`/clear`でリセット）
+- 2分以上かかるMCPツール呼び出しを自動でバックグラウンドに移行
+- `claude auto-mode reset`コマンド追加、`/resume`ピッカーが削除済みセッションにも対応
+- plan mode・worktree作成・フック停止処理・SIGTERM時のプロセスツリー孤立に関するバグ修正
+
+## 業務インパクト（一般企業向け）
+
+今回の暴走防止上限は、agenticワークフローを安全に運用するための仕組みとして重要です。WebSearchやsubagentへの委譲を多用する自動化フローでは、条件分岐の設計ミスや予期しないループによって検索やサブエージェント起動が際限なく続き、コストやAPIレート制限を圧迫するリスクがあります。既定200回・200件という上限は、そうした暴走を検知せずに放置してしまう事態への安全弁であり、CI/CDやバッチ処理にClaude Codeを組み込んでいる組織ほど恩恵が大きい変更です。上限に達した場合の挙動や調整用環境変数は、運用ドキュメントに反映しておく価値があります。
+
+`/fork`のバックグラウンドセッション化は、長時間タスクを止めずに別の作業へ移りたいチームにとって使い勝手が向上するポイントです。一方で従来`/fork`を使ってセッション内サブエージェントを起動していた運用は`/subtask`への切り替えが必要になるため、既存の運用手順・スクリプト・ドキュメントで`/fork`を前提にしている箇所がないか確認しておくことをおすすめします。長時間MCPツール呼び出しの自動バックグラウンド化も、外部API連携が多い運用でセッションが固まる問題を減らします。
+
+## 副業・個人活用視点
+
+個人でClaude Codeを使い倒している人ほど、WebSearchやsubagentを多用する自動化スクリプトを組んでいることが多く、暴走防止の上限は「気づかないうちに無駄なAPI呼び出しを重ねていた」というリスクを下げてくれます。上限に達したら`/clear`でリセットできる仕様なので、長時間作業の途中でリセットタイミングを意識しておくと安心です。`/fork`と`/subtask`の役割分担が変わった点は、個人の作業フローに`/fork`を組み込んでいる場合は特に確認しておきたいところです。

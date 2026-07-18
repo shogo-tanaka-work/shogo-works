@@ -27,6 +27,11 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     description: "Cursor IDE、Composer、Agents Window、Cursor Automationsの公式アップデート",
   },
   {
+    slug: "dify",
+    label: "Dify",
+    description: "DifyのAgent機能、ワークフロー、プラットフォーム更新の公式アップデート",
+  },
+  {
     slug: "gemini",
     label: "Gemini",
     description: "Geminiアプリ、Google AI、Workspace連携の公式アップデート",

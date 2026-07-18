@@ -37,6 +37,7 @@ const aiNews = defineCollection({
       "claude-code",
       "codex",
       "cursor",
+      "dify",
       "gemini",
       "github-copilot",
       "manus",

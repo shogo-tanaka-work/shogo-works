@@ -1,0 +1,21 @@
+---
+noteFor: "claude-code/claude-code-v2-1-212"
+title: "教材化メモ：Claude Code v2.1.212"
+tool: "claude-code"
+date: 2026-07-17
+draft: false
+---
+
+## 教材化ポイント
+
+### 1. subagents教材への注記候補
+
+`src/content/knowledge/ai-tools/claude-code/subagents.mdx`に、`/fork`がバックグラウンドセッション化され、従来のセッション内サブエージェント起動は`/subtask`に分離された旨を注記できる。既存教材で`/fork`をサブエージェント起動手段として説明している箇所があれば、コマンド名の変更点として反映する価値が高い。
+
+### 2. agentic運用の安全弁として単独ネタ化できる
+
+WebSearch呼び出し数・subagent起動数へのセッション単位上限（既定200回/200件、環境変数で調整、`/clear`でリセット）は、「agenticワークフローを安全に運用する仕組み」の実例として、暴走防止・コスト管理系の教材コンテンツに転用しやすい。CI/CD組み込みや自動化フローの安全設計を教える文脈で紹介価値がある。
+
+### 3. auto-mode教材への追記候補
+
+`src/content/knowledge/ai-tools/claude-code/auto-mode.mdx`に、`claude auto-mode reset`コマンド追加（確認プロンプト付き、`--yes`でスキップ可）を一言追記できる。auto-modeの操作コマンド一覧が古くなっている場合は更新対象。
