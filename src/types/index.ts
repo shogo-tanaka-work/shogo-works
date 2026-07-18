@@ -195,6 +195,7 @@ export type AiNewsTool =
   | "claude-code"
   | "codex"
   | "cursor"
+  | "dify"
   | "gemini"
   | "github-copilot"
   | "manus"
