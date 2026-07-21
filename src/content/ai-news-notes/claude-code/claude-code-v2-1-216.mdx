@@ -1,0 +1,9 @@
+---
+title: "教材化メモ：Claude Code v2.1.216 sandbox.filesystem.disabled"
+noteFor: "claude-code/claude-code-v2-1-216"
+date: 2026-07-20
+tags: ["claude-code", "sandbox"]
+---
+
+- `sandbox.filesystem.disabled`はファイルシステム分離のみを外し、ネットワーク制御は維持する部分的なsandbox設定緩和である点を教材で明示する価値がある。全面的なsandbox無効化と混同しないよう注意喚起する。
+- worktree分離subagentのgit誤操作修正は、複数worktreeを使う運用フローの信頼性向上として、`plan-mode-worktrees.mdx`の実務Tips節に短く言及できる余地がある（現時点では追記不要、次回大きめの更新が出たタイミングでまとめて反映を検討）。
