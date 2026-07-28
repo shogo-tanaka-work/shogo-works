@@ -1,0 +1,39 @@
+---
+title: "Dify 1.16.1：Tool Multi-Select Input・Workflow Node Locator・Export Agent DSLを追加"
+tool: "dify"
+toolLabel: "Dify"
+date: 2026-07-28
+sourceUrl: "https://github.com/langgenius/dify/releases/tag/1.16.1"
+summary: "Dify 1.16.1が公開され、ワークフローToolノードで複数値パラメータを一括選択できるTool Multi-Select Input、実行ログのnode_idクリックで該当ノードへジャンプできるWorkflow Node Locator、エージェントアプリをサイドバーから直接DSL(YAML)エクスポートできる機能などが追加された。コラボレーション編集・RAGまわりのバグ修正も多数含まれる。"
+description: "Toolノードのマルチセレクト入力、node_idクリックでのノードジャンプ、ブロック選択パネルの検索性向上、エージェントDSLのサイドバーエクスポート、ナレッジ/RAGドキュメント処理のトレース追加。"
+impact: "ワークフロー・エージェント機能を日常的に使う開発者・ノーコード運用者にとって、構築効率とデバッグ性を直接改善する変更。"
+tags: ["dify", "workflow", "agent", "enhancement"]
+status: "candidate"
+relatedKnowledge: []
+draft: false
+---
+
+## 要約
+
+Dify `1.16.1`が公開されました。ワークフロー・エージェント関連の新機能が複数追加され、コラボレーション・RAG周りのバグ修正も多数含まれています。
+
+主な新機能は、ワークフローのToolノードで事前定義リストから複数値を選択できる**Tool Multi-Select Input**、実行ログやエラーメッセージ中の`node_id`をクリックするとワークフローエディタのキャンバス上で該当ノードにジャンプ・ハイライトできる**Workflow Node Locator**、ノード追加時のブロック選択パネルにキーボードナビゲーション・カテゴリプレビュー・検索性向上を加えた**Block Selector Improvements**、エージェントアプリをサイドバーメニューから直接DSL（YAML）としてエクスポートできる**Export Agent DSL from Sidebar**、ナレッジ/RAGのドキュメント処理にトレース（可観測性）を追加した**Knowledge Tracing**です。
+
+バグ修正では、コラボレーション編集中の下書き消失・保存エラー、RAGの文字化け・スペース保持、エージェントプレビューの会話ID継承、Webアプリ側のJWT期限設定など、日常運用で遭遇しやすい問題が多数解消されています。
+
+## 何が変わったか
+
+- ワークフローToolノードで複数値パラメータを一括選択できるTool Multi-Select Inputを追加
+- 実行ログのnode_idクリックでキャンバス上の該当ノードへジャンプできるWorkflow Node Locatorを追加
+- ブロック選択パネルにキーボードナビゲーション・カテゴリプレビュー・検索性向上を追加
+- エージェントアプリをサイドバーから直接DSL(YAML)としてエクスポート可能に
+- ナレッジ/RAGドキュメント処理の内部トレースを追加し、インデックスパイプラインの可視性が向上
+- コラボレーション編集・RAG・Webアプリ関連のバグ修正多数
+
+## 業務インパクト（一般企業向け）
+
+Workflow Node Locatorは、複雑なワークフローのデバッグ時に該当ノードを手動で探す手間を省き、トラブルシューティングの時間を短縮します。Export Agent DSLは、エージェント構成のバックアップやバージョン管理、環境間の移行を容易にする機能で、社内でDifyの構成管理ルールを整備している組織にとって実務的な価値があります。Knowledge Tracingによるインデックスパイプラインの可視化は、RAG精度のチューニングやトラブルシューティングの効率化に直結します。
+
+## 副業・個人活用視点
+
+個人でDifyを使ってワークフロー・エージェントを構築している開発者にとって、Tool Multi-Select InputやBlock Selector Improvementsは日常的な構築作業の手間を減らす地味ながら実用的な改善です。Export Agent DSLは、自作したエージェントを別環境（本番・クライアント先など）に移行する際の手順を簡略化してくれます。
