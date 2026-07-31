@@ -1,0 +1,14 @@
+---
+title: "教材化メモ：Visual Studio の Copilot 7月更新"
+noteFor: "github-copilot/copilot-visual-studio-july-update"
+date: 2026-07-30
+tags: ["github-copilot", "visual-studio", "skills", "enterprise"]
+---
+
+- 「AI への指示の3階層」（個人設定 / リポジトリの `.github/skills` / 組織のカスタム指示）が揃った。どのルールをどの階層に置くかの設計という教材テーマにできる。2026-07-29 の code review GA と必ずセットで扱う。
+- 「全部を組織レベルに置くとプロジェクト固有の事情に合わなくなる」という失敗パターンは、設定管理の教材で使える具体例。
+- Copilot SDK（CLI と同じ基盤）が IDE に降りてくる構図は、ベンダーが実装を CLI 起点に統一しつつあることの例。「片方で作った知見がもう片方でも効く」という利点まで説明できる。
+- .NET / Azure の組み込みスキルは、ベンダーが自社スタックの知見をスキルとして配る流通モデルの実例。ただし「内容が自社方針と食い違う可能性があるので有効化前に確認」という運用注意もセットで書く。
+- Review Selection は「AI が見たから PR レビューを省略していい理由にはならない」という論点の題材。レビュー粒度が細かくなることの副作用として扱う。
+- プラン境界が明確（組織レベル指示のみ Business/Enterprise、他は全プラン）なので、教材で対象読者を分けて書ける。
+- 現時点で対応するKnowledge記事が存在しないため、relatedKnowledgeは空配列。
