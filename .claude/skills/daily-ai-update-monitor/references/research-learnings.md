@@ -133,4 +133,9 @@
 
 ## 取り込み待ち（次月レビュー対象）
 
-（記入欄。次の取りこぼしが出たらここに追記し、定期的に source-catalog.md へ昇格させる）
+### 学び5: `openai.com` が403のとき、価格・モデル発表を拾う検索を必ず1本入れる
+
+- **取りこぼし**: GPT-5.6 Luna 80% / Terra 20% の値下げ（2026-07-30 発表、`openai.com/index/advancing-the-price-performance-frontier-with-gpt-5-6/`）。2026-07-31 のチェックで漏れ、2026-08-01 に追補で記録。
+- **原因**: `openai.com/news/` と `help.openai.com` が直接フェッチ403のため、代替として `learn.chatgpt.com/docs/changelog` と OpenAI Status のみを見ていた。`learn.chatgpt.com` は ChatGPT / Codex のプロダクト更新は載るが、API の価格改定は載らない。403 のときに代替ソースが1系統に絞られ、`openai.com/index/<slug>` 側の発表が丸ごと死角になった。
+- **対処**: `openai.com` が403の窓では、`learn.chatgpt.com` の確認に加えて価格・モデル系のWeb検索（例: `OpenAI price OR pricing OR deprecation <YYYY-MM> site:openai.com`）を最低1本走らせる。二次ソース（Axios / CNBC / VentureBeat 等）で発表を見つけたら一次 URL を逆引きして記録する。
+- **カタログ取り込み**: 未（次月レビューで source-catalog.md の「ソース別の注意」へ昇格を検討）。
