@@ -42,6 +42,8 @@ description: AI製品の公式アップデートを日次で確認するため�
    - 詳細ファイル名は後から時系列で並べやすいように、timestamp付きにします: `YYYY-MM-DDTHHMMSS-service-or-version-slug.md`
    - 書式は `references/output-format.md` に従います。
    - 原文全文や全文翻訳は貼りません。日本語で要約し、公式URLを残します。
+   - AIニュース記事化するものは、詳細ファイルの `## 教材化メモ` を書かず、`src/content/ai-news-notes/` への1行参照に置き換えます（`output-format.md` の「教材化メモ節の扱い」参照）。記事化しないものだけ詳細ファイル側に書きます。
+   - 詳細ファイルは1件1,000字以内、日次サマリーは6,000字以内を目安にします。
 
 5. 検証します。
    - 新規Markdownにfrontmatterがあることを確認します。
