@@ -193,6 +193,7 @@ export type AiNewsTool =
   | "chatgpt-openai"
   | "claude"
   | "claude-code"
+  | "cloudflare"
   | "codex"
   | "cursor"
   | "dify"

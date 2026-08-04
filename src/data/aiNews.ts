@@ -17,6 +17,12 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     description: "Claude CodeのCLI、エージェント開発、開発ワークフロー更新",
   },
   {
+    slug: "cloudflare",
+    label: "Cloudflare",
+    description:
+      "Workers AI、AI Gateway、AI Search、Agents SDK、Workersなど開発者プラットフォームの公式アップデート",
+  },
+  {
     slug: "codex",
     label: "OpenAI Codex",
     description: "OpenAI CodexのCLI、アプリ、Hooks、プラグインの公式アップデート",
