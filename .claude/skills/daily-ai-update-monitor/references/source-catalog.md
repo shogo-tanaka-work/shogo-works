@@ -13,6 +13,7 @@
 | Claude Code | https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md | https://github.com/anthropics/claude-code/releases | ほぼ毎日 | docs/research/zenn-claude-code-release-basic/official-updates |
 | Cursor | https://cursor.com/changelog | https://cursor.com/blog、https://status.cursor.com/、https://forum.cursor.com/c/announcements | 週1〜2回 | docs/research/zenn-cursor-basic/official-updates |
 | GitHub Copilot | https://github.blog/changelog/label/copilot/ | https://docs.github.com/en/copilot | ほぼ毎日 | docs/research/zenn-github-copilot-basic/official-updates |
+| Cloudflare | https://developers.cloudflare.com/changelog/ | https://blog.cloudflare.com/、https://blog.cloudflare.com/tag/ai/、製品別RSS（下記）、https://www.cloudflarestatus.com/ | ほぼ毎日 | docs/research/cloudflare/official-updates |
 | Genspark | https://www.genspark.ai/blog | なし | 月数回 | docs/research/zenn-genspark-basic/official-updates |
 | Manus | https://manus.im/blog | なし | 月数回 | docs/research/zenn-manus-basic/official-updates |
 | Dify | https://github.com/langgenius/dify/releases | https://dify.ai/blog | 週1〜2回 | docs/research/zenn-dify-basic/official-updates |
@@ -53,6 +54,27 @@ gh api -X GET 'repos/openai/codex/releases?per_page=100' --paginate
 
 Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行で出ます。stableのみ詳細ファイル化、alphaは日次サマリーで件数のみ言及するのを基本にします。
 
+## Cloudflare changelog の RSS
+
+全製品横断（対象外製品も含むため、タイトル先頭の製品名で絞り込む）:
+
+```
+https://developers.cloudflare.com/changelog/rss/index.xml
+```
+
+AI・エージェント関連の製品別フィード（存在を確認済み）:
+
+```
+https://developers.cloudflare.com/changelog/rss/workers-ai.xml
+https://developers.cloudflare.com/changelog/rss/agents.xml
+https://developers.cloudflare.com/changelog/rss/ai-gateway.xml
+https://developers.cloudflare.com/changelog/rss/workers.xml
+```
+
+`pubDate` は製品によって時刻まで入るものと `00:00:00 GMT` 固定のものが混在します。`00:00:00 GMT` 固定のエントリは `date_precision: date-only` を付けます。
+
+新しい製品のフィードを使う場合は、URL を推測せず `https://developers.cloudflare.com/fundamentals/new-features/available-rss-feeds/` で実在を確認してから追加します。
+
 ## ソース別の注意
 
 - ChatGPT release notesは環境によって本文取得が不安定なことがあります。本文が取れない場合はOpenAI Newsを補助ソースとして使い、制限を日次サマリーに残します。
@@ -66,6 +88,10 @@ Codex は stable（`rust-vX.Y.Z`）と alpha（`rust-vX.Y.Z-alpha.N`）が並行
 - **Claude のクラウドプロバイダー連携はプロバイダー公式も一次情報として確認します**。特に AWS は `aws.amazon.com/about-aws/whats-new/` と `aws.amazon.com/blogs/machine-learning/` で Claude Platform on AWS / Bedrock 関連の GA・機能拡張を発表するため、`site:aws.amazon.com Claude Platform Anthropic` などで逆引きします。Anthropic公式に掲載が遅れる / 別ドメイン掲載される場合でも、AWS公式で確認できれば対象にします。
 - Claude Codeはraw changelogが最も安定しています。
 - **Cursor** は `cursor.com/changelog` の個別ポスト URL（例 `cursor.com/changelog/composer-2-5`、`cursor.com/changelog/MM-DD-YY`）の方が本文が詳しいため、トップ一覧で見出しを掴んだら必ず個別 URL を踏みます。メジャー版（`3.0`）と minor 機能名（`Composer 2.5`、`Shared Canvases`）と日付スラッグが混在するため、tag 名だけで重複判定しません。GitHub Releases は公式に未提供。`cursor.com/blog` 側にも re-branding 系・大型 UX 変更（"Meet the new Cursor"）が出るため両方確認します。
+- **Cloudflare は全製品横断の changelog なので、AI・エージェント・開発者プラットフォーム関連に絞ります**。`developers.cloudflare.com/changelog/` には WAF、DNS、Magic Transit、Registrar、Stream など本Skillの対象外製品の更新が大量に混ざります。判定基準は「AI / エージェント / MCP / 開発者プラットフォームに関わるか」です。Workers AI、AI Gateway、AI Search、Agents（Agents SDK）、Vectorize、Workers、Durable Objects、Containers、Browser Rendering / Browser Run、Sandbox は対象。ネットワーク・セキュリティ製品でも **MCP や AI が絡む更新は製品を問わず対象**にします（例: Access の MCP server portal 関連）。
+- **Cloudflare changelog は RSS が最も安定して日付を取れます**。全製品横断は `https://developers.cloudflare.com/changelog/rss/index.xml`、製品別は `https://developers.cloudflare.com/changelog/rss/<product>.xml`（`workers-ai`、`agents`、`ai-gateway`、`workers` などを確認済み）。RSS のタイトルは `<製品名> - <変更内容>` 形式で製品名が先頭に付くため、横断フィードのままでも対象製品を絞り込めます。フィード一覧は `https://developers.cloudflare.com/fundamentals/new-features/available-rss-feeds/`。
+- **Cloudflare は changelog と公式Blogで粒度が違います**。大型発表（`Agents Week` のような週次テーマ、新製品、アーキテクチャ解説）は `blog.cloudflare.com` 側に詳細が出て、changelog には1〜2行の要約しか載らないことがあります。AIニュース記事化を判断するときは blog 側の該当ポストも確認します。AI 関連は `blog.cloudflare.com/tag/ai/` で絞り込めます。
+- **Cloudflare Status も確認します**。`https://www.cloudflarestatus.com/` の Workers / Workers AI 系 incident は `category: incident` として記録します。データセンターのメンテナンス告知（GVA / TXL / LHR など地域コード単位）は対象外です。短時間 incident は記事化せず日次サマリーと詳細メモに留めます。
 - n8n GitHub Releasesは必ずpagination込みで確認します。HTMLの1ページ目だけを見て完了扱いにしません。
 - **Workspace Updates Blog** は週次Recap（`weekly-recap-MM-DD-2026.html`）に集約されますが、**個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細**で日付もはっきりします。多言語対応・地域ロールアウト・GA切替などは個別ポストにのみ載るため、Recap だけで完了扱いにしません。
 - Difyのpre-releaseは、対象期間内であれば `channel: pre-release` として含めます。
