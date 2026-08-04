@@ -1,6 +1,6 @@
 ---
 name: ai-news-publisher
-description: Daily AI update reports and official update notes in docs/researchを読み、公開すべきAIニュースを選別し、src/content/ai-news配下への速報記事作成、保留、見送り、必要最小限のKnowledge更新を計画または実装するときに使うSkill。ChatGPT/OpenAI、Gemini、Claude、Claude Code、Codex、GitHub Copilot、n8n、Difyなどの公式アップデートをAIニュース記事へ落とし込む。
+description: Daily AI update reports and official update notes in docs/researchを読み、公開すべきAIニュースを選別し、src/content/ai-news配下への速報記事作成、保留、見送り、必要最小限のKnowledge更新を計画または実装するときに使うSkill。ChatGPT/OpenAI、Gemini、Claude、Claude Code、Codex、Cursor、GitHub Copilot、Cloudflare、n8n、Difyなどの公式アップデートをAIニュース記事へ落とし込む。
 ---
 
 # AI News Publisher
@@ -113,19 +113,31 @@ ai-news 記事化すると「逆方向の事実」を読者が「公式新機能
 
 ## ai-news の tool カテゴリ
 
-`src/content.config.ts` の `aiNews.tool` enum に従う。2026-05-09 時点で対応:
+`src/content.config.ts` の `aiNews.tool` enum に従う。2026-08-04 時点で対応:
 
 - `chatgpt-openai`: ChatGPT、GPT モデル系（GPT-5.5、GPT-Realtime 等）、OpenAI Blog 全般
 - `claude`: Claude（Anthropic 製品）
 - `claude-code`: Claude Code（Anthropic 製の CLI / IDE 統合）
+- `cloudflare`: Cloudflare の AI・エージェント・開発者プラットフォーム（Workers AI / AI Gateway / AI Search / Agents SDK / Vectorize / Workers / Durable Objects / Containers）
 - `codex`: OpenAI Codex（CLI / アプリ / Hooks / プラグイン）
+- `cursor`: Cursor（IDE / Composer / Agents Window / Automations / プラグイン）
+- `dify`: Dify（Agent 機能 / ワークフロー / プラットフォーム）
 - `gemini`: Gemini、Google Workspace AI（Workspace Updates 経由を含む）
 - `github-copilot`: GitHub Copilot 全般（Chat / Edit / Agent / CLI / Code Review）
+- `manus`: Manus（AIエージェント / Webアプリ生成 / プロジェクト管理）
 - `n8n`: n8n
 - `runway`: Runway
 - `xai-grok`: xAI / Grok（Grok、xAI API、Grok Build）
 
-新ツール追加は `src/content.config.ts` の更新が前提。enum にないツールの記事化は禁止。
+新ツール追加は次の3ファイルをまとめて更新するのが前提。1つでも欠けるとビルドが通らない、または一覧ページにツールが出ない。
+
+- `src/content.config.ts`（`aiNews.tool` の enum）
+- `src/types/index.ts`（`AiNewsTool` union 型）
+- `src/data/aiNews.ts`（`aiNewsTools` の slug / label / description）
+
+enum にないツールの記事化は禁止。判断に迷ったら、この節の記載ではなく `src/content.config.ts` の実ファイルを正とする。
+
+**Cloudflare の記事化スコープ**: Cloudflare は全製品横断で changelog を出すため、AI・エージェント・開発者プラットフォームに関わるものだけを記事化候補にする。WAF / DNS / Magic Transit / Registrar / Stream などネットワーク・セキュリティ製品単体の更新は対象外（MCP や AI が絡む場合のみ例外的に対象）。判定の詳細は `daily-ai-update-monitor/references/source-catalog.md` の Cloudflare 節を参照。
 
 ## 参照ファイル
 
