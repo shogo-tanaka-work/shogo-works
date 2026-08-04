@@ -139,3 +139,10 @@
 - **原因**: `openai.com/news/` と `help.openai.com` が直接フェッチ403のため、代替として `learn.chatgpt.com/docs/changelog` と OpenAI Status のみを見ていた。`learn.chatgpt.com` は ChatGPT / Codex のプロダクト更新は載るが、API の価格改定は載らない。403 のときに代替ソースが1系統に絞られ、`openai.com/index/<slug>` 側の発表が丸ごと死角になった。
 - **対処**: `openai.com` が403の窓では、`learn.chatgpt.com` の確認に加えて価格・モデル系のWeb検索（例: `OpenAI price OR pricing OR deprecation <YYYY-MM> site:openai.com`）を最低1本走らせる。二次ソース（Axios / CNBC / VentureBeat 等）で発表を見つけたら一次 URL を逆引きして記録する。
 - **カタログ取り込み**: 未（次月レビューで source-catalog.md の「ソース別の注意」へ昇格を検討）。
+
+### 学び6: Runway の公式ドメインが `runwayml.com` → `runway.com` へ移行
+
+- **検知**: 2026-08-03 の巡回で `https://runwayml.com/changelog` が `https://runway.com/changelog` へ 308 Permanent Redirect。
+- **原因**: source-catalog に旧ドメイン（`runwayml.com`）が主ソースとして記載されたまま。リダイレクトが追従されない取得方法だと、1回のフェッチが空振りして「取得失敗」に計上されうる。
+- **対処**: Runway の主ソースは `https://runway.com/changelog`、News は `https://runway.com/news` を先に踏む。`docs.dev.runwayml.com/api-details/api_changelog/`（Runway Dev API changelog）は 2026-08-03 時点で旧ドメインのままのため、両ドメインが並存している前提で扱う。
+- **カタログ取り込み**: 未（次月レビューで source-catalog.md の Runway 行を新ドメインへ差し替え）。
