@@ -1,0 +1,12 @@
+---
+title: "教材化メモ：Cloudflare Agents / Agent traces"
+noteFor: "cloudflare/cloudflare-agents-agent-traces"
+date: 2026-08-04
+tags: ["cloudflare", "agents", "observability", "tracing"]
+---
+
+- 本サイトにはまだ Cloudflare の Knowledge カテゴリがない。この記事は「Cloudflare をAIエージェント基盤として扱う」教材群の起点になりうるため、Knowledge を作るなら「Workers / Durable Objects / Agents SDK の関係」から始める構成を検討する。
+- 「インフラ層のトレース（Workers）とエージェント層のトレース（Agent traces）は別物」という切り分けは、可観測性を教える上で汎用的に使える枠組み。Cloudflare 固有の話にせず、「LLMアプリの可観測性は2層で考える」という概念として教材化すると他ツールにも転用できる。
+- 承認（human-in-the-loop）がテレメトリの計測対象に入っている点は、既存の `auto-mode.mdx` や権限まわりの教材と接続する。「承認を設計に入れると記録が残る、入れないと記録するものがない」という因果を書けると、承認設計の動機づけになる。
+- 料金（2026-10-01 から Workers Observability に統合、Free は1日20万イベント・保持3日）は変動しやすい情報。教材本文には数値を埋め込まず、記事へのリンクで逃がす。
+- 教材の演習案として「自作エージェントのトレースを見て、呼ばれていないツール定義を削る」が使える。プロンプト・ツール設計の講義で、出力だけ見る評価との違いを体験させやすい。
