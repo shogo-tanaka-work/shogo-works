@@ -7,9 +7,9 @@ export const stats: StatItem[] = [
     description: "AIベンチャー企業の現場でAI活用を伴走",
   },
   {
-    value: "2契約",
-    label: "AI顧問（中小企業 / 個人）",
-    description: "AI導入の意思決定から継続支援",
+    value: "毎週",
+    label: "最新AIツールを検証",
+    description: "公式アップデートを追って内容に反映",
   },
   {
     value: "100+",

@@ -28,31 +28,7 @@ export const caseStudies: CaseStudy[] = [
       "現場メンバーが自走できる運用ドキュメントを整備",
     ],
     technologies: ["Claude", "Dify", "n8n", "Python"],
-    serviceHref: "/services/hayawaza-automation",
-  },
-  {
-    slug: "sme-ai-advisor",
-    title: "中小企業・個人事業主へのAI顧問サービス",
-    category: "導入支援",
-    clientType: "中小企業 / 個人事業主",
-    period: "2025年〜継続中（2契約）",
-    summary:
-      "月次の定例相談とチャットサポートで、AI導入の意思決定から日々の活用定着までを継続支援しています。",
-    challenge:
-      "「AIを使いたいが、何から手を付けるべきか分からない」「導入したツールが現場に定着しない」という、中小企業に典型的な課題を抱えていました。",
-    support: [
-      "月次定例での課題整理とAI活用ロードマップの策定",
-      "業務に合わせたツール選定（ChatGPT / Claude / GAS 等）と初期設定",
-      "プロンプト雛形・利用ルールの整備による社内定着支援",
-      "チャットでの随時相談対応",
-    ],
-    outcomes: [
-      "2件の顧問契約を継続中（中小企業・個人）",
-      "定型業務の一部自動化により作業時間を削減",
-      "経営判断の壁打ち相手としてAI活用が日常業務に定着",
-    ],
-    technologies: ["ChatGPT", "Claude", "Google Apps Script"],
-    serviceHref: "/services/hayawaza-advisor",
+    serviceHref: "/services/app-development",
   },
   {
     slug: "ai-training-100",
@@ -76,6 +52,6 @@ export const caseStudies: CaseStudy[] = [
       "受講者が業務でAIを使い始めるまでの定着率を重視した指導を確立",
     ],
     technologies: ["ChatGPT", "Claude", "Python", "Google Apps Script"],
-    serviceHref: "/services/hayawaza-training",
+    serviceHref: "/services/lecture",
   },
 ];

@@ -8,17 +8,15 @@ describe("サービスLP導線", () => {
     }
   });
 
-  it("5つの個別LP URLが重複しないこと", () => {
+  it("3つの個別LP URLが重複しないこと", () => {
     const hrefs = services.map((service) => service.href);
 
-    expect(new Set(hrefs).size).toBe(5);
+    expect(new Set(hrefs).size).toBe(3);
   });
 
-  it("はやわざシステム刷新のLP URLが定義されていること", () => {
-    const modernization = services.find(
-      (service) => service.id === "hayawaza-renewal",
-    );
+  it("講師・セミナー登壇のLP URLが定義されていること", () => {
+    const lecture = services.find((service) => service.id === "lecture");
 
-    expect(modernization?.href).toBe("/services/hayawaza-renewal");
+    expect(lecture?.href).toBe("/services/lecture");
   });
 });

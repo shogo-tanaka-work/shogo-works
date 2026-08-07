@@ -35,7 +35,7 @@ export const techToolDetails: TechToolDetail[] = [
           "プロンプト雛形や CLAUDE.md の整備により、チーム全体で再現性のある AI 活用を実現します。",
       },
     ],
-    relatedServiceHref: "/services/hayawaza-automation",
+    relatedServiceHref: "/services/app-development",
     relatedKnowledgeHref: "/knowledge/ai-tools/claude-code",
   },
   {
@@ -62,7 +62,7 @@ export const techToolDetails: TechToolDetail[] = [
           "問い合わせ分類→下書き生成→承認のような多段フローを GUI で構築・運用します。",
       },
     ],
-    relatedServiceHref: "/services/hayawaza-automation",
+    relatedServiceHref: "/services/app-development",
   },
   {
     slug: "n8n",
@@ -88,7 +88,7 @@ export const techToolDetails: TechToolDetail[] = [
           "受信メールの自動分類・要約・担当者振り分けなど、AI判断を含む自動化を実現します。",
       },
     ],
-    relatedServiceHref: "/services/hayawaza-automation",
+    relatedServiceHref: "/services/app-development",
   },
   {
     slug: "cloudflare",
@@ -114,7 +114,7 @@ export const techToolDetails: TechToolDetail[] = [
           "Workers + D1 を使った軽量なAPI・業務ツールをスピーディに開発します。",
       },
     ],
-    relatedServiceHref: "/services/hayawaza-dev",
+    relatedServiceHref: "/services/app-development",
     relatedKnowledgeHref: "/knowledge/web-development/cloudflare-docs",
   },
   {
@@ -141,7 +141,7 @@ export const techToolDetails: TechToolDetail[] = [
           "Markdown ベースで記事を管理できる、運用負荷の低い情報発信基盤を作ります。",
       },
     ],
-    relatedServiceHref: "/services/hayawaza-dev",
+    relatedServiceHref: "/services/app-development",
   },
   {
     slug: "google-apps-script",
@@ -167,7 +167,7 @@ export const techToolDetails: TechToolDetail[] = [
           "条件に応じたメール自動送信やリマインド通知を仕組み化します。",
       },
     ],
-    relatedServiceHref: "/services/hayawaza-automation",
+    relatedServiceHref: "/services/app-development",
     relatedKnowledgeHref: "/knowledge/web-development/gas-best-practices",
   },
 ];
