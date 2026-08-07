@@ -41,8 +41,9 @@ describe("knowledge カテゴリデータ", () => {
 });
 
 describe("knowledge サブカテゴリデータ", () => {
-  it("ai-tools / web-development の 2 カテゴリにサブカテゴリが定義されていること", () => {
+  it("サブカテゴリを持つカテゴリが定義されていること", () => {
     expect(Object.keys(subcategories).sort()).toEqual([
+      "ai-governance",
       "ai-tools",
       "web-development",
     ]);
