@@ -11,39 +11,22 @@ export const navItems: NavItem[] = [
         description: "提供サービスをまとめて見る",
       },
       {
-        label: "はやわざ業務自動化",
-        href: "/services/hayawaza-automation",
-        description: "繰り返し業務をAIで自動化",
+        label: "マンツーマンAIサポート",
+        href: "/services/personal-support",
+        description: "個人向けのAI活用伴走",
       },
       {
-        label: "はやわざAI顧問",
-        href: "/services/hayawaza-advisor",
-        description: "AI活用の伴走アドバイザリー",
+        label: "アプリ開発（業務委託）",
+        href: "/services/app-development",
+        description: "Next.js / React の開発参画・受託",
       },
       {
-        label: "はやわざAI研修",
-        href: "/services/hayawaza-training",
-        description: "チーム向けAI活用トレーニング",
-      },
-      {
-        label: "はやわざアプリ開発",
-        href: "/services/hayawaza-dev",
-        description: "業務アプリをスピード開発",
-      },
-      {
-        label: "はやわざシステム刷新",
-        href: "/services/hayawaza-renewal",
-        description: "レガシーシステムのモダン化",
-      },
-      {
-        label: "AI無料診断",
-        href: "/diagnosis",
-        description: "最適なAI活用法を3分で診断",
+        label: "講師・セミナー登壇",
+        href: "/services/lecture",
+        description: "スクール・企業向けの登壇",
       },
     ],
   },
-  // 課題起点の導線。トップの「解決できるお悩み」セクションへスクロールする。
-  { label: "お悩みから探す", href: "/#problems" },
   {
     label: "Knowledge",
     href: "/knowledge",

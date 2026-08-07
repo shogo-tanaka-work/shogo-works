@@ -172,13 +172,6 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
                   >
                     お問い合わせ
                   </a>
-                  <a
-                    href="/#resources"
-                    onClick={closeMenu}
-                    className="block w-full text-center border border-gray-200 hover:bg-gray-50 text-foreground rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
-                  >
-                    資料請求
-                  </a>
                 </div>
               </nav>
             </div>

@@ -5,8 +5,10 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 import NewsCard from "@/components/ai-news/NewsCard.astro";
 import ToolFilter from "@/components/ai-news/ToolFilter.astro";
+import ArchiveSidebar from "@/components/ai-news/ArchiveSidebar.astro";
 import { aiNewsTools } from "@/data/aiNews";
 import {
+  getAiNewsArchive,
   getAiNewsByTool,
   getAiNewsSlug,
   getAiNewsToolCount,
@@ -28,6 +30,7 @@ const { tool } = Astro.props;
 const entries = await getCollection("aiNews");
 const news = getAiNewsByTool(entries, tool.slug);
 const counts = getAiNewsToolCount(entries);
+const months = getAiNewsArchive(entries);
 ---
 
 <BaseLayout
@@ -35,7 +38,7 @@ const counts = getAiNewsToolCount(entries);
   description={tool.description}
 >
   <section class="py-20 px-4">
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <div class="mb-8">
         <a
           href="/ai-news"
@@ -47,36 +50,44 @@ const counts = getAiNewsToolCount(entries);
 
       <SectionHeader title={tool.label} subtitle={tool.description} />
 
-      <div class="mb-8 animate-on-scroll">
-        <ToolFilter counts={counts} currentTool={tool.slug} />
-      </div>
+      <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-10 lg:items-start">
+        <div class="min-w-0">
+          <div class="mb-8 animate-on-scroll">
+            <ToolFilter counts={counts} currentTool={tool.slug} />
+          </div>
 
-      {
-        news.length > 0 ? (
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {news.map((entry, i) => (
-              <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
-                <NewsCard
-                  title={entry.data.title}
-                  toolLabel={entry.data.toolLabel}
-                  date={entry.data.date}
-                  summary={entry.data.summary}
-                  tags={entry.data.tags}
-                  status={entry.data.status}
-                  href={`/ai-news/${entry.data.tool}/${getAiNewsSlug(entry.id)}`}
-                  sourceUrl={entry.data.sourceUrl}
-                />
+          {
+            news.length > 0 ? (
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {news.map((entry, i) => (
+                  <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                    <NewsCard
+                      title={entry.data.title}
+                      toolLabel={entry.data.toolLabel}
+                      date={entry.data.date}
+                      summary={entry.data.summary}
+                      tags={entry.data.tags}
+                      status={entry.data.status}
+                      href={`/ai-news/${entry.data.tool}/${getAiNewsSlug(entry.id)}`}
+                      sourceUrl={entry.data.sourceUrl}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div class="text-center py-16 animate-on-scroll">
-            <p class="text-muted-foreground text-lg">
-              このツールにはまだ公開中のニュースがありません。
-            </p>
-          </div>
-        )
-      }
+            ) : (
+              <div class="text-center py-16 animate-on-scroll">
+                <p class="text-muted-foreground text-lg">
+                  このツールにはまだ公開中のニュースがありません。
+                </p>
+              </div>
+            )
+          }
+        </div>
+
+        <aside class="hidden lg:block lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
+          <ArchiveSidebar months={months} />
+        </aside>
+      </div>
     </div>
   </section>
 </BaseLayout>
