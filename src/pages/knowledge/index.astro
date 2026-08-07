@@ -4,19 +4,19 @@ import BaseLayout from "@/layouts/BaseLayout.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 import CategoryCard from "@/components/knowledge/CategoryCard.astro";
 import ArticleCard from "@/components/knowledge/ArticleCard.astro";
-import { categories, externalArticles } from "@/data/knowledge";
+import { categories } from "@/data/knowledge";
 import {
+  getAllCategoryCounts,
   getRecentlyUpdatedArticles,
-  getUnifiedCategoryCount,
-  toUnifiedFromInternal,
+  toKnowledgeArticle,
 } from "@/utils/knowledge";
 
 const allEntries = await getCollection("knowledge");
-const counts = getUnifiedCategoryCount(externalArticles, allEntries);
+const counts = getAllCategoryCounts(allEntries);
 const recentlyUpdated = getRecentlyUpdatedArticles(allEntries, 10).map((e) => {
-  const unified = toUnifiedFromInternal(e);
+  const article = toKnowledgeArticle(e);
   return {
-    ...unified,
+    ...article,
     displayDate: e.data.updatedAt ?? e.data.createdAt,
   };
 });
@@ -39,7 +39,7 @@ function getCategoryLabel(slug: string): string {
 
       <a
         href="/knowledge/roadmap"
-        class="group block mb-10 animate-on-scroll"
+        class="group block mb-10"
       >
         <div
           class="rounded-3xl p-6 md:p-7 bg-gradient-to-r from-teal-50 to-emerald-50 ring-1 ring-teal-500/20 hover:ring-teal-500/40 transition-all"
@@ -80,7 +80,7 @@ function getCategoryLabel(slug: string): string {
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         {
           categories.map((category, i) => (
-            <div class={`animate-on-scroll stagger-${i + 1}`}>
+            <div>
               <CategoryCard
                 category={category}
                 articleCount={counts[category.slug]}
@@ -102,12 +102,12 @@ function getCategoryLabel(slug: string): string {
       {
         recentlyUpdated.length > 0 && (
           <div>
-            <h2 class="text-2xl font-bold text-foreground mb-6 animate-on-scroll">
+            <h2 class="text-2xl font-bold text-foreground mb-6">
               最近更新された記事
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {recentlyUpdated.map((article, i) => (
-                <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                <div>
                   <ArticleCard
                     title={article.title}
                     description={article.description}
@@ -115,8 +115,6 @@ function getCategoryLabel(slug: string): string {
                     tags={article.tags}
                     createdAt={article.displayDate}
                     href={article.href}
-                    isExternal={article.isExternal}
-                    platform={article.platform}
                   />
                 </div>
               ))}

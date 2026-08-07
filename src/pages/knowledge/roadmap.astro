@@ -24,7 +24,7 @@ const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
 
       <nav
         aria-label="ロードマップ一覧"
-        class="mb-12 flex flex-wrap justify-center gap-2 animate-on-scroll"
+        class="mb-12 flex flex-wrap justify-center gap-2"
       >
         {
           resolvedPaths.map((path) => (
@@ -43,7 +43,7 @@ const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
           resolvedPaths.map((path, pathIdx) => (
             <section
               id={path.id}
-              class={`animate-on-scroll stagger-${(pathIdx % 5) + 1} scroll-mt-24`}
+              class={` scroll-mt-24`}
             >
               <header class="mb-6">
                 <h2 class="text-2xl font-bold text-foreground mb-2">
@@ -97,7 +97,7 @@ const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
         }
       </div>
 
-      <div class="mt-16 text-center animate-on-scroll">
+      <div class="mt-16 text-center">
         <a
           href="/knowledge"
           class="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 transition-colors"

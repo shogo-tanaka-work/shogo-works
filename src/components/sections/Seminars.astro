@@ -12,7 +12,7 @@ import Button from "@/components/ui/Button.astro";
     />
 
     {upcomingSeminars.length === 0 ? (
-      <div class="text-center py-12 animate-on-scroll">
+      <div class="text-center py-12">
         <p class="text-muted-foreground">現在、開催予定のセミナーはありません。</p>
         <p class="text-sm text-muted-foreground mt-2">
           新しいセミナーが決まり次第、こちらでお知らせします。
@@ -22,7 +22,7 @@ import Button from "@/components/ui/Button.astro";
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         {upcomingSeminars.map((seminar, index) => (
           <div
-            class={`relative glass rounded-2xl p-6 hover:border-teal-500/20 transition-colors overflow-hidden animate-on-scroll stagger-${index + 1}`}
+            class={`relative glass rounded-2xl p-6 hover:border-teal-500/20 transition-colors overflow-hidden `}
           >
             <div class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-teal-500/10 to-transparent rounded-bl-full"></div>
 

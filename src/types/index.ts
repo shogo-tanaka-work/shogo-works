@@ -151,20 +151,6 @@ export interface SubcategoryMeta {
   description: string;
 }
 
-export type ArticlePlatform = "zenn" | "qiita" | "note";
-
-export interface ExternalArticle {
-  id: string;
-  title: string;
-  description: string;
-  category: KnowledgeCategory;
-  tags: string[];
-  sortOrder: number;
-  createdAt: Date;
-  platform: ArticlePlatform;
-  url: string;
-}
-
 export type AiNewsTool =
   | "chatgpt-openai"
   | "claude"
@@ -196,15 +182,10 @@ export interface AiNewsStatusMeta {
 
 // --- Top page: featured knowledge / media outlets / tech stack ---
 
-export type FeaturedSource = "internal" | "external";
-export type FeaturedPlatform = "zenn" | "qiita" | "note" | "youtube";
-
 export interface FeaturedKnowledgeItem {
   title: string;
   description: string;
   href: string;
-  source: FeaturedSource;
-  platform?: FeaturedPlatform;
   categoryLabel?: string;
 }
 

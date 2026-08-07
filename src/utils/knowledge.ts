@@ -1,9 +1,4 @@
-import type {
-  KnowledgeCategory,
-  ExternalArticle,
-  ArticlePlatform,
-  SubcategoryMeta,
-} from "@/types";
+import type { KnowledgeCategory, SubcategoryMeta } from "@/types";
 import { categories, subcategories } from "@/data/knowledge";
 
 interface KnowledgeEntry {
@@ -23,8 +18,8 @@ interface KnowledgeEntry {
   };
 }
 
-/** 外部記事・内部MDX記事を統一的に扱うための型 */
-export interface UnifiedArticle {
+/** 一覧表示で扱う記事の形。href の生成規則をここ1か所に閉じる */
+export interface KnowledgeArticle {
   id: string;
   title: string;
   description: string;
@@ -33,33 +28,11 @@ export interface UnifiedArticle {
   tags: string[];
   sortOrder: number;
   createdAt: Date;
-  source: "external" | "internal";
-  platform?: ArticlePlatform;
   href: string;
-  isExternal: boolean;
 }
 
-/** 外部記事をUnifiedArticleに変換 */
-export function toUnifiedFromExternal(
-  article: ExternalArticle,
-): UnifiedArticle {
-  return {
-    id: article.id,
-    title: article.title,
-    description: article.description,
-    category: article.category,
-    tags: article.tags,
-    sortOrder: article.sortOrder,
-    createdAt: article.createdAt,
-    source: "external",
-    platform: article.platform,
-    href: article.url,
-    isExternal: true,
-  };
-}
-
-/** MDX記事をUnifiedArticleに変換 */
-export function toUnifiedFromInternal(entry: KnowledgeEntry): UnifiedArticle {
+/** MDX記事を一覧表示用の形へ変換する */
+export function toKnowledgeArticle(entry: KnowledgeEntry): KnowledgeArticle {
   const slug = entry.id.split("/").pop() as string;
   const { category, subcategory } = entry.data;
   const href = subcategory
@@ -74,57 +47,27 @@ export function toUnifiedFromInternal(entry: KnowledgeEntry): UnifiedArticle {
     tags: entry.data.tags,
     sortOrder: entry.data.sortOrder,
     createdAt: entry.data.createdAt,
-    source: "internal",
     href,
-    isExternal: false,
   };
 }
 
-/** 外部記事 + MDX公開記事を統合してソート */
-export function mergeArticles(
-  externalArticles: ExternalArticle[],
-  mdxEntries: KnowledgeEntry[],
-): UnifiedArticle[] {
-  const external = externalArticles.map(toUnifiedFromExternal);
-  const internal = getPublishedArticles(mdxEntries).map(toUnifiedFromInternal);
-  return [...external, ...internal].sort(
-    (a, b) =>
-      a.sortOrder - b.sortOrder ||
-      b.createdAt.getTime() - a.createdAt.getTime(),
-  );
-}
-
-/** カテゴリでフィルタした統合記事 */
-export function mergeArticlesByCategory(
-  externalArticles: ExternalArticle[],
-  mdxEntries: KnowledgeEntry[],
-  category: KnowledgeCategory,
-): UnifiedArticle[] {
-  return mergeArticles(externalArticles, mdxEntries).filter(
-    (a) => a.category === category,
-  );
-}
-
-/** カテゴリ別の統合記事数 */
-export function getUnifiedCategoryCount(
-  externalArticles: ExternalArticle[],
-  mdxEntries: KnowledgeEntry[],
+/** カテゴリ別の公開記事数（カテゴリ定義にあるものはすべて 0 で初期化する） */
+export function getAllCategoryCounts<T extends KnowledgeEntry>(
+  entries: T[],
 ): Record<KnowledgeCategory, number> {
-  const all = mergeArticles(externalArticles, mdxEntries);
   const counts = Object.fromEntries(
     categories.map((c) => [c.slug, 0]),
   ) as Record<KnowledgeCategory, number>;
 
-  for (const article of all) {
-    if (article.category in counts) {
-      counts[article.category]++;
+  for (const entry of getPublishedArticles(entries)) {
+    const category = entry.data.category as KnowledgeCategory;
+    if (category in counts) {
+      counts[category]++;
     }
   }
 
   return counts;
 }
-
-// --- 以下はMDX記事専用のユーティリティ（内部記事ルーティング用） ---
 
 export function getPublishedArticles<T extends KnowledgeEntry>(
   entries: T[],
@@ -232,13 +175,13 @@ export function getAllSubcategoryNavOptions(): SubcategoryNavOption[] {
 }
 
 /**
- * UnifiedArticle 配列を tier 単位でグループ化する。
+ * 記事配列を tier 単位でグループ化する。
  * tier 定義の各エントリの `sortOrderStart` をしきい値にして区切る。
  *
  * tier 定義に該当しない sortOrder の記事（最初の tier の start より小さい場合のみ）は
  * 先頭の `null` グループに入れる。
  */
-export function groupArticlesByTier<T extends Pick<UnifiedArticle, "sortOrder">>(
+export function groupArticlesByTier<T extends Pick<KnowledgeArticle, "sortOrder">>(
   articles: T[],
   tiers: import("@/data/knowledgeTiers").KnowledgeTier[],
 ): Array<{ tier: import("@/data/knowledgeTiers").KnowledgeTier | null; articles: T[] }> {

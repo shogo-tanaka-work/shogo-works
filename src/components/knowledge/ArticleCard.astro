@@ -1,7 +1,6 @@
 ---
 import Card from "@/components/ui/Card.astro";
 import Badge from "@/components/ui/Badge.astro";
-import type { ArticlePlatform } from "@/types";
 
 interface Props {
   title: string;
@@ -10,8 +9,6 @@ interface Props {
   tags: string[];
   createdAt: Date;
   href: string;
-  isExternal?: boolean;
-  platform?: ArticlePlatform;
 }
 
 const {
@@ -21,8 +18,6 @@ const {
   createdAt,
   href,
   description,
-  isExternal = false,
-  platform,
 } = Astro.props;
 
 const formattedDate = createdAt.toLocaleDateString("ja-JP", {
@@ -32,38 +27,19 @@ const formattedDate = createdAt.toLocaleDateString("ja-JP", {
 });
 
 const displayTags = tags.slice(0, 3);
-
-const platformLabels: Record<ArticlePlatform, string> = {
-  zenn: "Zenn",
-  qiita: "Qiita",
-  note: "note",
-};
 ---
 
-<a
-  href={href}
-  class="block group"
-  {...(isExternal ? { target: "_blank", rel: "noopener noreferrer" } : {})}
->
+<a href={href} class="block group">
   <Card hover class="h-full">
     <div class="flex flex-col gap-3">
       <div class="flex items-center gap-2 flex-wrap">
         <Badge variant="teal">{categoryLabel}</Badge>
-        {
-          platform && (
-            <Badge variant="blue">
-              {platformLabels[platform]}
-              <span class="ml-0.5">↗</span>
-            </Badge>
-          )
-        }
         <span class="text-xs text-muted-foreground">{formattedDate}</span>
       </div>
       <h3
         class="text-lg font-semibold text-foreground group-hover:text-teal-600 transition-colors line-clamp-2"
       >
         {title}
-        {isExternal && <span class="text-muted-foreground text-sm ml-1">↗</span>}
       </h3>
       <p class="text-sm text-muted-foreground line-clamp-2">{description}</p>
       {
