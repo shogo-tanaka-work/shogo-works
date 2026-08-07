@@ -276,28 +276,67 @@ export function groupArticlesByTier<T extends Pick<UnifiedArticle, "sortOrder">>
   return groups;
 }
 
+/**
+ * タグを URL の 1 セグメントに収まる形へ正規化する。
+ * `CI/CD` のようにスラッシュを含むタグを素通しすると、Astro の [tag] が
+ * パスを割れずビルドが落ちるため、記号は必ずハイフンへ畳む。
+ * 併せて小文字化することで `Codex` と `codex` の表記ゆれを同じページへ寄せる。
+ */
+export function getKnowledgeTagSlug(tag: string): string {
+  return tag
+    .toLowerCase()
+    .replace(/[\s/\\._]+/g, "-")
+    .replace(/[^\p{Letter}\p{Number}-]/gu, "")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export interface KnowledgeTag {
+  /** 表示用のラベル（最も多く使われている表記） */
+  tag: string;
+  /** URL に使う正規化済みスラッグ */
+  slug: string;
+  count: number;
+}
+
 /** 全タグと出現回数を取得する（公開記事のみ、件数降順→タグ名昇順） */
 export function getAllTags<T extends KnowledgeEntry>(
   entries: T[],
-): Array<{ tag: string; count: number }> {
-  const counts = new Map<string, number>();
+): KnowledgeTag[] {
+  // slug 単位で集計し、表記ゆれを1ページへ寄せる
+  const groups = new Map<string, { labels: Map<string, number>; count: number }>();
+
   for (const entry of getPublishedArticles(entries)) {
     for (const tag of entry.data.tags) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+      const slug = getKnowledgeTagSlug(tag);
+      if (!slug) continue;
+
+      const group = groups.get(slug) ?? { labels: new Map(), count: 0 };
+      group.labels.set(tag, (group.labels.get(tag) ?? 0) + 1);
+      group.count += 1;
+      groups.set(slug, group);
     }
   }
-  return Array.from(counts.entries())
-    .map(([tag, count]) => ({ tag, count }))
+
+  return Array.from(groups.entries())
+    .map(([slug, group]) => {
+      const [tag] = Array.from(group.labels.entries()).sort(
+        ([labelA, countA], [labelB, countB]) =>
+          countB - countA || labelA.localeCompare(labelB),
+      )[0];
+      return { tag, slug, count: group.count };
+    })
     .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }
 
-/** 指定タグを含む公開記事を返す */
+/** 指定タグ（スラッグまたは元の表記）を含む公開記事を返す */
 export function getArticlesByTag<T extends KnowledgeEntry>(
   entries: T[],
   tag: string,
 ): T[] {
+  const slug = getKnowledgeTagSlug(tag);
   return getPublishedArticles(entries).filter((entry) =>
-    entry.data.tags.includes(tag),
+    entry.data.tags.some((entryTag) => getKnowledgeTagSlug(entryTag) === slug),
   );
 }
 

@@ -129,6 +129,14 @@ export const subcategories: Partial<
         "Connectivity Cloud 思想のエッジネットワーク。Workers / R2 / D1 / Durable Objects / Zero Trust / WAF / DNS をアーキテクト判断軸で整理",
     },
   ],
+  "ai-governance": [
+    {
+      slug: "guide",
+      label: "AI導入ガバナンス解説",
+      description:
+        "生成AIのリスク・法律・統制を、実装可能な仕組みへ落とすための連載。全体像から統制設計、導入戦略まで",
+    },
+  ],
 };
 
 // 外部プラットフォームに公開した記事
