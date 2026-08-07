@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  getAiNewsArchive,
+  getAiNewsByMonth,
   getAiNewsByTool,
+  getAiNewsMonthKey,
+  getAiNewsMonthLabel,
   getAiNewsSlug,
   getAiNewsStatusMeta,
   getAiNewsToolCount,
@@ -95,5 +99,98 @@ describe("AI News helper", () => {
 
   it("idからslugを返すこと", () => {
     expect(getAiNewsSlug("n8n/n8n-2-18-7")).toBe("n8n-2-18-7");
+  });
+});
+
+// アーカイブ用の月キーは JST 基準で切る。UTC のままだと日本時間の月初・月末が
+// 前後の月に吸われるため、境界のテストを明示的に置く。
+const archiveEntries: AiNewsEntry[] = [
+  ...mockEntries,
+  {
+    id: "codex/codex-boundary-jst-month-end",
+    data: {
+      title: "Codex 月末深夜リリース",
+      tool: "codex",
+      toolLabel: "OpenAI Codex",
+      // JST 2026-07-31 23:00 = UTC 2026-07-31 14:00
+      date: new Date("2026-07-31T23:00:00+09:00"),
+      sourceUrl: "https://example.com/codex-month-end",
+      summary: "Codex update",
+      tags: [],
+      status: "candidate",
+      relatedKnowledge: [],
+      draft: false,
+    },
+  },
+  {
+    id: "cursor/cursor-boundary-jst-month-start",
+    data: {
+      title: "Cursor 月初未明リリース",
+      tool: "cursor",
+      toolLabel: "Cursor",
+      // JST 2026-08-01 01:00 = UTC 2026-07-31 16:00
+      date: new Date("2026-08-01T01:00:00+09:00"),
+      sourceUrl: "https://example.com/cursor-month-start",
+      summary: "Cursor update",
+      tags: [],
+      status: "candidate",
+      relatedKnowledge: [],
+      draft: false,
+    },
+  },
+];
+
+describe("getAiNewsMonthKey", () => {
+  it("JST基準で YYYY-MM を返すこと", () => {
+    expect(getAiNewsMonthKey(new Date("2026-08-03T12:00:00+09:00"))).toBe(
+      "2026-08",
+    );
+  });
+
+  it("JSTの月末深夜がその月に含まれること（UTCで翌月にずれない）", () => {
+    expect(getAiNewsMonthKey(new Date("2026-07-31T23:00:00+09:00"))).toBe(
+      "2026-07",
+    );
+  });
+
+  it("JSTの月初未明がその月に含まれること（UTCで前月にずれない）", () => {
+    expect(getAiNewsMonthKey(new Date("2026-08-01T01:00:00+09:00"))).toBe(
+      "2026-08",
+    );
+  });
+});
+
+describe("getAiNewsMonthLabel", () => {
+  it("月キーを日本語表記に変換すること", () => {
+    expect(getAiNewsMonthLabel("2026-08")).toBe("2026年8月");
+  });
+});
+
+describe("getAiNewsArchive", () => {
+  it("draftを除外して月別件数を新しい順に返すこと", () => {
+    const result = getAiNewsArchive(archiveEntries);
+    expect(result).toEqual([
+      { key: "2026-08", label: "2026年8月", count: 1 },
+      { key: "2026-07", label: "2026年7月", count: 1 },
+      { key: "2026-05", label: "2026年5月", count: 2 },
+    ]);
+  });
+
+  it("記事がない場合は空配列を返すこと", () => {
+    expect(getAiNewsArchive([])).toEqual([]);
+  });
+});
+
+describe("getAiNewsByMonth", () => {
+  it("該当月の公開ニュースのみを日付降順で返すこと", () => {
+    const result = getAiNewsByMonth(archiveEntries, "2026-05");
+    expect(result.map((entry) => entry.id)).toEqual([
+      "claude-code/claude-code-v2-1-128",
+      "n8n/n8n-2-18-7",
+    ]);
+  });
+
+  it("該当月がない場合は空配列を返すこと", () => {
+    expect(getAiNewsByMonth(archiveEntries, "2026-01")).toEqual([]);
   });
 });
