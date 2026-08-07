@@ -68,18 +68,6 @@ body {
   border: 1px solid rgba(3, 7, 18, 0.05);
 }
 
-.glass-strong {
-  background: rgba(255, 255, 255, 0.95);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(3, 7, 18, 0.05);
-}
-
-/*
- * スクロール連動のフェードイン（.animate-on-scroll / .stagger-* /
- * .animate-fade-in-up / .animate-scale-in）は意図的に無効化済み。
- * 各コンポーネントに残るクラス付与は無害（スタイル未定義のため静的表示）。
- */
-
 /* Knowledge base prose */
 .knowledge-prose {
   line-height: 1.9;

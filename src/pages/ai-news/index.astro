@@ -36,7 +36,7 @@ const months = getAiNewsArchive(entries);
             news.length > 0 ? (
               <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {news.map((entry, i) => (
-                  <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                  <div>
                     <NewsCard
                       title={entry.data.title}
                       toolLabel={entry.data.toolLabel}
@@ -51,7 +51,7 @@ const months = getAiNewsArchive(entries);
                 ))}
               </div>
             ) : (
-              <div class="text-center py-16 animate-on-scroll">
+              <div class="text-center py-16">
                 <p class="text-muted-foreground text-lg">
                   まだ公開中のAIニュースはありません。
                 </p>
