@@ -2,18 +2,13 @@
 import Button from "@/components/ui/Button.astro";
 ---
 
-<section class="relative min-h-[90vh] flex items-center justify-center overflow-hidden pt-16">
-  <!-- Background decorations -->
-  <div class="absolute top-1/4 -left-32 w-96 h-96 bg-gradient-to-br from-yellow-200/30 via-pink-200/20 to-purple-200/30 rounded-full blur-3xl"></div>
-  <div class="absolute bottom-1/4 -right-32 w-96 h-96 bg-gradient-to-br from-purple-200/20 via-teal-200/20 to-blue-200/30 rounded-full blur-3xl"></div>
-
-  <div class="relative mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-20">
+<section class="min-h-[80vh] flex items-center pt-16">
+  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 py-20">
     <div class="flex flex-col md:flex-row items-center gap-12 md:gap-16">
       <!-- Profile Image -->
       <div class="flex-shrink-0">
-        <div class="relative w-40 h-40 md:w-52 md:h-52 rounded-2xl overflow-hidden shadow-lg ring-1 ring-gray-950/5">
-          <div class="absolute inset-0 rounded-2xl gradient-border z-10"></div>
-          <img
+        <div class="relative w-40 h-40 md:w-52 md:h-52 overflow-hidden border border-border">
+                <img
             src="/assets/images/profile.jpg"
             alt="田中 省伍"
             class="w-full h-full object-cover"
@@ -34,7 +29,7 @@ import Button from "@/components/ui/Button.astro";
         </h1>
 
         <p class="text-xl sm:text-2xl font-medium mb-6">
-          <span class="gradient-text">AI活用と開発</span>
+          <span class="text-primary">AI活用と開発</span>
           <span class="text-muted-foreground"> を、</span>
           <br class="sm:hidden" />
           <span class="text-foreground">現場で手を動かしながら伴走する</span>

@@ -35,7 +35,7 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
   };
 
   const linkClass = (href: string) =>
-    `px-4 py-3 text-sm rounded-lg transition-colors ${
+    `px-4 py-3 text-sm rounded-[4px] transition-colors ${
       currentPath === href
         ? "text-foreground font-medium bg-gray-50"
         : "text-muted-foreground hover:text-foreground hover:bg-gray-100"
@@ -122,9 +122,7 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
                       >
                         {item.label}
                         <svg
-                          className={`w-4 h-4 transition-transform ${
-                            expandedKey === item.label ? "rotate-180" : ""
-                          }`}
+                          className={`w-4 h-4 transition-transform ${ expandedKey === item.label ? "rotate-180" : "" }`}
                           fill="none"
                           stroke="currentColor"
                           viewBox="0 0 24 24"
@@ -168,7 +166,7 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
                   <a
                     href="/contact"
                     onClick={closeMenu}
-                    className="block w-full text-center bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
+                    className="block w-full text-center bg-primary hover:bg-accent text-white rounded-[4px] px-4 py-2.5 text-sm font-medium transition-all"
                   >
                     お問い合わせ
                   </a>

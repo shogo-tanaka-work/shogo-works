@@ -48,14 +48,14 @@ function iconUrl(slug: string, color?: string): string {
             </div>
           );
 
-          const wrapperClass = `block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-2xl p-5 transition-all duration-300 `;
+          const wrapperClass = `block border border-border  p-5 transition-all duration-300 `;
 
           return (
             <a
               href={outlet.url}
               target="_blank"
               rel="noopener noreferrer"
-              class={`${wrapperClass} group hover:ring-teal-500/30 hover:shadow-md`}
+              class={`${wrapperClass} group hover:ring-teal-500/30`}
             >
               {inner}
             </a>
