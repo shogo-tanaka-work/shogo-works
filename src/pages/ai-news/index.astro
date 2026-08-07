@@ -3,12 +3,16 @@ import { getCollection } from "astro:content";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 import NewsCard from "@/components/ai-news/NewsCard.astro";
-import ToolFilter from "@/components/ai-news/ToolFilter.astro";
-import { getAiNewsSlug, getAiNewsToolCount, getPublishedAiNews } from "@/utils/aiNews";
+import ArchiveSidebar from "@/components/ai-news/ArchiveSidebar.astro";
+import ArchiveSelect from "@/components/ai-news/ArchiveSelect.astro";
+import { getAiNewsArchive, getAiNewsSlug, getPublishedAiNews } from "@/utils/aiNews";
+
+// 全記事を1ページに出すと重くなるため、トップは最新分のみ。過去分はアーカイブから辿る。
+const LATEST_NEWS_LIMIT = 30;
 
 const entries = await getCollection("aiNews");
-const news = getPublishedAiNews(entries);
-const counts = getAiNewsToolCount(entries);
+const news = getPublishedAiNews(entries).slice(0, LATEST_NEWS_LIMIT);
+const months = getAiNewsArchive(entries);
 ---
 
 <BaseLayout
@@ -16,42 +20,65 @@ const counts = getAiNewsToolCount(entries);
   description="主要AIツールの公式アップデート情報を随時発信しています"
 >
   <section class="py-20 px-4">
-    <div class="max-w-5xl mx-auto">
+    <div class="max-w-6xl mx-auto">
       <SectionHeader
         title="AI News"
         subtitle="主要AIツールの公式アップデート情報を随時発信しています"
       />
 
-      <div class="mb-8 animate-on-scroll">
-        <ToolFilter counts={counts} />
-      </div>
+      <div class="lg:grid lg:grid-cols-[minmax(0,1fr)_16rem] lg:gap-10 lg:items-start">
+        <div class="min-w-0">
+          <div class="mb-8">
+            <ArchiveSelect months={months} />
+          </div>
 
-      {
-        news.length > 0 ? (
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {news.map((entry, i) => (
-              <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
-                <NewsCard
-                  title={entry.data.title}
-                  toolLabel={entry.data.toolLabel}
-                  date={entry.data.date}
-                  summary={entry.data.summary}
-                  tags={entry.data.tags}
-                  status={entry.data.status}
-                  href={`/ai-news/${entry.data.tool}/${getAiNewsSlug(entry.id)}`}
-                  sourceUrl={entry.data.sourceUrl}
-                />
+          {
+            news.length > 0 ? (
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {news.map((entry, i) => (
+                  <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                    <NewsCard
+                      title={entry.data.title}
+                      toolLabel={entry.data.toolLabel}
+                      date={entry.data.date}
+                      summary={entry.data.summary}
+                      tags={entry.data.tags}
+                      status={entry.data.status}
+                      href={`/ai-news/${entry.data.tool}/${getAiNewsSlug(entry.id)}`}
+                      sourceUrl={entry.data.sourceUrl}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div class="text-center py-16 animate-on-scroll">
-            <p class="text-muted-foreground text-lg">
-              まだ公開中のAIニュースはありません。
-            </p>
-          </div>
-        )
-      }
+            ) : (
+              <div class="text-center py-16 animate-on-scroll">
+                <p class="text-muted-foreground text-lg">
+                  まだ公開中のAIニュースはありません。
+                </p>
+              </div>
+            )
+          }
+
+          {
+            months.length > 0 && (
+              <p class="mt-10 text-sm text-muted-foreground">
+                過去のニュースは
+                <a
+                  href={`/ai-news/archive/${months[0].key}`}
+                  class="text-teal-600 hover:text-teal-700 transition-colors"
+                >
+                  月別アーカイブ
+                </a>
+                から辿れます。
+              </p>
+            )
+          }
+        </div>
+
+        <aside class="hidden lg:block lg:sticky lg:top-24 max-h-[calc(100vh-7rem)] overflow-y-auto">
+          <ArchiveSidebar months={months} />
+        </aside>
+      </div>
     </div>
   </section>
 </BaseLayout>

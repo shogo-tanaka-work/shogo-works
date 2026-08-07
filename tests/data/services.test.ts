@@ -3,8 +3,8 @@ import { services } from "@/data/services";
 import { testimonials } from "@/data/testimonials";
 
 describe("services データ", () => {
-  it("5つのサービスカテゴリが定義されていること", () => {
-    expect(services).toHaveLength(5);
+  it("3つのサービスカテゴリが定義されていること", () => {
+    expect(services).toHaveLength(3);
   });
 
   it("すべてのサービスに必須フィールドが存在すること", () => {
@@ -28,11 +28,9 @@ describe("services データ", () => {
 
   it("期待されるカテゴリIDが含まれていること", () => {
     const ids = services.map((s) => s.id);
-    expect(ids).toContain("hayawaza-automation");
-    expect(ids).toContain("hayawaza-advisor");
-    expect(ids).toContain("hayawaza-training");
-    expect(ids).toContain("hayawaza-dev");
-    expect(ids).toContain("hayawaza-renewal");
+    expect(ids).toContain("personal-support");
+    expect(ids).toContain("app-development");
+    expect(ids).toContain("lecture");
   });
 
   it("料金プランに定価とモニター価格が含まれていること", () => {
@@ -89,10 +87,10 @@ describe("services データ", () => {
   });
 });
 
-describe("はやわざアプリ開発: ストック型運用保守の反映", () => {
-  const dev = services.find((s) => s.id === "hayawaza-dev");
+describe("アプリ開発: ストック型運用保守の反映", () => {
+  const dev = services.find((s) => s.id === "app-development");
 
-  it("hayawaza-dev が存在すること", () => {
+  it("app-development が存在すること", () => {
     expect(dev).toBeDefined();
   });
 

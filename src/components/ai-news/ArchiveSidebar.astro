@@ -1,0 +1,56 @@
+---
+import Badge from "@/components/ui/Badge.astro";
+import type { AiNewsArchiveMonth } from "@/utils/aiNews";
+
+interface Props {
+  months: AiNewsArchiveMonth[];
+  /** 表示中の月キー（例: "2026-08"）。一覧トップでは未指定 */
+  currentMonth?: string;
+}
+
+const { months, currentMonth } = Astro.props;
+const total = months.reduce((sum, month) => sum + month.count, 0);
+---
+
+<nav aria-label="AI News アーカイブ">
+  <div class="flex items-baseline justify-between mb-3">
+    <h2 class="text-sm font-semibold text-foreground">アーカイブ</h2>
+    <span class="text-xs text-muted-foreground">全{total}件</span>
+  </div>
+
+  <ul class="flex flex-col gap-0.5">
+    <li>
+      <a
+        href="/ai-news"
+        aria-current={currentMonth === undefined ? "page" : undefined}
+        class:list={[
+          "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+          currentMonth === undefined
+            ? "bg-teal-50 text-teal-700 font-medium"
+            : "text-muted-foreground hover:bg-gray-50 hover:text-foreground",
+        ]}
+      >
+        最新のニュース
+      </a>
+    </li>
+    {
+      months.map((month) => (
+        <li>
+          <a
+            href={`/ai-news/archive/${month.key}`}
+            aria-current={currentMonth === month.key ? "page" : undefined}
+            class:list={[
+              "flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+              currentMonth === month.key
+                ? "bg-teal-50 text-teal-700 font-medium"
+                : "text-muted-foreground hover:bg-gray-50 hover:text-foreground",
+            ]}
+          >
+            {month.label}
+            <Badge variant="default">{month.count}</Badge>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
+</nav>

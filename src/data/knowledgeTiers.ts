@@ -153,7 +153,7 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
       order: 4,
       label: "Install & Operations",
       description: "セットアップ・日常運用・カスタムコマンド・Web/Headless",
-      sortOrderStart: 12,
+      sortOrderStart: 14,
     },
   ],
   /**

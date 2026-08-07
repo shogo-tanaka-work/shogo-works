@@ -16,16 +16,8 @@ describe("navigation データ", () => {
     }
   });
 
-  it("5つのトップレベル項目が定義されていること（ドロップダウン導入で集約）", () => {
-    expect(navItems).toHaveLength(5);
-  });
-
-  it("課題導線「お悩みから探す」がトップの #problems アンカーへ向くこと", () => {
-    const problemNav = navItems.find((item) => item.href === "/#problems");
-    expect(problemNav).toEqual({
-      label: "お悩みから探す",
-      href: "/#problems",
-    });
+  it("4つのトップレベル項目が定義されていること（ドロップダウン導入で集約）", () => {
+    expect(navItems).toHaveLength(4);
   });
 
   it("Contactリンクは Navbar の常設ボタンに集約するためナビ項目には含めないこと", () => {
