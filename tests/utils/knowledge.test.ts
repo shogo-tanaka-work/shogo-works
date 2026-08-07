@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  getKnowledgeTagSlug,
   getPublishedArticles,
   getArticlesByCategory,
   getArticlesByCategoryAndSubcategory,
@@ -805,5 +806,36 @@ describe("getRecentlyUpdatedArticles", () => {
   it("異常系: draft 記事は除外されること", () => {
     const result = getRecentlyUpdatedArticles(entries, 10);
     expect(result.map((e) => e.id)).not.toContain("d-draft");
+  });
+});
+
+describe("getKnowledgeTagSlug", () => {
+  it("正常系: URL に使える文字はそのまま残ること", () => {
+    expect(getKnowledgeTagSlug("claude-code")).toBe("claude-code");
+  });
+
+  it("正常系: 空白をハイフンに畳み、小文字化すること", () => {
+    expect(getKnowledgeTagSlug("Claude Code")).toBe("claude-code");
+    expect(getKnowledgeTagSlug("best practices")).toBe("best-practices");
+  });
+
+  it("異常系: スラッシュを含むタグがパスを割らないこと", () => {
+    // Astro の [tag] は 1 セグメントしか受け取れないため、/ を残すとビルドが落ちる
+    expect(getKnowledgeTagSlug("CI/CD")).toBe("ci-cd");
+    expect(getKnowledgeTagSlug("openai/codex-action")).toBe("openai-codex-action");
+  });
+
+  it("異常系: 先頭スラッシュ付きのコマンド名を扱えること", () => {
+    expect(getKnowledgeTagSlug("/rewind")).toBe("rewind");
+    expect(getKnowledgeTagSlug("/review")).toBe("review");
+  });
+
+  it("正常系: 日本語タグはそのまま残ること", () => {
+    expect(getKnowledgeTagSlug("業務自動化")).toBe("業務自動化");
+  });
+
+  it("正常系: 大文字小文字だけが違うタグが同じ slug になること", () => {
+    expect(getKnowledgeTagSlug("Codex")).toBe(getKnowledgeTagSlug("codex"));
+    expect(getKnowledgeTagSlug("MCP")).toBe(getKnowledgeTagSlug("mcp"));
   });
 });
