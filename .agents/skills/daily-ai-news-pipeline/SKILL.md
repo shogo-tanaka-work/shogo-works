@@ -17,8 +17,8 @@ description: |
 
 | 工程 | 委譲先 | 責務 |
 |---|---|---|
-| 公式ソース巡回・日次サマリー・詳細メモ作成 | `.claude/skills/daily-ai-update-monitor/` | `docs/research/daily-ai-updates/YYYY-MM-DD.md` と `docs/research/<tool>/official-updates/*.md` を生成 |
-| 仕分け・速報記事・教材化メモ作成 | `.claude/skills/ai-news-publisher/` | `src/content/ai-news/<tool>/*.mdx` と `src/content/ai-news-notes/<tool>/*.mdx` を生成 |
+| 公式ソース巡回・日次サマリー・詳細メモ作成 | `.agents/skills/daily-ai-update-monitor/` | `docs/research/daily-ai-updates/YYYY-MM-DD.md` と `docs/research/<tool>/official-updates/*.md` を生成 |
+| 仕分け・速報記事・教材化メモ作成 | `.agents/skills/ai-news-publisher/` | `src/content/ai-news/<tool>/*.mdx` と `src/content/ai-news-notes/<tool>/*.mdx` を生成 |
 
 本スキル自身は内部実装を持たない。中身のルール変更が必要なら委譲先 SKILL.md を編集する。
 
@@ -146,11 +146,11 @@ EOF
 
 ## 参照ファイル
 
-- `.claude/skills/daily-ai-update-monitor/SKILL.md`（公式ソース巡回・詳細メモフォーマット・選別ルール）
-- `.claude/skills/daily-ai-update-monitor/references/source-catalog.md`
-- `.claude/skills/daily-ai-update-monitor/references/output-format.md`
-- `.claude/skills/daily-ai-update-monitor/references/perception-gaps.md`
-- `.claude/skills/ai-news-publisher/SKILL.md`（仕分けルール・記事フォーマット・tool enum）
-- `.claude/skills/ai-news-publisher/references/publishing-map.md`
-- `.claude/skills/ai-news-publisher/references/selection-rubric.md`
-- `.claude/skills/ai-news-publisher/references/output-format.md`
+- `.agents/skills/daily-ai-update-monitor/SKILL.md`（公式ソース巡回・詳細メモフォーマット・選別ルール）
+- `.agents/skills/daily-ai-update-monitor/references/source-catalog.md`
+- `.agents/skills/daily-ai-update-monitor/references/output-format.md`
+- `.agents/skills/daily-ai-update-monitor/references/perception-gaps.md`
+- `.agents/skills/ai-news-publisher/SKILL.md`（仕分けルール・記事フォーマット・tool enum）
+- `.agents/skills/ai-news-publisher/references/publishing-map.md`
+- `.agents/skills/ai-news-publisher/references/selection-rubric.md`
+- `.agents/skills/ai-news-publisher/references/output-format.md`
