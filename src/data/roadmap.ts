@@ -185,4 +185,100 @@ export const roadmapPaths: RoadmapPath[] = [
       },
     ],
   },
+  {
+    id: "claude-code-deep-dive",
+    title: "Claude Code を拡張して使い倒す（実務者向け）",
+    description:
+      "基本操作を終えた人が、Hooks / Skills / サブエージェント / MCP でエージェントを自分の開発フローに合わせて拡張していくための学習パスです。カリキュラムより一段深い内容を扱います。",
+    steps: [
+      {
+        ref: "ai-tools/claude-code/overview",
+        note: "全体像。何ができて何ができないかの境界を先に押さえる。",
+      },
+      {
+        ref: "ai-tools/claude-code/install-and-setup",
+        note: "インストールと初期設定。ここで環境の躓きを潰しておく。",
+      },
+      {
+        ref: "ai-tools/claude-code/daily-operations",
+        note: "日常運用。セッションとコンテキストの扱いが効率を決める。",
+      },
+      {
+        ref: "ai-tools/claude-code/claude-md-memory",
+        note: "CLAUDE.md と Auto Memory。毎回同じ説明をしない仕組みを作る。",
+      },
+      {
+        ref: "ai-tools/claude-code/plan-mode-worktrees",
+        note: "Plan Mode と Worktrees。計画と実行を分けて事故を防ぐ。",
+      },
+      {
+        ref: "ai-tools/claude-code/skills",
+        note: "Skills。繰り返す作業を再利用できる形へ切り出す。",
+      },
+      {
+        ref: "ai-tools/claude-code/hooks",
+        note: "Hooks。ライフサイクルに介入して検証や整形を自動化する。",
+      },
+      {
+        ref: "ai-tools/claude-code/subagents",
+        note: "サブエージェント。並列化と専門化で長い作業を分担させる。",
+      },
+      {
+        ref: "ai-tools/claude-code/mcp",
+        note: "MCP。外部ツールとAPIを安全に接続する。",
+      },
+      {
+        ref: "ai-tools/claude-code/agent-sdk",
+        note: "Agent SDK。CLI の外からエージェントを組み込む段階へ。",
+      },
+    ],
+  },
+  {
+    id: "codex-from-scratch",
+    title: "OpenAI Codex を業務で使えるようにする",
+    description:
+      "Codex の全体像から、CLI の実行制御・設定・自動化までを順に押さえる学習パスです。Claude Code との比較も含め、どちらをどの場面で使うかの判断材料まで扱います。",
+    steps: [
+      {
+        ref: "ai-tools/codex/overview",
+        note: "全体像。CLI / IDE / Cloud / SDK の関係をここで掴む。",
+      },
+      {
+        ref: "ai-tools/codex/quickstart",
+        note: "インストールから初回タスク実行まで。まず動かす。",
+      },
+      {
+        ref: "ai-tools/codex/pricing",
+        note: "料金体系。サブスクとトークン課金の関係を先に理解する。",
+      },
+      {
+        ref: "ai-tools/codex/vs-claude-code",
+        note: "Claude Code との比較。使い分けの判断軸を持つ。",
+      },
+      {
+        ref: "ai-tools/codex/prompting-guide",
+        note: "プロンプト設計。thread と context の扱いが品質を決める。",
+      },
+      {
+        ref: "ai-tools/codex/approval-modes-sandbox",
+        note: "承認モードとサンドボックス。どこまで自動で走らせるかを決める。",
+      },
+      {
+        ref: "ai-tools/codex/cli-features",
+        note: "CLI 主要機能。resume や review で日常の運用が変わる。",
+      },
+      {
+        ref: "ai-tools/codex/subagents",
+        note: "サブエージェント。TOML 定義で並列スレッドを扱う。",
+      },
+      {
+        ref: "ai-tools/codex/config-basics",
+        note: "config.toml の基本。挙動を自分の環境に寄せる。",
+      },
+      {
+        ref: "ai-tools/codex/best-practices",
+        note: "ベストプラクティス。現場で効く運用の勘所をまとめて拾う。",
+      },
+    ],
+  },
 ];
