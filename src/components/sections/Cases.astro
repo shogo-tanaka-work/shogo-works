@@ -19,7 +19,7 @@ const featuredCases = caseStudies.slice(0, 3);
         featuredCases.map((caseStudy, i) => (
           <a
             href={`/cases/${caseStudy.slug}`}
-            class={`block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300 group hover:ring-teal-500/20 hover:shadow-md animate-on-scroll stagger-${(i % 5) + 1}`}
+            class={`block border border-border p-6 transition-all duration-300 group hover:border-primary/40`}
           >
             <div class="flex items-center gap-2 mb-3 flex-wrap">
               <Badge variant="teal">{caseStudy.category}</Badge>

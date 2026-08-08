@@ -36,7 +36,7 @@ Changelog との違いは粒度と意図にある。
 
 主題は **「Frontend Cloud の完成形」**。AI を扱いつつも、軸足はまだ Web フロントエンドの統合プラットフォームにあった。
 
-- **Vercel Firewall**：悪性トラフィックのログ・ブロック・チャレンジ。WAF と DDoS 緩和の正式名称化。詳細は [WAF とファイアウォール](/knowledge/web-development/vercel-docs/31-waf-and-firewall) を参照
+- **Vercel Firewall**：悪性トラフィックのログ・ブロック・チャレンジ。WAF と DDoS 緩和の正式名称化。詳細は [WAF とファイアウォール](/knowledge/web-development/vercel/31-waf-and-firewall) を参照
 - **Feature Flags の Web Analytics 統合**：フラグごとのページビュー / カスタムイベント分解
 - **Vercel Toolbar の刷新**：プレビュー上での反復速度改善
 - **Next.js 15 RC**（React 19 サポート / キャッシュ挙動の見直し）
@@ -46,18 +46,18 @@ Changelog との違いは粒度と意図にある。
 
 主題は **「AI 時代の Building Blocks」**。Compute モデルとセキュリティの両面で、AI ワークロードを前提に作り直された層が出揃った。
 
-- **Fluid Compute + Active CPU pricing**：「Serverless Servers」と銘打つ新 Compute モデル。アイドル時間（LLM レスポンス待ち等）に CPU 課金しない方式へ。AI 推論など待機の長いワークロードで最大 90 % のコスト削減。詳細は [Functions と Fluid Compute](/knowledge/web-development/vercel-docs/21-functions-and-fluid-compute) を参照
+- **Fluid Compute + Active CPU pricing**：「Serverless Servers」と銘打つ新 Compute モデル。アイドル時間（LLM レスポンス待ち等）に CPU 課金しない方式へ。AI 推論など待機の長いワークロードで最大 90 % のコスト削減。詳細は [Functions と Fluid Compute](/knowledge/web-development/vercel/21-functions-and-fluid-compute) を参照
 - **Rolling Releases**：段階リリース（カナリア → 全体）を標準デプロイフローに組み込む。デプロイ失敗時のブラスト半径削減
-- **BotID**（Invisible CAPTCHA）：Checkout / Login / LLM 呼び出しなど高コスト経路を「人間/Bot」で守る。reCAPTCHA 系の代替。詳細は [Bot Management と BotID](/knowledge/web-development/vercel-docs/32-bot-management-and-botid) を参照
-- **AI Gateway 系の整備**：複数モデルベンダーへの統一インターフェース。詳細は [AI Gateway](/knowledge/web-development/vercel-docs/41-ai-gateway) を参照
+- **BotID**（Invisible CAPTCHA）：Checkout / Login / LLM 呼び出しなど高コスト経路を「人間/Bot」で守る。reCAPTCHA 系の代替。詳細は [Bot Management と BotID](/knowledge/web-development/vercel/32-bot-management-and-botid) を参照
+- **AI Gateway 系の整備**：複数モデルベンダーへの統一インターフェース。詳細は [AI Gateway](/knowledge/web-development/vercel/41-ai-gateway) を参照
 
 ### Vercel Ship 2026（2026-10-15 / San Francisco, Palace of Fine Arts）
 
 時期は 2026 年秋（執筆時点では予告フェーズ）。基調メッセージは **「AI Cloud」**。Vercel というブランドの定義そのものが「Frontend Cloud」から「AI Cloud」へと書き換わるアナウンスがトップに来る構成。
 
 - **AI Gateway の本格展開**：OpenAI / Anthropic / xAI など数百モデルへの統一アクセス、ロングリスニング対応のストリーミング
-- **Sandbox**：エージェントが任意コードを安全に実行するための隔離環境。詳細は [MCP と Sandbox](/knowledge/web-development/vercel-docs/42-mcp-and-sandbox) を参照
-- **Vercel Agent**：PR レビュー / 異常検知の運用エージェント。Pro 以上で全 PR 対象。詳細は [AI Agents と Claim Deployments](/knowledge/web-development/vercel-docs/43-ai-agents-and-claim-deployments) を参照
+- **Sandbox**：エージェントが任意コードを安全に実行するための隔離環境。詳細は [MCP と Sandbox](/knowledge/web-development/vercel/42-mcp-and-sandbox) を参照
+- **Vercel Agent**：PR レビュー / 異常検知の運用エージェント。Pro 以上で全 PR 対象。詳細は [AI Agents と Claim Deployments](/knowledge/web-development/vercel/43-ai-agents-and-claim-deployments) を参照
 - **Security Suite の統合**：WAF・Bot 管理・BotID・Sandbox を「セキュリティ製品群」として再パッケージ
 
 時期不詳の細部もあるため、確定版の詳細は [Ship 2026 公式ページ](https://vercel.com/ship) と当日の Opening Keynote で再確認する前提で読む。
@@ -94,7 +94,7 @@ Compute の進化は二段階で起きた。
 - **Deployment Protection / RBAC**（継続）：Preview の社外露出を抑える運用面の強化
 - **Sandbox**（2026）：エージェントのコード実行を隔離する執行環境
 
-総じて「AI 経路と Bot 経路を、ネットワーク → アプリ → 実行環境の各層で守る」という構図に整理されている。詳細は [セキュリティ・コンプライアンス](/knowledge/web-development/vercel-docs/30-security-compliance) 〜 [DDoS と Network](/knowledge/web-development/vercel-docs/34-ddos-and-network) を参照。
+総じて「AI 経路と Bot 経路を、ネットワーク → アプリ → 実行環境の各層で守る」という構図に整理されている。詳細は [セキュリティ・コンプライアンス](/knowledge/web-development/vercel/30-security-compliance) 〜 [DDoS と Network](/knowledge/web-development/vercel/34-ddos-and-network) を参照。
 
 ### Pricing 透明化（Infrastructure Pricing 改善）
 

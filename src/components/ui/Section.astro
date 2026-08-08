@@ -1,0 +1,30 @@
+---
+import { cn } from "@/utils/cn";
+import Container from "@/components/ui/Container.astro";
+
+interface Props {
+  id?: string;
+  /** セクション間の縦余白。階層はこの差でつける（docs/DESIGN.md） */
+  spacing?: "default" | "compact";
+  width?: "default" | "narrow" | "wide";
+  class?: string;
+}
+
+const {
+  id,
+  spacing = "default",
+  width = "default",
+  class: className,
+} = Astro.props;
+
+const spacings = {
+  default: "py-20",
+  compact: "py-14",
+};
+---
+
+<section id={id} class={cn(spacings[spacing], className)}>
+  <Container width={width}>
+    <slot />
+  </Container>
+</section>

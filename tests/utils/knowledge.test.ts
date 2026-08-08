@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import {
+  getKnowledgeTagSlug,
   getPublishedArticles,
   getArticlesByCategory,
   getArticlesByCategoryAndSubcategory,
@@ -12,14 +13,9 @@ import {
   getCategoryArticleCount,
   getRecentlyUpdatedArticles,
   getRelatedArticles,
-  mergeArticles,
-  mergeArticlesByCategory,
-  getUnifiedCategoryCount,
-  toUnifiedFromExternal,
-  toUnifiedFromInternal,
+  toKnowledgeArticle,
 } from "@/utils/knowledge";
 import { categories, subcategories } from "@/data/knowledge";
-import type { ExternalArticle } from "@/types";
 
 interface MockEntry {
   id: string;
@@ -88,31 +84,6 @@ const mockEntries: MockEntry[] = [
       draft: true,
       author: "田中省伍",
     },
-  },
-];
-
-const mockExternalArticles: ExternalArticle[] = [
-  {
-    id: "zenn-claude-code",
-    title: "Claude Codeの実践ガイド",
-    description: "Zennに公開したClaude Code解説",
-    category: "ai-tools",
-    tags: ["claude", "zenn"],
-    sortOrder: 2,
-    createdAt: new Date("2026-04-05"),
-    platform: "zenn",
-    url: "https://zenn.dev/user/articles/claude-code",
-  },
-  {
-    id: "qiita-astro-tips",
-    title: "Astro開発のTips",
-    description: "Qiitaに公開したAstro記事",
-    category: "web-development",
-    tags: ["astro", "qiita"],
-    sortOrder: 1,
-    createdAt: new Date("2026-04-04"),
-    platform: "qiita",
-    url: "https://qiita.com/user/items/astro-tips",
   },
 ];
 
@@ -338,77 +309,11 @@ describe("getRelatedArticles", () => {
   });
 });
 
-// --- 統合記事（ハイブリッド）のテスト ---
-
-describe("toUnifiedFromExternal", () => {
-  it("外部記事をUnifiedArticleに変換すること", () => {
-    const result = toUnifiedFromExternal(mockExternalArticles[0]);
-    expect(result.source).toBe("external");
-    expect(result.isExternal).toBe(true);
-    expect(result.platform).toBe("zenn");
-    expect(result.href).toBe("https://zenn.dev/user/articles/claude-code");
-  });
-});
-
-describe("toUnifiedFromInternal", () => {
-  it("MDX記事をUnifiedArticleに変換すること", () => {
-    const result = toUnifiedFromInternal(mockEntries[0]);
-    expect(result.source).toBe("internal");
-    expect(result.isExternal).toBe(false);
-    expect(result.platform).toBeUndefined();
+describe("toKnowledgeArticle", () => {
+  it("正常系: MDX記事を一覧表示用の形へ変換すること", () => {
+    const result = toKnowledgeArticle(mockEntries[0]);
     expect(result.href).toBe("/knowledge/ai-tools/claude-code");
-  });
-});
-
-describe("mergeArticles", () => {
-  it("外部記事とMDX記事を統合してsortOrder昇順でソートすること", () => {
-    const result = mergeArticles(mockExternalArticles, mockEntries);
-    // 外部2 + 内部公開3 = 5件
-    expect(result).toHaveLength(5);
-    // sortOrder昇順ソート確認
-    for (let i = 1; i < result.length; i++) {
-      expect(result[i - 1].sortOrder).toBeLessThanOrEqual(
-        result[i].sortOrder,
-      );
-    }
-  });
-
-  it("MDXのdraft記事を除外すること", () => {
-    const result = mergeArticles(mockExternalArticles, mockEntries);
-    expect(result.find((a) => a.title === "下書き記事")).toBeUndefined();
-  });
-
-  it("外部記事のみの場合も動作すること", () => {
-    const result = mergeArticles(mockExternalArticles, []);
-    expect(result).toHaveLength(2);
-  });
-
-  it("MDX記事のみの場合も動作すること", () => {
-    const result = mergeArticles([], mockEntries);
-    expect(result).toHaveLength(3);
-  });
-});
-
-describe("mergeArticlesByCategory", () => {
-  it("指定カテゴリの統合記事のみ返すこと", () => {
-    const result = mergeArticlesByCategory(
-      mockExternalArticles,
-      mockEntries,
-      "ai-tools",
-    );
-    // 外部1(zenn) + 内部2(claude-code, cursor-tips) = 3件
-    expect(result).toHaveLength(3);
-    expect(result.every((a) => a.category === "ai-tools")).toBe(true);
-  });
-});
-
-describe("getUnifiedCategoryCount", () => {
-  it("外部+内部を含むカテゴリ別件数を返すこと", () => {
-    const counts = getUnifiedCategoryCount(mockExternalArticles, mockEntries);
-    expect(counts["ai-tools"]).toBe(3); // 外部1 + 内部2
-    expect(counts["web-development"]).toBe(2); // 外部1 + 内部1
-    expect(counts["devops"]).toBe(0);
-    expect(counts["career"]).toBe(0);
+    expect(result.title).toBe(mockEntries[0].data.title);
   });
 });
 
@@ -722,15 +627,15 @@ describe("getAdjacentArticles with subcategory", () => {
   });
 });
 
-describe("toUnifiedFromInternal with subcategory", () => {
+describe("toKnowledgeArticle: subcategory による href 生成", () => {
   it("正常系: subcategoryありの場合、3階層hrefを生成すること", () => {
-    const result = toUnifiedFromInternal(mockEntriesWithSubcategory[1]);
+    const result = toKnowledgeArticle(mockEntriesWithSubcategory[1]);
     expect(result.href).toBe("/knowledge/ai-tools/agents/claude-code");
     expect(result.subcategory).toBe("agents");
   });
 
   it("正常系: subcategoryなしの場合、2階層hrefを生成すること", () => {
-    const result = toUnifiedFromInternal(mockEntriesWithSubcategory[0]);
+    const result = toKnowledgeArticle(mockEntriesWithSubcategory[0]);
     expect(result.href).toBe("/knowledge/ai-tools/claude-code-intro");
     expect(result.subcategory).toBeUndefined();
   });
@@ -805,5 +710,36 @@ describe("getRecentlyUpdatedArticles", () => {
   it("異常系: draft 記事は除外されること", () => {
     const result = getRecentlyUpdatedArticles(entries, 10);
     expect(result.map((e) => e.id)).not.toContain("d-draft");
+  });
+});
+
+describe("getKnowledgeTagSlug", () => {
+  it("正常系: URL に使える文字はそのまま残ること", () => {
+    expect(getKnowledgeTagSlug("claude-code")).toBe("claude-code");
+  });
+
+  it("正常系: 空白をハイフンに畳み、小文字化すること", () => {
+    expect(getKnowledgeTagSlug("Claude Code")).toBe("claude-code");
+    expect(getKnowledgeTagSlug("best practices")).toBe("best-practices");
+  });
+
+  it("異常系: スラッシュを含むタグがパスを割らないこと", () => {
+    // Astro の [tag] は 1 セグメントしか受け取れないため、/ を残すとビルドが落ちる
+    expect(getKnowledgeTagSlug("CI/CD")).toBe("ci-cd");
+    expect(getKnowledgeTagSlug("openai/codex-action")).toBe("openai-codex-action");
+  });
+
+  it("異常系: 先頭スラッシュ付きのコマンド名を扱えること", () => {
+    expect(getKnowledgeTagSlug("/rewind")).toBe("rewind");
+    expect(getKnowledgeTagSlug("/review")).toBe("review");
+  });
+
+  it("正常系: 日本語タグはそのまま残ること", () => {
+    expect(getKnowledgeTagSlug("業務自動化")).toBe("業務自動化");
+  });
+
+  it("正常系: 大文字小文字だけが違うタグが同じ slug になること", () => {
+    expect(getKnowledgeTagSlug("Codex")).toBe(getKnowledgeTagSlug("codex"));
+    expect(getKnowledgeTagSlug("MCP")).toBe(getKnowledgeTagSlug("mcp"));
   });
 });

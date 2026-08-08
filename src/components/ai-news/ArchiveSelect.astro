@@ -1,0 +1,52 @@
+---
+import type { AiNewsArchiveMonth } from "@/utils/aiNews";
+
+interface Props {
+  months: AiNewsArchiveMonth[];
+  /** 表示中の月キー（例: "2026-08"）。一覧トップでは未指定 */
+  currentMonth?: string;
+}
+
+const { months, currentMonth } = Astro.props;
+---
+
+{/* サイドバーは lg 未満で非表示になるため、モバイルではこのセレクトがアーカイブ導線になる */}
+<div class="lg:hidden">
+  <label
+    for="ai-news-archive-select"
+    class="block text-sm font-medium text-foreground mb-2"
+  >
+    アーカイブから探す
+  </label>
+  <select
+    id="ai-news-archive-select"
+    data-archive-select
+    class="w-full rounded-[4px] border border-border bg-white px-3 py-2 text-sm text-foreground"
+  >
+    <option value="/ai-news" selected={currentMonth === undefined}>
+      最新のニュース
+    </option>
+    {
+      months.map((month) => (
+        <option
+          value={`/ai-news/archive/${month.key}`}
+          selected={currentMonth === month.key}
+        >
+          {month.label}（{month.count}件）
+        </option>
+      ))
+    }
+  </select>
+</div>
+
+<script>
+  const select = document.querySelector<HTMLSelectElement>(
+    "[data-archive-select]",
+  );
+
+  select?.addEventListener("change", () => {
+    if (select.value) {
+      window.location.href = select.value;
+    }
+  });
+</script>

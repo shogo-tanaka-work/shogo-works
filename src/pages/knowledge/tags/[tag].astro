@@ -12,8 +12,8 @@ import type { KnowledgeCategory } from "@/types";
 export const getStaticPaths = (async () => {
   const allEntries = await getCollection("knowledge");
   const tags = getAllTags(allEntries);
-  return tags.map(({ tag }) => ({
-    params: { tag },
+  return tags.map(({ tag, slug }) => ({
+    params: { tag: slug },
     props: { tag },
   }));
 }) satisfies GetStaticPaths;
@@ -54,6 +54,7 @@ function getCategoryLabel(slug: string): string {
             {articles.map((entry) => {
               const slug = entry.id.split("/").pop() as string;
               const category = entry.data.category as KnowledgeCategory;
+              const { subcategory } = entry.data;
               return (
                 <ArticleCard
                   title={entry.data.title}
@@ -61,7 +62,11 @@ function getCategoryLabel(slug: string): string {
                   categoryLabel={getCategoryLabel(category)}
                   tags={entry.data.tags}
                   createdAt={entry.data.createdAt}
-                  href={`/knowledge/${category}/${slug}`}
+                  href={
+                    subcategory
+                      ? `/knowledge/${category}/${subcategory}/${slug}`
+                      : `/knowledge/${category}/${slug}`
+                  }
                 />
               );
             })}

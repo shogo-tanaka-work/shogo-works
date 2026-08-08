@@ -22,7 +22,7 @@ const iconMap: Record<string, string> = {
     if (link.comingSoon) {
       return (
         <div
-          class="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center text-muted-foreground/40 cursor-default relative group"
+          class="w-9 h-9 rounded-[4px] bg-gray-100 flex items-center justify-center text-muted-foreground/40 cursor-default relative group"
           aria-label={`${link.name} (Coming Soon)`}
         >
           {link.icon === "note" && <NoteIcon class="w-4 h-4" />}
@@ -37,7 +37,7 @@ const iconMap: Record<string, string> = {
         href={link.url}
         target="_blank"
         rel="noopener noreferrer"
-        class="w-9 h-9 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        class="w-9 h-9 rounded-[4px] bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         aria-label={link.name}
       >
         <Fragment set:html={iconMap[link.icon] || ""} />

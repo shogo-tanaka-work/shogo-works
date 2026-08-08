@@ -121,35 +121,11 @@ export interface NavItem {
   children?: NavChild[];
 }
 
-// 「課題から探す」セクション用。訪問者の悩みを該当サービスへ橋渡しする。
-export interface ProblemItem {
-  text: string; // 訪問者目線の悩み（「〜したい」「〜が課題」）
-  serviceHref: string; // 紐付くサービスの href（services.ts と整合させる）
-}
-
-export interface ProblemCategory {
-  key: string; // 一意なカテゴリキー（タブ切替の data 属性に使用）
-  label: string; // タブ表示名
-  problems: ProblemItem[];
-}
-
 // 「他社との違い」比較セクション用。
 export interface DifferenceItem {
   aspect: string; // 比較の観点
   others: string; // 一般的な外注・他社の傾向
   mine: string; // 田中省伍の提供価値
-}
-
-// AI無料診断 LP 用。
-export interface DiagnosisStep {
-  title: string; // ステップ名
-  body: string; // 内容
-}
-
-export interface DiagnosisNextOption {
-  label: string; // 診断後に繋がるサービス名
-  href: string; // 該当サービスの href（services.ts と整合させる）
-  description: string; // どんな人向けか
 }
 
 export type KnowledgeCategory =
@@ -173,20 +149,6 @@ export interface SubcategoryMeta {
   slug: string;
   label: string;
   description: string;
-}
-
-export type ArticlePlatform = "zenn" | "qiita" | "note";
-
-export interface ExternalArticle {
-  id: string;
-  title: string;
-  description: string;
-  category: KnowledgeCategory;
-  tags: string[];
-  sortOrder: number;
-  createdAt: Date;
-  platform: ArticlePlatform;
-  url: string;
 }
 
 export type AiNewsTool =
@@ -218,17 +180,12 @@ export interface AiNewsStatusMeta {
   description: string;
 }
 
-// --- Top page: featured knowledge / media outlets / resources / tech stack ---
-
-export type FeaturedSource = "internal" | "external";
-export type FeaturedPlatform = "zenn" | "qiita" | "note" | "youtube";
+// --- Top page: featured knowledge / media outlets / tech stack ---
 
 export interface FeaturedKnowledgeItem {
   title: string;
   description: string;
   href: string;
-  source: FeaturedSource;
-  platform?: FeaturedPlatform;
   categoryLabel?: string;
 }
 
@@ -239,21 +196,6 @@ export interface MediaOutlet {
   iconSlug: string; // simple-icons の slug
   brandColor?: string;
   comingSoon?: boolean;
-}
-
-export interface ResourceItem {
-  slug: string; // /resources/[slug] の URL に使用
-  title: string;
-  description: string;
-  comingSoon: boolean;
-  // --- 詳細ページ用（comingSoon: false の資料は必須で埋める）---
-  longDescription?: string; // 詳細ページ冒頭の説明
-  highlights?: string[]; // この資料でわかること
-  targetAudience?: string; // 想定読者
-  pageCount?: number;
-  fileUrl?: string; // 例: "/downloads/service-guide.pdf"
-  fileSize?: string; // 例: "120 KB"
-  updatedAt?: string; // 例: "2026-06"
 }
 
 export interface TechItem {

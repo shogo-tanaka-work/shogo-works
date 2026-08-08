@@ -1,6 +1,5 @@
 import type {
   CategoryMeta,
-  ExternalArticle,
   KnowledgeCategory,
   SubcategoryMeta,
 } from "@/types";
@@ -129,21 +128,13 @@ export const subcategories: Partial<
         "Connectivity Cloud 思想のエッジネットワーク。Workers / R2 / D1 / Durable Objects / Zero Trust / WAF / DNS をアーキテクト判断軸で整理",
     },
   ],
+  "ai-governance": [
+    {
+      slug: "guide",
+      label: "AI導入ガバナンス解説",
+      description:
+        "生成AIのリスク・法律・統制を、実装可能な仕組みへ落とすための連載。全体像から統制設計、導入戦略まで",
+    },
+  ],
 };
 
-// 外部プラットフォームに公開した記事
-// 記事を追加する場合はここにエントリを追加する
-export const externalArticles: ExternalArticle[] = [
-  // 例:
-  // {
-  //   id: "zenn-claude-code-intro",
-  //   title: "Claude Codeで開発ワークフローを変える",
-  //   description: "Anthropic公式CLIツールの基本的な使い方と活用パターン",
-  //   category: "ai-tools",
-  //   tags: ["claude", "cli", "ai-coding"],
-  //   sortOrder: 0,
-  //   createdAt: new Date("2026-04-07"),
-  //   platform: "zenn",
-  //   url: "https://zenn.dev/username/articles/claude-code-intro",
-  // },
-];
