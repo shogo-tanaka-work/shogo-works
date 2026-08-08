@@ -18,7 +18,7 @@ import { services } from "@/data";
         {services.map((service) => (
           <a
             href={service.href}
-            class="px-4 py-2 text-sm font-medium text-muted-foreground bg-white/80 border border-border rounded-full hover:text-teal-600 hover:border-primary/40 transition-all"
+            class="px-4 py-2 text-sm font-medium text-muted-foreground bg-white/80 border border-border rounded-full hover:text-primary hover:border-primary/40 transition-all"
           >
             {service.title} の詳細
           </a>
@@ -40,7 +40,7 @@ import { services } from "@/data";
       </p>
       <a
         href="/contact"
-        class="inline-flex items-center gap-2 px-6 py-3 bg-teal-500 text-white font-medium rounded-[4px] hover:bg-teal-600 transition-colors"
+        class="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white font-medium rounded-[4px] hover:bg-primary transition-colors"
       >
         お問い合わせ
         <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

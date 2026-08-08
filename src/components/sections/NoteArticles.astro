@@ -1,6 +1,6 @@
 ---
 import { mediaOutlets } from "@/data";
-import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Section from "@/components/ui/Section.astro";
 import { fetchNoteFeed } from "@/utils/noteFeed";
 
 const noteOutlet = mediaOutlets.find((o) => o.name === "note");
@@ -19,57 +19,49 @@ function formatDate(date: Date): string {
 
 {
   articles.length > 0 && (
-    <section id="note-articles" class="py-20">
-      <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-        <SectionHeader
-          title="note の最新記事"
-          subtitle="現場視点の AI 活用メモを継続発信中。直近の投稿をピックアップしています。"
-        />
+    <Section id="note-articles" spacing="compact">
+      {/* サムネイルのカードをやめ、日付＋タイトルの行として並べる */}
+      <div class="border-t border-border pt-8">
+        <h2 class="text-sm font-semibold text-foreground">note の最新記事</h2>
+        <p class="mt-1 text-sm text-muted-foreground">
+          現場視点の AI 活用メモを継続発信中です。
+        </p>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {articles.map((article, i) => (
-            <a
-              href={article.link}
-              target="_blank"
-              rel="noopener noreferrer"
-              class={`group block border border-border overflow-hidden transition-all duration-300 hover:border-primary/40`}
-            >
-              {article.thumbnail && (
-                <div class="aspect-video bg-secondary/40 overflow-hidden">
-                  <img
-                    src={article.thumbnail}
-                    alt=""
-                    loading="lazy"
-                    class="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-300"
-                  />
-                </div>
-              )}
-              <div class="p-5">
-                <p class="text-xs text-muted-foreground mb-2">
+        <ul class="mt-5 flex flex-col divide-y divide-border">
+          {articles.map((article) => (
+            <li>
+              <a
+                href={article.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="group flex flex-col gap-1 py-3 sm:flex-row sm:items-baseline sm:gap-6"
+              >
+                <time
+                  class="shrink-0 text-xs text-muted-foreground tabular-nums"
+                  datetime={article.pubDate.toISOString()}
+                >
                   {formatDate(article.pubDate)}
-                </p>
-                <h3 class="text-base font-semibold text-foreground group-hover:text-teal-700 transition-colors line-clamp-2">
+                </time>
+                <span class="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
                   {article.title}
-                  <span class="text-muted-foreground text-sm ml-1">↗</span>
-                </h3>
-              </div>
-            </a>
+                  <span class="ml-1 text-muted-foreground">↗</span>
+                </span>
+              </a>
+            </li>
           ))}
-        </div>
+        </ul>
 
         {noteUrl && (
-          <div class="mt-10 text-center">
-            <a
-              href={noteUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
-            >
-              note をすべて見る →
-            </a>
-          </div>
+          <a
+            href={noteUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="mt-5 inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-accent transition-colors"
+          >
+            note をすべて見る →
+          </a>
         )}
       </div>
-    </section>
+    </Section>
   )
 }

@@ -1,6 +1,6 @@
 ---
 import { mediaOutlets } from "@/data";
-import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Section from "@/components/ui/Section.astro";
 
 // 準備中の媒体はトップに出さない（URL が決まったら comingSoon を外すだけで再表示される）
 const activeOutlets = mediaOutlets.filter((outlet) => !outlet.comingSoon);
@@ -15,53 +15,40 @@ function iconUrl(slug: string, color?: string): string {
 }
 ---
 
-<section id="media" class="py-20 bg-secondary/30">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-    <SectionHeader
-      title="メディア発信"
-      subtitle="各プラットフォームで発信中です。気になる媒体からフォローいただけると嬉しいです。"
-    />
+{/* 発信媒体は補足情報。見出しを小さくして横一列に収め、主要セクションと差をつける */}
+<Section id="media" spacing="compact">
+  <div class="border-t border-border pt-8">
+    <h2 class="text-sm font-semibold text-foreground">メディア発信</h2>
+    <p class="mt-1 text-sm text-muted-foreground">
+      各プラットフォームで発信中です。気になる媒体からフォローいただけると嬉しいです。
+    </p>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+    <ul class="mt-5 flex flex-wrap gap-x-8 gap-y-4">
       {
-        activeOutlets.map((outlet, i) => {
-          const inner = (
-            <div class="flex items-start gap-3">
-              <img
-                src={iconUrl(outlet.iconSlug, outlet.brandColor)}
-                alt={outlet.name}
-                width="28"
-                height="28"
-                class="shrink-0 mt-0.5"
-                loading="lazy"
-              />
-              <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2 mb-1 flex-wrap">
-                  <span class="text-base font-semibold text-foreground">
-                    {outlet.name}
-                  </span>
-                </div>
-                <p class="text-xs text-muted-foreground leading-relaxed">
-                  {outlet.description}
-                </p>
-              </div>
-            </div>
-          );
-
-          const wrapperClass = `block border border-border  p-5 transition-all duration-300 `;
-
-          return (
+        activeOutlets.map((outlet) => (
+          <li>
             <a
               href={outlet.url}
               target="_blank"
               rel="noopener noreferrer"
-              class={`${wrapperClass} group hover:ring-teal-500/30`}
+              class="group inline-flex items-center gap-2 text-sm"
             >
-              {inner}
+              <img
+                src={iconUrl(outlet.iconSlug, outlet.brandColor)}
+                alt=""
+                width="20"
+                height="20"
+                class="shrink-0"
+                loading="lazy"
+              />
+              <span class="font-medium text-foreground group-hover:text-primary transition-colors">
+                {outlet.name}
+              </span>
+              <span class="text-muted-foreground">↗</span>
             </a>
-          );
-        })
+          </li>
+        ))
       }
-    </div>
+    </ul>
   </div>
-</section>
+</Section>

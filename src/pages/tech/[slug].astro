@@ -47,7 +47,7 @@ const { tool } = Astro.props;
         </h1>
       </div>
 
-      <p class="text-lg text-teal-700 font-medium mb-8">{tool.tagline}</p>
+      <p class="text-lg text-primary font-medium mb-8">{tool.tagline}</p>
 
       <div class="mb-10">
         <h2 class="text-xl font-bold text-foreground mb-3">概要</h2>
@@ -63,7 +63,7 @@ const { tool } = Astro.props;
             tool.strengths.map((strength) => (
               <li class="flex items-start gap-3 text-sm text-foreground leading-relaxed">
                 <svg
-                  class="w-5 h-5 text-teal-600 shrink-0 mt-0.5"
+                  class="w-5 h-5 text-primary shrink-0 mt-0.5"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -109,7 +109,7 @@ const { tool } = Astro.props;
               {tool.relatedServiceHref && (
                 <a
                   href={tool.relatedServiceHref}
-                  class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                  class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary transition-colors"
                 >
                   関連サービスを見る →
                 </a>
@@ -117,7 +117,7 @@ const { tool } = Astro.props;
               {tool.relatedKnowledgeHref && (
                 <a
                   href={tool.relatedKnowledgeHref}
-                  class="inline-flex items-center gap-1 text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors"
+                  class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:text-primary transition-colors"
                 >
                   Knowledge Base の関連記事 →
                 </a>

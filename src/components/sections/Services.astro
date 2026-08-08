@@ -1,67 +1,60 @@
 ---
 import { services } from "@/data";
 import Button from "@/components/ui/Button.astro";
+import SplitSection from "@/components/ui/SplitSection.astro";
 
 const iconSvgs: Record<string, string> = {
   wrench:
-    '<svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
-  code: '<svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
-  bot: '<svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
+    '<svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>',
+  code: '<svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>',
+  bot: '<svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>',
   "graduation-cap":
-    '<svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>',
+    '<svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.42 10.922a1 1 0 0 0-.019-1.838L12.83 5.18a2 2 0 0 0-1.66 0L2.6 9.08a1 1 0 0 0 0 1.832l8.57 3.908a2 2 0 0 0 1.66 0z"/><path d="M22 10v6"/><path d="M6 12.5V16a6 3 0 0 0 12 0v-3.5"/></svg>',
   server:
-    '<svg class="w-6 h-6 text-teal-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/><path d="M10 6h8"/><path d="M10 18h8"/></svg>',
+    '<svg class="w-6 h-6 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><path d="M6 6h.01"/><path d="M6 18h.01"/><path d="M10 6h8"/><path d="M10 18h8"/></svg>',
 };
 ---
 
-<section id="services" class="py-20">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-    <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-10 lg:gap-16">
-      <!-- 左: 訴求コピー -->
-      <div class="lg:sticky lg:top-24 self-start">
-        <p class="text-sm font-medium text-teal-600 mb-3">Services</p>
-        <h2 class="text-3xl font-bold text-foreground mb-4">提供サービス</h2>
-        <p class="text-muted-foreground leading-relaxed mb-8">
-          個人へのマンツーマンAIサポートと、企業向けのアプリ開発・講師登壇。フリーランスとして、現場で手を動かしながら伴走します。
-        </p>
-        <div class="flex flex-wrap gap-3">
-          <Button href="/contact" size="md">無料で相談する</Button>
-          <Button href="/services" variant="outline" size="md">
-            サービス一覧
-          </Button>
-        </div>
-      </div>
-
-      <!-- 右: サービスリスト -->
-      <div class="flex flex-col divide-y divide-gray-100">
-        {services.map((service, index) => (
-          <a
-            href={service.href}
-            class={`group flex items-start gap-4 py-5 first:pt-0 last:pb-0`}
-          >
-            <div class="w-12 h-12 shrink-0 rounded-[4px] bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
-              <Fragment set:html={iconSvgs[service.icon] || ""} />
-            </div>
-            <div class="min-w-0">
-              <h3 class="text-base font-semibold text-foreground mb-1 group-hover:text-teal-700 transition-colors">
-                {service.title}
-              </h3>
-              <p class="text-sm text-muted-foreground leading-relaxed">
-                {service.description}
-              </p>
-            </div>
-            <svg
-              class="w-5 h-5 shrink-0 mt-1 text-gray-300 group-hover:text-teal-600 group-hover:translate-x-0.5 transition-all"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path d="M5 12h14M12 5l7 7-7 7" />
-            </svg>
-          </a>
-        ))}
-      </div>
-    </div>
+<SplitSection
+  id="services"
+  eyebrow="Services"
+  title="提供サービス"
+  lead="個人へのマンツーマンAIサポートと、企業向けのアプリ開発・講師登壇。フリーランスとして、現場で手を動かしながら伴走します。"
+>
+  <div slot="actions" class="flex flex-wrap gap-3">
+    <Button href="/contact" size="md">無料で相談する</Button>
+    <Button href="/services" variant="outline" size="md">サービス一覧</Button>
   </div>
-</section>
+
+  <div class="flex flex-col divide-y divide-border">
+    {
+      services.map((service) => (
+        <a
+          href={service.href}
+          class="group flex items-start gap-4 py-5 first:pt-0 last:pb-0"
+        >
+          <div class="w-12 h-12 shrink-0 rounded-[4px] bg-secondary flex items-center justify-center">
+            <Fragment set:html={iconSvgs[service.icon] || ""} />
+          </div>
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-foreground mb-1 group-hover:text-primary transition-colors">
+              {service.title}
+            </h3>
+            <p class="text-sm text-muted-foreground leading-relaxed">
+              {service.description}
+            </p>
+          </div>
+          <svg
+            class="w-5 h-5 shrink-0 mt-1 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+        </a>
+      ))
+    }
+  </div>
+</SplitSection>
