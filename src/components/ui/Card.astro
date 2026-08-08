@@ -2,18 +2,31 @@
 import { cn } from "@/utils/cn";
 
 interface Props {
-  class?: string;
+  /**
+   * plain: 枠なし・余白のみ（既定）。ページを一枚のキャンバスとして扱う
+   * outlined: 1px 枠。数値サマリなど、比較のために囲む必要がある場合だけ使う
+   */
+  variant?: "plain" | "outlined";
+  /** リンクカードでホバーの手応えを出す */
   hover?: boolean;
+  class?: string;
 }
 
-const { class: className, hover = false } = Astro.props;
+const { variant = "plain", hover = false, class: className } = Astro.props;
+
+const variants = {
+  plain: "",
+  outlined: "border border-border",
+};
 ---
 
+{/* 影と大きな角丸は使わない。階層は余白と区切り線で作る（docs/DESIGN.md） */}
 <div
   class={cn(
-    "bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300",
-    hover && "hover:border-teal-500/20",
-    className
+    "p-5 transition-colors",
+    variants[variant],
+    hover && "hover:border-primary/40",
+    className,
   )}
 >
   <slot />

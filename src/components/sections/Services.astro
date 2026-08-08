@@ -37,9 +37,9 @@ const iconSvgs: Record<string, string> = {
         {services.map((service, index) => (
           <a
             href={service.href}
-            class={`group flex items-start gap-4 py-5 first:pt-0 last:pb-0 `}
+            class={`group flex items-start gap-4 py-5 first:pt-0 last:pb-0`}
           >
-            <div class="w-12 h-12 shrink-0 rounded-xl bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+            <div class="w-12 h-12 shrink-0 rounded-[4px] bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
               <Fragment set:html={iconSvgs[service.icon] || ""} />
             </div>
             <div class="min-w-0">

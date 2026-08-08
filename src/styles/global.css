@@ -20,6 +20,14 @@
   --color-border: hsl(214 32% 91%);
   --color-input: hsl(214 32% 91%);
   --color-ring: hsl(168 76% 42%);
+
+  /* 操作要素だけが角丸を持つ。通常領域は 0（docs/DESIGN.md） */
+  --radius-control: 4px;
+  --radius-pill: 9999px;
+
+  /* セクションの縦リズム。この2値だけで階層を作る */
+  --space-section: 5rem;
+  --space-section-sm: 3.5rem;
 }
 
 /* Base styles */
@@ -33,39 +41,6 @@ body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-/* Gradient utilities */
-.gradient-text {
-  background-clip: text;
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-image: linear-gradient(135deg, #14b8a6 0%, #10b981 50%, #34d399 100%);
-}
-
-.gradient-border {
-  position: relative;
-}
-.gradient-border::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  padding: 1px;
-  background: linear-gradient(135deg, #14b8a6, #10b981);
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  pointer-events: none;
-}
-
-/* Glass morphism */
-.glass {
-  background: rgba(255, 255, 255, 0.8);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  border: 1px solid rgba(3, 7, 18, 0.05);
 }
 
 /* Knowledge base prose */

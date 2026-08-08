@@ -21,7 +21,7 @@ import { caseStudies } from "@/data";
           caseStudies.map((caseStudy) => (
             <a
               href={`/cases/${caseStudy.slug}`}
-              class="block bg-card/95 ring-1 ring-gray-950/5 shadow-sm rounded-3xl p-6 transition-all duration-300 group hover:ring-teal-500/20 hover:shadow-md"
+              class="block border border-border p-6 transition-all duration-300 group hover:border-primary/40"
             >
               <div class="flex items-center gap-2 mb-3 flex-wrap">
                 <Badge variant="teal">{caseStudy.category}</Badge>
@@ -57,7 +57,7 @@ import { caseStudies } from "@/data";
         }
       </div>
 
-      <div class="mt-14 bg-secondary/50 rounded-3xl p-8 text-center">
+      <div class="mt-14 bg-secondary/50 p-8 text-center">
         <p class="text-foreground font-medium mb-2">
           同じような課題をお持ちですか？
         </p>
@@ -66,7 +66,7 @@ import { caseStudies } from "@/data";
         </p>
         <a
           href="/contact"
-          class="inline-block bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white rounded-lg px-6 py-3 text-sm font-medium transition-all"
+          class="inline-block bg-primary hover:bg-accent text-white rounded-[4px] px-6 py-3 text-sm font-medium transition-all"
         >
           無料で相談する
         </a>
