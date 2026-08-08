@@ -10,7 +10,10 @@ const isActive = (href: string, children?: { href: string }[]) =>
   currentPath === href || (children?.some((c) => currentPath === c.href) ?? false);
 ---
 
-<header id="main-header" class="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
+<header
+  id="main-header"
+  class="fixed top-0 left-0 right-0 z-50 bg-background border-b border-border"
+>
   <nav class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
     <div class="flex h-16 items-center justify-between">
       <a
@@ -113,24 +116,6 @@ const isActive = (href: string, children?: { href: string }[]) =>
 </header>
 
 <script>
-  function setupScrollHeader() {
-    const header = document.getElementById("main-header");
-    if (!header) return;
-
-    const onScroll = () => {
-      if (window.scrollY > 20) {
-        header.classList.add("bg-white/95", "shadow-sm", "border-b", "border-gray-100", "backdrop-blur-md");
-        header.classList.remove("bg-transparent");
-      } else {
-        header.classList.remove("bg-white/95", "shadow-sm", "border-b", "border-gray-100", "backdrop-blur-md");
-        header.classList.add("bg-transparent");
-      }
-    };
-
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onScroll();
-  }
-
   // ホバー・クリック・キーボードの3操作に対応したドロップダウン制御。
   // ホバー離脱時は即閉じせず遅延を入れ、パネルへのマウス移動を許容する。
   function setupNavDropdowns() {
@@ -211,10 +196,8 @@ const isActive = (href: string, children?: { href: string }[]) =>
     });
   });
 
-  setupScrollHeader();
   setupNavDropdowns();
   document.addEventListener("astro:page-load", () => {
-    setupScrollHeader();
     setupNavDropdowns();
   });
 </script>

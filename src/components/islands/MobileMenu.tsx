@@ -84,7 +84,7 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
             />
 
             {/* Menu panel */}
-            <div className="fixed top-0 right-0 bottom-0 w-72 bg-white border-l border-gray-200 z-[70] shadow-xl overflow-y-auto overscroll-contain">
+            <div className="fixed top-0 right-0 bottom-0 w-72 bg-background border-l border-border z-[70] shadow-xl overflow-y-auto overscroll-contain">
               <div className="flex justify-end p-4">
                 <button
                   onClick={closeMenu}
@@ -166,7 +166,7 @@ export default function MobileMenu({ navItems, currentPath }: Props) {
                   <a
                     href="/contact"
                     onClick={closeMenu}
-                    className="block w-full text-center bg-primary hover:bg-accent text-white rounded-[4px] px-4 py-2.5 text-sm font-medium transition-all"
+                    className="block w-full text-center bg-primary hover:bg-accent text-primary-foreground rounded-[4px] px-4 py-2.5 text-sm font-medium transition-all"
                   >
                     お問い合わせ
                   </a>

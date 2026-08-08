@@ -72,9 +72,9 @@ export default function ContactForm() {
   };
 
   const inputClasses =
-    "w-full px-4 py-2.5 rounded-[4px] border border-gray-200 bg-white text-foreground text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors";
+    "w-full px-4 py-2.5 rounded-[4px] border border-border bg-background text-foreground text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors";
   const errorInputClasses =
-    "w-full px-4 py-2.5 rounded-[4px] border border-red-300 bg-white text-foreground text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500/50 transition-colors";
+    "w-full px-4 py-2.5 rounded-[4px] border border-red-300 bg-background text-foreground text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500/50 transition-colors";
 
   return (
     <div className="border border-border p-6">
@@ -147,7 +147,7 @@ export default function ContactForm() {
         <button
           type="submit"
           disabled={status === "sending"}
-          className="w-full bg-primary hover:bg-accent text-white border-0 py-3 rounded-[4px] text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          className="w-full bg-primary hover:bg-accent text-primary-foreground border-0 py-3 rounded-[4px] text-sm font-medium transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
           {status === "sending" ? (
             "送信中..."
