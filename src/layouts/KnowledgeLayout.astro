@@ -122,7 +122,7 @@ const jsonLd = JSON.stringify({
 
       <div class="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)_15rem] lg:gap-10 lg:items-start">
         <aside
-          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:bg-secondary/40 lg:rounded-2xl lg:p-4"
+          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:bg-secondary/40 lg: lg:p-4"
           aria-label="記事一覧"
         >
           <ArticleSidebar
@@ -184,7 +184,7 @@ const jsonLd = JSON.stringify({
               previous ? (
                 <a
                   href={`${articleBasePath}/${previous.slug}`}
-                  class="group block p-4 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
+                  class="group block p-4 border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
                 >
                   <span class="block text-xs text-muted-foreground mb-1">
                     ← 前の記事
@@ -201,7 +201,7 @@ const jsonLd = JSON.stringify({
               next ? (
                 <a
                   href={`${articleBasePath}/${next.slug}`}
-                  class="group block p-4 rounded-2xl border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors text-right sm:text-right"
+                  class="group block p-4 border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors text-right sm:text-right"
                 >
                   <span class="block text-xs text-muted-foreground mb-1">
                     次の記事 →
@@ -227,7 +227,7 @@ const jsonLd = JSON.stringify({
         </div>
 
         <aside
-          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:bg-secondary/40 lg:rounded-2xl lg:p-4"
+          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:bg-secondary/40 lg: lg:p-4"
         >
           <ArticleToc headings={headings} />
         </aside>
