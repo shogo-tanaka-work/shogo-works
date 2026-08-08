@@ -61,7 +61,7 @@ const months = getAiNewsArchive(entries);
           <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             {
               news.map((entry, i) => (
-                <div class={`animate-on-scroll stagger-${(i % 5) + 1}`}>
+                <div>
                   <NewsCard
                     title={entry.data.title}
                     toolLabel={entry.data.toolLabel}

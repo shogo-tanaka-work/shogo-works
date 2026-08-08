@@ -41,7 +41,7 @@ const { caseStudy } = Astro.props;
         {caseStudy.title}
       </h1>
 
-      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-secondary/50 rounded-2xl p-6 mb-10 text-sm">
+      <dl class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-secondary/50 p-6 mb-10 text-sm">
         <div>
           <dt class="text-muted-foreground mb-1">クライアント</dt>
           <dd class="font-medium text-foreground">{caseStudy.clientType}</dd>
@@ -131,18 +131,18 @@ const { caseStudy } = Astro.props;
         )
       }
 
-      <div class="bg-gradient-to-r from-teal-500 to-emerald-500 rounded-3xl p-8 sm:p-10 text-center">
-        <p class="text-white font-semibold text-lg mb-2">
+      <div class="border-t border-border pt-10">
+        <p class="text-foreground font-semibold text-lg mb-2">
           同じような課題をお持ちですか？
         </p>
-        <p class="text-white/90 text-sm mb-6">
+        <p class="text-muted-foreground text-sm mb-6">
           現状を伺ったうえで、最適な進め方をご提案します。
         </p>
         <div class="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button href="/contact" size="md" class="bg-white text-teal-700 hover:bg-white/90">
+          <Button href="/contact" size="md" >
             無料で相談する
           </Button>
-          <Button href="/services" variant="ghost" size="md" class="text-white border border-white/50 hover:bg-white/10">
+          <Button href="/services" variant="ghost" size="md" >
             サービスを見る
           </Button>
         </div>

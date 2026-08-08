@@ -12,7 +12,7 @@ export {
 } from "./teaching";
 export { stats } from "./stats";
 export { testimonials } from "./testimonials";
-export { categories, externalArticles } from "./knowledge";
+export { categories } from "./knowledge";
 export { aiNewsStatuses, aiNewsTools } from "./aiNews";
 export { featuredKnowledge } from "./featuredKnowledge";
 export { mediaOutlets } from "./mediaOutlets";

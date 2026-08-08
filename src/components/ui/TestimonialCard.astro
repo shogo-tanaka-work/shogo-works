@@ -15,7 +15,7 @@ const stars = Array.from({ length: MAX_STARS }, (_, i) => i < testimonial.rating
 
 <figure
   class:list={[
-    "flex h-full flex-col rounded-3xl bg-white/80 p-6 shadow-sm ring-1 ring-gray-950/5",
+    "flex h-full flex-col border border-border p-6",
     className,
   ]}
 >
@@ -41,7 +41,7 @@ const stars = Array.from({ length: MAX_STARS }, (_, i) => i < testimonial.rating
       src={testimonial.screenshot}
       alt={`${testimonial.authorAttribute} のレビュー`}
       loading="lazy"
-      class="mt-4 w-full rounded-xl ring-1 ring-gray-950/5"
+      class="mt-4 w-full border border-border"
     />
   )}
 

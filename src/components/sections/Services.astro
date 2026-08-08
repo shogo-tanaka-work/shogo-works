@@ -18,7 +18,7 @@ const iconSvgs: Record<string, string> = {
   <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
     <div class="grid grid-cols-1 lg:grid-cols-[1fr_1.4fr] gap-10 lg:gap-16">
       <!-- 左: 訴求コピー -->
-      <div class="animate-on-scroll lg:sticky lg:top-24 self-start">
+      <div class="lg:sticky lg:top-24 self-start">
         <p class="text-sm font-medium text-teal-600 mb-3">Services</p>
         <h2 class="text-3xl font-bold text-foreground mb-4">提供サービス</h2>
         <p class="text-muted-foreground leading-relaxed mb-8">
@@ -37,9 +37,9 @@ const iconSvgs: Record<string, string> = {
         {services.map((service, index) => (
           <a
             href={service.href}
-            class={`group flex items-start gap-4 py-5 first:pt-0 last:pb-0 animate-on-scroll stagger-${index + 1}`}
+            class={`group flex items-start gap-4 py-5 first:pt-0 last:pb-0`}
           >
-            <div class="w-12 h-12 shrink-0 rounded-xl bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
+            <div class="w-12 h-12 shrink-0 rounded-[4px] bg-teal-50 flex items-center justify-center group-hover:bg-teal-100 transition-colors">
               <Fragment set:html={iconSvgs[service.icon] || ""} />
             </div>
             <div class="min-w-0">

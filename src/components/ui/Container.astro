@@ -1,0 +1,21 @@
+---
+import { cn } from "@/utils/cn";
+
+interface Props {
+  /** 記事本文など、読み幅を狭めたい場合に narrow を指定する */
+  width?: "default" | "narrow" | "wide";
+  class?: string;
+}
+
+const { width = "default", class: className } = Astro.props;
+
+const widths = {
+  narrow: "max-w-3xl",
+  default: "max-w-5xl",
+  wide: "max-w-6xl",
+};
+---
+
+<div class={cn("mx-auto px-4 sm:px-6 lg:px-8", widths[width], className)}>
+  <slot />
+</div>

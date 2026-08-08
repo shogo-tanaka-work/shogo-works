@@ -1,6 +1,5 @@
 import type {
   CategoryMeta,
-  ExternalArticle,
   KnowledgeCategory,
   SubcategoryMeta,
 } from "@/types";
@@ -139,19 +138,3 @@ export const subcategories: Partial<
   ],
 };
 
-// 外部プラットフォームに公開した記事
-// 記事を追加する場合はここにエントリを追加する
-export const externalArticles: ExternalArticle[] = [
-  // 例:
-  // {
-  //   id: "zenn-claude-code-intro",
-  //   title: "Claude Codeで開発ワークフローを変える",
-  //   description: "Anthropic公式CLIツールの基本的な使い方と活用パターン",
-  //   category: "ai-tools",
-  //   tags: ["claude", "cli", "ai-coding"],
-  //   sortOrder: 0,
-  //   createdAt: new Date("2026-04-07"),
-  //   platform: "zenn",
-  //   url: "https://zenn.dev/username/articles/claude-code-intro",
-  // },
-];
