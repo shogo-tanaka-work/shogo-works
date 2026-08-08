@@ -164,7 +164,7 @@ describe("ArticleSidebar.astro - tier description", () => {
 });
 
 describe("ArticleSidebar.astro - Phase 1 挙動の回帰", () => {
-  it("正常系: 現在記事の <a> に aria-current=page と teal クラスが付くこと", async () => {
+  it("正常系: 現在記事の <a> に aria-current=page とアクセント色が付くこと", async () => {
     const html = await container.renderToString(ArticleSidebar, {
       props: {
         ...baseProps,
@@ -183,7 +183,7 @@ describe("ArticleSidebar.astro - Phase 1 挙動の回帰", () => {
     expect(html).toMatch(
       /<a[^>]+href="\/knowledge\/ai-tools\/claude-code\/intro"[^>]*aria-current="page"/,
     );
-    expect(html).toMatch(/border-teal-500[\s\S]*intro/);
+    expect(html).toMatch(/border-primary[\s\S]*intro/);
   });
 
   it("正常系: hasTiers=false（全グループ tier=null）でフラットリストにフォールバックすること", async () => {

@@ -16,7 +16,7 @@ const categoryConfig: {
     title: "Languages & Frameworks",
     iconSvg:
       '<svg class="w-5 h-5 text-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 16 4-4-4-4"/><path d="m6 8-4 4 4 4"/><path d="m14.5 4-5 16"/></svg>',
-    starColor: "text-teal-400",
+    starColor: "text-primary",
   },
   {
     key: "backendAndInfra",
@@ -58,7 +58,7 @@ function renderStars(level: SkillLevel, colorClass: string): string {
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
       {categoryConfig.map((cat, index) => (
         <div
-          class={`border border-border p-6 hover:border-teal-500/20 transition-colors`}
+          class={`border border-border p-6 hover:border-primary/20 transition-colors`}
         >
           <div class="flex items-center gap-3 mb-5">
             <div

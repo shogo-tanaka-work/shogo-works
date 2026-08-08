@@ -30,7 +30,7 @@ const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
           resolvedPaths.map((path) => (
             <a
               href={`#${path.id}`}
-              class="inline-flex items-center px-4 py-2 rounded-full border border-border bg-secondary/40 text-sm text-foreground hover:border-teal-500 hover:text-teal-700 transition-colors"
+              class="inline-flex items-center px-4 py-2 rounded-full border border-border bg-secondary/40 text-sm text-foreground hover:border-primary hover:text-primary transition-colors"
             >
               {path.title}
             </a>
@@ -64,13 +64,13 @@ const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
                       >
                         <span
                           aria-hidden="true"
-                          class="shrink-0 w-9 h-9 rounded-full bg-teal-50 text-teal-700 border border-teal-200 flex items-center justify-center text-sm font-semibold"
+                          class="shrink-0 w-9 h-9 rounded-full bg-secondary text-primary border border-primary flex items-center justify-center text-sm font-semibold"
                         >
                           {idx + 1}
                         </span>
                         <div class="flex-1 min-w-0">
                           <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1 mb-1">
-                            <h3 class="text-base font-semibold text-foreground group-hover:text-teal-700 transition-colors">
+                            <h3 class="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
                               {step.title}
                             </h3>
                             <span class="text-xs text-muted-foreground">
@@ -83,7 +83,7 @@ const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
                         </div>
                         <span
                           aria-hidden="true"
-                          class="shrink-0 text-muted-foreground group-hover:text-teal-700 transition-colors mt-1"
+                          class="shrink-0 text-muted-foreground group-hover:text-primary transition-colors mt-1"
                         >
                           →
                         </span>
@@ -100,7 +100,7 @@ const resolvedPaths = resolveAllRoadmaps(roadmapPaths, allEntries);
       <div class="mt-16 text-center">
         <a
           href="/knowledge"
-          class="inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700 transition-colors"
+          class="inline-flex items-center gap-1 text-sm text-primary hover:text-primary transition-colors"
         >
           ← Knowledge Base トップへ戻る
         </a>

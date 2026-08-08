@@ -33,7 +33,7 @@ const tags = getAllTags(allEntries);
             {tags.map(({ tag, slug, count }) => (
               <a
                 href={`/knowledge/tags/${slug}`}
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-white hover:border-teal-500/60 hover:bg-teal-50/40 hover:text-teal-700 transition-colors text-sm"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-white hover:border-primary/60 hover:bg-secondary/40 hover:text-primary transition-colors text-sm"
               >
                 <span class="font-medium text-foreground">#{tag}</span>
                 <span class="text-xs text-muted-foreground">{count}</span>

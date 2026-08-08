@@ -184,12 +184,12 @@ const jsonLd = JSON.stringify({
               previous ? (
                 <a
                   href={`${articleBasePath}/${previous.slug}`}
-                  class="group block p-4 border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors"
+                  class="group block p-4 border border-border hover:border-primary/60 hover:bg-secondary/30 transition-colors"
                 >
                   <span class="block text-xs text-muted-foreground mb-1">
                     ← 前の記事
                   </span>
-                  <span class="block font-semibold text-foreground group-hover:text-teal-600 transition-colors line-clamp-2">
+                  <span class="block font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                     {previous.title}
                   </span>
                 </a>
@@ -201,12 +201,12 @@ const jsonLd = JSON.stringify({
               next ? (
                 <a
                   href={`${articleBasePath}/${next.slug}`}
-                  class="group block p-4 border border-border hover:border-teal-500/60 hover:bg-teal-50/30 transition-colors text-right sm:text-right"
+                  class="group block p-4 border border-border hover:border-primary/60 hover:bg-secondary/30 transition-colors text-right sm:text-right"
                 >
                   <span class="block text-xs text-muted-foreground mb-1">
                     次の記事 →
                   </span>
-                  <span class="block font-semibold text-foreground group-hover:text-teal-600 transition-colors line-clamp-2">
+                  <span class="block font-semibold text-foreground group-hover:text-primary transition-colors line-clamp-2">
                     {next.title}
                   </span>
                 </a>
@@ -219,7 +219,7 @@ const jsonLd = JSON.stringify({
           <footer class="mt-8">
             <a
               href={articleBasePath}
-              class="text-teal-600 hover:text-teal-700 transition-colors inline-flex items-center gap-1"
+              class="text-primary hover:text-primary transition-colors inline-flex items-center gap-1"
             >
               ← {backLinkLabel} の記事一覧に戻る
             </a>

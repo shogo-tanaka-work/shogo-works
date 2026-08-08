@@ -1,25 +1,28 @@
 ---
 import { stats } from "@/data";
+import Section from "@/components/ui/Section.astro";
 ---
 
-<section id="stats" class="py-20">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-      {stats.map((stat, index) => (
-        <div
-          class={`border border-border p-6 text-center transition-colors group`}
-        >
-          <p class="text-3xl sm:text-4xl font-bold text-primary mb-1">
-            {stat.value}
-          </p>
-          <p class="text-sm font-medium text-foreground mb-1">{stat.label}</p>
-          {stat.description && (
-            <p class="text-xs text-muted-foreground hidden sm:block">
-              {stat.description}
-            </p>
-          )}
+{/* 見出しを持たない実績バンド。前後のセクションとリズムを変える役割 */}
+<Section id="stats" spacing="compact">
+  <dl
+    class="grid grid-cols-2 gap-x-8 gap-y-8 border-y border-border py-8 md:grid-cols-3 lg:grid-cols-5"
+  >
+    {
+      stats.map((stat) => (
+        <div>
+          <dt class="sr-only">{stat.label}</dt>
+          <dd>
+            <p class="text-3xl font-bold text-foreground">{stat.value}</p>
+            <p class="mt-1 text-sm font-medium text-foreground">{stat.label}</p>
+            {stat.description && (
+              <p class="mt-0.5 text-xs text-muted-foreground">
+                {stat.description}
+              </p>
+            )}
+          </dd>
         </div>
-      ))}
-    </div>
-  </div>
-</section>
+      ))
+    }
+  </dl>
+</Section>

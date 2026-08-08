@@ -72,7 +72,7 @@ export default function ContactForm() {
   };
 
   const inputClasses =
-    "w-full px-4 py-2.5 rounded-[4px] border border-gray-200 bg-white text-foreground text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:border-primary/30 focus:border-teal-500/50 transition-colors";
+    "w-full px-4 py-2.5 rounded-[4px] border border-gray-200 bg-white text-foreground text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-colors";
   const errorInputClasses =
     "w-full px-4 py-2.5 rounded-[4px] border border-red-300 bg-white text-foreground text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500/50 transition-colors";
 

@@ -39,7 +39,7 @@ const formattedDate = entry.data.date.toLocaleDateString("ja-JP", {
       <div class="mb-8">
         <a
           href={`/ai-news/${entry.data.tool}`}
-          class="text-sm text-teal-600 hover:text-teal-700 transition-colors"
+          class="text-sm text-primary hover:text-primary transition-colors"
         >
           ← {entry.data.toolLabel} のニュースへ戻る
         </a>
@@ -66,7 +66,7 @@ const formattedDate = entry.data.date.toLocaleDateString("ja-JP", {
           href={entry.data.sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
-          class="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-md border border-teal-600 text-teal-700 hover:bg-teal-50 transition-colors text-sm font-medium"
+          class="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-md border border-primary text-primary hover:bg-secondary transition-colors text-sm font-medium"
         >
           ニュース原文を読む ↗
         </a>
@@ -92,7 +92,7 @@ const formattedDate = entry.data.date.toLocaleDateString("ja-JP", {
                   <li>
                     <a
                       href={href}
-                      class="text-teal-600 hover:text-teal-700 transition-colors"
+                      class="text-primary hover:text-primary transition-colors"
                     >
                       {href}
                     </a>
