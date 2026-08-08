@@ -743,3 +743,81 @@ describe("getKnowledgeTagSlug", () => {
     expect(getKnowledgeTagSlug("MCP")).toBe(getKnowledgeTagSlug("mcp"));
   });
 });
+
+describe("getRecentlyUpdatedArticles: 表示の多様性", () => {
+  const base = {
+    description: "",
+    tags: [],
+    sortOrder: 0,
+    draft: false,
+    author: "田中省伍",
+  };
+  // 同じ日に一括投入されたサブカテゴリが一覧を独占する状況を再現する
+  const bulk = Array.from({ length: 8 }, (_, i) => ({
+    id: `ai-tools/curriculum/lesson-${i}`,
+    data: {
+      ...base,
+      title: `レッスン${i}`,
+      category: "ai-tools",
+      subcategory: "curriculum",
+      createdAt: new Date("2026-06-11"),
+    },
+  }));
+  const others = [
+    {
+      id: "prompt-engineering/guide",
+      data: {
+        ...base,
+        title: "プロンプト入門",
+        category: "prompt-engineering",
+        createdAt: new Date("2026-06-01"),
+      },
+    },
+    {
+      id: "ai-tools/codex/overview",
+      data: {
+        ...base,
+        title: "Codex 全体像",
+        category: "ai-tools",
+        subcategory: "codex",
+        createdAt: new Date("2026-05-20"),
+      },
+    },
+  ];
+  const entries = [...bulk, ...others];
+
+  it("正常系: 枠が足りているうちは1サブカテゴリで独占しないこと", () => {
+    // 素直に日付順だと 4/4 が curriculum で埋まる
+    const result = getRecentlyUpdatedArticles(entries, 4);
+    const fromCurriculum = result.filter(
+      (e) => e.data.subcategory === "curriculum",
+    );
+    expect(fromCurriculum.length).toBeLessThanOrEqual(2);
+  });
+
+  it("正常系: 他に候補がなくなったら同じサブカテゴリで枠を埋めること", () => {
+    // 候補が尽きた分まで空けておくと、単に表示件数が減るだけで損になる
+    const result = getRecentlyUpdatedArticles(entries, 6);
+    expect(result).toHaveLength(6);
+  });
+
+  it("正常系: 他サブカテゴリの記事が押し出されずに残ること", () => {
+    const result = getRecentlyUpdatedArticles(entries, 5);
+    const ids = result.map((e) => e.id);
+    expect(ids).toContain("prompt-engineering/guide");
+    expect(ids).toContain("ai-tools/codex/overview");
+  });
+
+  it("正常系: 全体としては新しい順を保つこと", () => {
+    const result = getRecentlyUpdatedArticles(entries, 5);
+    const dates = result.map((e) =>
+      (e.data.updatedAt ?? e.data.createdAt).getTime(),
+    );
+    expect([...dates]).toEqual([...dates].sort((a, b) => b - a));
+  });
+
+  it("異常系: 候補が limit に満たない場合でも件数分だけ返すこと", () => {
+    const result = getRecentlyUpdatedArticles(entries, 20);
+    expect(result).toHaveLength(entries.length);
+  });
+});

@@ -329,18 +329,51 @@ export function getCategoryArticleCount<T extends KnowledgeEntry>(
  * 各記事の最終更新日は `updatedAt ?? createdAt` で評価する。
  * 外部記事は updatedAt を持たないため対象外（MDX のみ）。
  */
+/** 1つのサブカテゴリが「最近更新」を占有できる上限 */
+const MAX_PER_SUBCATEGORY = 2;
+
+/**
+ * 「最近更新」の一覧を返す。
+ * 記事はサブカテゴリ単位でまとめて投入されることが多く、素直に日付順で並べると
+ * 同じ日に入った1サブカテゴリだけで埋まってしまうため、まず各サブカテゴリから
+ * 上限数までを拾い、枠が余ったら残りを日付順で埋める。
+ */
 export function getRecentlyUpdatedArticles<T extends KnowledgeEntry>(
   entries: T[],
   limit: number,
 ): T[] {
-  return entries
+  const byDateDesc = entries
     .filter((entry) => !entry.data.draft)
     .sort((a, b) => {
       const aDate = (a.data.updatedAt ?? a.data.createdAt).getTime();
       const bDate = (b.data.updatedAt ?? b.data.createdAt).getTime();
       return bDate - aDate;
-    })
-    .slice(0, limit);
+    });
+
+  const perGroup = new Map<string, number>();
+  const picked: T[] = [];
+  const rest: T[] = [];
+
+  for (const entry of byDateDesc) {
+    const groupKey = `${entry.data.category}/${entry.data.subcategory ?? "-"}`;
+    const used = perGroup.get(groupKey) ?? 0;
+
+    if (used < MAX_PER_SUBCATEGORY) {
+      perGroup.set(groupKey, used + 1);
+      picked.push(entry);
+    } else {
+      rest.push(entry);
+    }
+  }
+
+  // 枠が余る場合だけ、はみ出した記事を日付順で戻す
+  return [...picked, ...rest]
+    .slice(0, limit)
+    .sort((a, b) => {
+      const aDate = (a.data.updatedAt ?? a.data.createdAt).getTime();
+      const bDate = (b.data.updatedAt ?? b.data.createdAt).getTime();
+      return bDate - aDate;
+    });
 }
 
 export function getRelatedArticles<T extends KnowledgeEntry>(

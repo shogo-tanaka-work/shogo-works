@@ -1,49 +1,79 @@
 ---
 import { getCollection } from "astro:content";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import Section from "@/components/ui/Section.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import { getAllTags } from "@/utils/knowledge";
 
+// 1記事しか持たないタグが7割を占めるため、主表示と折りたたみに分ける
+const SINGLE_ARTICLE = 1;
+
 const allEntries = await getCollection("knowledge");
 const tags = getAllTags(allEntries);
+const commonTags = tags.filter((tag) => tag.count > SINGLE_ARTICLE);
+const rareTags = tags.filter((tag) => tag.count === SINGLE_ARTICLE);
 ---
 
 <BaseLayout
   title="タグ一覧 | Knowledge Base | shogoworks"
   description="ナレッジ記事のタグから記事を探せます。"
 >
-  <section class="py-20 px-4">
-    <div class="max-w-5xl mx-auto">
-      <Breadcrumb
-        items={[
-          { label: "Knowledge Base", href: "/knowledge" },
-          { label: "タグ" },
-        ]}
-      />
+  <Section>
+    <Breadcrumb
+      items={[{ label: "Knowledge Base", href: "/knowledge" }, { label: "タグ" }]}
+    />
 
-      <SectionHeader
-        title="タグ一覧"
-        subtitle={`${tags.length} 個のタグから記事を探せます`}
-      />
+    <SectionHeader
+      eyebrow="Tags"
+      title="タグ一覧"
+      subtitle={`${tags.length} 個のタグから記事を探せます。複数の記事が付いているタグを先に表示しています。`}
+    />
 
-      {
-        tags.length > 0 ? (
-          <div class="flex flex-wrap gap-2">
-            {tags.map(({ tag, slug, count }) => (
+    {
+      commonTags.length > 0 && (
+        <ul class="flex flex-wrap gap-2">
+          {commonTags.map(({ tag, slug, count }) => (
+            <li>
               <a
                 href={`/knowledge/tags/${slug}`}
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-border bg-white hover:border-primary/60 hover:bg-secondary/40 hover:text-primary transition-colors text-sm"
+                class="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:border-primary/60 hover:bg-secondary/40 hover:text-primary"
               >
                 <span class="font-medium text-foreground">#{tag}</span>
                 <span class="text-xs text-muted-foreground">{count}</span>
               </a>
+            </li>
+          ))}
+        </ul>
+      )
+    }
+
+    {
+      rareTags.length > 0 && (
+        <details class="mt-8 border-t border-border pt-6">
+          <summary class="cursor-pointer text-sm font-medium text-foreground transition-colors hover:text-primary">
+            記事1件のみのタグを表示（{rareTags.length} 個）
+          </summary>
+          <ul class="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+            {rareTags.map(({ tag, slug }) => (
+              <li>
+                <a
+                  href={`/knowledge/tags/${slug}`}
+                  class="text-sm text-muted-foreground transition-colors hover:text-primary"
+                >
+                  #{tag}
+                </a>
+              </li>
             ))}
-          </div>
-        ) : (
-          <p class="text-muted-foreground">タグはまだありません。</p>
-        )
-      }
-    </div>
-  </section>
+          </ul>
+        </details>
+      )
+    }
+
+    {
+      tags.length === 0 && (
+        <p class="text-muted-foreground">タグはまだありません。</p>
+      )
+    }
+  </Section>
 </BaseLayout>
