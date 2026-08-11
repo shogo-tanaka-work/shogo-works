@@ -87,7 +87,6 @@ export interface ServiceDetail {
 export interface PricingPlan {
   name: string;
   price: string;
-  monitorPrice?: string;
 }
 
 export interface ServiceItem {

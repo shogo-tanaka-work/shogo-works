@@ -96,22 +96,12 @@ const { service, index } = Astro.props;
         <!-- 右カラム: 料金プラン -->
         <div>
           <div class="border border-border p-6 sticky top-24">
-            <h3 class="text-lg font-semibold text-foreground mb-1">料金プラン</h3>
-            <p class="text-xs text-primary font-medium mb-5">モニター価格適用中</p>
+            <h3 class="text-lg font-semibold text-foreground mb-5">料金プラン</h3>
             <div class="space-y-4">
               {service.pricing.map((plan) => (
                 <div class="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
                   <p class="text-sm font-medium text-foreground mb-2">{plan.name}</p>
-                  <div class="flex items-baseline gap-2">
-                    {plan.monitorPrice ? (
-                      <>
-                        <span class="text-lg font-bold text-primary">{plan.monitorPrice}</span>
-                        <span class="text-xs text-muted-foreground line-through">{plan.price}</span>
-                      </>
-                    ) : (
-                      <span class="text-lg font-bold text-foreground">{plan.price}</span>
-                    )}
-                  </div>
+                  <p class="text-lg font-bold text-foreground">{plan.price}</p>
                 </div>
               ))}
             </div>
