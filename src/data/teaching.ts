@@ -4,7 +4,7 @@ export const teachingExperience: TeachingExperience[] = [
   {
     title: "AI講師（業務活用）",
     organization: "某AIスクール",
-    period: "2025年5月 - 現在",
+    period: "2025年6月 - 現在",
     students: "30+",
     description: "AI活用の基礎から実践まで幅広く指導",
     type: "toC",
@@ -12,11 +12,10 @@ export const teachingExperience: TeachingExperience[] = [
   {
     title: "ChatGPT活用セミナー",
     organization: "オンライン",
-    period: "2025年5月 - 現在",
+    period: "2025年6月 - 現在",
     students: "50+",
     description: "ChatGPT導入・活用方法の研修",
     type: "toC",
-    url: "https://example.com/seminar/chatgpt",
   },
   {
     title: "MCP入門セミナー",
