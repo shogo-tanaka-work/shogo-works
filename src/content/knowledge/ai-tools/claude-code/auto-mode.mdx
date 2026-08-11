@@ -6,12 +6,13 @@ subcategory: "claude-code"
 tags: ["Claude Code", "Auto mode", "セキュリティ", "承認モード", "Max"]
 sortOrder: 10
 createdAt: 2026-04-18
+updatedAt: 2026-08-11
 author: "田中省伍"
 ---
 
 ## TL;DR
 
-- Maxプラン加入者向けの自動承認モード（v2.1.111〜）
+- 自動承認モード（v2.1.111〜）。**2026-08-14 から Pro / Max / Team の既定モード**になる
 - 承認リクエストの **93%を自動認可** し、過剰な確認ダイアログを大幅削減
 - セキュリティは **2層防御** で担保（インジェクション検査 + Sonnet分類器）
 
@@ -22,6 +23,16 @@ author: "田中省伍"
 **Claude Code Auto mode** は、通常ならユーザーに確認を求める操作を Anthropic のセキュリティ評価に基づいて自動認可する機能です。v2.1.111 から Max サブスクライバーを対象に提供開始されました。
 
 「安全かどうかをいちいち確認するコスト」と「確認なしで実行するリスク」のバランスを取り、**信頼できる操作を自動化しながら危険な操作は止める** 設計です。
+
+---
+
+## 提供範囲（2026-08-14 の既定化）
+
+2026-08-07 の発表で、Auto mode は **Pro / Max / Team プランの既定モード**になりました。適用は 2026-08-14 で、以降これらのプランで開始する新規セッションは Auto mode で立ち上がります。Enterprise / API / AWS Bedrock / Google Cloud / Microsoft Foundry 経由の利用は当面 opt-in ですが、1か月以内に同様へ切り替える予定と公式に明記されています。
+
+モードの切り替えは CLI では Shift+Tab、デスクトップアプリではモードのドロップダウンから行います。組織で既定を固定する場合は managed settings の `defaultMode`、Auto mode 自体を無効化する場合は `disableAutoMode` を使います。
+
+既定化に伴い、承認ダイアログが出ることを前提にした社内の運用ルールは前提が変わります。詳細は [Claude Code の auto mode が既定に](/ai-news/claude-code/auto-mode-becomes-default/) を参照してください。
 
 ---
 
@@ -66,7 +77,7 @@ author: "田中省伍"
 ## 有効化方法
 
 ```bash
-# Max プランで自動的に利用可能
+# Pro / Max / Team は 2026-08-14 以降、既定で Auto mode
 # 旧フラグは不要（v2.1.111以降）
 claude
 
