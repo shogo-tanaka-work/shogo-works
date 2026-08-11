@@ -24,6 +24,7 @@ import Badge from "@/components/ui/Badge.astro";
                 <p class="mt-0.5 text-sm text-primary">{exp.role}</p>
               </div>
               <div class="flex shrink-0 flex-wrap items-center gap-2">
+                {exp.upcoming && <Badge variant="emerald">入社予定</Badge>}
                 {exp.current && <Badge variant="emerald">現職</Badge>}
                 <Badge variant="teal">{exp.employment}</Badge>
                 {exp.teamSize && (

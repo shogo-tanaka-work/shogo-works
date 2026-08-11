@@ -12,6 +12,8 @@ export interface SkillMappingEntry {
   level: SkillLevel;
   /** yaml からの自動生成ではなく固定ラベルを使用する場合 */
   labelOverride?: string;
+  /** yaml 上で別名に分かれている実績を、この項目へまとめて反映する場合 */
+  mergeFrom?: string[];
 }
 
 export const skillMapping: Record<string, SkillMappingEntry> = {
@@ -22,26 +24,36 @@ export const skillMapping: Record<string, SkillMappingEntry> = {
   "TypeScript": { category: "languagesAndFrameworks", level: 3 },
   "Python": { category: "languagesAndFrameworks", level: 2 },
   "React": { category: "languagesAndFrameworks", level: 2 },
+  "Next.js": { category: "languagesAndFrameworks", level: 3 },
   "LangGraph": { category: "languagesAndFrameworks", level: 2 },
-  "Tailwind CSS": { category: "languagesAndFrameworks", level: 2 },
+  "Tailwind CSS": { category: "languagesAndFrameworks", level: 3 },
+  "jQuery": { category: "languagesAndFrameworks", level: 3 },
+  "SCSS/Sass": { category: "languagesAndFrameworks", level: 2 },
   "Nuxt.js": { category: "languagesAndFrameworks", level: 1 },
-  "Remotion": { category: "languagesAndFrameworks", level: 1 },
 
   // --- Backend & Infrastructure ---
   "MongoDB (NoSQL)": { category: "backendAndInfra", level: 3 },
   "Supabase (PostgreSQL)": { category: "backendAndInfra", level: 2 },
   "Vercel": { category: "backendAndInfra", level: 2 },
   "Cloudflare Workers": { category: "backendAndInfra", level: 2 },
-  "Microsoft Azure (Storage, Functions)": { category: "backendAndInfra", level: 2 },
-  "nginx (Ubuntu)": { category: "backendAndInfra", level: 1 },
+  "Microsoft Azure (Storage, Functions)": { category: "backendAndInfra", level: 3 },
+  "Linux (Ubuntu)": { category: "backendAndInfra", level: 3 },
+  "nginx": { category: "backendAndInfra", level: 2 },
+  "Windows Server": { category: "backendAndInfra", level: 2 },
+  "Google Apps Script (GAS)": { category: "backendAndInfra", level: 2 },
+  "AWS": { category: "backendAndInfra", level: 1 },
 
   // --- AI & Automation ---
-  "Claude / Claude Code": { category: "aiAndAutomation", level: 4, labelOverride: "実務・コンサル・講師" },
+  "Claude / Claude Code": {
+    category: "aiAndAutomation",
+    level: 4,
+    mergeFrom: ["Claude", "Claude Code"],
+  },
   "ChatGPT": { category: "aiAndAutomation", level: 3 },
+  "Codex": { category: "aiAndAutomation", level: 3 },
   "Dify": { category: "aiAndAutomation", level: 3 },
   "n8n": { category: "aiAndAutomation", level: 3 },
   "Make.com": { category: "aiAndAutomation", level: 3 },
-  "Google Apps Script (GAS)": { category: "aiAndAutomation", level: 2 },
   "Gemini": { category: "aiAndAutomation", level: 2 },
   "Microsoft Copilot": { category: "aiAndAutomation", level: 2 },
 
@@ -55,9 +67,9 @@ export const skillMapping: Record<string, SkillMappingEntry> = {
 /** yaml の name → HP 表示名の変換（短縮が必要なもののみ） */
 export const displayNameOverrides: Record<string, string> = {
   "HTML5/CSS3": "HTML/CSS",
+  "SCSS/Sass": "Sass",
   "MongoDB (NoSQL)": "MongoDB",
   "Supabase (PostgreSQL)": "Supabase",
   "Microsoft Azure (Storage, Functions)": "Azure",
-  "nginx (Ubuntu)": "nginx",
   "Google Apps Script (GAS)": "Google Apps Script",
 };

@@ -2,6 +2,7 @@
 import { skills } from "@/data";
 import type { SkillCategoryKey, SkillLevel } from "@/types";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
+import TechIcon from "@/components/ui/TechIcon.astro";
 
 const MAX_LEVEL = 5;
 
@@ -72,8 +73,9 @@ function renderStars(level: SkillLevel, colorClass: string): string {
           <div class="skills-grid">
             {skills[cat.key].map((skill) => (
               <Fragment>
-                <span class="text-sm text-foreground">
-                  {skill.name}
+                <span class="inline-flex items-center gap-2 text-sm text-foreground">
+                  <TechIcon name={skill.name} size={16} />
+                  <span>{skill.name}</span>
                 </span>
                 <span
                   class="stars-container"
