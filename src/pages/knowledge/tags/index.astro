@@ -30,11 +30,29 @@ const rareTags = tags.filter((tag) => tag.count === SINGLE_ARTICLE);
       subtitle={`${tags.length} 個のタグから記事を探せます。複数の記事が付いているタグを先に表示しています。`}
     />
 
+    <div class="mb-8 max-w-md">
+      <label for="tag-search" class="sr-only">タグを検索</label>
+      <input
+        id="tag-search"
+        type="search"
+        autocomplete="off"
+        placeholder="タグ名で絞り込む（例: claude）"
+        class="w-full rounded-[4px] border border-border bg-secondary/40 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+      />
+      <p
+        id="tag-search-status"
+        role="status"
+        aria-live="polite"
+        class="mt-2 text-xs text-muted-foreground"
+      >
+      </p>
+    </div>
+
     {
       commonTags.length > 0 && (
-        <ul class="flex flex-wrap gap-2">
+        <ul id="common-tags" class="flex flex-wrap gap-2">
           {commonTags.map(({ tag, slug, count }) => (
-            <li>
+            <li data-tag={tag}>
               <a
                 href={`/knowledge/tags/${slug}`}
                 class="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:border-primary/60 hover:bg-secondary/40 hover:text-primary"
@@ -50,13 +68,13 @@ const rareTags = tags.filter((tag) => tag.count === SINGLE_ARTICLE);
 
     {
       rareTags.length > 0 && (
-        <details class="mt-8 border-t border-border pt-6">
+        <details id="rare-tags-details" class="mt-8 border-t border-border pt-6">
           <summary class="cursor-pointer text-sm font-medium text-foreground transition-colors hover:text-primary">
             記事1件のみのタグを表示（{rareTags.length} 個）
           </summary>
-          <ul class="mt-4 flex flex-wrap gap-x-4 gap-y-2">
+          <ul id="rare-tags" class="mt-4 flex flex-wrap gap-x-4 gap-y-2">
             {rareTags.map(({ tag, slug }) => (
-              <li>
+              <li data-tag={tag}>
                 <a
                   href={`/knowledge/tags/${slug}`}
                   class="text-sm text-muted-foreground transition-colors hover:text-primary"
@@ -77,3 +95,60 @@ const rareTags = tags.filter((tag) => tag.count === SINGLE_ARTICLE);
     }
   </Section>
 </BaseLayout>
+
+<script>
+  import { matchesTagQuery } from "@/utils/knowledge";
+
+  const input = document.querySelector<HTMLInputElement>("#tag-search");
+  const status = document.querySelector<HTMLParagraphElement>(
+    "#tag-search-status",
+  );
+  const rareDetails =
+    document.querySelector<HTMLDetailsElement>("#rare-tags-details");
+  const items = Array.from(
+    document.querySelectorAll<HTMLLIElement>("li[data-tag]"),
+  );
+
+  // 検索欄が無いページでも落ちないよう、要素が揃ったときだけ処理する
+  if (input && items.length > 0) {
+    // 検索中は記事1件のみのタグも対象にするため、折りたたみを開いた状態にする
+    let rareWasOpen = rareDetails?.open ?? false;
+
+    const applyFilter = (query: string): void => {
+      let matched = 0;
+
+      for (const item of items) {
+        const isMatch = matchesTagQuery(item.dataset.tag ?? "", query);
+        item.hidden = !isMatch;
+        if (isMatch) matched += 1;
+      }
+
+      const isSearching = query.trim() !== "";
+
+      if (rareDetails) {
+        if (isSearching) {
+          rareDetails.open = true;
+        } else {
+          rareDetails.open = rareWasOpen;
+        }
+      }
+
+      if (status) {
+        status.textContent = isSearching
+          ? matched === 0
+            ? "該当するタグはありません。"
+            : `該当 ${matched} 件`
+          : "";
+      }
+    };
+
+    input.addEventListener("input", () => applyFilter(input.value));
+
+    rareDetails?.addEventListener("toggle", () => {
+      // ユーザー自身の開閉だけを記憶する（検索による自動展開は覚えない）
+      if (input.value.trim() === "") {
+        rareWasOpen = rareDetails.open;
+      }
+    });
+  }
+</script>

@@ -2,43 +2,60 @@ import type { TechCategory } from "@/types";
 
 /**
  * トップページ「取り扱い技術」セクション。
- * `iconSlug` は simple-icons の slug。https://cdn.simpleicons.org/<slug> で SVG を取得。
+ * 各カテゴリは代表的なものだけを挙げ、網羅的な一覧は /skills に任せる。
  */
 export const techStack: TechCategory[] = [
+  {
+    key: "frontend",
+    label: "フロントエンド",
+    items: [
+      { name: "HTML" },
+      { name: "CSS" },
+      { name: "TypeScript" },
+      { name: "React" },
+      { name: "Next.js" },
+    ],
+  },
+  {
+    key: "backend",
+    label: "バックエンド",
+    items: [
+      { name: "Node.js" },
+      { name: "Python" },
+      { name: "Supabase (PostgreSQL)" },
+      { name: "MongoDB" },
+    ],
+  },
+  {
+    key: "infrastructure",
+    label: "インフラ（クラウド）",
+    items: [
+      { name: "Microsoft Azure" },
+      { name: "AWS" },
+      { name: "Linux (Ubuntu)" },
+      { name: "Cloudflare" },
+      { name: "Vercel" },
+    ],
+  },
+  {
+    key: "dev-tools",
+    label: "開発ツール",
+    items: [
+      { name: "Git" },
+      { name: "GitHub" },
+      { name: "VS Code" },
+      { name: "Docker" },
+    ],
+  },
   {
     key: "ai-llm",
     label: "AI / LLM",
     items: [
-      { name: "Claude", iconSlug: "anthropic", detailSlug: "claude" },
-      { name: "OpenAI", iconSlug: "openai" },
-      { name: "Gemini", iconSlug: "googlegemini" },
-      { name: "Dify", iconSlug: "dify", detailSlug: "dify" },
-      { name: "n8n", iconSlug: "n8n", detailSlug: "n8n" },
-      { name: "LangChain", iconSlug: "langchain" },
-    ],
-  },
-  {
-    key: "cloud-web",
-    label: "Cloud / Web",
-    items: [
-      { name: "Cloudflare", iconSlug: "cloudflare", detailSlug: "cloudflare" },
-      { name: "Vercel", iconSlug: "vercel" },
-      { name: "Supabase", iconSlug: "supabase" },
-      { name: "Next.js", iconSlug: "nextdotjs" },
-      { name: "Astro", iconSlug: "astro", detailSlug: "astro" },
-      { name: "React", iconSlug: "react" },
-    ],
-  },
-  {
-    key: "languages-tools",
-    label: "Languages / Tools",
-    items: [
-      { name: "TypeScript", iconSlug: "typescript" },
-      { name: "Python", iconSlug: "python" },
-      { name: "Google Apps Script", iconSlug: "google", detailSlug: "google-apps-script" },
-      { name: "PowerShell", iconSlug: "powershell" },
-      { name: "Git", iconSlug: "git" },
-      { name: "GitHub", iconSlug: "github" },
+      { name: "ChatGPT" },
+      { name: "Codex" },
+      { name: "Claude" },
+      { name: "Claude Code" },
+      { name: "Gemini" },
     ],
   },
 ];

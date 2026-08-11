@@ -11,14 +11,14 @@ export const navItems: NavItem[] = [
         description: "提供サービスをまとめて見る",
       },
       {
+        label: "アプリ開発（業務委託・受託）",
+        href: "/services/app-development",
+        description: "開発チームへの参画と受託開発",
+      },
+      {
         label: "マンツーマンAIサポート",
         href: "/services/personal-support",
         description: "個人向けのAI活用伴走",
-      },
-      {
-        label: "アプリ開発（業務委託）",
-        href: "/services/app-development",
-        description: "Next.js / React の開発参画・受託",
       },
       {
         label: "講師・セミナー登壇",
