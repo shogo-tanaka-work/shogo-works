@@ -1,0 +1,30 @@
+---
+import Icon from "@/components/icons/Icon.astro";
+import { resolveTechIcon } from "@/utils/techIcons";
+
+interface Props {
+  /** 技術の表示名。techStack.ts / skills.ts の name と同じ文字列を渡す */
+  name: string;
+  size?: number;
+}
+
+const { name, size = 18 } = Astro.props;
+const icon = resolveTechIcon(name);
+---
+
+{
+  icon.kind === "inline" ? (
+    <Icon name={icon.name} size={size} class="shrink-0 text-muted-foreground" />
+  ) : (
+    <img
+      src={icon.url}
+      alt=""
+      height={size}
+      width={icon.wide ? undefined : size}
+      style={`height:${size}px;${icon.wide ? "width:auto;" : ""}`}
+      class="shrink-0"
+      loading="lazy"
+      aria-hidden="true"
+    />
+  )
+}
