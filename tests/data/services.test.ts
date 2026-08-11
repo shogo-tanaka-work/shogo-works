@@ -33,13 +33,25 @@ describe("services データ", () => {
     expect(ids).toContain("lecture");
   });
 
-  it("料金プランに定価とモニター価格が含まれていること", () => {
+  it("料金プランにプラン名と価格が設定されていること", () => {
     for (const service of services) {
       for (const plan of service.pricing) {
         expect(plan.name).toBeTruthy();
         expect(plan.price).toBeTruthy();
       }
     }
+  });
+
+  it("マンツーマンAIサポートの月額が、スポット相談の回数分を上回らないこと", () => {
+    const support = services.find((s) => s.id === "personal-support");
+    const priceOf = (name: string): number => {
+      const raw = support?.pricing.find((p) => p.name.startsWith(name))?.price;
+      return Number(raw?.replace(/[^0-9.]/g, "") ?? 0);
+    };
+
+    const spot = priceOf("スポット相談");
+    expect(priceOf("月額サポート")).toBeLessThanOrEqual(spot * 2);
+    expect(priceOf("集中伴走")).toBeLessThanOrEqual(spot * 4);
   });
 
   it("painPointsが文字列の配列であること", () => {

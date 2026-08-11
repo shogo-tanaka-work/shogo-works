@@ -45,7 +45,6 @@ export const services: ServiceItem[] = [
       {
         name: "月額運用保守・改善（ストック型）",
         price: "8万円〜/月",
-        monitorPrice: "5万円〜/月",
       },
       {
         name: "準委任・開発参画（週2日〜）",
@@ -54,12 +53,10 @@ export const services: ServiceItem[] = [
       {
         name: "スモールスタート開発（要件整理〜公開）",
         price: "50万円〜",
-        monitorPrice: "35万円〜",
       },
       {
         name: "本格Webアプリ開発",
         price: "150万円〜",
-        monitorPrice: "100万円〜",
       },
     ],
     technologies: [
@@ -111,17 +108,14 @@ export const services: ServiceItem[] = [
       {
         name: "スポット相談（60分）",
         price: "1.5万円",
-        monitorPrice: "1万円",
       },
       {
         name: "月額サポート（月2回・チャット質問し放題）",
-        price: "5万円/月",
-        monitorPrice: "3.5万円/月",
+        price: "3万円/月",
       },
       {
         name: "集中伴走（月4回・チャット質問し放題）",
-        price: "9万円/月",
-        monitorPrice: "6.5万円/月",
+        price: "6万円/月",
       },
     ],
     achievements: [
@@ -196,18 +190,15 @@ export const services: ServiceItem[] = [
     pricing: [
       {
         name: "セミナー登壇（60〜90分）",
-        price: "8万円〜",
-        monitorPrice: "5万円〜",
+        price: "10万円〜",
       },
       {
         name: "半日セミナー（3時間）",
-        price: "15万円",
-        monitorPrice: "10万円",
+        price: "18万円",
       },
       {
         name: "1日研修（6時間）",
-        price: "25万円",
-        monitorPrice: "18万円",
+        price: "30万円",
       },
       {
         name: "継続講師・カスタマイズ研修（複数日）",
@@ -215,7 +206,7 @@ export const services: ServiceItem[] = [
       },
     ],
     achievements: [
-      "AIスクールでAI講師として30名以上に指導（2025年5月〜継続中）",
+      "AIスクールでAI講師として30名以上に指導（2025年6月〜継続中）",
       "ChatGPT活用セミナーを継続開催、累計50名以上が受講",
       "MCP入門セミナーを開催、20名以上が受講",
       "毎週、主要AIツールの公式アップデートを検証して内容に反映",
