@@ -1,6 +1,8 @@
 ---
 import { mediaOutlets } from "@/data";
 import Section from "@/components/ui/Section.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Icon from "@/components/icons/Icon.astro";
 
 // 準備中の媒体はトップに出さない（URL が決まったら comingSoon を外すだけで再表示される）
 const activeOutlets = mediaOutlets.filter((outlet) => !outlet.comingSoon);
@@ -15,40 +17,56 @@ function iconUrl(slug: string, color?: string): string {
 }
 ---
 
-{/* 発信媒体は補足情報。見出しを小さくして横一列に収め、主要セクションと差をつける */}
-<Section id="media" spacing="compact">
-  <div class="border-t border-border pt-8">
-    <h2 class="text-sm font-semibold text-foreground">メディア発信</h2>
-    <p class="mt-1 text-sm text-muted-foreground">
-      各プラットフォームで発信中です。気になる媒体からフォローいただけると嬉しいです。
-    </p>
+{/* フォローが目的の導線のため、行リストではなくクリック領域の広いカードで並べる */}
+<Section id="media">
+  <SectionHeader
+    eyebrow="Media"
+    title="メディア発信"
+    subtitle="各プラットフォームで発信中です。気になる媒体からフォローいただけると嬉しいです。"
+  />
 
-    <ul class="mt-5 flex flex-wrap gap-x-8 gap-y-4">
-      {
-        activeOutlets.map((outlet) => (
-          <li>
-            <a
-              href={outlet.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              class="group inline-flex items-center gap-2 text-sm"
-            >
-              <img
-                src={iconUrl(outlet.iconSlug, outlet.brandColor)}
-                alt=""
-                width="20"
-                height="20"
-                class="shrink-0"
-                loading="lazy"
-              />
-              <span class="font-medium text-foreground group-hover:text-primary transition-colors">
-                {outlet.name}
+  <ul class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    {
+      activeOutlets.map((outlet) => (
+        <li>
+          <a
+            href={outlet.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="group flex h-full items-start gap-4 border border-border p-5 transition-colors hover:border-primary/50 hover:bg-secondary"
+          >
+            <span class="flex h-10 w-10 shrink-0 items-center justify-center">
+              {outlet.inlineIcon ? (
+                <Icon
+                  name={outlet.inlineIcon}
+                  size={32}
+                  class="text-foreground"
+                />
+              ) : (
+                <img
+                  src={iconUrl(outlet.iconSlug, outlet.brandColor)}
+                  alt=""
+                  width="32"
+                  height="32"
+                  loading="lazy"
+                  aria-hidden="true"
+                />
+              )}
+            </span>
+            <span class="min-w-0">
+              <span class="flex items-center gap-1.5">
+                <span class="text-base font-semibold text-foreground group-hover:text-primary transition-colors">
+                  {outlet.name}
+                </span>
+                <span class="text-xs text-muted-foreground">↗</span>
               </span>
-              <span class="text-muted-foreground">↗</span>
-            </a>
-          </li>
-        ))
-      }
-    </ul>
-  </div>
+              <span class="mt-1 block text-sm text-muted-foreground leading-relaxed">
+                {outlet.description}
+              </span>
+            </span>
+          </a>
+        </li>
+      ))
+    }
+  </ul>
 </Section>

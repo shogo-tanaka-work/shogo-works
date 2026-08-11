@@ -18,4 +18,23 @@ describe("differences（他社との違い）", () => {
     const aspects = differences.map((d) => d.aspect);
     expect(new Set(aspects).size).toBe(aspects.length);
   });
+
+  it("正常系: 比較相手が業態で明示されていること", () => {
+    const allowed = ["システム開発会社", "研修会社"];
+    for (const item of differences) {
+      expect(allowed).toContain(item.counterpart);
+    }
+  });
+
+  it("正常系: 開発を主軸とするため、システム開発会社との比較が過半を占めること", () => {
+    const development = differences.filter(
+      (d) => d.counterpart === "システム開発会社",
+    );
+    expect(development.length * 2).toBeGreaterThan(differences.length);
+  });
+
+  it("正常系: 研修会社との比較も1件以上あること", () => {
+    const training = differences.filter((d) => d.counterpart === "研修会社");
+    expect(training.length).toBeGreaterThan(0);
+  });
 });

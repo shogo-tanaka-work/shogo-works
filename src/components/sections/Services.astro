@@ -1,30 +1,29 @@
 ---
 import { services } from "@/data";
 import Button from "@/components/ui/Button.astro";
-import SplitSection from "@/components/ui/SplitSection.astro";
+import Section from "@/components/ui/Section.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
 import Icon from "@/components/icons/Icon.astro";
 import type { IconName } from "@/components/icons/paths";
-
 ---
 
-<SplitSection
-  id="services"
-  eyebrow="Services"
-  title="提供サービス"
-  lead="個人へのマンツーマンAIサポートと、企業向けのアプリ開発・講師登壇。フリーランスとして、現場で手を動かしながら伴走します。"
->
-  <div slot="actions" class="flex flex-wrap gap-3">
+<Section id="services">
+  <SectionHeader
+    eyebrow="Services"
+    title="提供サービス"
+    subtitle="業務委託・受託でのアプリ開発を主軸に、AI活用のマンツーマンサポートと講師登壇まで。現場で手を動かしながら伴走します。"
+    class="mb-6"
+  />
+
+  <div class="mb-10 flex flex-wrap gap-3">
     <Button href="/contact" size="md">無料で相談する</Button>
     <Button href="/services" variant="outline" size="md">サービス一覧</Button>
   </div>
 
-  <div class="flex flex-col divide-y divide-border">
+  <div class="flex flex-col divide-y divide-border border-y border-border">
     {
       services.map((service) => (
-        <a
-          href={service.href}
-          class="group flex items-start gap-4 py-5 first:pt-0 last:pb-0"
-        >
+        <a href={service.href} class="group flex items-start gap-4 py-5">
           <div class="w-12 h-12 shrink-0 rounded-[4px] bg-secondary flex items-center justify-center">
             <Icon name={service.icon as IconName} size={24} class="text-primary" />
           </div>
@@ -49,4 +48,4 @@ import type { IconName } from "@/components/icons/paths";
       ))
     }
   </div>
-</SplitSection>
+</Section>

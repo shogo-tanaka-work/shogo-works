@@ -1,22 +1,29 @@
 ---
 import { stats } from "@/data";
 import Section from "@/components/ui/Section.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
 ---
 
-{/* 見出しを持たない実績バンド。前後のセクションとリズムを変える役割 */}
-<Section id="stats" spacing="compact">
+{/* 数字だけでは何の実績か伝わらないため、見出しを持たせて2行グリッドで読ませる */}
+<Section id="stats">
+  <SectionHeader
+    eyebrow="Record"
+    title="実績・数字"
+    subtitle="開発と指導の両方を継続してきた実績です。"
+  />
+
   <dl
-    class="grid grid-cols-2 gap-x-8 gap-y-8 border-y border-border py-8 md:grid-cols-3 lg:grid-cols-5"
+    class="grid grid-cols-1 gap-x-10 gap-y-8 border-y border-border py-10 sm:grid-cols-2 lg:grid-cols-3"
   >
     {
       stats.map((stat) => (
-        <div>
+        <div class="min-w-0">
           <dt class="sr-only">{stat.label}</dt>
           <dd>
             <p class="text-3xl font-bold text-foreground">{stat.value}</p>
             <p class="mt-1 text-sm font-medium text-foreground">{stat.label}</p>
             {stat.description && (
-              <p class="mt-0.5 text-xs text-muted-foreground">
+              <p class="mt-1 text-sm text-muted-foreground">
                 {stat.description}
               </p>
             )}

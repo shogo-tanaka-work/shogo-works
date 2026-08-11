@@ -9,7 +9,7 @@ export const mediaOutlets: MediaOutlet[] = [
   {
     name: "note",
     description: "現場視点の AI 活用メモを継続発信",
-    url: "https://note.com/shogo123198",
+    url: "https://note.com/shogo_works",
     iconSlug: "note",
     brandColor: "#000000",
   },
@@ -24,7 +24,9 @@ export const mediaOutlets: MediaOutlet[] = [
     name: "LinkedIn",
     description: "経歴・実績・お仕事のご相談はこちら",
     url: "https://www.linkedin.com/in/shogoworks/",
+    // simple-icons は linkedin の配信を停止しており CDN が 404 を返すため、内蔵アイコンを使う
     iconSlug: "linkedin",
+    inlineIcon: "linkedin",
     brandColor: "#0A66C2",
   },
   {

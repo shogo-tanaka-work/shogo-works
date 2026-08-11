@@ -1,3 +1,5 @@
+import type { IconName } from "@/components/icons/paths";
+
 export interface SocialLink {
   name: string;
   url: string;
@@ -122,10 +124,13 @@ export interface NavItem {
 }
 
 // 「他社との違い」比較セクション用。
+export type DifferenceCounterpart = "システム開発会社" | "研修会社";
+
 export interface DifferenceItem {
   aspect: string; // 比較の観点
-  others: string; // 一般的な外注・他社の傾向
-  mine: string; // 田中省伍の提供価値
+  counterpart: DifferenceCounterpart; // 比較相手の業態
+  others: string; // 比較相手の傾向
+  mine: string; // shogoworks の提供価値
 }
 
 export type KnowledgeCategory =
@@ -196,14 +201,13 @@ export interface MediaOutlet {
   iconSlug: string; // simple-icons の slug
   brandColor?: string;
   comingSoon?: boolean;
+  // simple-icons が配信していない媒体（LinkedIn など）は、リポジトリ内のアイコンで代替する
+  inlineIcon?: IconName;
 }
 
 export interface TechItem {
   name: string;
-  iconSlug: string;
   url?: string;
-  // 設定されたツールは /tech/[slug] の詳細ページへ内部リンクする（techToolDetails.ts と整合させる）
-  detailSlug?: string;
 }
 
 export interface TechCategory {
@@ -230,24 +234,6 @@ export interface CaseStudy {
   serviceHref?: string; // 関連サービスLP（services.ts と整合させる）
 }
 
-// 主要ツールの詳細ページ（/tech/[slug]）用。
-export interface TechUseCase {
-  title: string;
-  description: string;
-}
-
-export interface TechToolDetail {
-  slug: string;
-  name: string;
-  iconSlug: string; // simple-icons の slug
-  tagline: string; // 1行キャッチ
-  overview: string; // ツール概要
-  strengths: string[]; // 田中省伍の強み・経験
-  useCases: TechUseCase[]; // 活用例
-  relatedServiceHref?: string; // 関連サービスLP（services.ts と整合させる）
-  relatedKnowledgeHref?: string; // 関連 Knowledge ページ
-}
-
 // --- About page: career / education / certifications ---
 
 export type EmploymentType = "正社員" | "業務委託" | "フリーランス";
@@ -262,6 +248,8 @@ export interface CareerExperience {
   highlights: string[];
   technologies: string[];
   current?: boolean;
+  // 入社が決まっているが着任前の経歴。「現職」ではなく「入社予定」として表示する
+  upcoming?: boolean;
 }
 
 export interface EducationRecord {

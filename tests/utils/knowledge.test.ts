@@ -13,6 +13,7 @@ import {
   getCategoryArticleCount,
   getRecentlyUpdatedArticles,
   getRelatedArticles,
+  matchesTagQuery,
   toKnowledgeArticle,
 } from "@/utils/knowledge";
 import { categories, subcategories } from "@/data/knowledge";
@@ -819,5 +820,32 @@ describe("getRecentlyUpdatedArticles: 表示の多様性", () => {
   it("異常系: 候補が limit に満たない場合でも件数分だけ返すこと", () => {
     const result = getRecentlyUpdatedArticles(entries, 20);
     expect(result).toHaveLength(entries.length);
+  });
+});
+
+describe("matchesTagQuery", () => {
+  it("正常系: 検索語が空のとき、すべてのタグに一致すること", () => {
+    expect(matchesTagQuery("Claude Code", "")).toBe(true);
+    expect(matchesTagQuery("Claude Code", "   ")).toBe(true);
+  });
+
+  it("正常系: 部分一致するとき、大文字小文字を区別せず一致すること", () => {
+    expect(matchesTagQuery("Claude Code", "claude")).toBe(true);
+    expect(matchesTagQuery("claude-md", "CLAUDE")).toBe(true);
+  });
+
+  it("正常系: 日本語タグを部分一致で絞り込めること", () => {
+    expect(matchesTagQuery("カリキュラム", "カリ")).toBe(true);
+    expect(matchesTagQuery("自動化", "自動")).toBe(true);
+  });
+
+  it("正常系: 記号やスペースの表記ゆれを無視して一致すること", () => {
+    expect(matchesTagQuery("Claude Code", "claudecode")).toBe(true);
+    expect(matchesTagQuery("ci-cd", "ci cd")).toBe(true);
+    expect(matchesTagQuery("config.toml", "configtoml")).toBe(true);
+  });
+
+  it("異常系: 一致しない検索語のとき、false を返すこと", () => {
+    expect(matchesTagQuery("Claude Code", "gemini")).toBe(false);
   });
 });

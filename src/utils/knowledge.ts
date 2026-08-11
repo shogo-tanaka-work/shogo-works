@@ -234,6 +234,20 @@ export function getKnowledgeTagSlug(tag: string): string {
     .replace(/^-|-$/g, "");
 }
 
+/**
+ * タグ一覧の絞り込みで、タグ名が検索語に一致するかを判定する。
+ * 記号やスペースを畳んで比較し、「claude code」「claudecode」のどちらでも引けるようにする。
+ */
+export function matchesTagQuery(tag: string, query: string): boolean {
+  const normalize = (value: string): string =>
+    value.toLowerCase().replace(/[\s/\\._-]+/g, "");
+
+  const normalizedQuery = normalize(query);
+  if (normalizedQuery === "") return true;
+
+  return normalize(tag).includes(normalizedQuery);
+}
+
 export interface KnowledgeTag {
   /** 表示用のラベル（最も多く使われている表記） */
   tag: string;

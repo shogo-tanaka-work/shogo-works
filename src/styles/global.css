@@ -212,3 +212,11 @@ body {
   font-weight: 600;
   color: var(--color-foreground);
 }
+
+/*
+ * 日本語の文節単位で改行する。「現場」のような語が行末で割れるのを防ぐ。
+ * word-break: auto-phrase 未対応のブラウザでは、通常の禁則処理へフォールバックする。
+ */
+.jp-phrase {
+  word-break: auto-phrase;
+}

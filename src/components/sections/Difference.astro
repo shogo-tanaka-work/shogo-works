@@ -8,7 +8,7 @@ import SectionHeader from "@/components/ui/SectionHeader.astro";
     <SectionHeader
     eyebrow="Why me"
     title="他社との違い"
-      subtitle="個人だからこそ、課題から逆算して速く・継続的に伴走できます。"
+      subtitle="開発の実務とAI活用の両方を一人で担うため、設計から運用・社内定着まで速く継続的に伴走できます。"
     />
 
     <div class="space-y-4">
@@ -25,7 +25,9 @@ import SectionHeader from "@/components/ui/SectionHeader.astro";
             </div>
 
             <div class="bg-gray-50 border border-border p-5">
-              <div class="text-xs text-muted-foreground mb-2">一般的な外注</div>
+              <div class="text-xs text-muted-foreground mb-2">
+                一般的な{item.counterpart}
+              </div>
               <p class="text-sm text-muted-foreground leading-relaxed">
                 {item.others}
               </p>
@@ -44,7 +46,7 @@ import SectionHeader from "@/components/ui/SectionHeader.astro";
                 >
                   <path d="M20 6 9 17l-5-5" />
                 </svg>
-                <span class="text-xs font-medium text-primary">田中省伍</span>
+                <span class="text-xs font-medium text-primary">shogoworks</span>
               </div>
               <p class="text-sm text-foreground leading-relaxed">{item.mine}</p>
             </div>

@@ -14,7 +14,7 @@ import type { SkillCategoryKey, SkillLevel } from "../src/types/index.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SKILLS_YAML_PATH =
-  "/Volumes/PortableSSD/Documents/経歴書やスキルシートに関する資料/master/skills.yaml";
+  "/Users/shogo/Documents/キャリア/履歴書_職務経歴書/master/skills.yaml";
 const OUTPUT_PATH = resolve(__dirname, "../src/data/skills.ts");
 
 // --- yaml の型定義 ---
@@ -43,44 +43,64 @@ interface YamlSkills {
 
 // --- ラベル生成 ---
 
-function generateLabel(yamlItems: Map<string, YamlSkillItem[]>): (name: string) => string {
-  return (name: string) => {
-    const items = yamlItems.get(name);
-    if (!items || items.length === 0) return "";
+const MONTHS_PER_YEAR = 12;
 
-    let years: number | undefined;
-    let hasJitumu = false;
-    let consultingLabel: string | undefined;
-    let isPersonal = false;
+/** 1年未満は「Nヶ月」で表す。0.25年を「0.25年」と書くより実感に近い */
+function formatDuration(years: number): string {
+  if (years >= 1) return `実務 ${years}年`;
+  return `実務 ${Math.max(1, Math.round(years * MONTHS_PER_YEAR))}ヶ月`;
+}
 
-    for (const item of items) {
-      if (item.years !== undefined) {
-        years = item.years;
-      }
+interface SkillSummary {
+  years?: number;
+  /** 講師・登壇としての実績。「コンサル」は HP では使わない方針のため落とす */
+  teachingLabel?: string;
+  isPersonal: boolean;
+}
 
-      const level = item.level;
-      if (level === "実務") {
-        hasJitumu = true;
-      } else if (level === "個人開発") {
-        isPersonal = true;
-      } else if (level.includes("コンサル") || level.includes("講師")) {
-        // "コンサル・講師・実務利用" → "コンサル・講師" に正規化
-        consultingLabel = level.replace(/・実務利用$/, "");
-      }
+/** yaml 上で別名に分かれている実績（例: Claude と Claude Code）を1件へまとめる */
+function collectItems(
+  yamlItems: Map<string, YamlSkillItem[]>,
+  name: string,
+  mergeFrom?: string[],
+): YamlSkillItem[] {
+  return [name, ...(mergeFrom ?? [])].flatMap((key) => yamlItems.get(key) ?? []);
+}
+
+function summarize(items: YamlSkillItem[]): SkillSummary {
+  const summary: SkillSummary = { isPersonal: false };
+
+  for (const item of items) {
+    if (item.years !== undefined) {
+      summary.years = item.years;
     }
 
-    if (years !== undefined && consultingLabel) {
-      return `実務・${consultingLabel}`;
+    const level = item.level;
+    if (level === "個人開発") {
+      summary.isPersonal = true;
+    } else if (level.includes("講師")) {
+      summary.teachingLabel = "講師";
     }
-    if (years !== undefined) {
-      return `実務 ${years}年`;
-    }
-    if (consultingLabel) {
-      return consultingLabel;
-    }
-    if (isPersonal) {
-      return "個人開発";
-    }
+  }
+
+  return summary;
+}
+
+function generateLabel(
+  yamlItems: Map<string, YamlSkillItem[]>,
+): (name: string, mergeFrom?: string[]) => string {
+  return (name: string, mergeFrom?: string[]) => {
+    const items = collectItems(yamlItems, name, mergeFrom);
+    if (items.length === 0) return "";
+
+    const { years, teachingLabel, isPersonal } = summarize(items);
+
+    // 講師実績があるものも、実務年数を併記して経験の裏付けを示す
+    if (years !== undefined && teachingLabel)
+      return `${formatDuration(years)}・${teachingLabel}`;
+    if (years !== undefined) return formatDuration(years);
+    if (teachingLabel) return teachingLabel;
+    if (isPersonal) return "個人開発";
     return "";
   };
 }
@@ -109,7 +129,10 @@ function main(): void {
   const getLabel = generateLabel(yamlItemMap);
 
   // マッピングに基づいてカテゴリ別に振り分け
-  const categories: Record<SkillCategoryKey, { name: string; level: SkillLevel; label: string }[]> = {
+  const categories: Record<
+    SkillCategoryKey,
+    { name: string; level: SkillLevel; label: string; years: number }[]
+  > = {
     languagesAndFrameworks: [],
     backendAndInfra: [],
     aiAndAutomation: [],
@@ -125,18 +148,28 @@ function main(): void {
     }
 
     const displayName = displayNameOverrides[yamlName] ?? yamlName;
-    const label = mapping.labelOverride ?? getLabel(yamlName);
+    const label = mapping.labelOverride ?? getLabel(yamlName, mapping.mergeFrom);
+    const { years } = summarize(
+      collectItems(yamlItemMap, yamlName, mapping.mergeFrom),
+    );
 
     categories[mapping.category].push({
       name: displayName,
       level: mapping.level,
       label,
+      // 実務年数を持たない（個人開発のみの）スキルは 0 として最後に回す
+      years: years ?? 0,
     });
   }
 
-  // レベル降順でソート
+  // 実務経験のあるスキルを上に出す。同条件ではレベル降順 → 年数降順
   for (const items of Object.values(categories)) {
-    items.sort((a, b) => b.level - a.level);
+    items.sort(
+      (a, b) =>
+        Number(b.years > 0) - Number(a.years > 0) ||
+        b.level - a.level ||
+        b.years - a.years,
+    );
   }
 
   if (unmapped.length > 0) {
