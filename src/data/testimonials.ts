@@ -1,46 +1,47 @@
 import type { Testimonial } from "@/types";
 
-// TODO(プレースホルダー): MENTAの実レビュー本文・属性・評価に差し替える。
-// 加工済みスクショが用意でき次第、各レビューに screenshot を設定する
-// （個人情報のフルネーム / アイコン / ユーザーID / 顔写真は除去すること）。
+// MENTA に投稿された実レビューの引用。
+// 投稿者名・アイコン・ユーザーIDは載せず、属性表記だけを掲載する。
+// 本文は改変せず、長いレビューは冒頭から連続した範囲を抜粋する。
+// 社名は掲載許諾を得たものだけを記載する（原則は属性表記）。
 export const testimonials: Testimonial[] = [
   {
-    id: "beginner-01",
+    id: "menta-student-01",
     audience: "beginner",
     rating: 5,
     quote:
-      "何を質問したらいいか分からない状態でしたが、業務で毎日AIを使えるようになりました。（※MENTA実レビューに差し替え予定）",
-    authorAttribute: "40代・会社員",
+      "自分の作りたいデバイスについて相談したところ、誰よりも早く丁寧な回答をしていただきました。今回は学習方法の簡単な質問だけでしたが、私の要望に対して真摯に考えていただき、実装方法までも具体的に手順を考えて回答してくださったので非常に参考になりました。",
+    authorAttribute: "大学生",
     serviceId: "personal-support",
     source: "MENTAレビューより",
   },
   {
-    id: "second-opinion-01",
+    id: "menta-owner-01",
     audience: "individual",
     rating: 5,
     quote:
-      "別のAI研修を受けたものの、自社の業務にどう使えばいいか分からず止まっていました。手元の教材を活かしながら、自分の仕事に合わせて一から組み直してもらえたのが大きかったです。（※トップページ掲載の声を流用した仮テキスト。実レビューに差し替え予定）",
-    authorAttribute: "50代・経営者",
-    serviceId: "personal-support",
-    source: "（仮・実レビューに差し替え予定）",
-  },
-  {
-    id: "individual-01",
-    audience: "individual",
-    rating: 5,
-    quote:
-      "資料作成にかかっていた時間を大幅に短縮できました。実務にそのまま落とし込める内容で助かりました。（※MENTA実レビューに差し替え予定）",
-    authorAttribute: "50代・個人事業主",
+      "AIについては初心者の私にも分かりやすく、こちらのレベルに合わせて様々な助言やご提案をいただき、誠にありがとうございました。おかげさまで、検討していた各種アプリについても、実用化に向けて具体的に進められそうです。",
+    authorAttribute: "株式会社テイクパート 代表",
     serviceId: "personal-support",
     source: "MENTAレビューより",
   },
   {
-    id: "developer-01",
+    id: "menta-agency-01",
+    audience: "individual",
+    rating: 5,
+    quote:
+      "エンジニアさんとしてのプロの視点もさることながら、お人柄が非常に穏やかでなんでも聞きやすく、いろいろ相談したくなる魅力があります。",
+    authorAttribute: "広告代理店勤務・女性",
+    serviceId: "personal-support",
+    source: "MENTAレビューより",
+  },
+  {
+    id: "menta-engineer-01",
     audience: "developer",
     rating: 5,
     quote:
-      "Claude Code や MCP の理解が一気に進み、開発の進め方が変わりました。（※MENTA実レビューに差し替え予定）",
-    authorAttribute: "30代・エンジニア",
+      "フルスタックの開発レクチャーだけではなく、AIの活用についても教えていただき大変参考になりました。受講者のことを考えて親身になって対応いただけるメンターでした。",
+    authorAttribute: "システムエンジニア",
     serviceId: "personal-support",
     source: "MENTAレビューより",
   },

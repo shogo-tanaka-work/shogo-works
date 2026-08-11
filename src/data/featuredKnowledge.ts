@@ -20,13 +20,6 @@ export const featuredKnowledge: FeaturedKnowledgeItem[] = [
     categoryLabel: "Codex",
   },
   {
-    title: "プロンプトエンジニアリング完全ガイド",
-    description:
-      "Zero-shot / Few-shot / CoT など主要プロンプト技法を体系的に整理。",
-    href: "/knowledge/prompt-engineering/prompt-engineering-complete-guide",
-    categoryLabel: "Prompt Engineering",
-  },
-  {
     title: "コンテキストエンジニアリング完全ガイド",
     description:
       "ウィンドウ管理・RAG・メモリ設計まで「プロンプトの外側」を設計する考え方。",

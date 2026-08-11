@@ -44,6 +44,13 @@ describe("testimonials データ", () => {
     }
   });
 
+  it("正常系: 仮テキストのプレースホルダーが残っていないこと", () => {
+    for (const t of testimonials) {
+      expect(t.quote).not.toContain("差し替え予定");
+      expect(t.source ?? "").not.toContain("仮");
+    }
+  });
+
   it("正常系: 初心者・個人事業主・開発者の3属性が網羅されていること", () => {
     const audiences = new Set(testimonials.map((t) => t.audience));
     expect(audiences.has("beginner")).toBe(true);
