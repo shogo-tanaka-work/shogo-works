@@ -24,7 +24,7 @@ description: |
 
 ## 起動時に確認すること
 
-- **作業ディレクトリ**: `/Users/shogo/Documents/ai-business-os/10_プロジェクト/shogo-works/repo`
+- **作業ディレクトリ**: `/Users/shogo/Documents/ai-business-os/10_projects/shogo-works/repo`
 - **窓**: `window_start = 前日サマリーの window_end`（連続性確保）、`window_end = 実行時刻 (Asia/Tokyo)`。前日サマリーが無い場合は `window_start = 実行時刻 - 24h` で代替し、その旨をサマリー冒頭の補足メモに残す。
 - **base ブランチ**: 既定 `main`
 - **Knowledge 反映**: 既定 **スキップ**（速報記事と教材化メモのみ。Knowledge への追記が必要と判断した場合だけ、別 PR で個別判断）

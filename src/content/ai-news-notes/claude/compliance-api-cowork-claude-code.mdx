@@ -1,0 +1,14 @@
+---
+title: "教材化メモ：Compliance API の Cowork / Claude Code 対応"
+noteFor: "claude/compliance-api-cowork-claude-code"
+date: 2026-08-11
+tags: ["claude", "claude-code", "enterprise", "compliance", "governance"]
+---
+
+- 企業導入編の「統制」章で使える中心教材。コーディングエージェントの導入が止まる理由は性能ではなく**後から追えるか**である、という導入で始めると受講者の実感に接続しやすい。
+- **ツール呼び出しの内容が記録対象に含まれる**点を強調する。プロンプトと応答だけでは監査にならない理由（どのファイルを読んだか、どの MCP へ何を渡したかが再構成できない）を先に説明してから、記録項目の一覧を出す順序にする。
+- 除外リスト（Claude Code on the web、Claude Platform 経由、Bedrock / Vertex AI / Foundry）は必ず教材に載せる。**「監査できる経路だけを許可する」という設計判断**へつなげる材料であり、これを落とすと「Claude Code は監査できる」という誤った一般化を教えてしまう。
+- 監査ログ整備が**管理対象データの増加**でもあるという裏面を扱う。プロンプト全文が別の場所に溜まる以上、保管先・保持期間・アクセス権限を決めずに有効化するのは危険、という論点はガバナンス演習の題材になる。
+- Compliance API と OpenTelemetry エクスポートの役割の違いを整理しておく。前者はセッションの中身、後者は稼働メトリクス寄り。両方を「ログ」と一括りにすると、受講者が何を取得できるのか把握できなくなる。
+- ハンズオン化は難しい（Enterprise 限定・API キー必要）。代わりに **「自作エージェントで何をログに残すか」を設計させる課題**に置き換えると、同じ学びを個人環境で再現できる。記録すべき項目の一覧をこの記事から借りる形にする。
+- Claude Enterprise の管理者向け教材は現時点で `src/content/knowledge/ai-tools/claude/` に存在しない。作るなら、この記事と skill / plugin のセキュリティ検査（`claude/skill-plugin-security-scanning`）をまとめて「Enterprise の統制機能」章として立てるのが自然。
