@@ -1,0 +1,142 @@
+---
+title: "エージェントループ設計：実行・観測・評価・修正をつなぐ"
+description: "AIエージェントの内側のツール利用ループと、成果物を検証して再実行する外側の改善ループを分け、安全に接続する設計方法を解説します。"
+category: "loop-engineering"
+tags: ["loop-engineering", "agent-loop", "tool-use", "state-machine", "orchestration"]
+sortOrder: 1
+createdAt: 2026-08-12
+author: "田中省伍"
+---
+
+## ループは状態機械として考える
+
+エージェントループを単純な`while`文として捉えると、停止や復旧の設計が抜けます。実務では、状態と遷移を明示した状態機械として考える方が安全です。
+
+```text
+READY
+  ↓
+RUNNING
+  ↓
+VERIFYING
+  ├─ 合格 → SUCCEEDED
+  ├─ 修正可能 → RETRY_READY → RUNNING
+  ├─ 承認が必要 → WAITING_APPROVAL
+  └─ 続行不能 → FAILED
+```
+
+各状態で許可される操作を限定すると、二重実行や承認前の公開を防ぎやすくなります。
+
+## 内側のツール利用ループ
+
+OpenAI Agents SDKのRunnerは、モデル出力にツール呼び出しがあればツールを実行し、結果を入力へ追加してモデルを再度呼び出します。ハンドオフなら担当エージェントを切り替え、最終出力またはターン上限で終了します。
+
+```text
+Model
+  ├─ final output → 終了
+  ├─ tool call → 実行結果を追加してModelへ
+  └─ handoff → 担当を変更してModelへ
+```
+
+このループには必ずターン上限、ツールエラー処理、権限制御を設定します。モデルが同じツールを呼び続ける場合も、正常な進行とは見なしません。
+
+## 外側の改善ループ
+
+外側では、成果物と実環境を検証します。
+
+```text
+タスク取得
+  ↓
+入力スナップショットを固定
+  ↓
+エージェント実行
+  ↓
+機械的検証
+  ↓
+必要なら意味的レビュー
+  ↓
+完了 / 修正再実行 / 人間へ移管
+```
+
+AnthropicのEvaluator-Optimizerパターンでは、生成役と評価役を分け、評価フィードバックを次の生成へ渡します。ただし、評価基準が明確で反復による改善が見込める場合に向く構成です。
+
+## 1周分の契約を定義する
+
+ループの1周を開始する前に、次の項目を固定します。
+
+| 項目 | 内容 |
+|---|---|
+| inputVersion | 対象Issue、コミット、データ版など |
+| objective | 今回達成する1つの目標 |
+| constraints | 変更禁止範囲、権限、時間、費用 |
+| expectedEvidence | 成功時に必要な証拠 |
+| maxAttempts | 最大試行回数 |
+| deadline | 終了時刻 |
+| escalationTarget | 続行不能時の戻し先 |
+
+入力版を固定しないと、実行中に対象が変わり、古い検証結果で新しい状態を完了扱いする競合が起きます。
+
+## 観測結果を構造化する
+
+自由文だけで次の試行を制御せず、機械判定できる結果へ変換します。
+
+```ts
+type LoopObservation = {
+  status: "passed" | "retryable" | "blocked" | "unsafe";
+  evidence: readonly string[];
+  failures: readonly {
+    code: string;
+    message: string;
+    retryHint?: string;
+  }[];
+};
+```
+
+`retryable`と`blocked`を分けることで、入力不足や権限不足を無駄に再試行しなくなります。
+
+## 再試行ごとに変えるもの
+
+同じ失敗に対しては、少なくとも1つを変えます。
+
+- 不足していたコンテキストを追加する
+- タスクをより小さく分割する
+- 別のツールまたは専門エージェントへ切り替える
+- 評価器の指摘を具体的な修正条件へ変換する
+- 作業状態を既知の正常点へ戻す
+
+モデルを変えるだけでは、環境や完了条件の欠陥を解決できないことがあります。
+
+## ループ設計のアンチパターン
+
+### 会話履歴を唯一の状態にする
+
+圧縮やセッション切断で重要情報が失われます。タスク状態と証拠は外部へ保存します。
+
+### 成果物と評価を同じコンテキストだけで行う
+
+生成時の思い込みを評価でも引き継ぎやすくなります。重要な評価は独立コンテキストまたは決定論的チェックで行います。
+
+### すべての失敗を再試行する
+
+認証不足、仕様矛盾、禁止操作、予算超過は再試行では解決しません。
+
+### 途中状態を公開する
+
+成果物の生成と公開を別状態に分け、公開前に承認ゲートを置きます。
+
+## 最小実装チェックリスト
+
+- [ ] 状態と遷移が列挙されている
+- [ ] 1周の入力版が固定されている
+- [ ] ターン上限と試行上限がある
+- [ ] 成功証拠が定義されている
+- [ ] 再試行可能エラーと停止エラーを区別する
+- [ ] 外部状態への書き込みが冪等である
+- [ ] 不可逆操作の前に承認がある
+- [ ] 実行・評価・判断を追跡できる
+
+## 参考資料
+
+- [Running agents（OpenAI Agents SDK）](https://developers.openai.com/api/docs/guides/agents/running-agents)
+- [Building Effective AI Agents（Anthropic）](https://www.anthropic.com/engineering/building-effective-agents)
+- [Demystifying evals for AI agents（Anthropic）](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
+

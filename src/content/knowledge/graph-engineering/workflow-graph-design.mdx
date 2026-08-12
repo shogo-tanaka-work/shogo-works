@@ -1,0 +1,158 @@
+---
+title: "ワークフローグラフ設計：ノード・エッジ・状態をどう分けるか"
+description: "AIワークフローを保守可能なグラフにするためのノード分割、状態スキーマ、条件分岐、チェックポイント、経路テストの設計方法を解説します。"
+category: "graph-engineering"
+tags: ["graph-engineering", "workflow-graph", "state-machine", "checkpoint", "orchestration"]
+sortOrder: 1
+createdAt: 2026-08-12
+author: "田中省伍"
+---
+
+## 先に業務フローを書く
+
+フレームワークのAPIから設計を始めると、ノードが技術都合で分割されます。まず「誰が、何を確認し、何を次へ渡すか」を書き出します。
+
+```text
+依頼受付
+  ↓
+要件確認 ─ 不足 → 人間へ質問
+  ↓ 十分
+調査 → 執筆 → 事実確認
+                 ├ 合格 → 公開承認
+                 └ 不合格 → 執筆へ戻す
+```
+
+ここから、責務、状態、遷移条件を抽出します。
+
+## ノードの分割基準
+
+次のいずれかが変わる場所でノードを分けます。
+
+- 実行主体が変わる
+- 必要な権限が変わる
+- 入出力形式が変わる
+- 成否判定が変わる
+- 再試行単位が変わる
+- 人間承認が必要になる
+
+「1プロンプトで全部やる」は、途中検証と部分再実行ができないため、長い業務フローには向きません。
+
+## ノード契約
+
+各ノードは、入力、出力、副作用、エラーを定義します。
+
+```ts
+type ResearchInput = {
+  question: string;
+  allowedDomains: readonly string[];
+};
+
+type ResearchOutput = {
+  findings: readonly {
+    claim: string;
+    sourceUrl: string;
+  }[];
+};
+```
+
+モデルの自由文をそのまま次ノードへ渡すより、境界で検証した構造化データを渡す方が、分岐と再実行を安定させます。
+
+## 状態は最小限にする
+
+グラフ状態へ全ログを詰め込まず、制御に必要な情報と成果物への参照を保持します。
+
+```ts
+type WorkflowState = {
+  runId: string;
+  inputVersion: string;
+  currentPhase: string;
+  artifactRefs: readonly string[];
+  decisions: readonly {
+    node: string;
+    outcome: string;
+  }[];
+};
+```
+
+大きな調査結果やバイナリは外部ストレージへ置き、状態には参照を保存します。
+
+## エッジを3種類に分ける
+
+### 固定エッジ
+
+常に次の工程へ進みます。
+
+```text
+normalize → validate
+```
+
+### 条件エッジ
+
+構造化された判定値で経路を選びます。
+
+```text
+validate --passed--> publish_review
+         --failed--> revise
+```
+
+### 動的エッジ
+
+実行時に必要なサブタスクや並列数が変わります。入力から安全な実行計画を生成し、許可されたノードだけでグラフを展開します。
+
+## 決定論的ルーターを優先する
+
+```ts
+type ReviewResult = {
+  status: "passed" | "needs_revision" | "needs_human";
+};
+
+const selectNextNode = (result: ReviewResult): string => {
+  const routes: Record<ReviewResult["status"], string> = {
+    passed: "publish_review",
+    needs_revision: "revise",
+    needs_human: "human_review",
+  };
+
+  return routes[result.status];
+};
+```
+
+モデルに任せるのは`status`の分類までとし、実行可能な次ノードはコードで制限します。
+
+## チェックポイントを置く場所
+
+- 長時間ノードの完了後
+- 外部副作用の直前と直後
+- 並列処理の合流点
+- 人間承認の直前
+- 再試行ループへ入る前
+
+チェックポイントには、状態だけでなく入力版と実行済み副作用も記録します。
+
+## 経路をテストする
+
+ノードの単体テストに加え、グラフの経路をテストします。
+
+- 正常系が終了ノードへ到達する
+- 検証失敗が修正ノードへ戻る
+- 高リスク入力が承認ノードを迂回しない
+- 最大再試行後に停止する
+- 並列枝の一部失敗で正しい復旧経路へ進む
+- 再開時に完了済み副作用を重複実行しない
+
+## 複雑化のサイン
+
+次の状態になったらグラフを分割します。
+
+- 1ノードが複数の業務責務を持つ
+- 共有状態の多くを全ノードが読み書きする
+- どの経路が実行されたか説明できない
+- 1つの変更で多数の経路テストが壊れる
+- サブグラフとして再利用できるまとまりがある
+
+## 参考資料
+
+- [Graph-based agent workflows（Google ADK）](https://adk.dev/graphs/)
+- [LangGraph overview（LangChain）](https://docs.langchain.com/oss/python/langgraph/overview)
+- [Workflow patterns（Anthropic）](https://www.anthropic.com/engineering/building-effective-agents)
+

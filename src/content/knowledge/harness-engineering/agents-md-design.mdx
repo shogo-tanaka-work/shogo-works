@@ -5,14 +5,15 @@ category: "harness-engineering"
 tags: ["harness-engineering", "claude-code", "agents-md", "context-engineering"]
 sortOrder: 1
 createdAt: 2026-04-12
+updatedAt: 2026-08-12
 author: "田中省伍"
 ---
 
 ## CLAUDE.md / AGENTS.md とは何か
 
-LLMはステートレスな関数である。推論時には重みが固定されており、セッション間で学習しない。この制約を補うために生まれたのが CLAUDE.md（Claude Code用）や AGENTS.md（Cursor、Zed、OpenCode等）といった**エージェント記憶ファイル**だ。
+LLMは推論中にモデルの重みを更新しません。CLAUDE.mdやAGENTS.mdは、この制約を補う永続メモリそのものではなく、エージェントへプロジェクトの指示と参照先を渡す**リポジトリ内の設定入口**です。
 
-エージェントはセッション開始時にこのファイルを自動で読み込む。つまり、あなたの好み・プロジェクト構造・開発ルールを**毎回のセッションに持ち込める唯一のエントリポイント**となる。
+読み込み順、探索範囲、上書き規則は製品ごとに異なります。OpenAI CodexはAGENTS.mdの階層的な探索を、Claude CodeはCLAUDE.mdとrulesの仕組みを持つため、利用中ツールの公式仕様を確認します。
 
 ## WHY / WHAT / HOW フレームワーク
 
@@ -30,7 +31,7 @@ LLMはステートレスな関数である。推論時には重みが固定さ�
 
 ### パターン1: 段階的開示（Progressive Disclosure）
 
-CLAUDE.md 本体は**60〜300行以内**に抑え、詳細は外部ファイルに分離する。
+ルートの指示ファイルは短い入口に保ち、詳細は役割別の正本へ分離します。共通の最適行数はありません。重複、矛盾、常時不要な情報が増えたら分割します。
 
 ```
 .claude/
@@ -98,7 +99,7 @@ npm run check     # 型チェック
 
 ### アンチパターン1: 命令の過積載
 
-フロンティアモデルが安定して従える命令数は**約150〜200個**。Claude Code のシステムプロンプト自体が約50の命令を含むため、ユーザーが使える予算は限られる。小規模モデルでは命令数が増えるほど従順性が指数的に低下する。
+指示が増えるほど、重複、優先順位の衝突、条件の見落としが起きやすくなります。固定の命令数を安全上限として扱わず、機械検証できる規則はlint、型、テスト、権限制御へ移します。
 
 ```markdown
 <!-- BAD: すべてを詰め込みすぎ -->
@@ -114,9 +115,9 @@ npm run check     # 型チェック
 
 こうしたスタイルルールは ESLint / Biome / Prettier に任せるべきだ。**LLMにリンターの仕事をさせてはいけない。**
 
-### アンチパターン2: 自動生成への依存
+### アンチパターン2: 自動生成した内容を未確認で採用する
 
-`/init` コマンドで自動生成された CLAUDE.md をそのまま使うのは避ける。CLAUDE.md はハーネスの**最もレバレッジの高いポイント**であり、手動で練り上げる価値がある。
+自動生成は初期ドラフトとして使えますが、存在しないコマンド、古い構成、過剰な一般則が入る場合があります。実際の正本とコマンドを確認し、人間が意図をレビューします。
 
 ### アンチパターン3: タスク固有の指示
 
@@ -150,7 +151,7 @@ project-root/.claude/rules/*.md  # ルールファイル群
 
 1. **定期的な棚卸し**: 月1回、CLAUDE.md を見直す。守られていないルールは表現を変えるか、Hookで強制する
 2. **失敗駆動の追記**: エージェントが同じミスを繰り返したら、その都度禁止事項を追加する
-3. **行数の監視**: ルートの CLAUDE.md が300行を超えたら、分離を検討する
+3. **情報密度の監視**: 重複・矛盾・タスク固有情報が増えたら、分離を検討する
 4. **チーム共有**: CLAUDE.md はリポジトリにコミットし、チーム全員が同じハーネスで作業する
 
 ## 参考リンク
@@ -158,4 +159,5 @@ project-root/.claude/rules/*.md  # ルールファイル群
 - [Writing a good CLAUDE.md - HumanLayer Blog](https://www.humanlayer.dev/blog/writing-a-good-claude-md)
 - [How to Write a Good CLAUDE.md File - Builder.io](https://www.builder.io/blog/claude-md-guide)
 - [Best Practices for Claude Code](https://code.claude.com/docs/en/best-practices)
+- [Custom instructions with AGENTS.md（OpenAI）](https://learn.chatgpt.com/docs/agent-configuration/agents-md)
 - [Agent Experience: Best Practices for Coding Agent Productivity](https://marmelab.com/blog/2026/01/21/agent-experience.html)

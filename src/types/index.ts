@@ -140,6 +140,8 @@ export type KnowledgeCategory =
   | "prompt-engineering"
   | "context-engineering"
   | "harness-engineering"
+  | "loop-engineering"
+  | "graph-engineering"
   | "ai-governance";
 
 export interface CategoryMeta {

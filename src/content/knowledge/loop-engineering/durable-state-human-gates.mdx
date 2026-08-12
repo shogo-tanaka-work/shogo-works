@@ -1,0 +1,136 @@
+---
+title: "永続状態とHuman-in-the-loop：長時間ループを安全に運用する"
+description: "長時間動くAIエージェントで、状態保存・再開・冪等性・承認ゲート・スケジュール実行を安全に設計する方法を解説します。"
+category: "loop-engineering"
+tags: ["loop-engineering", "durable-state", "human-in-the-loop", "idempotency", "long-running-agent"]
+sortOrder: 3
+createdAt: 2026-08-12
+author: "田中省伍"
+---
+
+## 長時間ループは会話ではなくジョブとして扱う
+
+数時間・数日にまたがる処理を、1つの会話履歴だけで維持するのは不安定です。プロセス停止、コンテキスト圧縮、モデル変更、承認待ちが起きても再開できるジョブとして設計します。
+
+Anthropicの長時間エージェント研究では、Git履歴、進捗ファイル、構造化された機能一覧を使い、次のセッションが作業状態を復元できるようにしています。
+
+## 永続化する状態
+
+```ts
+type DurableLoopState = {
+  runId: string;
+  inputVersion: string;
+  phase:
+    | "ready"
+    | "running"
+    | "verifying"
+    | "waiting_approval"
+    | "succeeded"
+    | "failed";
+  attempt: number;
+  evidenceRefs: readonly string[];
+  lastError?: {
+    code: string;
+    message: string;
+  };
+};
+```
+
+自由文の進捗メモも役立ちますが、制御判断に使う項目は構造化します。
+
+## チェックポイント
+
+チェックポイントは、再開可能な一貫状態で保存します。
+
+- 入力版と現在の目標
+- 完了したサブタスク
+- 未完了タスク
+- 作成・変更した成果物
+- 最新の検証結果
+- 次に実行する操作
+
+書き込み途中の状態をチェックポイントにしないため、成果物の保存と状態遷移を可能な範囲で原子的に扱います。
+
+## 冪等性を確保する
+
+再開やWebhook再送で同じ処理が二重に走る可能性があります。
+
+### 冪等キー
+
+```text
+idempotencyKey = taskId + inputVersion + actionName
+```
+
+同じキーの処理が完了済みなら再実行せず、保存済み結果を返します。
+
+### 外部操作の例
+
+- メール送信：送信記録を確認してから実行
+- 記事公開：同じslugと版が公開済みか確認
+- Issue作成：元イベントIDをメタデータへ保存
+- DB更新：期待する旧バージョンを条件に含める
+
+## Human-in-the-loopを置く場所
+
+人間は全ステップを監視するのではなく、判断価値の高い境界に入ります。
+
+| ゲート | 人間が判断すること |
+|---|---|
+| Scope gate | 目的・対象・禁止範囲が正しいか |
+| Risk gate | 高リスク操作を許可するか |
+| Quality gate | 意味的品質やブランド基準を満たすか |
+| Release gate | 外部公開・本番反映してよいか |
+
+OpenAI Agents SDKのHuman-in-the-loop機能は、承認が必要なツール呼び出しで実行を中断し、状態を保存して承認後に再開する考え方を採ります。
+
+## 承認待ちの設計
+
+承認要求には判断材料を含めます。
+
+- 実行しようとしている操作
+- 対象と影響範囲
+- 変更差分
+- 検証済み事項
+- 残っているリスク
+- 承認・却下それぞれの結果
+- 期限切れ時の動作
+
+単に「許可しますか？」と聞くだけでは、安全な判断ができません。
+
+## スケジュール実行
+
+定期実行では、次の順序にします。
+
+1. 前回実行が残っていないか確認
+2. 入力データの版を固定
+3. 対象がなければ正常終了
+4. 最小単位で処理
+5. 証拠付きで評価
+6. 公開や外部送信前に承認
+7. 結果と次回再開点を保存
+
+前回が長引いた場合の重複起動ポリシーも必要です。`skip`、`queue`、`cancel_previous`のどれを選ぶかを明示します。
+
+## モデルやハーネスの変更に耐える
+
+永続状態は特定モデルの内部表現に依存させません。目標、成果物、証拠、エラー、次の操作を、別モデルや人間でも読める形式で保存します。
+
+Anthropicは、モデル能力の向上により以前必要だったコンテキストリセットや評価頻度が過剰になる場合があると報告しています。ハーネスの制約を固定せず、評価結果を見ながら簡素化します。
+
+## 運用チェックリスト
+
+- [ ] プロセス停止後に再開できる
+- [ ] 状態に入力版が含まれる
+- [ ] 二重実行を検知できる
+- [ ] 承認待ちに期限がある
+- [ ] 却下時の終了または修正経路がある
+- [ ] 不可逆操作は自動再試行しない
+- [ ] モデルを変更しても状態を読める
+- [ ] 最終結果と証拠を追跡できる
+
+## 参考資料
+
+- [Effective harnesses for long-running agents（Anthropic）](https://www.anthropic.com/engineering/effective-harnesses-for-long-running-agents)
+- [Harness design for long-running application development（Anthropic）](https://www.anthropic.com/engineering/harness-design-long-running-apps)
+- [Running agents（OpenAI Agents SDK）](https://developers.openai.com/api/docs/guides/agents/running-agents)
+- [Results and state（OpenAI Agents SDK）](https://developers.openai.com/api/docs/guides/agents/results)

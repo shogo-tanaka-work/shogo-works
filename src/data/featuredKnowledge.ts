@@ -34,6 +34,20 @@ export const featuredKnowledge: FeaturedKnowledgeItem[] = [
     categoryLabel: "Harness Engineering",
   },
   {
+    title: "Loop Engineering 完全ガイド",
+    description:
+      "AIエージェントを反復実行させるための評価・再試行・停止条件・予算設計。",
+    href: "/knowledge/loop-engineering/loop-engineering-complete-guide",
+    categoryLabel: "Loop Engineering",
+  },
+  {
+    title: "Graph Engineering 完全ガイド",
+    description:
+      "分岐・並列・合流・状態遷移を持つAIワークフローを明示的に設計する考え方。",
+    href: "/knowledge/graph-engineering/graph-engineering-complete-guide",
+    categoryLabel: "Graph Engineering",
+  },
+  {
     title: "Knowledge Base ロードマップ",
     description:
       "目的別に「何をどの順で読むか」を整理した学習パス集。最初の入口として。",
