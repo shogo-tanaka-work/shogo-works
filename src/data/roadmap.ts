@@ -102,6 +102,30 @@ export const roadmapPaths: RoadmapPath[] = [
     ],
   },
   {
+    id: "agent-engineering-stack",
+    title: "Context・Harness・Loop・Graphをつなげて学ぶ",
+    description:
+      "AIエージェントの品質を、入力情報、1回の実行環境、反復サイクル、複数経路の実行構造という4つの設計面に分けて理解する学習パスです。",
+    steps: [
+      {
+        ref: "context-engineering/context-engineering-complete-guide",
+        note: "モデルへ何を見せるか。有限な注意予算を管理する。",
+      },
+      {
+        ref: "harness-engineering/harness-engineering-complete-guide",
+        note: "1回のエージェント実行を支える環境・ツール・検証を設計する。",
+      },
+      {
+        ref: "loop-engineering/loop-engineering-complete-guide",
+        note: "実行・観測・評価・再試行・停止を反復可能なサイクルにする。",
+      },
+      {
+        ref: "graph-engineering/graph-engineering-complete-guide",
+        note: "分岐・並列・合流・承認を含むワークフロー全体を明示する。",
+      },
+    ],
+  },
+  {
     id: "cloudflare-supabase-launch",
     title: "Web サービスを Cloudflare + Supabase で立ち上げる",
     description:

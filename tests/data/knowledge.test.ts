@@ -2,8 +2,8 @@ import { describe, it, expect } from "vitest";
 import { categories, subcategories } from "@/data/knowledge";
 
 describe("knowledge カテゴリデータ", () => {
-  it("8つのカテゴリが定義されていること", () => {
-    expect(categories).toHaveLength(8);
+  it("10個のカテゴリが定義されていること", () => {
+    expect(categories).toHaveLength(10);
   });
 
   it("すべてのカテゴリにslug, label, description, iconが存在すること", () => {
@@ -37,6 +37,22 @@ describe("knowledge カテゴリデータ", () => {
     const aiGovernance = categories.find((c) => c.slug === "ai-governance");
     expect(aiGovernance).toBeDefined();
     expect(aiGovernance?.label).toBe("AI Governance");
+  });
+
+  it("loop-engineeringカテゴリが含まれていること", () => {
+    const loopEngineering = categories.find(
+      (category) => category.slug === "loop-engineering",
+    );
+    expect(loopEngineering).toBeDefined();
+    expect(loopEngineering?.label).toBe("Loop Engineering");
+  });
+
+  it("graph-engineeringカテゴリが含まれていること", () => {
+    const graphEngineering = categories.find(
+      (category) => category.slug === "graph-engineering",
+    );
+    expect(graphEngineering).toBeDefined();
+    expect(graphEngineering?.label).toBe("Graph Engineering");
   });
 });
 

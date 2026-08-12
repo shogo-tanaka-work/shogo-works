@@ -1,243 +1,121 @@
 ---
-title: "AIコードレビュー導入と運用：自動PR解析で品質を底上げする実践ガイド"
-description: "Claude Code Reviewをはじめとしたマルチエージェントによる自動PRレビューの仕組み、導入方法、運用のベストプラクティスを解説します。"
+title: "AIコードレビュー導入と運用：機械検証と人間判断をつなぐ"
+description: "AIコードレビューをPRへ組み込み、静的解析・テスト・独立レビュー・人間判断を役割分担して、検出率と運用コストを継続評価する方法を解説します。"
 category: "harness-engineering"
-tags: ["harness-engineering", "code-review", "claude-code", "pull-request", "ci-cd"]
+tags: ["harness-engineering", "code-review", "codex", "claude-code", "pull-request", "ci-cd"]
 sortOrder: 11
 createdAt: 2026-04-12
+updatedAt: 2026-08-12
 author: "田中省伍"
 ---
 
-## AIコードレビューの現在地
+## AIコードレビューの役割
 
-2026年3月、AnthropicはClaude Code Reviewをリサーチプレビューとして公開しました。PRが開かれると、複数の専門エージェントが並列にコードを解析し、バグ・境界条件・API誤用・認証の脆弱性・プロジェクト固有の規約違反を検出します。
+AIコードレビューは、差分と周辺コードを読み、バグ候補、境界条件、API誤用、セキュリティ問題、規約違反を指摘する補助レビューです。
 
-### パフォーマンス指標
+製品ごとの検出率、費用、実行時間は、モデル、PR規模、リポジトリ、設定で大きく変わります。本記事では固定の性能値を一般化せず、自分のリポジトリで測定する運用を扱います。
 
-Anthropicの内部テストによる数値です。
+## 4層でレビューする
 
-| 指標 | 値 |
+| 層 | 主な検証 | 実行主体 |
+|---|---|---|
+| 1. 構文・形式 | formatter、lint、型 | 決定論的ツール |
+| 2. 動作 | 単体、統合、E2E | テスト・CI |
+| 3. 意味 | バグ候補、仕様逸脱、設計問題 | AIレビュー |
+| 4. 判断 | 業務妥当性、リスク、受入可否 | 人間 |
+
+AIにフォーマッターや型チェッカーの代わりをさせません。機械判定できる問題を先に除き、AIと人間の注意を意味的な問題へ使います。
+
+## レビュー入力を設計する
+
+AIレビューへ渡す情報を絞ります。
+
+- ベースと対象のコミット
+- 変更差分
+- 変更ファイルの周辺コード
+- 関連テスト
+- 仕様・Issue・完了条件
+- プロジェクト固有のレビュー規則
+- 既存のCI結果
+
+リポジトリ全体を無差別に渡すのではなく、必要なファイルを検索できるツールと、正本への入口を与えます。
+
+## 良いレビュー規則
+
+規則は観測可能な形にします。
+
+- 外部入力を境界で検証しているか
+- エラーを握りつぶしていないか
+- 権限確認が副作用より前にあるか
+- 新しい分岐に対応するテストがあるか
+- 既存仕様と後方互換性を壊していないか
+- 秘密情報をログや差分へ含めていないか
+
+「きれいなコードか」のような曖昧な基準は、例と優先度を添えます。
+
+## 指摘の出力契約
+
+各指摘には次を求めます。
+
+| 項目 | 内容 |
 |---|---|
-| 大規模PR（1,000行以上）での検出率 | 84% |
-| 大規模PRでの平均検出件数 | 7.5件 |
-| 小規模PR（50行以下）での検出率 | 31% |
-| 小規模PRでの平均検出件数 | 0.5件 |
-| 誤検出率（エンジニアが「不正確」と判断） | 1%未満 |
-| 平均レビュー時間 | 約20分 |
+| location | ファイルと行 |
+| severity | 影響度 |
+| evidence | 問題だと判断した根拠 |
+| scenario | 再現条件 |
+| suggestion | 最小の修正案 |
+| confidence | 確信度 |
 
-## Claude Code Reviewのアーキテクチャ
+根拠や再現条件がない一般論は、PRコメントとして投稿しない方が安全です。
 
-### マルチエージェント解析
+## 独立性を確保する
 
-単一のモデルがPR全体を読むのではなく、**専門化されたエージェントが並列に動作**します。
+実装エージェントとレビューエージェントが同じ前提と履歴を共有すると、思い込みも共有します。
 
-```
-PR Open
-  ├── Agent A: ロジックエラー検出
-  ├── Agent B: 境界条件チェック
-  ├── Agent C: API使用パターン検証
-  ├── Agent D: セキュリティ脆弱性スキャン
-  └── Agent E: プロジェクト規約準拠チェック
-         ↓
-  [検証ステップ: 実コードに対する誤検出フィルタリング]
-         ↓
-  [重複排除 + 重要度ランキング]
-         ↓
-  GitHub PR にインラインコメント投稿
-```
+- レビューは差分と仕様から開始する
+- 実装時の自己評価を事実として引き継がない
+- テスト結果は終了コードと対象コミットを確認する
+- 重要指摘は実コードまたは再現テストで検証する
 
-各エージェントが独立して問題を検出した後、検証ステップで**実際のコードの挙動と照合**して偽陽性をフィルタリングします。これが1%未満という低誤検出率の鍵です。
+完全な別モデルが必須ではありません。独立した入力と評価基準の方が重要です。
 
-### セットアップ
+## 導入手順
 
-Claude Code ReviewはGitHub Appとして提供されます。
+1. 過去のレビュー指摘を20〜50件集める
+2. バグ、セキュリティ、規約、設計に分類する
+3. formatter・lint・型・テストで捕捉できるものを先に自動化する
+4. AIに任せる意味的レビュー基準を定義する
+5. 最初はPRへ自動投稿せず、レポートとして比較する
+6. 真陽性、偽陽性、見逃し、レビュー時間を測る
+7. 高信頼の指摘だけ自動コメントへ移す
+8. 人間が却下した理由をルールと評価セットへ反映する
 
-```bash
-# CLIからレビューを手動実行
-claude review
+## 測定する指標
 
-# 特定のPRをレビュー
-claude review --pr 123
+- 真陽性率
+- 偽陽性率
+- 人間レビューで見つかったAIの見逃し
+- 指摘1件あたりの確認時間
+- PRあたりの費用と待ち時間
+- 同じ種類の指摘の再発率
+- AI指摘によって追加された回帰テスト数
 
-# GitHub Actionsでの自動実行
-# .github/workflows/code-review.yml
-```
+検出件数が多いことを成功指標にしません。人間が確認可能で、実際の欠陥を減らせたかを見ます。
 
-```yaml
-# .github/workflows/code-review.yml
-name: Claude Code Review
-on:
-  pull_request:
-    types: [opened, synchronize]
+## セキュリティ
 
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: anthropics/claude-code-review-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-```
+外部のレビューサービスへコードを送る場合は、データ保持、学習利用、リージョン、アクセス権、秘密情報の除外を確認します。
 
-## ハーネスとの統合
+PRコメントの自動投稿権限も最小化します。レビュー役にマージ、push、本番変更の権限は不要です。
 
-AIコードレビューの真価は、ハーネスエンジニアリングと組み合わせたときに発揮されます。
+## AIと人間の役割分担
 
-### プロジェクト固有ルールの反映
+AIは、広い差分を一貫した観点で繰り返し調べることが得意です。人間は、仕様の意図、事業上のリスク、長期的な設計判断、例外の受容を担当します。
 
-CLAUDE.mdとルールファイルがあれば、レビューエージェントはプロジェクト固有の規約を理解した上でレビューを行います。
+AIレビューを人間の代替として導入するのではなく、人間が高価値な判断へ集中できる順序を作ります。
 
-```markdown
-# .claude/rules/review-criteria.md
+## 参考資料
 
-## レビュー基準
-
-### 必須チェック
-- 新しいAPIエンドポイントにはテストがあるか
-- エラーハンドリングが実装されているか
-- 型定義が明示的か（anyの使用禁止）
-- 環境変数がハードコードされていないか
-
-### 推奨チェック
-- 関数が50行を超えていないか
-- ネストが3段以上になっていないか
-- マジックナンバーが定数化されているか
-```
-
-### Hookとの連携
-
-PRレビュー前に、ローカルのHookで品質を底上げします。
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "agent",
-            "prompt": "Before marking this task complete, verify: 1) All new functions have tests. 2) No console.log statements remain. 3) TypeScript strict mode errors are resolved. Report any issues found.",
-            "timeout": 120
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-この構成により、**ローカルHookで基本品質を担保 → PRレビューで高度な問題を検出**という二段構えになります。
-
-## セルフホスト型のレビュー自動化
-
-Claude Code Reviewの正式版を待たずとも、既存のツールでレビュー自動化を構築できます。
-
-### GitHub Actions + Claude Code CLI
-
-```yaml
-name: AI Code Review
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-jobs:
-  review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Get changed files
-        id: changed
-        run: |
-          echo "files=$(gh pr diff ${{ github.event.pull_request.number }} --name-only | tr '\n' ' ')" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Run Claude Code Review
-        run: |
-          claude -p "Review these changed files for bugs, security issues, and coding standard violations. Focus on logic errors and edge cases. Files: ${{ steps.changed.outputs.files }}" \
-            --output-format json > review-results.json
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-
-      - name: Post review comments
-        run: |
-          # review-results.jsonをパースしてPRコメントを投稿
-          node scripts/post-review-comments.js
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-```
-
-### claude-review-loop プラグイン
-
-コミュニティのプラグインを活用する方法もあります。
-
-```bash
-# claude-review-loopのインストール
-claude plugin install claude-review-loop
-
-# レビューの実行
-claude review-loop --pr 123
-```
-
-## コスト管理
-
-AIコードレビューのコストはPRのサイズと複雑さに比例します。
-
-| PRサイズ | 推定コスト | 所要時間 |
-|---|---|---|
-| 小規模（50行以下） | $5-10 | 5-10分 |
-| 中規模（50-500行） | $10-20 | 10-20分 |
-| 大規模（1,000行以上） | $15-25 | 15-30分 |
-
-### コスト最適化のテクニック
-
-```yaml
-# 特定のファイルパターンのみレビュー対象にする
-on:
-  pull_request:
-    paths:
-      - 'src/**/*.ts'
-      - 'src/**/*.tsx'
-      - '!src/**/*.test.ts'  # テストファイルは除外
-      - '!src/**/*.d.ts'     # 型定義ファイルは除外
-```
-
-## 人間のレビューとの役割分担
-
-AIコードレビューは人間のレビューを**置き換える**ものではなく、**補完する**ものです。
-
-| 観点 | AIが得意 | 人間が得意 |
-|---|---|---|
-| バグ検出 | 境界条件、null参照、型不一致 | ビジネスロジックの正しさ |
-| セキュリティ | 既知パターンの脆弱性 | 設計レベルの攻撃面 |
-| コード品質 | 規約違反、重複検出 | アーキテクチャ判断 |
-| レビュー速度 | 数分で完了 | 数時間〜数日 |
-
-### 推奨ワークフロー
-
-```
-1. PR作成
-2. AIレビューが自動実行（5-20分）
-3. AI指摘の修正
-4. 人間レビュアーにアサイン
-   → AIが機械的な問題を潰した後なので、
-     人間はアーキテクチャ・ビジネスロジックに集中できる
-```
-
-## 実践ポイント
-
-1. **段階的に導入する**: まずはInformational（コメントのみ）モードで始め、チームが信頼を構築してからBlocking（承認必須）に移行する
-2. **プロジェクト固有ルールを整備する**: CLAUDE.mdとルールファイルが充実しているほど、レビューの精度が上がる
-3. **偽陽性を追跡する**: 不正確な指摘を記録し、ルールファイルの改善に活かす
-4. **コスト予算を設定する**: 月次のAPI使用量を監視し、対象ファイルの絞り込みでコストを制御する
-5. **人間レビューの価値を再定義する**: AIが機械的チェックを担当する分、人間は設計判断とメンタリングに集中する
-
-## 参考リンク
-
-- [Code Review - Claude Code Docs](https://code.claude.com/docs/en/code-review)
-- [Claude Code Review Plugin (GitHub)](https://github.com/anthropics/claude-code/blob/main/plugins/code-review/README.md)
-- [Code Review for Claude Code (Anthropic Blog)](https://claude.com/blog/code-review)
-- [claude-review-loop (GitHub)](https://github.com/hamelsmu/claude-review-loop)
+- [Code review with Codex（OpenAI）](https://learn.chatgpt.com/docs/codex/development-workflows/code-review)
+- [Demystifying evals for AI agents（Anthropic）](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
+- [Harness engineering（OpenAI）](https://openai.com/index/harness-engineering/)

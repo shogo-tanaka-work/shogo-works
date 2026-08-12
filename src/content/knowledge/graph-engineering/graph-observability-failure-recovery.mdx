@@ -1,0 +1,126 @@
+---
+title: "グラフの可観測性と障害復旧：経路・状態・再試行を追跡する"
+description: "複雑なAIワークフローで、実行経路、状態差分、コスト、障害原因を追跡し、チェックポイントから安全に復旧する設計方法を解説します。"
+category: "graph-engineering"
+tags: ["graph-engineering", "observability", "failure-recovery", "checkpoint", "tracing"]
+sortOrder: 3
+createdAt: 2026-08-12
+author: "田中省伍"
+---
+
+## グラフは実行経路が見えなければ運用できない
+
+単一のモデル呼び出しと違い、グラフでは同じ入力でも分岐、並列、再試行によって経路が変わります。最終出力だけを記録しても、失敗原因やコスト増加を説明できません。
+
+可観測性では、少なくとも次の3層を追跡します。
+
+1. Graph：どのノードとエッジを通ったか
+2. Node：各処理の入力・出力・エラー・所要時間
+3. Model / Tool：モデル呼び出し、トークン、ツール結果
+
+## 実行イベント
+
+```ts
+type GraphEvent = {
+  runId: string;
+  nodeId: string;
+  attempt: number;
+  eventType: "started" | "completed" | "failed" | "paused";
+  inputVersion: string;
+  artifactRefs: readonly string[];
+  occurredAt: string;
+};
+```
+
+実データ全文ではなく、監査に必要なメタデータと成果物参照を残します。個人情報や秘密情報をログへ複製しない設計も必要です。
+
+## 状態差分を記録する
+
+ノード実行前後の状態全体を毎回保存するのではなく、何が変わったかを記録します。
+
+```text
+node: verify_article
+changes:
+  reviewStatus: pending -> needs_revision
+  issueCount: 0 -> 3
+  nextNode: publish_review -> revise
+```
+
+これにより、誤った分岐の原因を追いやすくなります。
+
+## 障害を分類する
+
+| 種類 | 例 | 対応 |
+|---|---|---|
+| Transient | 一時的な通信失敗 | 上限付き再試行 |
+| Validation | スキーマ不一致 | 生成元へ具体的に戻す |
+| Policy | 権限・安全規則違反 | 即時停止または承認 |
+| Dependency | 外部サービス停止 | 待機・代替経路 |
+| Logic | 誤った分岐や状態更新 | グラフ定義を修正 |
+| Budget | 時間・費用超過 | 安全停止して人間へ返す |
+
+すべてを同じ再試行ポリシーで扱わないことが重要です。
+
+## 部分再実行
+
+並列枝の1つだけが失敗した場合、成功済みの枝を再利用します。
+
+```text
+Research A: succeeded  ─┐
+Research B: failed     ─┼→ Bだけ再実行 → Synthesize
+Research C: succeeded  ─┘
+```
+
+ただし入力版が変わった場合、古い成功結果を再利用できるか判定が必要です。
+
+## チェックポイントからの復旧
+
+復旧時は次を確認します。
+
+1. チェックポイントの入力版が現在も有効か
+2. 完了済みの外部副作用は何か
+3. 再実行しても安全なノードはどれか
+4. 保留中の承認は期限内か
+5. グラフ定義やモデルが変更されていないか
+
+グラフ定義をバージョン管理し、途中実行がどの版に従っていたかを保存します。
+
+## 補償処理
+
+外部副作用を単純に巻き戻せない場合、逆操作ではなく補償処理を定義します。
+
+- 公開済み記事：削除ではなく非公開版を発行
+- 送信済み通知：取消不能なら訂正通知を送る
+- 予約作成：取消APIを呼び、結果を確認
+
+補償も失敗し得るため、独立したノードと監視対象にします。
+
+## 監視する指標
+
+- 成功率と安全停止率
+- ノード別エラー率
+- 平均・最大試行回数
+- 経路別の時間と費用
+- 人間承認の待ち時間
+- 同一失敗の反復回数
+- 部分再実行で節約できた処理量
+- 完了後に人間が差し戻した割合
+
+単なるトークン削減ではなく、成功1件あたりの費用と人間レビュー時間を見ます。
+
+## アラート条件
+
+- 循環回数が上限に近づいた
+- 同じノードで同じエラーが続いた
+- 通常使われない経路が急増した
+- 高リスクノードが承認を迂回した
+- チェックポイント保存に失敗した
+- 入力版と評価証拠の版が一致しない
+
+## 参考資料
+
+- [LangGraph overview（LangChain）](https://docs.langchain.com/oss/python/langgraph/overview)
+- [Graph-based agent workflows（Google ADK）](https://adk.dev/graphs/)
+- [Evaluate agent workflows（OpenAI）](https://developers.openai.com/api/docs/guides/agent-evals)
+- [Demystifying evals for AI agents（Anthropic）](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents)
+

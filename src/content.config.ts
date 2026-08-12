@@ -14,6 +14,8 @@ const knowledge = defineCollection({
       "prompt-engineering",
       "context-engineering",
       "harness-engineering",
+      "loop-engineering",
+      "graph-engineering",
       "ai-governance",
     ]),
     subcategory: z.string().optional(),

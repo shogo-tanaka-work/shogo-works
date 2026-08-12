@@ -5,12 +5,15 @@ category: "context-engineering"
 tags: ["context-engineering", "memory", "agent", "episodic-memory", "semantic-memory"]
 sortOrder: 5
 createdAt: 2026-04-12
+updatedAt: 2026-08-12
 author: "田中省伍"
 ---
 
 ## なぜメモリシステムが必要か
 
-LLMのコンテキストウィンドウは「ワーキングメモリ」に相当します。会話が長くなるとコンテキストが溢れ、古い情報が失われます。メモリシステムは、この制約を克服し、エージェントが過去の経験から学び、一貫した行動を取るための仕組みです。
+LLMのコンテキストウィンドウは「ワーキングメモリ」に近い役割を持ちます。メモリシステムは、セッション外へ保存した情報を必要時に取得し、一貫した行動を支える仕組みです。
+
+保存した事実を次回入力へ戻すことと、モデル自体が学習することは別です。メモリには保存条件、出典、更新、削除、アクセス制御が必要です。
 
 2026年のICLR Workshopでも「Memory for LLM-Based Agentic Systems（MemAgents）」が採択されるなど、LLMのメモリ設計は活発な研究分野です。
 

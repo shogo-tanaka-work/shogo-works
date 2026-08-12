@@ -53,6 +53,20 @@ export const categories: CategoryMeta[] = [
     icon: "settings",
   },
   {
+    slug: "loop-engineering",
+    label: "Loop Engineering",
+    description:
+      "AIエージェントの反復実行・評価・再試行・停止条件を設計する手法",
+    icon: "settings",
+  },
+  {
+    slug: "graph-engineering",
+    label: "Graph Engineering",
+    description:
+      "AIワークフローの分岐・並列・合流・状態遷移をグラフとして設計する手法",
+    icon: "layers",
+  },
+  {
     slug: "ai-governance",
     label: "AI Governance",
     description:
@@ -137,4 +151,3 @@ export const subcategories: Partial<
     },
   ],
 };
-

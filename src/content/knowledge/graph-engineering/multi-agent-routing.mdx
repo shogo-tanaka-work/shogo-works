@@ -1,0 +1,122 @@
+---
+title: "マルチエージェントのルーティング：Manager・Handoff・並列実行"
+description: "複数のAIエージェントをManager、Handoff、Fan-out/Fan-inで連携させる際の責務分割、コンテキスト境界、統合方法を解説します。"
+category: "graph-engineering"
+tags: ["graph-engineering", "multi-agent", "routing", "handoff", "parallelization"]
+sortOrder: 2
+createdAt: 2026-08-12
+author: "田中省伍"
+---
+
+## 複数エージェントを使う目的を先に決める
+
+エージェント数を増やすこと自体は品質向上ではありません。分割する主な理由は次の3つです。
+
+1. 専門性：異なる指示・ツール・評価基準が必要
+2. コンテキスト分離：不要な履歴を持ち込ませない
+3. 並列性：独立した作業を同時に進める
+
+これらに当てはまらない場合、単一エージェントと決定論的コードの方が簡潔です。
+
+## Managerパターン
+
+Managerが最終結果の所有権を持ち、専門エージェントをツールとして呼びます。
+
+```text
+                  ┌→ Research Agent ─┐
+User → Manager ───├→ Data Agent ─────┼→ Manager → User
+                  └→ Review Agent ───┘
+```
+
+OpenAI Agents SDKでは「agents as tools」に相当します。
+
+### 向いている場面
+
+- 複数結果を統合して1つの回答にしたい
+- 共通のガードレールをManagerで適用したい
+- ユーザーとの会話主体を変えたくない
+
+### 注意点
+
+Managerへ全結果を返すとコンテキストが膨らみます。専門エージェントの出力契約を絞り、必要な証拠への参照を返します。
+
+## Handoffパターン
+
+分類担当が、適切な専門エージェントへ会話の所有権を移します。
+
+```text
+User → Triage ─→ Billing Agent → User
+              └→ Technical Agent → User
+```
+
+### 向いている場面
+
+- 担当領域ごとに指示・ツール・方針が大きく異なる
+- 専門エージェントがユーザーへ直接応答すべき
+- 会話履歴を引き継ぐ必要がある
+
+### 注意点
+
+引き継ぐ履歴をフィルタリングしないと、不要情報や秘密情報まで渡る可能性があります。引き継ぎ理由、要約、必要データを構造化します。
+
+## Fan-out / Fan-inパターン
+
+独立したサブタスクを並列実行し、結果を統合します。
+
+```text
+Plan → ┬→ Source A research ─┬→ Synthesize
+       ├→ Source B research ─┤
+       └→ Source C research ─┘
+```
+
+Anthropicは、並列化を「独立部分への分割」と「複数視点による投票」に整理しています。
+
+### 合流条件
+
+- 全枝の完了を待つ
+- 必須枝だけを待つ
+- 規定数の成功で進む
+- 期限までの結果で進む
+
+合流時に欠落枝を隠さず、完全性を状態として持ちます。
+
+## ルーティング判断の設計
+
+### コードで決める
+
+入力種別、権限、金額、明確なルールで判定できる場合に使います。
+
+### モデルで分類する
+
+曖昧な自然言語の意図や複数カテゴリを判断する場合に使います。出力をenumへ制限し、低信頼時は人間または安全な既定経路へ送ります。
+
+### ハイブリッド
+
+モデルが候補と理由を出し、コードが権限・ポリシー・信頼度で最終決定します。
+
+## エージェント間の受け渡し契約
+
+最低限、次を含めます。
+
+- サブタスクの目的
+- 入力版
+- 使用可能な情報と禁止情報
+- 期待する出力形式
+- 完了条件
+- 時間・費用・ツール上限
+- 失敗時の戻り値
+
+「調べておいて」のような曖昧な委譲は、統合時の手戻りを増やします。
+
+## 評価役を分けるとき
+
+評価役の分離は、生成役と異なる基準・ツール・コンテキストが必要な場合に有効です。ただし、Anthropicの2026年の報告では、モデル能力が上がると一部の評価器が過剰なコストになる場合もあります。
+
+評価役を常設するのではなく、タスク難度、リスク、過去の失敗率で起動を決めます。
+
+## 参考資料
+
+- [Orchestration and handoffs（OpenAI Agents SDK）](https://developers.openai.com/api/docs/guides/agents/orchestration)
+- [Building Effective AI Agents（Anthropic）](https://www.anthropic.com/engineering/building-effective-agents)
+- [How we built our multi-agent research system（Anthropic）](https://www.anthropic.com/engineering/multi-agent-research-system)
+

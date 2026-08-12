@@ -5,6 +5,7 @@ category: "context-engineering"
 tags: ["context-engineering", "embedding", "vector-search", "rag", "semantic-search", "pgvector"]
 sortOrder: 10
 createdAt: 2026-04-12
+updatedAt: 2026-08-12
 author: "田中省伍"
 ---
 
@@ -133,7 +134,7 @@ def semantic_chunking(
 
 ## ハイブリッド検索
 
-2026年時点で、ベクトル検索単体ではなく**ハイブリッド検索がデフォルト推奨**です。ベクトル検索（セマンティック）とキーワード検索（BM25）を組み合わせることで、それぞれの弱点を補完します。
+固有名詞やIDの完全一致と意味検索の両方が必要なら、ベクトル検索とキーワード検索を組み合わせるハイブリッド方式が候補になります。デフォルトで複雑化せず、評価セットで単独方式との差を確認します。
 
 ```python
 # ハイブリッド検索の例（pgvector + pg_trgm）
@@ -222,7 +223,7 @@ async def search_with_rerank(
     return [candidates[r.index] for r in reranked.results]
 ```
 
-リランキングだけで**回答品質が2倍に向上**した事例も報告されています。
+リランキングで改善する場合がありますが、効果は候補取得の品質と質問分布に依存します。Recall、最終回答の正確さ、追加レイテンシ、費用を合わせて比較します。
 
 ## 埋め込みモデルの選定（2026年）
 
@@ -240,11 +241,11 @@ async def search_with_rerank(
 - **チャンクサイズは実験で決める**: 理論値ではなく、実際のクエリでRecall@10を計測する
 - **メタデータフィルタを活用する**: ベクトル検索の前にカテゴリ・日付でフィルタし、検索空間を絞る
 - **定期的に埋め込みを再生成する**: モデルをアップグレードした場合、古い埋め込みとの互換性はない
-- **GraphRAGを検討する**: 関係性ベースのクエリでは、ベクトル検索だけでは精度が35%劣るという報告がある
+- **GraphRAGを比較する**: 複数エンティティの関係や経路を問う質問では候補になる。ベクトル検索、SQL、全文検索と同じ質問セットで比較する
 
 ## まとめ
 
-ベクトル検索はRAGの基盤技術ですが、2026年の実践ではハイブリッド検索＋リランキングが標準構成です。埋め込みモデルの選定、チャンキング戦略、検索パイプラインの設計を総合的に最適化することで、コンテキストエンジニアリングの質を大きく向上させることができます。
+ベクトル検索はRAGの有力な構成要素ですが、すべての検索に必要ではありません。埋め込みモデル、全文検索、チャンキング、メタデータ、リランキングを個別に比較し、最小構成でタスク成功率を満たす組み合わせを選びます。
 
 ## 参考リンク
 
@@ -253,4 +254,3 @@ async def search_with_rerank(
 - [RAG in 2026: Why Vector Embeddings Are No Longer Enough — Prism Labs](https://www.prismlabs.uk/blog/rag-beyond-vector-embeddings-2026)
 - [From RAG to Context: A 2025 Year-end Review — RAGFlow](https://ragflow.io/blog/rag-review-2025-from-rag-to-context)
 - [Vector Databases Guide: RAG Applications 2025 — DEV Community](https://dev.to/klement_gunndu_e16216829c/vector-databases-guide-rag-applications-2025-55oj)
-
