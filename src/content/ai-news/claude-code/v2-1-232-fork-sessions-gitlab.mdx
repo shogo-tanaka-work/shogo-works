@@ -1,10 +1,10 @@
 ---
-title: "Claude Code v2.1.232、サブエージェントの fork が既定に。GitLab 対応と権限バイパス修正4件も"
+title: "Claude Code v2.1.232、サブエージェントの fork が既定に。GitLab 対応と権限バイパス修正も（一部は翌日 revert）"
 tool: "claude-code"
 toolLabel: "Claude Code"
 date: 2026-08-13
 sourceUrl: "https://github.com/anthropics/claude-code/releases/tag/v2.1.232"
-summary: "subagent_type: \"fork\" が既定で有効になり、サブエージェントが会話全体とプロンプトキャッシュを継承するようになった。プロンプトで @ を打って他の Claude セッションを名前で呼び出せる。GitLab のプラグインマーケットプレイスとトークン秘匿に対応し、PowerShell / Windows symlink / ネスト git repo / Gateway の権限バイパス4件が修正された。"
+summary: "subagent_type: \"fork\" が既定で有効になり、サブエージェントが会話全体とプロンプトキャッシュを継承するようになった。プロンプトで @ を打って他の Claude セッションを名前で呼び出せる。GitLab のプラグインマーケットプレイスとトークン秘匿に対応し、権限バイパス4件が修正された。ただしそのうち Windows の Cygwin symlink と入力リダイレクトに関する Bash 権限変更は、翌日の v2.1.233 で revert された。"
 description: "非 teammate のエージェント起動は対話セッションで既定バックグラウンド実行に変わった。Gateway では不正な email_domain 値が管理者権限を与えうる状態だったが、起動時に失敗するようになった。"
 impact: "サブエージェントの起動方式とバックグラウンド実行が既定で変わるため、既存のワークフローの体感が変わる。Gateway の managed policy に不正値がある組織は、更新後に起動しなくなる可能性がある。"
 tags: ["claude-code", "サブエージェント", "gitlab", "セキュリティ", "gateway"]
@@ -27,6 +27,12 @@ Claude Code **v2.1.232** が 2026-08-13 に公開されました。機能追加�
 
 なお v2.1.231（同日）は、Slack のように事前登録済み OAuth クライアントを使うサーバーで MCP OAuth のサインインが redirect URI 不一致で失敗する問題の修正1件のみです。v2.1.230 は欠番でした。
 
+### 2026-08-14 追記：権限変更の一部が revert されました
+
+翌日の **v2.1.233** で、上記のうち **Windows の Cygwin 形式シンボリックリンクに関する Bash 権限変更と、入力リダイレクト（`< file`）に関する変更が巻き戻されました**。公式は「より狭い範囲の版を後のリリースで戻す」としています。あわせて、Windows で auto mode が通常の `cd <dir> && <command> > file` のようなコマンドで繰り返し手動承認を求める v2.1.232 の退行も修正されました。
+
+したがって **v2.1.233 の時点で有効な修正は、PowerShell の `$PSDefaultParameterValues` 上書き、ネストした git リポジトリの trust 継承、Gateway の不正な `email_domain` の3件**です。Cygwin symlink 経由の経路は現時点で塞がっていません。なお v2.1.233 では別途、Windows のパスを NT デバイスプレフィックス（`\??\`）で綴ると UNC パス検証を回避できた問題が修正されています（NTLM 認証情報の漏洩ベクトル）。
+
 ## 何が変わったか
 
 - `subagent_type: "fork"` が既定で有効になり、会話全体とプロンプトキャッシュを継承する
@@ -37,7 +43,7 @@ Claude Code **v2.1.232** が 2026-08-13 に公開されました。機能追加�
 - GitLab トークン群がシークレット秘匿の対象になり、`glab` CLI 設定が `gh` と同等の保護を受ける
 - プラグインマーケットプレイスが `gitlab.com` の URL（ネストしたサブグループ含む）を clone できる
 - `additionalMarketplaces` / `allowedMarketplaces` が既存設定の別名として使える
-- 権限バイパス修正4件（PowerShell、Windows の Cygwin symlink、ネスト git repo の trust 継承、Gateway の不正 `email_domain`）
+- 権限バイパス修正4件（PowerShell、Windows の Cygwin symlink、ネスト git repo の trust 継承、Gateway の不正 `email_domain`）。**うち Cygwin symlink と入力リダイレクトの変更は v2.1.233 で revert**
 - Gateway の `desktop:` オーバーレイが Desktop の全設定を受け付け、起動時に Desktop 側スキーマで検証される
 - Remote Control 関連の修正多数（ブリッジの transcript / 認証情報の継承、セッション再アタッチ、履歴復元）
 - mTLS クライアント証明書のローテーションが再起動不要に
