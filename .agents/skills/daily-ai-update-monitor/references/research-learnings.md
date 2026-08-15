@@ -146,3 +146,22 @@
 - **原因**: source-catalog に旧ドメイン（`runwayml.com`）が主ソースとして記載されたまま。リダイレクトが追従されない取得方法だと、1回のフェッチが空振りして「取得失敗」に計上されうる。
 - **対処**: Runway の主ソースは `https://runway.com/changelog`、News は `https://runway.com/news` を先に踏む。`docs.dev.runwayml.com/api-details/api_changelog/`（Runway Dev API changelog）は 2026-08-03 時点で旧ドメインのままのため、両ドメインが並存している前提で扱う。
 - **カタログ取り込み**: 未（次月レビューで source-catalog.md の Runway 行を新ドメインへ差し替え）。
+
+### 学び7: 「製品 changelog に出ない種類の更新」をベンダーごとに把握する
+
+- **取りこぼし**: 3件。Cursor の SpaceX 買収完了（2026-08-14T23:40Z、`cursor.com/blog/joining-spacex`）と AIUC-1 認証取得（2026-08-13、`cursor.com/blog/aiuc-1`）、Cloudflare の MCP トラフィック検出と Access for Workers（いずれも 2026-08-14、`blog.cloudflare.com`）。2026-08-16 の巡回で追補記録した。
+- **原因**: 主ソース（`cursor.com/changelog`、Cloudflare changelog RSS）だけを見て「窓内の新規なし」と判定した。source-catalog には Cursor・Cloudflare とも「blog も確認する」と既に明記されており、**カタログの不備ではなく実行時の漏れ**である。主ソースに更新がないと、補助ソースの確認自体をスキップする挙動が繰り返されている。
+- **対処**: ベンダーごとに「主ソースに載らない更新の種類」を意識する。Cursor は企業動向（買収・認証・組織）が blog のみ、Cloudflare は大型発表の詳細が blog（changelog は1〜2行）、Claude は開発者向けが `claude.com/blog`。**主ソースが空でも補助ソースを必ず踏む**。特に changelog が製品更新に限定されているベンダーでは、企業・ガバナンス系の発表が構造的に死角になる。
+- **カタログ取り込み**: 未（次月レビューで source-catalog.md の「ソース別の注意」へ、ベンダー別の「主ソースに載らない更新の種類」として昇格を検討）。
+
+### 学び8: OpenAI Codex changelog の URL が `learn.chatgpt.com` へ移動
+
+- **検知**: 2026-08-16 の巡回で `https://developers.openai.com/codex/changelog` が `https://learn.chatgpt.com/docs/changelog` へ 308 Permanent Redirect。
+- **対処**: source-catalog の OpenAI Codex 補助ソース欄を `https://learn.chatgpt.com/docs/changelog` へ差し替える。学び5 で「`learn.chatgpt.com` は API の価格改定は載らない」と記録済みのため、その注記は引き続き有効。
+- **カタログ取り込み**: 未（次月レビューで source-catalog.md の OpenAI Codex 行を更新）。
+
+### 学び9: `blog.cloudflare.com` の個別ポストは Exa がクロールエラーを返す
+
+- **検知**: 2026-08-16 の巡回で、Exa の `web_fetch` が `blog.cloudflare.com` の個別ポスト2件に対して `CRAWL_INFRASTRUCTURE_ERROR` を返した。WebFetch では正常に取得できた。
+- **対処**: Cloudflare blog は WebFetch を優先する。個別ポストの URL が不明な場合は、WebSearch（`allowed_domains: ["blog.cloudflare.com"]`）でスラッグを特定してから WebFetch で踏む。
+- **カタログ取り込み**: 不要（取得手段の運用メモ。source-catalog 本体の変更は伴わない）。
