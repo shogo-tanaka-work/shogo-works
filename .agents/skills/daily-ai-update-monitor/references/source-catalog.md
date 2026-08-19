@@ -4,7 +4,7 @@
 
 ## 日次巡回ソース
 
-日次確認では次の11ソースを毎回すべて確認します。いずれも `src/content.config.ts` の `aiNews.tool` enum に対応するツールです。
+日次確認では次の8ソースを毎回すべて確認します。いずれも `src/content.config.ts` の `aiNews.tool` enum に対応するツールです。
 
 | ツール | 主ソース | 補助ソース | 想定更新頻度 | 詳細出力先 |
 | --- | --- | --- | --- | --- |
@@ -13,12 +13,9 @@
 | Gemini | https://blog.google/products-and-platforms/products/gemini/ | https://workspaceupdates.googleblog.com/（週次Recap + 個別ポスト） | 週数回 | docs/research/zenn-gemini-release-basic/official-updates |
 | Claude | https://support.claude.com/en/articles/12138966-release-notes | https://www.anthropic.com/news、https://claude.com/blog、https://aws.amazon.com/about-aws/whats-new/、https://aws.amazon.com/blogs/machine-learning/、https://platform.claude.com/docs/ | 週1〜2回 | docs/research/zenn-claude-release-basic/official-updates |
 | Claude Code | https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md | https://github.com/anthropics/claude-code/releases | ほぼ毎日 | docs/research/zenn-claude-code-release-basic/official-updates |
-| Cursor | https://cursor.com/changelog | https://cursor.com/blog、https://status.cursor.com/、https://forum.cursor.com/c/announcements | 週1〜2回 | docs/research/zenn-cursor-basic/official-updates |
 | GitHub Copilot | https://github.blog/changelog/label/copilot/ | https://docs.github.com/en/copilot | ほぼ毎日 | docs/research/zenn-github-copilot-basic/official-updates |
 | Cloudflare | https://developers.cloudflare.com/changelog/ | https://blog.cloudflare.com/、https://blog.cloudflare.com/tag/ai/、製品別RSS（下記）、https://www.cloudflarestatus.com/ | ほぼ毎日 | docs/research/cloudflare/official-updates |
 | Manus | https://manus.im/blog | なし | 月数回 | docs/research/zenn-manus-basic/official-updates |
-| n8n | https://github.com/n8n-io/n8n/releases | https://docs.n8n.io/release-notes/ | ほぼ毎日（stable + pre-release） | docs/research/zenn-n8n-basic/official-updates |
-| xAI / Grok | https://docs.x.ai/docs/release-notes | https://x.ai/news | 週1〜2回 | docs/research/zenn-xai-grok-basic/official-updates |
 
 「想定更新頻度」は巡回時の「無更新が想定通りか異常か」を判別する目安です。`ほぼ毎日`カテゴリで何日も無更新が続く場合はソース取得失敗を疑います。
 
@@ -26,33 +23,43 @@
 
 **日次巡回では確認しません。** ユーザーから週次確認の依頼があったとき、または日次巡回で他ソースから関連する言及を見つけたときだけ確認します。
 
-日次から外した理由は更新頻度と記事化実績です。2026-05-05〜2026-08-19 の91日で、Runway は更新検出5回・記事5本、Dify は更新検出5回・記事2本でした。日次で確認しても「更新なし」と書く日が大半を占めます。
-
-| ツール | 主ソース | 補助ソース | 想定更新頻度 | 詳細出力先 |
+| ツール | 主ソース | 補助ソース | 更新検出 /91日 | 詳細出力先 |
 | --- | --- | --- | --- | --- |
-| Runway | https://runway.com/changelog（`runwayml.com` から 308 リダイレクト） | https://runway.com/news 、https://docs.dev.runwayml.com/api-details/api_changelog/（Runway Dev API changelog） | 月数回 | docs/research/zenn-runway-basic/official-updates |
-| Dify | https://github.com/langgenius/dify/releases | https://dify.ai/blog | 月数回 | docs/research/zenn-dify-basic/official-updates |
+| n8n | https://github.com/n8n-io/n8n/releases | https://docs.n8n.io/release-notes/ | 58 | docs/research/zenn-n8n-basic/official-updates |
+| Cursor | https://cursor.com/changelog | https://cursor.com/blog、https://status.cursor.com/、https://forum.cursor.com/c/announcements | 13 | docs/research/zenn-cursor-basic/official-updates |
+| xAI / Grok | https://docs.x.ai/docs/release-notes | https://x.ai/news | 12 | docs/research/zenn-xai-grok-basic/official-updates |
+| Dify | https://github.com/langgenius/dify/releases | https://dify.ai/blog | 5 | docs/research/zenn-dify-basic/official-updates |
 
-週次確認を行った日は、日次サマリーの `更新なし` 節に「週次確認: Runway / Dify — 対象期間内の新規なし」のように1行で残します。確認していない日は書きません。**確認していないものを「更新なし」として記録しません。**
+日次から外した理由は、実務での利用頻度と更新の性質です（2026-05-05〜2026-08-19 の91日実績）。
 
+- **n8n**: 更新検出58回と頻度は高いが、**マイナーアップデートが大半**でまとめて確認しても運用に支障がない。週次確認では stable / beta / 1.x backport が複数溜まるため、**タグが指す実バージョンと channel を必ず確認**する（`stable` / `beta` は moving tag）。
+- **Cursor / xAI / Grok**: 更新は7日に1回程度。週次でも取りこぼしは少ない。
+- **Dify**: 更新検出5回・記事2本。日次で確認しても「更新なし」と書く日が大半を占める。
+
+週次確認を行った日は、日次サマリーの `更新なし` 節に「週次確認: n8n / Cursor / xAI / Dify — 対象期間内の新規なし」のように1行で残します。確認していない日は書きません。**確認していないものを「更新なし」として記録しません。**
 ## 巡回対象から外したソース
 
-次の4ソースは巡回しません。**`src/content.config.ts` の `aiNews.tool` enum に対応する値が無く、更新を見つけても速報記事を作れない**ためです。巡回コストだけが発生し、2026-05-05〜2026-08-19 の91日で記事化は0本でした。
+次の5ソースは巡回しません。日次でも週次でも確認しません。
 
-| ツール | 外した日 | 更新検出 /91日 | 記事化実績 | 旧ソース |
-| --- | --- | --- | --- | --- |
-| Genspark | 2026-08-19 | 5 | 0本 | https://www.genspark.ai/blog |
-| ByteDance Seed | 2026-08-19 | 5 | 0本 | https://seed.bytedance.com/en/blog/ |
-| Meta AI | 2026-08-19 | 2 | 0本 | https://ai.meta.com/blog/ |
-| Pika | 2026-08-19 | 1 | 0本 | https://experiment.pika.art/blog（`pika.art/blog` から 307 リダイレクト） |
+| ツール | 外した日 | 更新検出 /91日 | 記事化実績 | 外した理由 | 旧ソース |
+| --- | --- | --- | --- | --- | --- |
+| Genspark | 2026-08-19 | 5 | 0本 | enum に無い | https://www.genspark.ai/blog |
+| ByteDance Seed | 2026-08-19 | 5 | 0本 | enum に無い | https://seed.bytedance.com/en/blog/ |
+| Meta AI | 2026-08-19 | 2 | 0本 | enum に無い | https://ai.meta.com/blog/ |
+| Pika | 2026-08-19 | 1 | 0本 | enum に無い | https://experiment.pika.art/blog（`pika.art/blog` から 307 リダイレクト） |
+| Runway | 2026-08-19 | 5 | 5本 | 運用側で追う必要がなくなった | https://runway.com/changelog（`runwayml.com` から 308 リダイレクト） |
 
-**巡回を再開する場合は、先に enum を追加します。** 追加は次の3ファイルをまとめて更新するのが前提で、1つでも欠けるとビルドが通らないか一覧ページにツールが出ません。
+外した理由は2種類あります。
+
+**enum に無い（Genspark / ByteDance Seed / Meta AI / Pika）**: `src/content.config.ts` の `aiNews.tool` に対応する値が無く、更新を見つけても速報記事を作れません。巡回コストだけが発生し、91日で記事化は0本でした。**再開する場合は、先に enum を追加します。** 追加は次の3ファイルをまとめて更新するのが前提で、1つでも欠けるとビルドが通らないか一覧ページにツールが出ません。
 
 - `src/content.config.ts`（`aiNews.tool` の enum）
 - `src/types/index.ts`（`AiNewsTool` union 型）
 - `src/data/aiNews.ts`（`aiNewsTools` の slug / label / description）
 
-過去の詳細メモ（`docs/research/zenn-genspark-basic/`、`zenn-bytedance-seed-basic/`、`zenn-meta-ai-basic/`、`zenn-pika-basic/`）は削除しません。再開時の履歴として残します。
+**運用側の判断（Runway）**: enum（`runway`）は残っており記事化自体は可能ですが、動画生成まわりを追う必要がなくなったため外しました。再開する場合は enum の追加は不要で、この節から日次または週次の表へ戻すだけです。補助ソースとして `https://runway.com/news` と、Runway Dev（開発者/エンタープライズ向けAPIプラットフォーム）の変更履歴が出る `https://docs.dev.runwayml.com/api-details/api_changelog/` があります。
+
+過去の詳細メモ（`docs/research/zenn-genspark-basic/`、`zenn-bytedance-seed-basic/`、`zenn-meta-ai-basic/`、`zenn-pika-basic/`、`zenn-runway-basic/`）は削除しません。再開時の履歴として残します。
 
 ## GitHub Releases取得コマンド
 
@@ -62,7 +69,7 @@ Dify（**週次確認ソース**。日次では実行しません）:
 gh api -X GET 'repos/langgenius/dify/releases?per_page=100' --paginate
 ```
 
-n8n:
+n8n（**週次確認ソース**。日次では実行しません）:
 
 ```bash
 gh api -X GET 'repos/n8n-io/n8n/releases?per_page=100' --paginate
@@ -115,15 +122,14 @@ https://developers.cloudflare.com/changelog/rss/workers.xml
 - **Claude / Anthropic公式Blogは `anthropic.com/news` だけでなく `claude.com/blog` も確認します**。Claude Platform、Claude API、AWS / Bedrock / Vertex / Foundry 連携、Console、Managed Agents、Skills、MCP connector のような開発者向け発表は `claude.com/blog/<slug>` 側に出ることがあります。
 - **Claude のクラウドプロバイダー連携はプロバイダー公式も一次情報として確認します**。特に AWS は `aws.amazon.com/about-aws/whats-new/` と `aws.amazon.com/blogs/machine-learning/` で Claude Platform on AWS / Bedrock 関連の GA・機能拡張を発表するため、`site:aws.amazon.com Claude Platform Anthropic` などで逆引きします。Anthropic公式に掲載が遅れる / 別ドメイン掲載される場合でも、AWS公式で確認できれば対象にします。
 - Claude Codeはraw changelogが最も安定しています。
-- **Cursor** は `cursor.com/changelog` の個別ポスト URL（例 `cursor.com/changelog/composer-2-5`、`cursor.com/changelog/MM-DD-YY`）の方が本文が詳しいため、トップ一覧で見出しを掴んだら必ず個別 URL を踏みます。メジャー版（`3.0`）と minor 機能名（`Composer 2.5`、`Shared Canvases`）と日付スラッグが混在するため、tag 名だけで重複判定しません。GitHub Releases は公式に未提供。`cursor.com/blog` 側にも re-branding 系・大型 UX 変更（"Meet the new Cursor"）が出るため両方確認します。
+- **Cursor は週次確認ソースです**（日次では確認しません）。確認する場合、`cursor.com/changelog` の個別ポスト URL（例 `cursor.com/changelog/composer-2-5`、`cursor.com/changelog/MM-DD-YY`）の方が本文が詳しいため、トップ一覧で見出しを掴んだら必ず個別 URL を踏みます。メジャー版（`3.0`）と minor 機能名（`Composer 2.5`、`Shared Canvases`）と日付スラッグが混在するため、tag 名だけで重複判定しません。GitHub Releases は公式に未提供。`cursor.com/blog` 側にも re-branding 系・大型 UX 変更（"Meet the new Cursor"）が出るため両方確認します。
 - **Cloudflare は全製品横断の changelog なので、AI・エージェント・開発者プラットフォーム関連に絞ります**。`developers.cloudflare.com/changelog/` には WAF、DNS、Magic Transit、Registrar、Stream など本Skillの対象外製品の更新が大量に混ざります。判定基準は「AI / エージェント / MCP / 開発者プラットフォームに関わるか」です。Workers AI、AI Gateway、AI Search、Agents（Agents SDK）、Vectorize、Workers、Durable Objects、Containers、Browser Rendering / Browser Run、Sandbox は対象。ネットワーク・セキュリティ製品でも **MCP や AI が絡む更新は製品を問わず対象**にします（例: Access の MCP server portal 関連）。
 - **Cloudflare changelog は RSS が最も安定して日付を取れます**。全製品横断は `https://developers.cloudflare.com/changelog/rss/index.xml`、製品別は `https://developers.cloudflare.com/changelog/rss/<product>.xml`（`workers-ai`、`agents`、`ai-gateway`、`workers` などを確認済み）。RSS のタイトルは `<製品名> - <変更内容>` 形式で製品名が先頭に付くため、横断フィードのままでも対象製品を絞り込めます。フィード一覧は `https://developers.cloudflare.com/fundamentals/new-features/available-rss-feeds/`。
 - **Cloudflare は changelog と公式Blogで粒度が違います**。大型発表（`Agents Week` のような週次テーマ、新製品、アーキテクチャ解説）は `blog.cloudflare.com` 側に詳細が出て、changelog には1〜2行の要約しか載らないことがあります。AIニュース記事化を判断するときは blog 側の該当ポストも確認します。AI 関連は `blog.cloudflare.com/tag/ai/` で絞り込めます。
 - **Cloudflare Status も確認します**。`https://www.cloudflarestatus.com/` の Workers / Workers AI 系 incident は `category: incident` として記録します。データセンターのメンテナンス告知（GVA / TXL / LHR など地域コード単位）は対象外です。短時間 incident は記事化せず日次サマリーと詳細メモに留めます。
-- n8n GitHub Releasesは必ずpagination込みで確認します。HTMLの1ページ目だけを見て完了扱いにしません。
+- **n8n は週次確認ソースです**（日次では確認しません）。確認する場合、GitHub Releases は必ず pagination 込みで見ます。HTMLの1ページ目だけを見て完了扱いにしません。週次では stable / beta / 1.x backport が複数溜まるため、**`stable` / `beta` が moving tag である点に注意**し、タグが指す実バージョンと channel を必ず確認します。
 - **Workspace Updates Blog** は週次Recap（`weekly-recap-MM-DD-2026.html`）に集約されますが、**個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細**で日付もはっきりします。多言語対応・地域ロールアウト・GA切替などは個別ポストにのみ載るため、Recap だけで完了扱いにしません。
 - **Dify は週次確認ソースです**（日次では確認しません）。確認する場合、pre-release は対象期間内であれば `channel: pre-release` として含めます。
-- **Runway は週次確認ソースです**（日次では確認しません）。確認する場合、changelog だけでなく News も見ます。`Introducing Runway Agent` のような大型発表は changelog に載らないことがあります。**「Runway Dev」（開発者/エンタープライズ向けAPIプラットフォーム、2026-07-08 News発表）自体の変更履歴は `runway.com/changelog`（消費者向け製品changelog）には反映されず、別ドメイン `docs.dev.runwayml.com/api-details/api_changelog/` に出ます**（2026-07-09に「Seedream 5.0 Pro in Runway API」を確認）。Runway Devの続報を追う場合はこちらも確認します。なお公式ドメインは `runwayml.com` から `runway.com` へ 308 リダイレクトします。
 
 ## 二次ソース（一次ソース URL 探索の補助のみ）
 
