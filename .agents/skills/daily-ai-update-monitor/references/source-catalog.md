@@ -4,7 +4,7 @@
 
 ## 日次巡回ソース
 
-日次確認では次の8ソースを毎回すべて確認します。いずれも `src/content.config.ts` の `aiNews.tool` enum に対応するツールです。
+日次確認では次の6ソースを毎回すべて確認します。いずれも `src/content.config.ts` の `aiNews.tool` enum に対応するツールです。
 
 | ツール | 主ソース | 補助ソース | 想定更新頻度 | 詳細出力先 |
 | --- | --- | --- | --- | --- |
@@ -13,9 +13,7 @@
 | Gemini | https://blog.google/products-and-platforms/products/gemini/ | https://workspaceupdates.googleblog.com/（週次Recap + 個別ポスト） | 週数回 | docs/research/zenn-gemini-release-basic/official-updates |
 | Claude | https://support.claude.com/en/articles/12138966-release-notes | https://www.anthropic.com/news、https://claude.com/blog、https://aws.amazon.com/about-aws/whats-new/、https://aws.amazon.com/blogs/machine-learning/、https://platform.claude.com/docs/ | 週1〜2回 | docs/research/zenn-claude-release-basic/official-updates |
 | Claude Code | https://raw.githubusercontent.com/anthropics/claude-code/main/CHANGELOG.md | https://github.com/anthropics/claude-code/releases | ほぼ毎日 | docs/research/zenn-claude-code-release-basic/official-updates |
-| GitHub Copilot | https://github.blog/changelog/label/copilot/ | https://docs.github.com/en/copilot | ほぼ毎日 | docs/research/zenn-github-copilot-basic/official-updates |
 | Cloudflare | https://developers.cloudflare.com/changelog/ | https://blog.cloudflare.com/、https://blog.cloudflare.com/tag/ai/、製品別RSS（下記）、https://www.cloudflarestatus.com/ | ほぼ毎日 | docs/research/cloudflare/official-updates |
-| Manus | https://manus.im/blog | なし | 月数回 | docs/research/zenn-manus-basic/official-updates |
 
 「想定更新頻度」は巡回時の「無更新が想定通りか異常か」を判別する目安です。`ほぼ毎日`カテゴリで何日も無更新が続く場合はソース取得失敗を疑います。
 
@@ -25,18 +23,21 @@
 
 | ツール | 主ソース | 補助ソース | 更新検出 /91日 | 詳細出力先 |
 | --- | --- | --- | --- | --- |
+| GitHub Copilot | https://github.blog/changelog/label/copilot/ | https://docs.github.com/en/copilot | 54 | docs/research/zenn-github-copilot-basic/official-updates |
 | n8n | https://github.com/n8n-io/n8n/releases | https://docs.n8n.io/release-notes/ | 58 | docs/research/zenn-n8n-basic/official-updates |
 | Cursor | https://cursor.com/changelog | https://cursor.com/blog、https://status.cursor.com/、https://forum.cursor.com/c/announcements | 13 | docs/research/zenn-cursor-basic/official-updates |
 | xAI / Grok | https://docs.x.ai/docs/release-notes | https://x.ai/news | 12 | docs/research/zenn-xai-grok-basic/official-updates |
+| Manus | https://manus.im/blog | なし | 12 | docs/research/zenn-manus-basic/official-updates |
 | Dify | https://github.com/langgenius/dify/releases | https://dify.ai/blog | 5 | docs/research/zenn-dify-basic/official-updates |
 
 日次から外した理由は、実務での利用頻度と更新の性質です（2026-05-05〜2026-08-19 の91日実績）。
 
+- **GitHub Copilot**: 更新検出54回・記事86本と実績は最多だが、実務での利用優先度が下がったため週次へ移した。**週次確認では廃止・EOL 告知を最初に拾う。** 記事86本のうち16本（19%）が期限付きの廃止告知（例: 「GitHub Spark 廃止、2026-08-31 までにエクスポート」「MAI-Code-1-Flash は 2026-09 に廃止」）で、週次だと把握が最大6日遅れる。**発効日・退役日が明記されているものは、期限までの残日数を日次サマリーに書く。**
 - **n8n**: 更新検出58回と頻度は高いが、**マイナーアップデートが大半**でまとめて確認しても運用に支障がない。週次確認では stable / beta / 1.x backport が複数溜まるため、**タグが指す実バージョンと channel を必ず確認**する（`stable` / `beta` は moving tag）。
-- **Cursor / xAI / Grok**: 更新は7日に1回程度。週次でも取りこぼしは少ない。
+- **Cursor / xAI / Grok / Manus**: 更新は7日に1回程度。週次でも取りこぼしは少ない。
 - **Dify**: 更新検出5回・記事2本。日次で確認しても「更新なし」と書く日が大半を占める。
 
-週次確認を行った日は、日次サマリーの `更新なし` 節に「週次確認: n8n / Cursor / xAI / Dify — 対象期間内の新規なし」のように1行で残します。確認していない日は書きません。**確認していないものを「更新なし」として記録しません。**
+週次確認を行った日は、日次サマリーの `更新なし` 節に「週次確認: GitHub Copilot / n8n / Cursor / xAI / Manus / Dify — 対象期間内の新規なし」のように1行で残します。確認していない日は書きません。**確認していないものを「更新なし」として記録しません。**
 ## 巡回対象から外したソース
 
 次の5ソースは巡回しません。日次でも週次でも確認しません。
