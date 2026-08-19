@@ -44,6 +44,7 @@ const aiNews = defineCollection({
       "gemini",
       "github-copilot",
       "manus",
+      "microsoft-copilot",
       "n8n",
       "runway",
       "xai-grok",
