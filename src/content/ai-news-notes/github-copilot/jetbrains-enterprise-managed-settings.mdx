@@ -1,0 +1,12 @@
+---
+title: "教材化メモ：Copilot for JetBrains の Enterprise managed settings"
+noteFor: "github-copilot/jetbrains-enterprise-managed-settings"
+date: 2026-08-18
+tags: ["github-copilot", "jetbrains", "mcp", "ガバナンス"]
+---
+
+- **MCP の allowlist / denylist は、企業導入編で MCP を扱うときの中心教材になる**。MCP を「便利な接続口」としてだけ説明すると、導入判断の現場で必ず出る「では誰が接続先を決めるのか」に答えられない。中央管理の実装があることで、技術の説明と統制の説明を接続できる。
+- **「Bypass Approvals」「Autopilot」を管理者が無効化できる、は責任分界の教材**。エージェントの自律実行をどこまで許すかは個人設定ではなく組織の判断、という主張を、実際の管理機能で裏付けられる。
+- **IDE によって統制手段の成熟度が違う**という論点は見落とされやすい。「Copilot を導入する」という一言の中に、VS Code か JetBrains かで管理できる範囲が変わる現実がある。ツール選定の教材で使える具体例。
+- 個人・副業向けには「クライアント企業の環境で制限に当たったとき、それが仕様だと分かる」という形で扱うと実用的。機能を使う側ではなく、制限を受ける側の視点。
+- 対象は Copilot Enterprise。教材で扱うときはプラン条件を明示しないと、試そうとして使えない読者が出る。
