@@ -24,6 +24,7 @@
 | ツール | 主ソース | 補助ソース | 更新検出 /91日 | 詳細出力先 |
 | --- | --- | --- | --- | --- |
 | GitHub Copilot | https://github.blog/changelog/label/copilot/ | https://docs.github.com/en/copilot | 54 | docs/research/zenn-github-copilot-basic/official-updates |
+| Microsoft Copilot | https://learn.microsoft.com/en-us/microsoft-365/copilot/release-notes | https://techcommunity.microsoft.com/category/microsoft365copilot/blog/microsoft365copilotblog、https://www.microsoft.com/microsoft-365/roadmap | 隔週（release notes） | docs/research/microsoft-copilot/official-updates |
 | n8n | https://github.com/n8n-io/n8n/releases | https://docs.n8n.io/release-notes/ | 58 | docs/research/zenn-n8n-basic/official-updates |
 | Cursor | https://cursor.com/changelog | https://cursor.com/blog、https://status.cursor.com/、https://forum.cursor.com/c/announcements | 13 | docs/research/zenn-cursor-basic/official-updates |
 | xAI / Grok | https://docs.x.ai/docs/release-notes | https://x.ai/news | 12 | docs/research/zenn-xai-grok-basic/official-updates |
@@ -34,10 +35,11 @@
 
 - **GitHub Copilot**: 更新検出54回・記事86本と実績は最多だが、実務での利用優先度が下がったため週次へ移した。**週次確認では廃止・EOL 告知を最初に拾う。** 記事86本のうち16本（19%）が期限付きの廃止告知（例: 「GitHub Spark 廃止、2026-08-31 までにエクスポート」「MAI-Code-1-Flash は 2026-09 に廃止」）で、週次だと把握が最大6日遅れる。**発効日・退役日が明記されているものは、期限までの残日数を日次サマリーに書く。**
 - **n8n**: 更新検出58回と頻度は高いが、**マイナーアップデートが大半**でまとめて確認しても運用に支障がない。週次確認では stable / beta / 1.x backport が複数溜まるため、**タグが指す実バージョンと channel を必ず確認**する（`stable` / `beta` は moving tag）。
+- **Microsoft Copilot**: 最初から週次で登録した（2026-08-19 追加）。**主ソースの release notes が隔週リリース**で、「Updates released between 07-15 and 07-29」のように2週間分をまとめて公開する構造のため、日次で見ても大半の日が「更新なし」になる（直近3ヶ月の公開日は 06-16 / 07-01 / 07-15 / 07-29 / 08-11）。Tech Community blog 側は週2回程度で、月末に「What's New in Microsoft 365 Copilot | 月次」のまとめが出る。**モデル追加告知は blog 側に出る**（Claude Opus 5 が 2026-07-24、GPT-5.6 が 2026-07-09）ため、release notes だけで完了扱いにしない。
 - **Cursor / xAI / Grok / Manus**: 更新は7日に1回程度。週次でも取りこぼしは少ない。
 - **Dify**: 更新検出5回・記事2本。日次で確認しても「更新なし」と書く日が大半を占める。
 
-週次確認を行った日は、日次サマリーの `更新なし` 節に「週次確認: GitHub Copilot / n8n / Cursor / xAI / Manus / Dify — 対象期間内の新規なし」のように1行で残します。確認していない日は書きません。**確認していないものを「更新なし」として記録しません。**
+週次確認を行った日は、日次サマリーの `更新なし` 節に「週次確認: GitHub Copilot / Microsoft Copilot / n8n / Cursor / xAI / Manus / Dify — 対象期間内の新規なし」のように1行で残します。確認していない日は書きません。**確認していないものを「更新なし」として記録しません。**
 ## 巡回対象から外したソース
 
 次の5ソースは巡回しません。日次でも週次でも確認しません。
@@ -128,6 +130,7 @@ https://developers.cloudflare.com/changelog/rss/workers.xml
 - **Cloudflare changelog は RSS が最も安定して日付を取れます**。全製品横断は `https://developers.cloudflare.com/changelog/rss/index.xml`、製品別は `https://developers.cloudflare.com/changelog/rss/<product>.xml`（`workers-ai`、`agents`、`ai-gateway`、`workers` などを確認済み）。RSS のタイトルは `<製品名> - <変更内容>` 形式で製品名が先頭に付くため、横断フィードのままでも対象製品を絞り込めます。フィード一覧は `https://developers.cloudflare.com/fundamentals/new-features/available-rss-feeds/`。
 - **Cloudflare は changelog と公式Blogで粒度が違います**。大型発表（`Agents Week` のような週次テーマ、新製品、アーキテクチャ解説）は `blog.cloudflare.com` 側に詳細が出て、changelog には1〜2行の要約しか載らないことがあります。AIニュース記事化を判断するときは blog 側の該当ポストも確認します。AI 関連は `blog.cloudflare.com/tag/ai/` で絞り込めます。
 - **Cloudflare Status も確認します**。`https://www.cloudflarestatus.com/` の Workers / Workers AI 系 incident は `category: incident` として記録します。データセンターのメンテナンス告知（GVA / TXL / LHR など地域コード単位）は対象外です。短時間 incident は記事化せず日次サマリーと詳細メモに留めます。
+- **Microsoft Copilot は週次確認ソースです**（日次では確認しません）。`learn.microsoft.com/en-us/microsoft-365/copilot/release-notes` が主ソースで、**隔週で2週間分をまとめて公開**します（見出しは `## August 11, 2026` 形式、本文冒頭に「Updates released between ... and ...」と対象期間が入る）。`learn.microsoft.com/en-us/copilot/microsoft-365/release-notes` でも 200 が返りますが、canonical は前者です。GA 済み機能は release notes、開発中・予定は Microsoft 365 Roadmap（Roadmap ID 付き）に出ます。**Tech Community blog も必ず見ます**。モデル追加告知（Claude Opus 5、GPT-5.6 等）や Domain Exclusion のような統制機能の告知は blog 側に先に出ます。
 - **n8n は週次確認ソースです**（日次では確認しません）。確認する場合、GitHub Releases は必ず pagination 込みで見ます。HTMLの1ページ目だけを見て完了扱いにしません。週次では stable / beta / 1.x backport が複数溜まるため、**`stable` / `beta` が moving tag である点に注意**し、タグが指す実バージョンと channel を必ず確認します。
 - **Workspace Updates Blog** は週次Recap（`weekly-recap-MM-DD-2026.html`）に集約されますが、**個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細**で日付もはっきりします。多言語対応・地域ロールアウト・GA切替などは個別ポストにのみ載るため、Recap だけで完了扱いにしません。
 - **Dify は週次確認ソースです**（日次では確認しません）。確認する場合、pre-release は対象期間内であれば `channel: pre-release` として含めます。

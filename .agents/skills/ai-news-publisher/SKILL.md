@@ -134,7 +134,7 @@ ai-news 記事化すると「逆方向の事実」を読者が「公式新機能
 
 ## ai-news の tool カテゴリ
 
-`src/content.config.ts` の `aiNews.tool` enum に従う。2026-08-04 時点で対応:
+`src/content.config.ts` の `aiNews.tool` enum に従う。2026-08-19 時点で対応:
 
 - `chatgpt-openai`: ChatGPT、GPT モデル系（GPT-5.5、GPT-Realtime 等）、OpenAI Blog 全般
 - `claude`: Claude（Anthropic 製品）
@@ -146,6 +146,7 @@ ai-news 記事化すると「逆方向の事実」を読者が「公式新機能
 - `gemini`: Gemini、Google Workspace AI（Workspace Updates 経由を含む）
 - `github-copilot`: GitHub Copilot 全般（Chat / Edit / Agent / CLI / Code Review）
 - `manus`: Manus（AIエージェント / Webアプリ生成 / プロジェクト管理）
+- `microsoft-copilot`: Microsoft 365 Copilot（Copilot Chat / Copilot Notebooks / Cowork / 各Officeアプリ内Copilot / 管理者向け統制機能）
 - `n8n`: n8n
 - `runway`: Runway
 - `xai-grok`: xAI / Grok（Grok、xAI API、Grok Build）

@@ -168,6 +168,7 @@ export type AiNewsTool =
   | "gemini"
   | "github-copilot"
   | "manus"
+  | "microsoft-copilot"
   | "n8n"
   | "runway"
   | "xai-grok";
