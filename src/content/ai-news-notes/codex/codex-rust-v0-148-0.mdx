@@ -1,0 +1,12 @@
+---
+title: "教材化メモ：Codex 0.148.0（Bedrock / export / fork / Hooks 拡張）"
+noteFor: "codex/codex-rust-v0-148-0"
+date: 2026-08-18
+tags: ["codex", "bedrock", "hooks", "mcp"]
+---
+
+- **Bedrock 対応は「モデル提供元を組織側で選べる」教材の具体例**として使える。同じ Codex でも、OpenAI 直・Bedrock 経由で請求経路とネットワーク境界が変わる。企業導入編で「どこを経由してモデルを呼ぶか」を扱うなら、抽象論ではなくこの設定の話に落とせる。
+- **Hooks の MCP tool 呼び出し対応は、Hooks の教材を書くタイミング**。従来 Hooks は「コマンドを同期実行するもの」として説明されてきたが、非同期実行と MCP tool の2点が入ったことで説明の前提が変わる。既存の Hooks 教材があれば、この版を境に記述を見直す必要がある。
+- **`/export` と `codex exec fork` はワークフロー教材向き**。「エージェントとの作業をどう記録し、どう分岐させるか」という運用の話は、機能単体の説明より workflow-first の教材に馴染む。Claude Code 側の `--worktree` / fork sessions（v2.1.232）と並べると、両ツールで同じ課題に別の解を出しているのが見える。
+- sandbox の fail closed 化は、**「判定できないときにどちらへ倒すか」というセキュリティ設計の定番論点**の実例。短いコラムとして使える。
+- 同窓内に alpha が3件（`0.148.0-alpha.22` / `alpha.23` / `0.149.0-alpha.1`）出ているが、stable の 0.148.0 が本体。教材では stable 系列だけを追う方針を明示しておくと、読者が alpha を追いかけて混乱しない。
