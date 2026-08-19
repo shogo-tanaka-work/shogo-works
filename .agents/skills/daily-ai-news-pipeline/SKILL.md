@@ -22,6 +22,10 @@ description: |
 
 本スキル自身は内部実装を持たない。中身のルール変更が必要なら委譲先 SKILL.md を編集する。
 
+**委譲先2つは `user-invocable: false` を設定してある。** `/` メニューに出ず、ユーザーが `/daily-ai-update-monitor` や `/ai-news-publisher` と打っても起動しない。オーケストレータである本スキルと取り違えるのを防ぐためである。Claude 側からは Skill tool で従来どおり呼べるので、本スキルの Phase B / C はそのまま動く。
+
+ユーザーが工程の片方だけを求めた場合（「調査だけして」「research から記事化して」など）は、本スキルを通さず該当の委譲先を直接呼んでよい。その場合も委譲先の SKILL.md に書かれた完了条件（日次サマリーへの記録、教材化メモの作成）は満たす。
+
 ## 起動時に確認すること
 
 - **作業ディレクトリ**: `/Users/shogo/Documents/ai-business-os/10_projects/shogo-works/repo`

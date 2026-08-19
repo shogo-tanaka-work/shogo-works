@@ -1,6 +1,7 @@
 ---
 name: daily-ai-update-monitor
-description: AI製品の公式アップデートを日次で確認するためのSkill。直近24時間以内に、今回リサーチしたAIツールの新リリース、ニュース、機能追加、機能拡張が出ているかを公式ソースから確認し、docs/research配下へMarkdownで記録するときに使う。対象はChatGPT/OpenAI、OpenAI Codex、Gemini、Claude、Claude Code、Cursor、GitHub Copilot、Cloudflare、Genspark、Manus、Dify、n8n、Meta AI、Runway、xAI/Grok、ByteDance Seed、Pika。
+description: AI製品の公式アップデートを日次で確認するためのSkill。直近24時間以内に、今回リサーチしたAIツールの新リリース、ニュース、機能追加、機能拡張が出ているかを公式ソースから確認し、docs/research配下へMarkdownで記録するときに使う。日次の対象はChatGPT/OpenAI、OpenAI Codex、Gemini、Claude、Claude Code、Cloudflareの6ソース。GitHub Copilot、Microsoft Copilot、n8n、Cursor、xAI/Grok、Manus、Difyは週次確認ソースで日次では見ない。
+user-invocable: false
 ---
 
 # Daily AI Update Monitor
@@ -21,8 +22,10 @@ description: AI製品の公式アップデートを日次で確認するため�
    - 正確なtimestampがあるソースは、直近24時間以内に公開された更新だけを対象にします。
    - 日付しかないソースは、より細かいtimestampが取れない場合だけ、今日または昨日の日付を対象にし、`date_precision: date-only` を付けます。
 
-2. `references/source-catalog.md` の全ソースを確認します。
+2. `references/source-catalog.md` の **`## 日次巡回ソース`** を確認します。
    - 公式ソースだけを使います。
+   - **`## 週次確認ソース`（GitHub Copilot / Microsoft Copilot / n8n / Cursor / xAI / Grok / Manus / Dify）は日次では確認しません。** ユーザーから週次確認の依頼があったとき、または他ソースから関連する言及を見つけたときだけ確認します。確認していないものを「更新なし」として記録しません。
+   - **`## 巡回対象から外したソース`（Genspark / ByteDance Seed / Meta AI / Pika / Runway）は確認しません。** 前4者は `aiNews.tool` enum に無く記事化できないため、Runway は運用側で追う必要がなくなったためです。再開の条件はカタログ側に書いてあります。
    - GitHub Releasesは、可能ならAPIのpaginationを使います: `gh api -X GET 'repos/<owner>/<repo>/releases?per_page=100' --paginate`
    - WebページでGitHub Releasesを見る場合は、`?page=2` などのページネーションも明示的に確認します。1ページ目だけで完了扱いにしません。
    - raw changelogは、ファイル上部のversion見出しと日付を比較します。
@@ -31,6 +34,7 @@ description: AI製品の公式アップデートを日次で確認するため�
    - 対象にするもの: 製品リリース、モデル公開、機能追加、機能拡張、API/SDK変更、料金/プラン変更、セキュリティ/管理者機能、公式ツール発表、公式Blog発表。
    - 対象にするもの（追加）: **既存機能の派生改善**（Stable化済み機能の周辺強化、プラグイン経由の可視化、対応プラットフォーム拡大、対応言語拡大、地域ロールアウト等）。`category: enhancement` として記録します。「初出ではないから対象外」と判断するのを禁止します。
    - 対象外にするもの: 非公式解説、SNS投稿、重複配信、公式日付が更新されていない古い記事。
+   - **`aiNews.tool` enum に無いツールは記録対象にしません。** 記事化できないため、巡回コストだけが発生します。enum の正本は `src/content.config.ts` です。
    - 確認したが更新がなかったソースは、日次サマリーに `更新なし` として残します。
    - **窓判定の二軸化**: 「公開日（published_at）」が窓内のものを基本対象とします。加えて「ロールアウト日 / 適用開始日 / 言語・地域展開日」が窓内に明記されている発表は、公開日が窓外でも追補対象として記録します。詳細ファイルの frontmatter に `rollout_date` を加え、サマリーの「速報記事化済み」「更新あり」テーブルに含めます。
 
@@ -65,7 +69,7 @@ description: AI製品の公式アップデートを日次で確認するため�
 - **Claude は `support.claude.com` と `anthropic.com/news` だけで完了扱いにしない**。Claude Platform / Claude API / AWS・Bedrock・Vertex・Foundry 連携 / Console / Managed Agents / Skills / MCP connector など開発者向け発表は `claude.com/blog` やクラウドプロバイダー公式（特に AWS What's New / AWS Machine Learning Blog）に出ることがあります。`Claude Platform on AWS`、`Claude API AWS generally available`、`site:aws.amazon.com Anthropic Claude` のような逆引きを必ず行います。
 - **Claude Code は GitHub Releases本文の What's changed を読む**。`claude agents` / agent view / `/goal` / hooks / plugin / MCP など複数機能が1リリースにまとまるため、タグ名や日付だけで「更新あり」と済ませず、主要機能を抽出して記事化候補を判断します。
 - **Workspace Updates Blog は週次Recap だけで完了扱いにしない**。個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細で日付もはっきりするため、個別ポストを必ず確認します。多言語対応・地域ロールアウト・GA切替などは個別ポスト側の参照が前提です。
-- **Runway は changelog だけでなく News も見る**。`runwayml.com/news/<slug>` に新製品・大型機能発表が出ることがあるため、changelogに無くてもNewsに対象期間内の投稿があれば記録します。
+- **GitHub Copilot / Microsoft Copilot / n8n / Cursor / xAI / Grok / Manus / Dify は週次確認ソース**で、日次巡回では見ません。週次確認の依頼を受けたときだけ、`source-catalog.md` の `## 週次確認ソース` に従って確認します。**GitHub Copilot は週次確認時に廃止・EOL 告知を最初に拾い、発効日・退役日が明記されているものは期限までの残日数を日次サマリーに書きます。**
 - **Cloudflare は対象範囲を先に絞ってから読む**。`developers.cloudflare.com/changelog/` は全製品横断のため、WAF / DNS / Magic Transit / Registrar / Stream など本Skillの対象外製品が大量に混ざります。「AI / エージェント / MCP / 開発者プラットフォームに関わるか」で判定し、Workers AI、AI Gateway、AI Search、Agents SDK、Vectorize、Workers、Durable Objects、Containers、Browser Rendering、Sandbox を中心に拾います。ネットワーク・セキュリティ製品でも MCP や AI が絡む更新は対象にします。日付は RSS（`changelog/rss/index.xml` および製品別 `changelog/rss/<product>.xml`）が最も安定します。大型発表は changelog に1〜2行しか出ず `blog.cloudflare.com` 側に詳細があるため、記事化判断の前に blog を確認します。Cloudflare Status の Workers 系 incident は `category: incident`、データセンターのメンテナンス告知は対象外です。
 - **二次ソース → 一次ソース逆引き**: 二次ソース（Bloomberg / 9to5系 / Help Net Security 等、`source-catalog.md` 末尾の許可リスト参照）で更新を見つけたら、必ず公式 URL を特定してから記録します。公式が確認できない場合は `status: 保留（公式未確認）` で日次サマリーに残し、二次ソース URL も併記します。
 - **ユーザー認識ギャップの記録**: リサーチ依頼や PR レビューで「○○ができるようになったらしい」とユーザーが言及したが、公式上は事実が違う / 逆方向 / サードパーティ製のみ、というケースは `references/perception-gaps.md` にエントリ追加で蓄積します。同じ誤認が繰り返されないよう、日次サマリー末尾「補足メモ」に該当があれば必ず転記します。
@@ -77,7 +81,7 @@ description: AI製品の公式アップデートを日次で確認するため�
 
 初回パスで漏れることを前提に、二段階リサーチを正規化します。
 
-1. **First pass**: `references/source-catalog.md` の全ソースを巡回し、日次サマリー初版を作成。
+1. **First pass**: `references/source-catalog.md` の `## 日次巡回ソース` を巡回し、日次サマリー初版を作成。
 2. **Review checkpoint**: ユーザー or 自分のレビューで具体トピック指摘を受ける（例:「○○の限定プレビューが出ていなかった？」「Codex で hooks がサポートされたらしい」）。
 3. **Second pass**: 指摘トピックを一次情報で裏取り。見つかれば日次サマリーに追補注記を入れて追加。
 
@@ -108,7 +112,9 @@ Cloudflare の詳細ファイルには必ず次を入れます。
 
 ## n8nとGitHub Releases
 
-n8nはstable、beta/pre-release、experimental、1.x backportが並行して出ます。必ずpagination込みで `n8n@*` releaseを取得してから、直近24時間でfilterします。n8nの詳細ファイルには必ず次を入れます。
+**n8n は週次確認ソースです。日次巡回では確認しません。**
+
+週次確認を行う場合、n8nはstable、beta/pre-release、experimental、1.x backportが並行して出ます。必ずpagination込みで `n8n@*` releaseを取得してから、対象期間でfilterします。**`stable` / `beta` は moving tag** なので、タグの `published_at` ではなくタグが指す実バージョンと channel を確認します。n8nの詳細ファイルには必ず次を入れます。
 
 - `release_date`
 - `version`

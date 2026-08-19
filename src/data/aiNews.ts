@@ -53,6 +53,12 @@ export const aiNewsTools: AiNewsToolMeta[] = [
     description: "ManusのAIエージェント、Webアプリ生成、プロジェクト管理の公式アップデート",
   },
   {
+    slug: "microsoft-copilot",
+    label: "Microsoft Copilot",
+    description:
+      "Microsoft 365 Copilot、Copilot Chat、Copilot Notebooks、各Officeアプリ内Copilotの公式アップデート",
+  },
+  {
     slug: "n8n",
     label: "n8n",
     description: "n8nのリリース、AIワークフロー、連携機能の更新",
