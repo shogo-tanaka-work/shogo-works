@@ -1,6 +1,7 @@
 ---
 name: ai-news-publisher
 description: Daily AI update reports and official update notes in docs/researchを読み、公開すべきAIニュースを選別し、src/content/ai-news配下への速報記事作成、保留、見送り、必要最小限のKnowledge更新を計画または実装するときに使うSkill。ChatGPT/OpenAI、Gemini、Claude、Claude Code、Codex、Cursor、GitHub Copilot、Cloudflare、n8n、Difyなどの公式アップデートをAIニュース記事へ落とし込む。
+user-invocable: false
 ---
 
 # AI News Publisher

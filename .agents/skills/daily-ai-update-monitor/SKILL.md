@@ -1,6 +1,7 @@
 ---
 name: daily-ai-update-monitor
 description: AI製品の公式アップデートを日次で確認するためのSkill。直近24時間以内に、今回リサーチしたAIツールの新リリース、ニュース、機能追加、機能拡張が出ているかを公式ソースから確認し、docs/research配下へMarkdownで記録するときに使う。日次の対象はChatGPT/OpenAI、OpenAI Codex、Gemini、Claude、Claude Code、GitHub Copilot、Cloudflare、Manusの8ソース。n8n、Cursor、xAI/Grok、Difyは週次確認ソースで日次では見ない。
+user-invocable: false
 ---
 
 # Daily AI Update Monitor
