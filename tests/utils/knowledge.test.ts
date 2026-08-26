@@ -7,6 +7,7 @@ import {
   getSubcategories,
   getAllSubcategoryNavOptions,
   getSubcategoryMetrics,
+  getSubcategoryContentType,
   getAdjacentArticles,
   getAllTags,
   getArticlesByTag,
@@ -27,6 +28,7 @@ interface MockEntry {
     description: string;
     category: string;
     subcategory?: string;
+    contentType?: string;
     prerequisites?: string[];
     tags: string[];
     sortOrder: number;
@@ -998,5 +1000,64 @@ describe("resolvePrerequisites", () => {
     const target = entry("ai-tools/claude-code-curriculum/03-1-y", "3-1", ["02-3-first-launch"]);
 
     expect(resolvePrerequisites([hidden, target], target)).toEqual([]);
+  });
+});
+
+describe("getSubcategoryContentType", () => {
+  const entry = (
+    id: string,
+    subcategory: string,
+    contentType?: string,
+    draft = false,
+  ): MockEntry => ({
+    id,
+    data: {
+      title: id,
+      description: "説明",
+      category: "web-development",
+      subcategory,
+      contentType,
+      tags: [],
+      sortOrder: 0,
+      createdAt: new Date("2026-05-08"),
+      draft,
+      author: "田中省伍",
+    },
+  });
+
+  it("正常系: サブカテゴリ内で最も多い contentType を返すこと", () => {
+    const entries = [
+      entry("web-development/cloudflare/a", "cloudflare", "docs-digest"),
+      entry("web-development/cloudflare/b", "cloudflare", "docs-digest"),
+      entry("web-development/cloudflare/c", "cloudflare", "reference"),
+    ];
+
+    expect(
+      getSubcategoryContentType(entries, "web-development", "cloudflare"),
+    ).toBe("docs-digest");
+  });
+
+  it("正常系: draft を集計に含めないこと", () => {
+    const entries = [
+      entry("web-development/gas/a", "gas", "reference"),
+      entry("web-development/gas/b", "gas", "docs-digest", true),
+      entry("web-development/gas/c", "gas", "docs-digest", true),
+    ];
+
+    expect(getSubcategoryContentType(entries, "web-development", "gas")).toBe(
+      "reference",
+    );
+  });
+
+  it("異常系: 記事が存在しないとき undefined を返すこと", () => {
+    expect(
+      getSubcategoryContentType([], "web-development", "cloudflare"),
+    ).toBeUndefined();
+  });
+
+  it("異常系: contentType が未設定の記事しかないとき undefined を返すこと", () => {
+    const entries = [entry("web-development/gas/a", "gas", undefined)];
+
+    expect(getSubcategoryContentType(entries, "web-development", "gas")).toBeUndefined();
   });
 });

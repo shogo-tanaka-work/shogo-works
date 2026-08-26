@@ -110,6 +110,39 @@ export function getArticlesByCategoryAndSubcategory<T extends KnowledgeEntry>(
   );
 }
 
+/**
+ * サブカテゴリを contentType で分ける。
+ * 「読んで学ぶもの」と「必要なときに引くもの」を同じ棚に並べないための集計。
+ * サブカテゴリ内で最も多い contentType をそのサブカテゴリの性格とみなす。
+ */
+export function getSubcategoryContentType<T extends KnowledgeEntry>(
+  entries: T[],
+  category: KnowledgeCategory,
+  subcategory: string,
+): string | undefined {
+  const matches = getPublishedArticles(entries).filter(
+    (e) => e.data.category === category && e.data.subcategory === subcategory,
+  );
+  if (matches.length === 0) return undefined;
+
+  const counts = new Map<string, number>();
+  for (const entry of matches) {
+    const type = entry.data.contentType;
+    if (type === undefined) continue;
+    counts.set(type, (counts.get(type) ?? 0) + 1);
+  }
+
+  let dominant: string | undefined;
+  let max = 0;
+  for (const [type, count] of counts) {
+    if (count > max) {
+      dominant = type;
+      max = count;
+    }
+  }
+  return dominant;
+}
+
 /** 指定カテゴリに登録されたサブカテゴリメタ情報を返す */
 export function getSubcategories(
   category: KnowledgeCategory,
