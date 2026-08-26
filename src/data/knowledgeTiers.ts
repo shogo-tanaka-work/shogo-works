@@ -170,7 +170,8 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 2,
       label: "第2章 セットアップ",
-      description: "Windows / Mac へのインストールと初回起動の確認",
+      description:
+        "CLI とデスクトップアプリのどちらで始めるかを選び、インストールと初回起動を確認する",
       sortOrderStart: 20,
     },
     {

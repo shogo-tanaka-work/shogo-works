@@ -9,6 +9,12 @@ const CURRICULUM_DIR = join(
   "src/content/knowledge/ai-tools/claude-code-curriculum",
 );
 const LESSONS_PER_CHAPTER = 3;
+/**
+ * 第2章は CLI 版とデスクトップアプリ版に分岐するため、標準の3本に収まらない。
+ * 2-0（環境の選び方）＋ CLI 3本 ＋ GUI 2本 の 6 本構成。
+ */
+const CHAPTER_LESSON_COUNTS = new Map<number, number>([[2, 6]]);
+const MAX_LESSON_INDEX = 9;
 
 interface LessonMeta {
   file: string;
@@ -54,30 +60,50 @@ describe("Claude Code カリキュラム整合性", () => {
     expect(new Set(orders).size).toBe(orders.length);
   });
 
-  it("sortOrder が「章番号×10 + 0〜2」の規約に従っていること", () => {
+  it("sortOrder が「章番号×10 + レッスン連番」の規約に従っていること", () => {
     lessons.forEach((lesson) => {
       const chapter = Math.floor(lesson.sortOrder / 10);
       const index = lesson.sortOrder % 10;
+      const limit = CHAPTER_LESSON_COUNTS.get(chapter) ?? LESSONS_PER_CHAPTER;
       expect(chapter, `${lesson.file}: 章番号が範囲外`).toBeGreaterThanOrEqual(1);
       expect(chapter, `${lesson.file}: 章番号が範囲外`).toBeLessThanOrEqual(10);
-      expect(index, `${lesson.file}: レッスン連番は0〜2`).toBeLessThan(
-        LESSONS_PER_CHAPTER,
+      expect(index, `${lesson.file}: レッスン連番が章の枠を超えている`).toBeLessThan(
+        limit,
+      );
+      expect(index, `${lesson.file}: レッスン連番は1桁`).toBeLessThanOrEqual(
+        MAX_LESSON_INDEX,
       );
     });
   });
 
-  it("存在する章は3レッスン揃っていること（執筆途中の章を検出）", () => {
+  it("各章のレッスンが規定数揃っていること（執筆途中の章を検出）", () => {
     const byChapter = new Map<number, LessonMeta[]>();
     lessons.forEach((lesson) => {
       const chapter = Math.floor(lesson.sortOrder / 10);
       byChapter.set(chapter, [...(byChapter.get(chapter) ?? []), lesson]);
     });
     byChapter.forEach((chapterLessons, chapter) => {
+      const expected =
+        CHAPTER_LESSON_COUNTS.get(chapter) ?? LESSONS_PER_CHAPTER;
       expect(
         chapterLessons.length,
         `第${chapter}章のレッスン数が不正: ${chapterLessons.map((l) => l.file).join(", ")}`,
-      ).toBe(LESSONS_PER_CHAPTER);
+      ).toBe(expected);
     });
+  });
+
+  it("第2章が CLI 版とデスクトップアプリ版の両方を持つこと", () => {
+    const chapter2 = lessons
+      .filter((lesson) => Math.floor(lesson.sortOrder / 10) === 2)
+      .map((lesson) => lesson.file);
+
+    // 分岐点、CLI 版（Windows / Mac / 初回起動）、GUI 版（導入 / 初回起動）
+    expect(chapter2).toContain("02-0-choose-your-environment.mdx");
+    expect(chapter2).toContain("02-1-install-windows.mdx");
+    expect(chapter2).toContain("02-2-install-mac.mdx");
+    expect(chapter2).toContain("02-3-first-launch-checklist.mdx");
+    expect(chapter2).toContain("02-4-install-desktop-app.mdx");
+    expect(chapter2).toContain("02-5-desktop-first-launch.mdx");
   });
 
   it("draft のレッスンが残っていないこと", () => {
