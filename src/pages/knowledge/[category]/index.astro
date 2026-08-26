@@ -9,6 +9,7 @@ import { categories } from "@/data/knowledge";
 import {
   getArticlesByCategory,
   getSubcategories,
+  getSubcategoryContentType,
   getSubcategoryMetrics,
   toKnowledgeArticle,
 } from "@/utils/knowledge";
@@ -40,7 +41,16 @@ const subcategoryList = getSubcategories(category.slug);
 const subcategoryMetrics = subcategoryList.map((sub) => ({
   meta: sub,
   metrics: getSubcategoryMetrics(allEntries, category.slug, sub.slug),
+  contentType: getSubcategoryContentType(allEntries, category.slug, sub.slug),
 }));
+
+// 公式ドキュメントの要約は「読んで学ぶもの」と性格が違うため棚を分ける
+const learningSubcategories = subcategoryMetrics.filter(
+  (s) => s.contentType !== "docs-digest",
+);
+const digestSubcategories = subcategoryMetrics.filter(
+  (s) => s.contentType === "docs-digest",
+);
 
 const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
   year: "numeric",
@@ -65,13 +75,13 @@ const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
       <SectionHeader title={category.label} subtitle={category.description} />
 
       {
-        subcategoryList.length > 0 && (
+        learningSubcategories.length > 0 && (
           <div class="mb-12">
             <h2 class="text-lg font-semibold text-foreground mb-4">
               サブカテゴリ
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {subcategoryMetrics.map(({ meta, metrics }) => (
+              {learningSubcategories.map(({ meta, metrics }) => (
                 <a
                   href={`/knowledge/${category.slug}/${meta.slug}`}
                   class="flex flex-col p-5 border border-border hover:border-primary/60 hover:bg-secondary/30 transition-colors"
@@ -84,6 +94,46 @@ const dateFormatter = new Intl.DateTimeFormat("ja-JP", {
                   </p>
                   <div class="mt-auto flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
                     <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-primary/10 text-primary font-medium tabular-nums">
+                      {metrics.articleCount}
+                      <span class="font-normal">記事</span>
+                    </span>
+                    {metrics.lastUpdatedAt && (
+                      <span class="tabular-nums">
+                        最終更新: {dateFormatter.format(metrics.lastUpdatedAt)}
+                      </span>
+                    )}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        )
+      }
+
+      {
+        digestSubcategories.length > 0 && (
+          <div class="mb-12">
+            <h2 class="text-lg font-semibold text-foreground mb-1">
+              ドキュメント要約
+            </h2>
+            <p class="text-sm text-muted-foreground mb-4">
+              公式ドキュメントの要点を、アーキテクトの判断軸で整理したもの。
+              順番に読む教材ではなく、選定時に引くための資料です。
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {digestSubcategories.map(({ meta, metrics }) => (
+                <a
+                  href={`/knowledge/${category.slug}/${meta.slug}`}
+                  class="flex flex-col p-5 border border-border hover:border-primary/60 hover:bg-secondary/30 transition-colors"
+                >
+                  <h3 class="font-semibold text-foreground mb-1">
+                    {meta.label}
+                  </h3>
+                  <p class="text-sm text-muted-foreground line-clamp-2 mb-3">
+                    {meta.description}
+                  </p>
+                  <div class="mt-auto flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary text-muted-foreground font-medium tabular-nums">
                       {metrics.articleCount}
                       <span class="font-normal">記事</span>
                     </span>

@@ -7,12 +7,15 @@ import {
   getSubcategories,
   getAllSubcategoryNavOptions,
   getSubcategoryMetrics,
+  getSubcategoryContentType,
   getAdjacentArticles,
   getAllTags,
   getArticlesByTag,
   getCategoryArticleCount,
   getRecentlyUpdatedArticles,
   getRelatedArticles,
+  groupArticlesByTier,
+  resolvePrerequisites,
   matchesTagQuery,
   toKnowledgeArticle,
 } from "@/utils/knowledge";
@@ -25,6 +28,8 @@ interface MockEntry {
     description: string;
     category: string;
     subcategory?: string;
+    contentType?: string;
+    prerequisites?: string[];
     tags: string[];
     sortOrder: number;
     createdAt: Date;
@@ -847,5 +852,212 @@ describe("matchesTagQuery", () => {
 
   it("異常系: 一致しない検索語のとき、false を返すこと", () => {
     expect(matchesTagQuery("Claude Code", "gemini")).toBe(false);
+  });
+});
+
+describe("groupArticlesByTier", () => {
+  const tiers = [
+    { order: 1, label: "第1章", sortOrderStart: 10 },
+    { order: 2, label: "第2章", sortOrderStart: 20 },
+    { order: 3, label: "第3章", sortOrderStart: 30 },
+  ];
+
+  const article = (sortOrder: number) => ({ sortOrder });
+
+  it("正常系: sortOrder の範囲に従って tier へ振り分けること", () => {
+    const groups = groupArticlesByTier(
+      [article(10), article(11), article(20), article(30), article(102)],
+      tiers,
+    );
+
+    expect(groups).toHaveLength(3);
+    expect(groups[0].tier?.label).toBe("第1章");
+    expect(groups[0].articles.map((a) => a.sortOrder)).toEqual([10, 11]);
+    expect(groups[1].articles.map((a) => a.sortOrder)).toEqual([20]);
+    // 最後の tier は sortOrderStart 以上をすべて含む
+    expect(groups[2].articles.map((a) => a.sortOrder)).toEqual([30, 102]);
+  });
+
+  it("正常系: tier 定義が空のとき、単一グループとして返すこと", () => {
+    const groups = groupArticlesByTier([article(0), article(5)], []);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].tier).toBeNull();
+    expect(groups[0].articles).toHaveLength(2);
+  });
+
+  it("正常系: 最初の tier より小さい sortOrder は先頭の null グループへ入ること", () => {
+    const groups = groupArticlesByTier([article(0), article(10)], tiers);
+
+    expect(groups[0].tier).toBeNull();
+    expect(groups[0].articles.map((a) => a.sortOrder)).toEqual([0]);
+    expect(groups[1].tier?.label).toBe("第1章");
+  });
+
+  it("正常系: 記事が存在しない tier も空配列のグループとして返すこと", () => {
+    // 表示側で空グループを落とせるよう、tier 定義の構造をそのまま保つ仕様
+    const groups = groupArticlesByTier([article(10), article(30)], tiers);
+
+    expect(groups.map((g) => g.tier?.label)).toEqual(["第1章", "第2章", "第3章"]);
+    expect(groups[1].articles).toEqual([]);
+  });
+
+  it("正常系: tier 定義が sortOrderStart 昇順でなくても正しく区切ること", () => {
+    const unsorted = [
+      { order: 3, label: "第3章", sortOrderStart: 30 },
+      { order: 1, label: "第1章", sortOrderStart: 10 },
+      { order: 2, label: "第2章", sortOrderStart: 20 },
+    ];
+    const groups = groupArticlesByTier([article(10), article(20), article(30)], unsorted);
+
+    expect(groups.map((g) => g.tier?.label)).toEqual(["第1章", "第2章", "第3章"]);
+  });
+});
+
+describe("resolvePrerequisites", () => {
+  const entry = (
+    id: string,
+    title: string,
+    prerequisites?: string[],
+    overrides: Partial<MockEntry["data"]> = {},
+  ): MockEntry => ({
+    id,
+    data: {
+      title,
+      description: "説明",
+      category: "ai-tools",
+      subcategory: "claude-code-curriculum",
+      prerequisites,
+      tags: [],
+      sortOrder: 0,
+      createdAt: new Date("2026-06-11"),
+      draft: false,
+      author: "田中省伍",
+      ...overrides,
+    },
+  });
+
+  const first = entry("ai-tools/claude-code-curriculum/02-3-first-launch", "2-3 初回起動");
+  const second = entry("ai-tools/claude-code-curriculum/03-1-first-prompts", "3-1 初めての指示", [
+    "02-3-first-launch",
+  ]);
+
+  it("正常系: slug を title と href へ解決すること", () => {
+    const result = resolvePrerequisites([first, second], second);
+
+    expect(result).toEqual([
+      {
+        title: "2-3 初回起動",
+        href: "/knowledge/ai-tools/claude-code-curriculum/02-3-first-launch",
+      },
+    ]);
+  });
+
+  it("正常系: prerequisites が未設定のとき、空配列を返すこと", () => {
+    expect(resolvePrerequisites([first, second], first)).toEqual([]);
+  });
+
+  it("正常系: 指定順を保って解決すること", () => {
+    const a = entry("ai-tools/claude-code-curriculum/02-1-win", "2-1 Windows");
+    const b = entry("ai-tools/claude-code-curriculum/02-2-mac", "2-2 Mac");
+    const target = entry("ai-tools/claude-code-curriculum/02-3-check", "2-3 確認", [
+      "02-2-mac",
+      "02-1-win",
+    ]);
+
+    const result = resolvePrerequisites([a, b, target], target);
+
+    expect(result.map((r) => r.title)).toEqual(["2-2 Mac", "2-1 Windows"]);
+  });
+
+  it("異常系: 存在しない slug を指定したとき、その分だけ落として返すこと", () => {
+    const target = entry("ai-tools/claude-code-curriculum/03-2-files", "3-2 ファイル生成", [
+      "02-3-first-launch",
+      "存在しないレッスン",
+    ]);
+
+    const result = resolvePrerequisites([first, target], target);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("2-3 初回起動");
+  });
+
+  it("異常系: 別サブカテゴリの同名 slug を参照しないこと", () => {
+    const other = entry("ai-tools/claude-code/02-3-first-launch", "別コースの記事", undefined, {
+      subcategory: "claude-code",
+    });
+    const target = entry("ai-tools/claude-code-curriculum/03-1-x", "3-1", ["02-3-first-launch"]);
+
+    const result = resolvePrerequisites([other, target], target);
+
+    expect(result).toEqual([]);
+  });
+
+  it("異常系: draft の記事を前提レッスンとして返さないこと", () => {
+    const hidden = entry("ai-tools/claude-code-curriculum/02-3-first-launch", "下書き", undefined, {
+      draft: true,
+    });
+    const target = entry("ai-tools/claude-code-curriculum/03-1-y", "3-1", ["02-3-first-launch"]);
+
+    expect(resolvePrerequisites([hidden, target], target)).toEqual([]);
+  });
+});
+
+describe("getSubcategoryContentType", () => {
+  const entry = (
+    id: string,
+    subcategory: string,
+    contentType?: string,
+    draft = false,
+  ): MockEntry => ({
+    id,
+    data: {
+      title: id,
+      description: "説明",
+      category: "web-development",
+      subcategory,
+      contentType,
+      tags: [],
+      sortOrder: 0,
+      createdAt: new Date("2026-05-08"),
+      draft,
+      author: "田中省伍",
+    },
+  });
+
+  it("正常系: サブカテゴリ内で最も多い contentType を返すこと", () => {
+    const entries = [
+      entry("web-development/cloudflare/a", "cloudflare", "docs-digest"),
+      entry("web-development/cloudflare/b", "cloudflare", "docs-digest"),
+      entry("web-development/cloudflare/c", "cloudflare", "reference"),
+    ];
+
+    expect(
+      getSubcategoryContentType(entries, "web-development", "cloudflare"),
+    ).toBe("docs-digest");
+  });
+
+  it("正常系: draft を集計に含めないこと", () => {
+    const entries = [
+      entry("web-development/gas/a", "gas", "reference"),
+      entry("web-development/gas/b", "gas", "docs-digest", true),
+      entry("web-development/gas/c", "gas", "docs-digest", true),
+    ];
+
+    expect(getSubcategoryContentType(entries, "web-development", "gas")).toBe(
+      "reference",
+    );
+  });
+
+  it("異常系: 記事が存在しないとき undefined を返すこと", () => {
+    expect(
+      getSubcategoryContentType([], "web-development", "cloudflare"),
+    ).toBeUndefined();
+  });
+
+  it("異常系: contentType が未設定の記事しかないとき undefined を返すこと", () => {
+    const entries = [entry("web-development/gas/a", "gas", undefined)];
+
+    expect(getSubcategoryContentType(entries, "web-development", "gas")).toBeUndefined();
   });
 });

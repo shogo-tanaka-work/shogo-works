@@ -3,6 +3,8 @@ title: "Claude Code サブエージェント活用ガイド：並列実行と専
 description: "Claude Code のサブエージェント機能を徹底解説。エージェント定義ファイルの書き方、並列実行によるスピードアップ、モデル・ツール・コンテキストの分離、Claude Agent SDK との連携まで2026年4月の最新仕様でまとめました。"
 category: "ai-tools"
 subcategory: "claude-code"
+difficulty: "intermediate"
+contentType: "reference"
 tags: ["Claude Code", "サブエージェント", "Sub-agents", "並列実行", "Agent", "エージェント設計"]
 sortOrder: 3
 createdAt: 2026-04-15
@@ -411,6 +413,16 @@ Claude が適切なサブエージェントを自動的に選ぶかどうかは 
 変更なしで終了した worktree は自動削除されます。実験的実装の場合は必ず何らかの変更（ファイル作成）を残してください。
 
 ---
+
+## 関連ドキュメント
+
+この記事は **Claude Code でのサブエージェントの設定と使い方**を扱う。
+設計論は別記事にある。
+
+- 分割の判断基準と失敗パターン: [サブエージェント設計パターン](/knowledge/harness-engineering/sub-agent-patterns)
+- 複数エージェント間のコンテキスト共有: [マルチエージェントのコンテキスト設計](/knowledge/context-engineering/multi-agent-context)
+- 経路制御とルーティング: [マルチエージェントルーティング](/knowledge/graph-engineering/multi-agent-routing)
+- Codex 側の実装: [Codex のサブエージェント](/knowledge/ai-tools/codex/subagents)
 
 ## 参考リンク
 

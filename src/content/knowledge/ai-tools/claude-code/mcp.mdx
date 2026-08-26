@@ -3,6 +3,8 @@ title: "Claude Code MCPガイド：外部ツール・API接続の全手順と活
 description: "Claude Code の MCP（Model Context Protocol）を徹底解説。サーバーの追加・設定・トランスポート種別、Tool Search による遅延ロード、claude mcp serve、おすすめ公式サーバーまで2026年4月の最新仕様でまとめました。"
 category: "ai-tools"
 subcategory: "claude-code"
+difficulty: "intermediate"
+contentType: "reference"
 tags: ["Claude Code", "MCP", "Model Context Protocol", "ツール連携", "GitHub", "外部API"]
 sortOrder: 5
 createdAt: 2026-04-15
@@ -354,6 +356,18 @@ Tool Search が有効な場合、Claude が「必要ない」と判断したツ�
 「いきなり削除→再追加」をやる前に、起動コマンド単独実行でエラーを見るのが最短ルートです。
 
 ---
+
+## 関連ドキュメント
+
+MCP は本サイトの複数の記事で扱っている。目的に応じて読み分けてほしい。
+
+| 知りたいこと | 読む記事 |
+|---|---|
+| **Claude Code で MCP を設定する手順**（この記事） | いまここ |
+| MCP とは何かを、専門用語を使わずに | [8-1 Claude Code の MCP とは](/knowledge/ai-tools/claude-code-curriculum/08-1-what-is-mcp)（非エンジニア向け） |
+| どのサーバーを入れるべきか、CLI で代替できないか | [MCPサーバー選定と最適化](/knowledge/harness-engineering/mcp-server-strategy) |
+| Codex 側での接続方法 | [Codex CLI × MCP](/knowledge/ai-tools/codex/mcp-integration) |
+| ツール定義がコンテキストを圧迫する問題 | [ツールコンテキスト設計](/knowledge/context-engineering/tool-context-design) |
 
 ## 参考リンク
 

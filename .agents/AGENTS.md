@@ -11,7 +11,7 @@
 - CSS: TailwindCSS 4（`@tailwindcss/vite`）
 - 言語: TypeScript（strict）
 - コンテンツ: Content Collections（MDX） — Knowledge / AI News
-- 配信: `@astrojs/node` standalone。フォーム送信は API ルート（Resend）
+- 配信: `@astrojs/cloudflare`（Cloudflare Workers）。フォーム送信は API ルート（Resend）
 - テスト: Vitest
 
 ## 構成の把握

@@ -3,8 +3,11 @@ title: "2-2 Claude Code を Mac にインストールする手順"
 description: "Mac に Claude Code を導入する手順を、ターミナル.app の開き方から動作確認まで初心者向けに解説。curl ワンライナーと npm の使い分け、PATH の確認方法、command not found の対処法もまとめました。"
 category: "ai-tools"
 subcategory: "claude-code-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 45
 tags: ["Claude Code", "カリキュラム", "Mac", "インストール", "ターミナル"]
-sortOrder: 21
+sortOrder: 22
 createdAt: 2026-06-11
 author: "田中省伍"
 ---
@@ -12,6 +15,8 @@ author: "田中省伍"
 ## このレッスンでわかること
 
 このレッスンでは、Mac に Claude Code をインストールして、コマンドが使える状態になるまでを一歩ずつ進めます。
+
+> **これは CLI（ターミナル版）の手順です。** 2-0 でデスクトップアプリを選んだ方は、代わりに **2-4** へ進んでください。
 
 - ターミナル.app の開き方と、最低限の操作感覚
 - Claude Code のインストール手順（curl ワンライナーと npm の2通り）
@@ -25,7 +30,9 @@ author: "田中省伍"
 
 ## 事前準備：Claude アカウント
 
-Claude Code を使うには Anthropic 社の「Claude」アカウントが必要です。ブラウザで claude.ai にログインできるか、先に確認しておきましょう。日常的に使うなら、Pro プランなどの有料プランへの加入が現実的です（プラン内容は変わることがあるため、claude.ai の料金ページで最新情報を確認してください）。
+Claude Code を使うには Anthropic 社の「Claude」アカウントが必要です。ブラウザで claude.ai にログインできるか、先に確認しておきましょう。
+
+**Claude の無料プランでは Claude Code は使えません。**Pro などの有料プラン、または Anthropic API の従量課金契約が必要です（1-3 で扱った内容です）。まだ加入していない場合は、先に claude.ai で手続きを済ませておいてください。プラン内容は変わることがあるため、claude.ai の料金ページで最新情報を確認してください。
 
 ## ターミナル.app を開く
 
@@ -60,6 +67,8 @@ pwd
 > **よくあるつまずき：何か打ち間違えて変な状態になった**
 >
 > 入力途中でわからなくなったら **Control + C** を押してください。入力中の内容を破棄して、新しいプロンプトに戻れます。「困ったら Control + C」はターミナルの合言葉です。
+>
+> なお Control + C は、**2回続けて押すと Claude Code の終了**になります。1回は入力の取り消し、2回で終了、と覚えておいてください（2-3 で改めて整理します）。
 
 ## Claude Code をインストールする
 

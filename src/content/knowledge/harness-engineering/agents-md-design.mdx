@@ -2,6 +2,8 @@
 title: "CLAUDE.md / AGENTS.md 設計パターン集"
 description: "AIエージェントの記憶ファイル（CLAUDE.md / AGENTS.md）を効果的に設計するためのパターンとアンチパターンを解説する"
 category: "harness-engineering"
+difficulty: "advanced"
+contentType: "reference"
 tags: ["harness-engineering", "claude-code", "agents-md", "context-engineering"]
 sortOrder: 1
 createdAt: 2026-04-12
@@ -153,6 +155,11 @@ project-root/.claude/rules/*.md  # ルールファイル群
 2. **失敗駆動の追記**: エージェントが同じミスを繰り返したら、その都度禁止事項を追加する
 3. **情報密度の監視**: 重複・矛盾・タスク固有情報が増えたら、分離を検討する
 4. **チーム共有**: CLAUDE.md はリポジトリにコミットし、チーム全員が同じハーネスで作業する
+
+## 関連ドキュメント
+
+Claude Code 固有の CLAUDE.md の階層とメモリ機能は
+[CLAUDE.md とメモリ](/knowledge/ai-tools/claude-code/claude-md-memory) を参照。
 
 ## 参考リンク
 

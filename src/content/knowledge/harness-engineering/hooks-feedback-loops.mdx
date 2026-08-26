@@ -2,6 +2,8 @@
 title: "Hooks & フィードバックループ — 自動検証の仕組み"
 description: "Claude Code Hooksを活用した決定論的な品質ゲートとフィードバックループの構築方法を、具体的な設定例とともに解説します。"
 category: "harness-engineering"
+difficulty: "advanced"
+contentType: "reference"
 tags: ["harness-engineering", "claude-code", "hooks", "feedback-loop", "automation"]
 sortOrder: 7
 createdAt: 2026-04-12
@@ -216,6 +218,11 @@ Claude がコードを編集
 3. **デバッグログを活用する**: `claude --debug-file /tmp/claude.log` で全Hook実行を記録できる
 4. **冪等性を意識する**: 同じHookが複数回発火しても問題ない設計にする
 5. **タイムアウトを設定する**: デフォルトは10分。短いスクリプトには短いtimeoutを指定する
+
+## 関連ドキュメント
+
+Claude Code の Hooks の設定方法とイベント一覧は
+[Claude Code Hooks ガイド](/knowledge/ai-tools/claude-code/hooks) を参照。
 
 ## 参考リンク
 
