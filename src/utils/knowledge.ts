@@ -8,6 +8,10 @@ interface KnowledgeEntry {
     description: string;
     category: string;
     subcategory?: string;
+    difficulty?: string;
+    contentType?: string;
+    estimatedMinutes?: number;
+    prerequisites?: string[];
     tags: string[];
     sortOrder: number;
     createdAt: Date;
@@ -301,6 +305,41 @@ export function getArticlesByTag<T extends KnowledgeEntry>(
  * 同カテゴリ（または同サブカテゴリ）内で前後の記事を返す（sortOrder順）。
  * subcategory 省略時はカテゴリ直下の記事のみを対象にする。
  */
+/** 前提レッスンとして表示する記事の最小情報 */
+export interface PrerequisiteLink {
+  title: string;
+  href: string;
+}
+
+/**
+ * frontmatter の prerequisites（slug の配列）を、表示に必要な title と href へ解決する。
+ * 同一カテゴリ・同一サブカテゴリ内から探し、見つからない slug は黙って落とす。
+ * 記事の移動やリネームで参照が切れても、ページ全体は壊さない方針。
+ */
+export function resolvePrerequisites<T extends KnowledgeEntry>(
+  entries: T[],
+  entry: T,
+): PrerequisiteLink[] {
+  const slugs = entry.data.prerequisites ?? [];
+  if (slugs.length === 0) return [];
+
+  const siblings = getPublishedArticles(entries).filter(
+    (candidate) =>
+      candidate.data.category === entry.data.category &&
+      candidate.data.subcategory === entry.data.subcategory,
+  );
+
+  const bySlug = new Map(
+    siblings.map((candidate) => [candidate.id.split("/").pop() as string, candidate]),
+  );
+
+  return slugs.flatMap((slug) => {
+    const match = bySlug.get(slug);
+    if (match === undefined) return [];
+    return [{ title: match.data.title, href: toKnowledgeArticle(match).href }];
+  });
+}
+
 export function getAdjacentArticles<T extends KnowledgeEntry>(
   entries: T[],
   currentId: string,

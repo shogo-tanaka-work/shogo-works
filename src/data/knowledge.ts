@@ -1,6 +1,10 @@
 import type {
   CategoryMeta,
+  ContentTypeMeta,
+  DifficultyMeta,
   KnowledgeCategory,
+  KnowledgeContentType,
+  KnowledgeDifficulty,
   SubcategoryMeta,
 } from "@/types";
 
@@ -151,3 +155,68 @@ export const subcategories: Partial<
     },
   ],
 };
+
+/**
+ * 難易度の表示メタ。星の数と「前提知識の目安」を組にして持つ。
+ * 前提知識を独立した見出しにせず、難易度表記へ畳んで見せるための対応表。
+ */
+export const difficulties: DifficultyMeta[] = [
+  {
+    value: "beginner",
+    label: "入門",
+    stars: 1,
+    note: "前提知識ゼロでも読めます",
+  },
+  {
+    value: "intermediate",
+    label: "実践",
+    stars: 3,
+    note: "基本的な操作を一度試したことがある前提です",
+  },
+  {
+    value: "advanced",
+    label: "応用",
+    stars: 5,
+    note: "開発の実務経験がある方向けです",
+  },
+];
+
+/** 記事の性格の表示メタ */
+export const contentTypes: ContentTypeMeta[] = [
+  {
+    value: "course",
+    label: "学習コース",
+    description: "順番に読み進める教材",
+  },
+  {
+    value: "reference",
+    label: "リファレンス",
+    description: "必要なときに引く解説",
+  },
+  {
+    value: "docs-digest",
+    label: "ドキュメント要約",
+    description: "公式ドキュメントの要点整理",
+  },
+  {
+    value: "news",
+    label: "アップデート解説",
+    description: "製品の新機能・変更点の解説",
+  },
+];
+
+/** 難易度の表示メタを引く。未定義の値は null を返す */
+export function getDifficultyMeta(
+  value: KnowledgeDifficulty | undefined,
+): DifficultyMeta | null {
+  if (value === undefined) return null;
+  return difficulties.find((d) => d.value === value) ?? null;
+}
+
+/** 記事種別の表示メタを引く。未定義の値は null を返す */
+export function getContentTypeMeta(
+  value: KnowledgeContentType | undefined,
+): ContentTypeMeta | null {
+  if (value === undefined) return null;
+  return contentTypes.find((c) => c.value === value) ?? null;
+}

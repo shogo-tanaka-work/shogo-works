@@ -1,0 +1,77 @@
+---
+import { getContentTypeMeta, getDifficultyMeta } from "@/data/knowledge";
+import type { KnowledgeContentType, KnowledgeDifficulty } from "@/types";
+
+interface Props {
+  difficulty?: KnowledgeDifficulty;
+  contentType?: KnowledgeContentType;
+  estimatedMinutes?: number;
+  /** 先に読むべき記事。表示に必要な情報だけを受け取る */
+  prerequisites?: { title: string; href: string }[];
+}
+
+const MAX_STARS = 5;
+
+const {
+  difficulty,
+  contentType,
+  estimatedMinutes,
+  prerequisites = [],
+} = Astro.props;
+
+const difficultyMeta = getDifficultyMeta(difficulty);
+const contentTypeMeta = getContentTypeMeta(contentType);
+const hasMeta =
+  difficultyMeta !== null || contentTypeMeta !== null || estimatedMinutes !== undefined;
+---
+
+{
+  (hasMeta || prerequisites.length > 0) && (
+    <div class="mt-6 pt-4 border-t border-border flex flex-col gap-2 text-sm">
+      {hasMeta && (
+        <div class="flex items-center gap-x-5 gap-y-2 flex-wrap">
+          {difficultyMeta && (
+            <span class="flex items-baseline gap-2 flex-wrap">
+              <span class="text-muted-foreground whitespace-nowrap">難易度</span>
+              <span
+                class="text-primary tracking-widest whitespace-nowrap"
+                aria-label={`5段階中 ${difficultyMeta.stars}（${difficultyMeta.label}）`}
+              >
+                <span aria-hidden="true">
+                  {"★".repeat(difficultyMeta.stars)}
+                  {"☆".repeat(MAX_STARS - difficultyMeta.stars)}
+                </span>
+              </span>
+              <span class="text-muted-foreground">{difficultyMeta.note}</span>
+            </span>
+          )}
+          {estimatedMinutes !== undefined && (
+            <span class="flex items-center gap-2">
+              <span class="text-muted-foreground whitespace-nowrap">所要時間</span>
+              <span class="text-foreground tabular-nums">約 {estimatedMinutes} 分</span>
+            </span>
+          )}
+          {contentTypeMeta && (
+            <span class="flex items-center gap-2">
+              <span class="text-muted-foreground whitespace-nowrap">種別</span>
+              <span class="text-foreground">{contentTypeMeta.label}</span>
+            </span>
+          )}
+        </div>
+      )}
+      {prerequisites.length > 0 && (
+        <p class="flex items-baseline gap-2 flex-wrap">
+          <span class="text-muted-foreground whitespace-nowrap">先に読む</span>
+          {prerequisites.map((item, index) => (
+            <>
+              {index > 0 && <span class="text-muted-foreground">/</span>}
+              <a href={item.href} class="text-primary hover:underline">
+                {item.title}
+              </a>
+            </>
+          ))}
+        </p>
+      )}
+    </div>
+  )
+}

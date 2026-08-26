@@ -157,6 +157,31 @@ export interface SubcategoryMeta {
   description: string;
 }
 
+/** 想定読者のレベル */
+export type KnowledgeDifficulty = "beginner" | "intermediate" | "advanced";
+
+/** 記事の性格。読んで学ぶものと、必要なときに引くものを区別する */
+export type KnowledgeContentType =
+  | "course"
+  | "reference"
+  | "docs-digest"
+  | "news";
+
+export interface DifficultyMeta {
+  value: KnowledgeDifficulty;
+  label: string;
+  /** 星5段階のうち塗る数 */
+  stars: number;
+  /** 前提知識の目安。難易度の補足として併記する */
+  note: string;
+}
+
+export interface ContentTypeMeta {
+  value: KnowledgeContentType;
+  label: string;
+  description: string;
+}
+
 export type AiNewsTool =
   | "chatgpt-openai"
   | "claude"

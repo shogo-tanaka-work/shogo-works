@@ -19,6 +19,23 @@ const knowledge = defineCollection({
       "ai-governance",
     ]),
     subcategory: z.string().optional(),
+    /** 想定読者のレベル。記事ページの見出し下に星で表示する */
+    difficulty: z
+      .enum(["beginner", "intermediate", "advanced"])
+      .optional(),
+    /**
+     * 記事の性格。読者が「読んで学ぶもの」と「必要なときに引くもの」を
+     * 区別できるようにする。
+     * course: 順番に読む学習コース / reference: 機能や概念のリファレンス /
+     * docs-digest: 公式ドキュメントの要約 / news: 製品アップデート解説
+     */
+    contentType: z
+      .enum(["course", "reference", "docs-digest", "news"])
+      .optional(),
+    /** 実際に手を動かした場合の所要時間（分） */
+    estimatedMinutes: z.number().int().positive().optional(),
+    /** 先に読んでおくべき記事の slug（同一サブカテゴリ内） */
+    prerequisites: z.array(z.string()).default([]),
     tags: z.array(z.string()).default([]),
     sortOrder: z.number().int().default(0),
     createdAt: z.coerce.date(),

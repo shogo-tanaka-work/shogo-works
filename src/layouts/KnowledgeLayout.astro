@@ -4,13 +4,18 @@ import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import Badge from "@/components/ui/Badge.astro";
 import ArticleSidebar from "@/components/knowledge/ArticleSidebar.astro";
 import ArticleToc from "@/components/knowledge/ArticleToc.astro";
+import ArticleMeta from "@/components/knowledge/ArticleMeta.astro";
 import { categories } from "@/data/knowledge";
 import {
   getAllSubcategoryNavOptions,
   getKnowledgeTagSlug,
 } from "@/utils/knowledge";
 import type { KnowledgeTier } from "@/data/knowledgeTiers";
-import type { KnowledgeCategory } from "@/types";
+import type {
+  KnowledgeCategory,
+  KnowledgeContentType,
+  KnowledgeDifficulty,
+} from "@/types";
 import type { MarkdownHeading } from "astro";
 
 interface SidebarArticle {
@@ -39,6 +44,10 @@ interface Props {
   createdAt: Date;
   updatedAt?: Date;
   author: string;
+  difficulty?: KnowledgeDifficulty;
+  contentType?: KnowledgeContentType;
+  estimatedMinutes?: number;
+  prerequisites?: { title: string; href: string }[];
   currentSlug: string;
   sidebarGroups: SidebarGroup[];
   previous: AdjacentArticle | null;
@@ -56,6 +65,10 @@ const {
   createdAt,
   updatedAt,
   author,
+  difficulty,
+  contentType,
+  estimatedMinutes,
+  prerequisites = [],
   currentSlug,
   sidebarGroups,
   previous,
@@ -170,6 +183,12 @@ const jsonLd = JSON.stringify({
                 </div>
               )
             }
+            <ArticleMeta
+              difficulty={difficulty}
+              contentType={contentType}
+              estimatedMinutes={estimatedMinutes}
+              prerequisites={prerequisites}
+            />
           </header>
 
           <div class="knowledge-prose">

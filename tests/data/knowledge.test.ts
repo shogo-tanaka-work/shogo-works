@@ -1,5 +1,12 @@
 import { describe, it, expect } from "vitest";
-import { categories, subcategories } from "@/data/knowledge";
+import {
+  categories,
+  contentTypes,
+  difficulties,
+  getContentTypeMeta,
+  getDifficultyMeta,
+  subcategories,
+} from "@/data/knowledge";
 
 describe("knowledge カテゴリデータ", () => {
   it("10個のカテゴリが定義されていること", () => {
@@ -89,5 +96,51 @@ describe("knowledge サブカテゴリデータ", () => {
         expect(sub.slug).toMatch(kebabCasePattern);
       }
     }
+  });
+});
+
+describe("getDifficultyMeta", () => {
+  it("正常系: 難易度に対応する表示メタを返すこと", () => {
+    const meta = getDifficultyMeta("beginner");
+
+    expect(meta?.label).toBe("入門");
+    expect(meta?.stars).toBe(1);
+    expect(meta?.note).toContain("前提知識ゼロ");
+  });
+
+  it("正常系: 難易度が上がるほど星の数が増えること", () => {
+    const stars = difficulties.map((d) => d.stars);
+
+    expect(stars).toEqual([...stars].sort((a, b) => a - b));
+    expect(new Set(stars).size).toBe(stars.length);
+  });
+
+  it("正常系: 星の数が5段階に収まること", () => {
+    for (const difficulty of difficulties) {
+      expect(difficulty.stars).toBeGreaterThanOrEqual(1);
+      expect(difficulty.stars).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it("異常系: 未設定のとき null を返すこと", () => {
+    expect(getDifficultyMeta(undefined)).toBeNull();
+  });
+});
+
+describe("getContentTypeMeta", () => {
+  it("正常系: 記事種別に対応する表示メタを返すこと", () => {
+    expect(getContentTypeMeta("course")?.label).toBe("学習コース");
+    expect(getContentTypeMeta("docs-digest")?.label).toBe("ドキュメント要約");
+  });
+
+  it("正常系: すべての種別に label と description があること", () => {
+    for (const contentType of contentTypes) {
+      expect(contentType.label).not.toBe("");
+      expect(contentType.description).not.toBe("");
+    }
+  });
+
+  it("異常系: 未設定のとき null を返すこと", () => {
+    expect(getContentTypeMeta(undefined)).toBeNull();
   });
 });

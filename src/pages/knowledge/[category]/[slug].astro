@@ -7,6 +7,7 @@ import {
   getPublishedArticles,
   getArticlesByCategoryAndSubcategory,
   getAdjacentArticles,
+  resolvePrerequisites,
 } from "@/utils/knowledge";
 import type { KnowledgeCategory } from "@/types";
 
@@ -44,6 +45,7 @@ export const getStaticPaths = (async () => {
         },
         props: {
           entry,
+          prerequisites: resolvePrerequisites(allEntries, entry),
           currentSlug: slug,
           sidebarGroups,
           previous: previous
@@ -65,7 +67,7 @@ export const getStaticPaths = (async () => {
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
 
-const { entry, currentSlug, sidebarGroups, previous, next } =
+const { entry, currentSlug, sidebarGroups, previous, next, prerequisites } =
   Astro.props as Props;
 const { Content, headings } = await render(entry);
 ---
@@ -78,6 +80,10 @@ const { Content, headings } = await render(entry);
   createdAt={entry.data.createdAt}
   updatedAt={entry.data.updatedAt}
   author={entry.data.author}
+  difficulty={entry.data.difficulty}
+  contentType={entry.data.contentType}
+  estimatedMinutes={entry.data.estimatedMinutes}
+  prerequisites={prerequisites}
   currentSlug={currentSlug}
   sidebarGroups={sidebarGroups}
   previous={previous}

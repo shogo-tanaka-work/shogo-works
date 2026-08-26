@@ -14,6 +14,7 @@ import {
   getRecentlyUpdatedArticles,
   getRelatedArticles,
   groupArticlesByTier,
+  resolvePrerequisites,
   matchesTagQuery,
   toKnowledgeArticle,
 } from "@/utils/knowledge";
@@ -26,6 +27,7 @@ interface MockEntry {
     description: string;
     category: string;
     subcategory?: string;
+    prerequisites?: string[];
     tags: string[];
     sortOrder: number;
     createdAt: Date;
@@ -907,5 +909,94 @@ describe("groupArticlesByTier", () => {
     const groups = groupArticlesByTier([article(10), article(20), article(30)], unsorted);
 
     expect(groups.map((g) => g.tier?.label)).toEqual(["第1章", "第2章", "第3章"]);
+  });
+});
+
+describe("resolvePrerequisites", () => {
+  const entry = (
+    id: string,
+    title: string,
+    prerequisites?: string[],
+    overrides: Partial<MockEntry["data"]> = {},
+  ): MockEntry => ({
+    id,
+    data: {
+      title,
+      description: "説明",
+      category: "ai-tools",
+      subcategory: "claude-code-curriculum",
+      prerequisites,
+      tags: [],
+      sortOrder: 0,
+      createdAt: new Date("2026-06-11"),
+      draft: false,
+      author: "田中省伍",
+      ...overrides,
+    },
+  });
+
+  const first = entry("ai-tools/claude-code-curriculum/02-3-first-launch", "2-3 初回起動");
+  const second = entry("ai-tools/claude-code-curriculum/03-1-first-prompts", "3-1 初めての指示", [
+    "02-3-first-launch",
+  ]);
+
+  it("正常系: slug を title と href へ解決すること", () => {
+    const result = resolvePrerequisites([first, second], second);
+
+    expect(result).toEqual([
+      {
+        title: "2-3 初回起動",
+        href: "/knowledge/ai-tools/claude-code-curriculum/02-3-first-launch",
+      },
+    ]);
+  });
+
+  it("正常系: prerequisites が未設定のとき、空配列を返すこと", () => {
+    expect(resolvePrerequisites([first, second], first)).toEqual([]);
+  });
+
+  it("正常系: 指定順を保って解決すること", () => {
+    const a = entry("ai-tools/claude-code-curriculum/02-1-win", "2-1 Windows");
+    const b = entry("ai-tools/claude-code-curriculum/02-2-mac", "2-2 Mac");
+    const target = entry("ai-tools/claude-code-curriculum/02-3-check", "2-3 確認", [
+      "02-2-mac",
+      "02-1-win",
+    ]);
+
+    const result = resolvePrerequisites([a, b, target], target);
+
+    expect(result.map((r) => r.title)).toEqual(["2-2 Mac", "2-1 Windows"]);
+  });
+
+  it("異常系: 存在しない slug を指定したとき、その分だけ落として返すこと", () => {
+    const target = entry("ai-tools/claude-code-curriculum/03-2-files", "3-2 ファイル生成", [
+      "02-3-first-launch",
+      "存在しないレッスン",
+    ]);
+
+    const result = resolvePrerequisites([first, target], target);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].title).toBe("2-3 初回起動");
+  });
+
+  it("異常系: 別サブカテゴリの同名 slug を参照しないこと", () => {
+    const other = entry("ai-tools/claude-code/02-3-first-launch", "別コースの記事", undefined, {
+      subcategory: "claude-code",
+    });
+    const target = entry("ai-tools/claude-code-curriculum/03-1-x", "3-1", ["02-3-first-launch"]);
+
+    const result = resolvePrerequisites([other, target], target);
+
+    expect(result).toEqual([]);
+  });
+
+  it("異常系: draft の記事を前提レッスンとして返さないこと", () => {
+    const hidden = entry("ai-tools/claude-code-curriculum/02-3-first-launch", "下書き", undefined, {
+      draft: true,
+    });
+    const target = entry("ai-tools/claude-code-curriculum/03-1-y", "3-1", ["02-3-first-launch"]);
+
+    expect(resolvePrerequisites([hidden, target], target)).toEqual([]);
   });
 });
