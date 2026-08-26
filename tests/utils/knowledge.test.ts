@@ -13,6 +13,7 @@ import {
   getCategoryArticleCount,
   getRecentlyUpdatedArticles,
   getRelatedArticles,
+  groupArticlesByTier,
   matchesTagQuery,
   toKnowledgeArticle,
 } from "@/utils/knowledge";
@@ -847,5 +848,64 @@ describe("matchesTagQuery", () => {
 
   it("異常系: 一致しない検索語のとき、false を返すこと", () => {
     expect(matchesTagQuery("Claude Code", "gemini")).toBe(false);
+  });
+});
+
+describe("groupArticlesByTier", () => {
+  const tiers = [
+    { order: 1, label: "第1章", sortOrderStart: 10 },
+    { order: 2, label: "第2章", sortOrderStart: 20 },
+    { order: 3, label: "第3章", sortOrderStart: 30 },
+  ];
+
+  const article = (sortOrder: number) => ({ sortOrder });
+
+  it("正常系: sortOrder の範囲に従って tier へ振り分けること", () => {
+    const groups = groupArticlesByTier(
+      [article(10), article(11), article(20), article(30), article(102)],
+      tiers,
+    );
+
+    expect(groups).toHaveLength(3);
+    expect(groups[0].tier?.label).toBe("第1章");
+    expect(groups[0].articles.map((a) => a.sortOrder)).toEqual([10, 11]);
+    expect(groups[1].articles.map((a) => a.sortOrder)).toEqual([20]);
+    // 最後の tier は sortOrderStart 以上をすべて含む
+    expect(groups[2].articles.map((a) => a.sortOrder)).toEqual([30, 102]);
+  });
+
+  it("正常系: tier 定義が空のとき、単一グループとして返すこと", () => {
+    const groups = groupArticlesByTier([article(0), article(5)], []);
+
+    expect(groups).toHaveLength(1);
+    expect(groups[0].tier).toBeNull();
+    expect(groups[0].articles).toHaveLength(2);
+  });
+
+  it("正常系: 最初の tier より小さい sortOrder は先頭の null グループへ入ること", () => {
+    const groups = groupArticlesByTier([article(0), article(10)], tiers);
+
+    expect(groups[0].tier).toBeNull();
+    expect(groups[0].articles.map((a) => a.sortOrder)).toEqual([0]);
+    expect(groups[1].tier?.label).toBe("第1章");
+  });
+
+  it("正常系: 記事が存在しない tier も空配列のグループとして返すこと", () => {
+    // 表示側で空グループを落とせるよう、tier 定義の構造をそのまま保つ仕様
+    const groups = groupArticlesByTier([article(10), article(30)], tiers);
+
+    expect(groups.map((g) => g.tier?.label)).toEqual(["第1章", "第2章", "第3章"]);
+    expect(groups[1].articles).toEqual([]);
+  });
+
+  it("正常系: tier 定義が sortOrderStart 昇順でなくても正しく区切ること", () => {
+    const unsorted = [
+      { order: 3, label: "第3章", sortOrderStart: 30 },
+      { order: 1, label: "第1章", sortOrderStart: 10 },
+      { order: 2, label: "第2章", sortOrderStart: 20 },
+    ];
+    const groups = groupArticlesByTier([article(10), article(20), article(30)], unsorted);
+
+    expect(groups.map((g) => g.tier?.label)).toEqual(["第1章", "第2章", "第3章"]);
   });
 });

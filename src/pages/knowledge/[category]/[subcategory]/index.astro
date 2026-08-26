@@ -1,39 +1,50 @@
 ---
 import type { GetStaticPaths, InferGetStaticPropsType } from "astro";
 import { getCollection } from "astro:content";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+import Breadcrumb from "@/components/knowledge/Breadcrumb.astro";
 import { categories, subcategories } from "@/data/knowledge";
+import { getTiersFor } from "@/data/knowledgeTiers";
 import {
   getPublishedArticles,
   getArticlesByCategoryAndSubcategory,
+  groupArticlesByTier,
+  toKnowledgeArticle,
 } from "@/utils/knowledge";
-import type { KnowledgeCategory } from "@/types";
+import type { CategoryMeta, SubcategoryMeta } from "@/types";
 
 export const getStaticPaths = (async () => {
   const allEntries = await getCollection("knowledge");
   const published = getPublishedArticles(allEntries);
-  const validCategories = new Set(categories.map((c) => c.slug));
 
-  const paths: {
-    params: { category: KnowledgeCategory; subcategory: string };
-    props: { target: string };
-  }[] = [];
+  const paths = [];
 
   for (const cat of categories) {
-    if (!validCategories.has(cat.slug)) continue;
     const subs = subcategories[cat.slug] ?? [];
     for (const sub of subs) {
-      const articles = getArticlesByCategoryAndSubcategory(
+      const entries = getArticlesByCategoryAndSubcategory(
         published,
         cat.slug,
         sub.slug,
       );
-      if (articles.length === 0) continue;
-      const first = articles[0];
-      const firstSlug = first.id.split("/").pop() as string;
+      if (entries.length === 0) continue;
+
+      const articles = entries.map(toKnowledgeArticle);
+      const tiers = getTiersFor(cat.slug, sub.slug);
+      // 記事のない tier はヘッダーだけが並ぶことになるため落とす
+      const groups = (
+        tiers ? groupArticlesByTier(articles, tiers) : [{ tier: null, articles }]
+      ).filter((group) => group.articles.length > 0);
+
       paths.push({
         params: { category: cat.slug, subcategory: sub.slug },
         props: {
-          target: `/knowledge/${cat.slug}/${sub.slug}/${firstSlug}`,
+          category: cat,
+          subcategory: sub,
+          groups,
+          total: articles.length,
+          firstHref: articles[0]?.href ?? null,
         },
       });
     }
@@ -42,25 +53,85 @@ export const getStaticPaths = (async () => {
 }) satisfies GetStaticPaths;
 
 type Props = InferGetStaticPropsType<typeof getStaticPaths>;
-const { target } = Astro.props as Props;
+const { category, subcategory, groups, total, firstHref } = Astro.props as Props & {
+  category: CategoryMeta;
+  subcategory: SubcategoryMeta;
+};
 ---
 
-<!doctype html>
-<html lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="robots" content="noindex" />
-    <meta http-equiv="refresh" content={`0; url=${target}`} />
-    <link rel="canonical" href={target} />
-    <title>Redirecting…</title>
-    <script is:inline define:vars={{ target }}>
-      window.location.replace(target);
-    </script>
-  </head>
-  <body>
-    <p>
-      ページを移動しています…
-      <a href={target}>クリックしない場合はこちら</a>
-    </p>
-  </body>
-</html>
+<BaseLayout
+  title={`${subcategory.label} | ${category.label} | Knowledge Base | shogoworks`}
+  description={subcategory.description}
+>
+  <section class="py-20 px-4">
+    <div class="max-w-3xl mx-auto">
+      <Breadcrumb
+        items={[
+          { label: "Knowledge Base", href: "/knowledge" },
+          { label: category.label, href: `/knowledge/${category.slug}` },
+          { label: subcategory.label },
+        ]}
+      />
+
+      <SectionHeader
+        title={subcategory.label}
+        subtitle={subcategory.description}
+      />
+
+      <div class="flex items-center gap-4 flex-wrap mb-12">
+        {
+          firstHref && (
+            <a
+              href={firstHref}
+              class="inline-flex items-center gap-2 px-4 py-2 rounded bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              最初から読む
+              <span aria-hidden="true">→</span>
+            </a>
+          )
+        }
+        <span class="text-sm text-muted-foreground tabular-nums">
+          全 {total} 記事
+        </span>
+      </div>
+
+      <nav aria-label={`${subcategory.label} の記事一覧`} class="flex flex-col gap-10">
+        {
+          groups.map((group) => (
+            <section>
+              {group.tier && (
+                <header class="pb-2 mb-2 border-b border-border">
+                  <h2 class="font-semibold text-foreground">
+                    {group.tier.label}
+                  </h2>
+                  {group.tier.description && (
+                    <p class="mt-1 text-sm text-muted-foreground">
+                      {group.tier.description}
+                    </p>
+                  )}
+                </header>
+              )}
+              <ol class="flex flex-col divide-y divide-border">
+                {group.articles.map((article) => (
+                  <li>
+                    <a
+                      href={article.href}
+                      class="block py-3 hover:bg-secondary/30 transition-colors"
+                    >
+                      <span class="block font-medium text-foreground">
+                        {article.title}
+                      </span>
+                      <span class="block mt-1 text-sm text-muted-foreground line-clamp-2">
+                        {article.description}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))
+        }
+      </nav>
+    </div>
+  </section>
+</BaseLayout>
