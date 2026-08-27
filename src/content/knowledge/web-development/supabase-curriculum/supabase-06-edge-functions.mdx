@@ -1,0 +1,268 @@
+---
+title: "6 サーバー側の処理｜Edge Functions を使う場面と使わない場面"
+description: "Data API と RLS で足りる処理と、サーバー側でしか書けない処理を切り分けます。通知メールの送信を題材に Edge Functions を作り、シークレットの置き場所と実行時の制限を確認します。"
+category: "web-development"
+subcategory: "supabase-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 45
+prerequisites: ["supabase-05-storage"]
+tags: ["Supabase", "カリキュラム", "Edge Functions", "API"]
+sortOrder: 60
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+ここまで、サーバー側のコードを1行も書かずに機能を作ってきました。この章では**書く必要があるのはどこか**を見極めます。
+
+- Edge Functions を**使わなくてよい処理**が判断できる
+- **使わなければならない処理**が判断できる
+- 関数を作って動かせる
+- シークレットの置き場所がわかる
+- 実行時の制限がわかる
+
+手順は 2026-08 時点のものです。
+
+## まず、使わなくてよい場面を確認する
+
+Edge Functions は「サーバーレス関数」です。ほかのプラットフォームで API を書いてきた人ほど、**書かなくていいものまで書いてしまいがち**です。
+
+次のような処理は、Edge Functions を使わずに済みます。
+
+| やりたいこと | 使うもの |
+|---|---|
+| 問い合わせを保存する | Data API + RLS（第3章） |
+| 自分の問い合わせ一覧を取る | Data API + RLS |
+| 対応済みフラグを更新する | Data API + RLS |
+| 添付ファイルを保存・取得する | Storage + ポリシー（第5章） |
+| 複数テーブルにまたがる集計 | Postgres のビュー（`security_invoker = true` を付ける） |
+| 複数の更新をまとめて行う | Postgres の関数を作り、クライアントから `rpc()` で呼ぶ |
+
+**最後の2つを知らないと、Edge Functions を書きすぎます。**
+
+Postgres の関数はデータベースの中で完結するので、ネットワークの往復が1回で済みます。たとえば「問い合わせを対応済みにして、同時に対応履歴を1行足す」なら、関数にまとめて `supabase.rpc("mark_handled", { inquiry_id })` と呼ぶ方が、Edge Functions を挟むより速くて壊れにくくなります。
+
+**判断の順番はこうです。**
+
+1. Data API + RLS で書けるか
+2. 書けないなら、Postgres の関数（RPC）で書けるか
+3. それでも書けないなら、Edge Functions
+
+## 使わなければならない場面
+
+Edge Functions が要るのは、**ブラウザに置けないものを扱うとき**です。
+
+| 場面 | なぜクライアントでは無理か |
+|---|---|
+| **外部サービスの API キーを使う** | メール送信サービスの API キーをブラウザに置いたら、誰でも使えてしまう |
+| **secret key を使う操作** | RLS をバイパスするキーなので、ブラウザに置けない |
+| **外部からの Webhook を受ける** | 受け口の URL が必要で、ブラウザは受け側になれない |
+| **クライアントに見せたくないロジック** | 判定の条件そのものが機密の場合 |
+
+本コースの題材で言えば、**問い合わせが届いたときに運営者へ通知メールを送る**処理がこれに当たります。メール送信サービスの API キーが必要だからです。
+
+## 関数を作る
+
+```bash
+npx supabase functions new notify-inquiry
+```
+
+`supabase/functions/notify-inquiry/index.ts` が作られます。
+
+2026-08 時点で公式のクイックスタートが示している雛形は、次の形です。
+
+```ts
+export default {
+  fetch: withSupabase({ auth: ['publishable', 'secret'] }, async (req, ctx) => {
+    const { name } = await req.json()
+    return Response.json({
+      message: `Hello ${name}!`,
+    })
+  }),
+}
+```
+
+> **既存の記事やサンプルとの違いに注意してください。**以前は `Deno.serve(...)` や `serve(...)` で書く形が広く使われていましたが、現在のクイックスタートはこの形を示しています。なお `withSupabase` のインポート元はクイックスタートのページ上では確認できていないので、**`supabase functions new` が生成した雛形のインポート記述をそのまま使ってください。**
+
+`functions new` には認証の既定を選ぶ `--auth`（`none` / `apikey` / `user`）が用意されています。
+
+### ローカルで動かす
+
+```bash
+npx supabase functions serve notify-inquiry
+```
+
+別のターミナルから叩きます。
+
+```bash
+curl -i --location --request POST 'http://127.0.0.1:54321/functions/v1/notify-inquiry' \
+  --header 'apiKey: <publishable key>' \
+  --data '{"name":"Functions"}'
+```
+
+### デプロイする
+
+```bash
+npx supabase functions deploy notify-inquiry
+```
+
+関数名を省略すると、すべての関数がデプロイされます。`--prune` を付けると、手元に無い関数をリモートから削除します。
+
+`--no-verify-jwt` は **JWT の検証を無効にする**フラグで、`deploy` と `serve` の両方にあります。**外部サービスからの Webhook を受ける関数**では必要になりますが、それ以外では付けないでください。付けた瞬間、その URL は誰でも叩ける状態になります。
+
+> `--no-verify-jwt` を使う場合は、**関数の中で別の検証を必ず行ってください。**送信元が付けてくる署名ヘッダの検証が典型です。「認証を外したまま何もしない」は、一番よくある事故です。
+
+## シークレットの置き場所
+
+外部サービスの API キーは、**コードにもリポジトリにも書きません。**
+
+```bash
+npx supabase secrets set RESEND_API_KEY=<キーの値>
+```
+
+複数まとめて登録することもできます。`--env-file` に、環境変数を並べたファイルのパスを渡します。
+
+```bash
+npx supabase secrets set --env-file ./supabase/functions/<環境変数ファイル>
+```
+
+登録した値は再デプロイなしで反映されます。一覧は `npx supabase secrets list` で確認できます。ローカル実行では `supabase/functions/` 配下の環境変数ファイルが自動で読み込まれます。**このファイルは必ず Git の管理対象から外してください。**
+
+関数の中では環境変数として読みます。
+
+```ts
+const apiKey = Deno.env.get("RESEND_API_KEY");
+if (!apiKey) {
+  throw new Error("RESEND_API_KEY が設定されていません");
+}
+```
+
+**キーが無いときに黙って処理を続けないでください。**通知が飛ばないまま「成功」を返すと、問い合わせが来ていることに誰も気づけません。
+
+### 既定で入っている環境変数
+
+関数には Supabase が用意する環境変数が最初から入っています。
+
+| 変数 | 内容 |
+|---|---|
+| `SUPABASE_URL` | プロジェクトの URL |
+| `SUPABASE_DB_URL` | データベースへの接続文字列 |
+| `SUPABASE_PUBLISHABLE_KEYS` | publishable key |
+| `SUPABASE_SECRET_KEYS` | secret key |
+| `SUPABASE_JWKS` | JWT の検証に使う鍵 |
+
+`SUPABASE_ANON_KEY` と `SUPABASE_SERVICE_ROLE_KEY` も入りますが、**公式ドキュメントでは legacy として記載されています。**新しく書くコードでは新しい方の名前を使ってください。
+
+### secret key を使うときの注意
+
+関数の中では secret key が使えます。**RLS を完全にバイパスするので、使う理由がある場面だけにしてください。**
+
+たとえば「問い合わせが来たら管理者へ通知する」処理は、通知の材料としてその行を読む必要があります。関数は特定のユーザーとして動いていないので、RLS 越しには読めません。ここは secret key を使う正当な場面です。
+
+一方で、**クライアントから渡された ID の行をそのまま secret key で読んで返す**関数を書くと、RLS をすり抜ける穴を自分で作ることになります。**関数の中は「RLS が効いていない世界」だと意識してください。**
+
+## 実行時の制限
+
+Edge Functions には明確な上限があります。
+
+| 項目 | 値 |
+|---|---|
+| メモリ | **256MB** |
+| CPU 時間 | **2秒**（非同期 I/O の待ち時間は含まない） |
+| 実行時間（Free プラン） | **150秒** |
+| 実行時間（有料プラン） | **400秒** |
+| リクエストのアイドルタイムアウト | 150秒（超えると 504） |
+
+**CPU 時間の2秒**が実務で効いてきます。これは実際に計算していた時間で、外部 API の応答を待っている時間は含まれません。つまり「メールを送って結果を待つ」ような処理は問題になりませんが、**大きな画像の変換や、大量データの整形は途中で止まります。**
+
+メモリ 256MB も、ファイルをまるごとメモリに読み込む処理では足りなくなります。**第5章で扱ったファイルを関数で加工する、といった処理を考えるときは、この2つを先に確認してください。**
+
+Free プランには Edge Functions の呼び出しが月50万回まで含まれます。
+
+> 実行環境の Deno のバージョンは、公式ドキュメント本文では明記されているのを確認できていません。特定のバージョンに依存する書き方をする場合は、実行環境で確かめてください。
+
+## 呼び出し方
+
+クライアントからは `invoke` で呼びます。
+
+```ts
+const { data, error } = await supabase.functions.invoke("notify-inquiry", {
+  body: { inquiryId },
+});
+
+if (error) {
+  // 通知の失敗で問い合わせの保存まで巻き戻さない
+  console.error("通知の送信に失敗しました", error);
+}
+```
+
+**エラーの扱いを分けているのが要点です。**問い合わせの保存は成功しているので、通知が飛ばなかったことを理由に利用者へエラーを見せる必要はありません。ただし**運営側は気づく必要がある**ので、ログには残します。
+
+「保存できなかった」と「通知できなかった」は、利用者にとっての意味がまったく違います。ここを一緒くたにすると、送信できているのに何度も送り直させることになります。
+
+## やってみよう
+
+1. **書かなくていいものを確認する**：ここまでに作った機能のうち、Edge Functions が要るものが1つも無いことを確認します
+2. **関数を作る**：`npx supabase functions new notify-inquiry` を実行し、生成された雛形を読みます
+3. **ローカルで叩く**：`functions serve` を起動し、`curl` で応答が返ることを確認します
+4. **シークレットを登録する**：メール送信サービスのキーを `supabase secrets set` で登録し、`secrets list` に出ることを確認します
+5. **キーが無い場合の挙動を作る**：環境変数が未設定のときに明確なエラーになることを確認します
+6. **デプロイする**：`functions deploy` を実行し、本番の URL から叩けることを確認します
+7. **CPU 時間の壁を見る**：あえて重いループを書いて、2秒の CPU 時間で止まることを確認します
+
+7番は本番にデプロイせず、ローカルか使い捨ての関数で試してください。**上限を体感しておくと、設計段階で「これは関数に置けない」と判断できるようになります。**
+
+## まとめ
+
+- **判断の順番は Data API + RLS → Postgres の関数（RPC）→ Edge Functions**
+- ビューと RPC を知っていると、Edge Functions を書きすぎずに済む
+- Edge Functions が要るのは**ブラウザに置けないもの**を扱うとき。外部 API キー、secret key、Webhook の受け口
+- シークレットは `supabase secrets set` に置く。コードにもリポジトリにも書かない
+- 既定の環境変数は `SUPABASE_PUBLISHABLE_KEYS` / `SUPABASE_SECRET_KEYS` が現行の名前。`SUPABASE_ANON_KEY` などは legacy 表記
+- **関数の中は RLS が効いていない世界。**secret key を使うなら、絞り込みを自分で書く
+- `--no-verify-jwt` は Webhook 受信用。付けたら別の検証を必ず入れる
+- 制限は**メモリ 256MB / CPU 時間2秒 / 実行時間 Free 150秒・有料 400秒**
+- 「保存の失敗」と「通知の失敗」を同じエラーとして扱わない
+
+## 理解度チェック
+
+**Q1. 「対応済みフラグを更新し、同時に対応履歴を1行追加する」処理を作ります。最初に検討すべきはどれでしょう？**
+
+1. Edge Functions を作り、secret key で両方を更新する
+2. Postgres の関数を作り、クライアントから `rpc()` で呼ぶ
+3. クライアントから2回に分けて更新する
+4. ビューを作る
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+データベースの中で完結する処理なので、Postgres の関数にまとめるのが素直です。ネットワークの往復が1回で済み、途中で片方だけ成功する状態も避けられます。選択肢3は片方だけ成功する余地が残り、選択肢1は RLS をバイパスするキーを使う必要のない場面で使うことになります。ビューは読み取り専用なので更新には使えません。
+
+</details>
+
+**Q2. Edge Functions の CPU 時間の上限は2秒です。次のうち、この制限に引っかかりやすいのはどれでしょう？**
+
+1. 外部のメール送信 API を呼んで、応答を5秒待つ
+2. アップロードされた画像をリサイズする
+3. データベースから10行を読んで JSON にして返す
+4. Webhook のリクエストボディを検証する
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+CPU 時間は実際に計算していた時間で、非同期 I/O の待ち時間は含まれません。外部 API の応答待ちは CPU を使っていないので、5秒待っても CPU 時間としてはほぼ消費しません。一方、画像のリサイズは計算そのものなので CPU 時間を消費し、メモリ 256MB の制限にも近づきます。
+
+</details>
+
+## 参考リンク
+
+- [Edge Functions Quickstart（Supabase 公式）](https://supabase.com/docs/guides/functions/quickstart) — 現行の雛形と CLI コマンド
+- [Edge Functions Limits（Supabase 公式）](https://supabase.com/docs/guides/functions/limits) — メモリ・CPU 時間・実行時間の上限
+- [Edge Functions Secrets（Supabase 公式）](https://supabase.com/docs/guides/functions/secrets) — シークレットの登録と既定の環境変数
+- [supabase functions deploy（CLI リファレンス）](https://supabase.com/docs/reference/cli/supabase-functions-deploy) — `--no-verify-jwt` と `--prune`
