@@ -133,27 +133,27 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
   "ai-tools/claude-code": [
     {
       order: 1,
-      label: "Getting Started",
+      label: "はじめに",
       description: "Claude Code の全体像をまず押さえる",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Extend & Build",
-      description: "Hooks / Skills / Subagents / MCP / Memory / Agent SDK で拡張する",
+      label: "導入と日常運用",
+      description: "インストール・初期設定から、日々の操作とコマンドまで",
       sortOrderStart: 1,
     },
     {
       order: 3,
-      label: "Workflows & Modes",
-      description: "Plan Mode / Routines / Auto Mode・他ツールとの比較",
-      sortOrderStart: 8,
+      label: "作業の進め方",
+      description: "Plan Mode・Auto Mode などの実行モードと、他ツールとの使い分け",
+      sortOrderStart: 6,
     },
     {
       order: 4,
-      label: "Install & Operations",
-      description: "セットアップ・日常運用・カスタムコマンド・Web/Headless",
-      sortOrderStart: 14,
+      label: "拡張とカスタマイズ",
+      description: "Hooks / Skills / サブエージェント / MCP / メモリ / Agent SDK で拡張する",
+      sortOrderStart: 12,
     },
   ],
   /**
