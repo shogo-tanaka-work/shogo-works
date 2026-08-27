@@ -158,8 +158,8 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     },
   ],
   /**
-   * Claude Code カリキュラムの tier 構成（全10章・各章3レッスン）。
-   * sortOrder は「章番号 × 10 + レッスン連番」で振る（第1章 = 10,11,12 … 第10章 = 100,101,102）。
+   * Claude Code カリキュラムの tier 構成（全11章）。第2章のみ CLI / GUI 分岐で6レッスン。
+   * sortOrder は「章番号 × 10 + レッスン連番」で振る（第1章 = 10,11,12 … 第11章 = 110,111,112）。
    */
   "ai-tools/claude-code-curriculum": [
     {
@@ -195,33 +195,40 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     },
     {
       order: 6,
-      label: "第6章 Webアプリ",
-      description: "LP・社内ツールを作って公開するまで",
+      label: "第6章 作業を仕組みにする",
+      description:
+        "よく使う指示を保存し、事故を自動で防ぐ。Skills と Hooks を非エンジニア向けに",
       sortOrderStart: 60,
     },
     {
       order: 7,
-      label: "第7章 データ分析",
-      description: "競合調査・ダッシュボード・大量CSV処理",
+      label: "第7章 Webアプリ",
+      description: "LP・社内ツールを作って公開するまで",
       sortOrderStart: 70,
     },
     {
       order: 8,
-      label: "第8章 MCP連携",
-      description: "Notion / Google Drive / GitHub / Slack と接続する",
+      label: "第8章 データ分析",
+      description: "競合調査・ダッシュボード・大量CSV処理",
       sortOrderStart: 80,
     },
     {
       order: 9,
-      label: "第9章 コスト管理",
-      description: "料金の仕組み・トークン節約・予算設計",
+      label: "第9章 MCP連携",
+      description: "Notion / Google Drive / GitHub / Slack と接続する",
       sortOrderStart: 90,
     },
     {
       order: 10,
-      label: "第10章 組織導入",
-      description: "チーム導入戦略・協業・セキュリティ",
+      label: "第10章 コスト管理",
+      description: "料金の仕組み・トークン節約・予算設計",
       sortOrderStart: 100,
+    },
+    {
+      order: 11,
+      label: "第11章 組織導入",
+      description: "チーム導入戦略・協業・セキュリティ",
+      sortOrderStart: 110,
     },
   ],
   /**

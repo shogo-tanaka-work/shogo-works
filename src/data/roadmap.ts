@@ -188,23 +188,23 @@ export const roadmapPaths: RoadmapPath[] = [
         note: "第5章。CLAUDE.md で「毎回同じ説明」から卒業する。",
       },
       {
-        ref: "ai-tools/claude-code-curriculum/06-1-landing-page",
+        ref: "ai-tools/claude-code-curriculum/07-1-landing-page",
         note: "第6章。LP・社内ツールを作って公開まで体験する。",
       },
       {
-        ref: "ai-tools/claude-code-curriculum/07-1-competitor-research",
+        ref: "ai-tools/claude-code-curriculum/08-1-competitor-research",
         note: "第7章。調査・ダッシュボード・大量データ処理へ応用する。",
       },
       {
-        ref: "ai-tools/claude-code-curriculum/08-1-what-is-mcp",
+        ref: "ai-tools/claude-code-curriculum/09-1-what-is-mcp",
         note: "第8章。MCP で Notion / Drive / GitHub / Slack とつなぐ。",
       },
       {
-        ref: "ai-tools/claude-code-curriculum/09-1-token-billing",
+        ref: "ai-tools/claude-code-curriculum/10-1-token-billing",
         note: "第9章。料金の仕組みを理解してコストを設計する。",
       },
       {
-        ref: "ai-tools/claude-code-curriculum/10-1-team-adoption",
+        ref: "ai-tools/claude-code-curriculum/11-1-team-adoption",
         note: "第10章。個人の武器からチームの仕組みへ広げる。",
       },
     ],
