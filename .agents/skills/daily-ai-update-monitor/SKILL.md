@@ -24,7 +24,7 @@ user-invocable: false
 
 2. `references/source-catalog.md` の **`## 日次巡回ソース`** を確認します。
    - 公式ソースだけを使います。
-   - **`## 週次確認ソース`（GitHub Copilot / Microsoft Copilot / n8n / Cursor / xAI / Grok / Manus / Dify）は日次では確認しません。** ユーザーから週次確認の依頼があったとき、または他ソースから関連する言及を見つけたときだけ確認します。確認していないものを「更新なし」として記録しません。
+   - **`## 週次確認ソース`（GitHub Copilot / Microsoft Copilot / n8n / Cursor / xAI / Grok / Manus / Dify）は日次では確認しません。** これらは `weekly-ai-news-rollup` Skill が週1回まとめて巡回します。日次では、他ソースから関連する言及を見つけたときだけ確認します。確認していないものを「更新なし」として記録しません。
    - **`## 巡回対象から外したソース`（Genspark / ByteDance Seed / Meta AI / Pika / Runway）は確認しません。** 前4者は `aiNews.tool` enum に無く記事化できないため、Runway は運用側で追う必要がなくなったためです。再開の条件はカタログ側に書いてあります。
    - GitHub Releasesは、可能ならAPIのpaginationを使います: `gh api -X GET 'repos/<owner>/<repo>/releases?per_page=100' --paginate`
    - WebページでGitHub Releasesを見る場合は、`?page=2` などのページネーションも明示的に確認します。1ページ目だけで完了扱いにしません。
@@ -69,11 +69,12 @@ user-invocable: false
 - **Claude は `support.claude.com` と `anthropic.com/news` だけで完了扱いにしない**。Claude Platform / Claude API / AWS・Bedrock・Vertex・Foundry 連携 / Console / Managed Agents / Skills / MCP connector など開発者向け発表は `claude.com/blog` やクラウドプロバイダー公式（特に AWS What's New / AWS Machine Learning Blog）に出ることがあります。`Claude Platform on AWS`、`Claude API AWS generally available`、`site:aws.amazon.com Anthropic Claude` のような逆引きを必ず行います。
 - **Claude Code は GitHub Releases本文の What's changed を読む**。`claude agents` / agent view / `/goal` / hooks / plugin / MCP など複数機能が1リリースにまとまるため、タグ名や日付だけで「更新あり」と済ませず、主要機能を抽出して記事化候補を判断します。
 - **Workspace Updates Blog は週次Recap だけで完了扱いにしない**。個別ポスト URL（`workspaceupdates.googleblog.com/2026/MM/<slug>.html`）の方が情報が詳細で日付もはっきりするため、個別ポストを必ず確認します。多言語対応・地域ロールアウト・GA切替などは個別ポスト側の参照が前提です。
-- **GitHub Copilot / Microsoft Copilot / n8n / Cursor / xAI / Grok / Manus / Dify は週次確認ソース**で、日次巡回では見ません。週次確認の依頼を受けたときだけ、`source-catalog.md` の `## 週次確認ソース` に従って確認します。**GitHub Copilot は週次確認時に廃止・EOL 告知を最初に拾い、発効日・退役日が明記されているものは期限までの残日数を日次サマリーに書きます。**
+- **GitHub Copilot / Microsoft Copilot / n8n / Cursor / xAI / Grok / Manus / Dify は週次確認ソース**で、日次巡回では見ません。これらの巡回は `weekly-ai-news-rollup` Skill の担当です（出力先は `docs/research/weekly-ai-updates/YYYY-MM-DD.md`）。日次側から巡回しません。
 - **Cloudflare は対象範囲を先に絞ってから読む**。`developers.cloudflare.com/changelog/` は全製品横断のため、WAF / DNS / Magic Transit / Registrar / Stream など本Skillの対象外製品が大量に混ざります。「AI / エージェント / MCP / 開発者プラットフォームに関わるか」で判定し、Workers AI、AI Gateway、AI Search、Agents SDK、Vectorize、Workers、Durable Objects、Containers、Browser Rendering、Sandbox を中心に拾います。ネットワーク・セキュリティ製品でも MCP や AI が絡む更新は対象にします。日付は RSS（`changelog/rss/index.xml` および製品別 `changelog/rss/<product>.xml`）が最も安定します。大型発表は changelog に1〜2行しか出ず `blog.cloudflare.com` 側に詳細があるため、記事化判断の前に blog を確認します。Cloudflare Status の Workers 系 incident は `category: incident`、データセンターのメンテナンス告知は対象外です。
 - **二次ソース → 一次ソース逆引き**: 二次ソース（Bloomberg / 9to5系 / Help Net Security 等、`source-catalog.md` 末尾の許可リスト参照）で更新を見つけたら、必ず公式 URL を特定してから記録します。公式が確認できない場合は `status: 保留（公式未確認）` で日次サマリーに残し、二次ソース URL も併記します。
 - **ユーザー認識ギャップの記録**: リサーチ依頼や PR レビューで「○○ができるようになったらしい」とユーザーが言及したが、公式上は事実が違う / 逆方向 / サードパーティ製のみ、というケースは `references/perception-gaps.md` にエントリ追加で蓄積します。同じ誤認が繰り返されないよう、日次サマリー末尾「補足メモ」に該当があれば必ず転記します。
 - 調査からAIニュース記事へ進む場合は、`src/content/ai-news/` だけでなく `src/content/ai-news-notes/` と日次サマリーの記録も完了条件に含めます。
+- **Claude Code と Codex の通常パッチは、詳細ファイルを作ったうえで記事化しません。** 破壊的変更・権限・セキュリティ・料金・操作フローの変更に当たるものだけを記事化候補に上げ、それ以外は日次サマリーの「公開記事化結果」へ `見送り（週次ロールアップへ）` と残します。週1回 `weekly-ai-news-rollup` がまとめます。判定条件は `ai-news-publisher/references/selection-rubric.md` の「日次リリース型ツールの扱い」にあります。
 - `.env`、認証情報、秘密鍵、秘密情報ファイルは読みません。
 - 自動コミットはしません。
 
@@ -112,7 +113,7 @@ Cloudflare の詳細ファイルには必ず次を入れます。
 
 ## n8nとGitHub Releases
 
-**n8n は週次確認ソースです。日次巡回では確認しません。**
+**n8n は週次確認ソースです。日次巡回では確認しません。以下は `weekly-ai-news-rollup` から参照される規約です。**
 
 週次確認を行う場合、n8nはstable、beta/pre-release、experimental、1.x backportが並行して出ます。必ずpagination込みで `n8n@*` releaseを取得してから、対象期間でfilterします。**`stable` / `beta` は moving tag** なので、タグの `published_at` ではなくタグが指す実バージョンと channel を確認します。n8nの詳細ファイルには必ず次を入れます。
 
