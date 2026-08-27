@@ -133,9 +133,9 @@ const jsonLd = JSON.stringify({
     <div class="max-w-[1600px] mx-auto">
       <Breadcrumb items={breadcrumbItems} />
 
-      <div class="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)_15rem] lg:gap-10 lg:items-start">
+      <div class="lg:grid lg:grid-cols-[17rem_minmax(0,1fr)_15rem] lg:gap-8 lg:items-start">
         <aside
-          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:border-r lg:border-border lg:pr-6"
+          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:bg-secondary lg:px-5 lg:py-6"
           aria-label="記事一覧"
         >
           <ArticleSidebar
@@ -246,7 +246,7 @@ const jsonLd = JSON.stringify({
         </div>
 
         <aside
-          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:border-l lg:border-border lg:pl-6"
+          class="hidden lg:block lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:bg-secondary lg:px-5 lg:py-6"
         >
           <ArticleToc headings={headings} />
         </aside>
