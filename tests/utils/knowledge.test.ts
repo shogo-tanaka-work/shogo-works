@@ -452,7 +452,7 @@ describe("getSubcategories", () => {
     expect(result.length).toBeGreaterThanOrEqual(1);
     const claudeCode = result.find((s) => s.slug === "claude-code");
     expect(claudeCode).toBeDefined();
-    expect(claudeCode?.label).toBe("Claude Code");
+    expect(claudeCode?.label).toBe("Claude Code リファレンス");
   });
 
   it("正常系: サブカテゴリ未登録カテゴリのとき、空配列を返すこと", () => {
@@ -506,7 +506,7 @@ describe("getAllSubcategoryNavOptions", () => {
       (o) => o.category === "ai-tools" && o.subcategorySlug === "claude-code",
     );
     expect(claudeCode?.categoryLabel).toBe("AI Tools");
-    expect(claudeCode?.subcategoryLabel).toBe("Claude Code");
+    expect(claudeCode?.subcategoryLabel).toBe("Claude Code リファレンス");
   });
 });
 

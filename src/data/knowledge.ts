@@ -84,16 +84,16 @@ export const subcategories: Partial<
 > = {
   "ai-tools": [
     {
-      slug: "claude-code",
-      label: "Claude Code",
+      slug: "claude-code-curriculum",
+      label: "Claude Code 入門コース",
       description:
-        "Anthropic公式のエージェント型コーディングCLI。Skills / MCP / Hooks / Sub-agentsの活用",
+        "はじめての方はこちら。ゼロから Claude Code を業務で使いこなすための全10章・33レッスン。非エンジニア向けに、日本語で指示を出す形だけで進められる構成",
     },
     {
-      slug: "claude-code-curriculum",
-      label: "Claude Code カリキュラム",
+      slug: "claude-code",
+      label: "Claude Code リファレンス",
       description:
-        "ゼロから Claude Code を業務で使いこなすための全10章・30レッスンの学習コース。非エンジニアでも順番に読み進められる構成",
+        "入門コースを終えた方向け。設定ファイル・権限設計・Hooks / Skills / サブエージェント / MCP / Agent SDK を、必要なときに引くための解説",
     },
     {
       slug: "codex",
