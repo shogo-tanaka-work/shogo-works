@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "R2 Data Catalog", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 66
 ---
@@ -88,11 +89,11 @@ CloudflareのポジションはS3 Tables（AWS）に最も近いが、「エグ�
 ## 料金
 
 - **R2ストレージ**：標準R2の単価（$0.015/GB/月）＋Class A/B操作。エグレスは引き続き無料。
-- **R2 Data Catalog**：パブリックベータ中は追加課金なし。GA時にCatalog API call課金（メタデータ操作単位）が導入される予定。
+- **R2 Data Catalog**：**2026-05-28 に料金が確定し、2026-08-03 から非 Enterprise アカウントで課金が始まっている**（$9.00 / 100万オペレーション、compaction は $0.005/GB 処理。無料枠あり）。プロダクト自体は引き続き public beta。
 - **R2 SQL**：オープンベータ中は無料（R2のストレージ・操作費のみ）。GA前に最低30日の予告期間を経て、スキャン量ベースの従量課金に移行予定。
 - **Pipelines連携**：Pipelines自体の料金（取込量／処理時間）に従う。Iceberg書き出し自体に追加料金はかからない。
 
-「ベータ中はR2の標準コストだけで回る」のが現状最大のメリットであり、本番採用前にGA価格表の確認とクエリ量見積もりが必須である。
+**「ベータ中は R2 の標準コストだけで回る」という前提は Data Catalog については既に成立しない。**採用前に、オペレーション数と compaction 量の見積もりが必要になる。R2 SQL 側はまだ無料。
 
 ## CLI / API 例
 
