@@ -1,14 +1,14 @@
 ---
-title: "6-3 事故を仕組みで防ぐ｜権限設定と Hooks"
+title: "6-2 事故を仕組みで防ぐ｜権限設定と Hooks"
 description: "確認を減らしつつ安全を保つ方法。何を自動承認し何を必ず止めるかを権限設定で決め、Hooks で危険な操作を機械的にブロックします。非エンジニア向けに、注意力に頼らない安全設計を解説します。"
 category: "ai-tools"
 subcategory: "claude-code-curriculum"
 difficulty: "beginner"
 contentType: "course"
 estimatedMinutes: 45
-prerequisites: ["02-3-first-launch-checklist", "06-1-slash-commands"]
+prerequisites: ["02-3-first-launch-checklist", "06-1-skills"]
 tags: ["Claude Code", "カリキュラム", "Hooks", "権限設定", "セキュリティ"]
-sortOrder: 63
+sortOrder: 62
 createdAt: 2026-08-27
 author: "田中省伍"
 ---
@@ -169,9 +169,8 @@ Hooks を設定したいです。
 | 仕組み | 役割 |
 |---|---|
 | CLAUDE.md（5-1） | 前提を常に効かせる |
-| スラッシュコマンド（6-1） | 決まった手順を呼び出す |
-| Skills（6-2） | 判断基準を自動で適用する |
-| 権限設定・Hooks（6-3） | **事故を機械的に防ぐ** |
+| Skills（6-1） | 手順と判断基準を、呼び出しても自動でも使えるようにする |
+| 権限設定・Hooks（6-2） | **事故を機械的に防ぐ** |
 
 次章からは Web ページの公開や外部ツール連携に進みます。**扱う範囲が広がるほど、ここで作った安全装置が効いてきます。**
 
@@ -216,7 +215,7 @@ Hooks を設定したいです。
 1. 権限設定。操作の種類で判断できるから
 2. Hooks。操作の中身（対象ファイル名）を見て判断する必要があるから
 3. CLAUDE.md に「確定版は編集しないで」と書く
-4. スラッシュコマンドとして登録する
+4. Skills として登録する
 
 <details>
 <summary>答えを見る</summary>

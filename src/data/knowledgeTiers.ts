@@ -197,7 +197,7 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
       order: 6,
       label: "第6章 作業を仕組みにする",
       description:
-        "よく使う指示を保存し、事故を自動で防ぐ。Skills と Hooks を非エンジニア向けに",
+        "よく使う指示を Skills として保存し、Hooks と権限設定で事故を防ぐ",
       sortOrderStart: 60,
     },
     {

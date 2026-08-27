@@ -165,7 +165,7 @@ export const roadmapPaths: RoadmapPath[] = [
     id: "claude-code-zero-to-master",
     title: "Claude Code をゼロから業務で使いこなす（カリキュラム）",
     description:
-      "非エンジニアでも、インストールから業務自動化・チーム導入まで順番に身につく全10章・30レッスンの学習コースです。各章の入口となるレッスンを順に進めてください（章内の残り2レッスンはサイドバーから辿れます）。",
+      "非エンジニアでも、インストールから業務自動化・チーム導入まで順番に身につく全11章・35レッスンの学習コースです。各章の入口となるレッスンを順に進めてください（章内の残りのレッスンはサイドバーから辿れます）。",
     steps: [
       {
         ref: "ai-tools/claude-code-curriculum/01-1-what-is-claude-code",
@@ -173,7 +173,7 @@ export const roadmapPaths: RoadmapPath[] = [
       },
       {
         ref: "ai-tools/claude-code-curriculum/02-3-first-launch-checklist",
-        note: "第2章。インストール（2-1/2-2）を済ませて初回起動の確認まで。",
+        note: "第2章。使う環境を選び（2-0）、インストールを済ませて初回起動の確認まで。",
       },
       {
         ref: "ai-tools/claude-code-curriculum/03-1-first-prompts",
@@ -188,24 +188,28 @@ export const roadmapPaths: RoadmapPath[] = [
         note: "第5章。CLAUDE.md で「毎回同じ説明」から卒業する。",
       },
       {
+        ref: "ai-tools/claude-code-curriculum/06-1-skills",
+        note: "第6章。よく使う指示を Skills として保存し、事故を防ぐ設定を入れる。",
+      },
+      {
         ref: "ai-tools/claude-code-curriculum/07-1-landing-page",
-        note: "第6章。LP・社内ツールを作って公開まで体験する。",
+        note: "第7章。LP・社内ツールを作って公開まで体験する。",
       },
       {
         ref: "ai-tools/claude-code-curriculum/08-1-competitor-research",
-        note: "第7章。調査・ダッシュボード・大量データ処理へ応用する。",
+        note: "第8章。調査・ダッシュボード・大量データ処理へ応用する。",
       },
       {
         ref: "ai-tools/claude-code-curriculum/09-1-what-is-mcp",
-        note: "第8章。MCP で Notion / Drive / GitHub / Slack とつなぐ。",
+        note: "第9章。MCP で Notion / Drive / GitHub / Slack とつなぐ。",
       },
       {
         ref: "ai-tools/claude-code-curriculum/10-1-token-billing",
-        note: "第9章。料金の仕組みを理解してコストを設計する。",
+        note: "第10章。料金の仕組みを理解してコストを設計する。",
       },
       {
         ref: "ai-tools/claude-code-curriculum/11-1-team-adoption",
-        note: "第10章。個人の武器からチームの仕組みへ広げる。",
+        note: "第11章。個人の武器からチームの仕組みへ広げる。",
       },
     ],
   },

@@ -87,7 +87,7 @@ export const subcategories: Partial<
       slug: "claude-code-curriculum",
       label: "Claude Code 入門コース",
       description:
-        "はじめての方はこちら。ゼロから Claude Code を業務で使いこなすための全11章・36レッスン。非エンジニア向けに、日本語で指示を出す形だけで進められる構成",
+        "はじめての方はこちら。ゼロから Claude Code を業務で使いこなすための全11章・35レッスン。非エンジニア向けに、日本語で指示を出す形だけで進められる構成",
     },
     {
       slug: "claude-code",

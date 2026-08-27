@@ -10,10 +10,15 @@ const CURRICULUM_DIR = join(
 );
 const LESSONS_PER_CHAPTER = 3;
 /**
- * 第2章は CLI 版とデスクトップアプリ版に分岐するため、標準の3本に収まらない。
- * 2-0（環境の選び方）＋ CLI 3本 ＋ GUI 2本 の 6 本構成。
+ * 標準の3本に収まらない章。
+ * 第2章: CLI / GUI 分岐のため 2-0（環境の選び方）＋ CLI 3本 ＋ GUI 2本 の 6 本。
+ * 第6章: Skills と Hooks の 2 本。カスタムスラッシュコマンドは公式で Skills へ
+ *        統合されたため、独立したレッスンを置いていない。
  */
-const CHAPTER_LESSON_COUNTS = new Map<number, number>([[2, 6]]);
+const CHAPTER_LESSON_COUNTS = new Map<number, number>([
+  [2, 6],
+  [6, 2],
+]);
 const MAX_LESSON_INDEX = 9;
 const TOTAL_CHAPTERS = 11;
 
@@ -111,6 +116,16 @@ describe("Claude Code カリキュラム整合性", () => {
     expect(chapter2).toContain("02-3-first-launch-checklist.mdx");
     expect(chapter2).toContain("02-4-install-desktop-app.mdx");
     expect(chapter2).toContain("02-5-desktop-first-launch.mdx");
+  });
+
+  it("第6章がカスタムスラッシュコマンドの独立レッスンを持たないこと", () => {
+    // 公式ドキュメントでカスタムコマンドは Skills へ統合済み。
+    // 復活させる場合は、その根拠を確認してからこのテストを外すこと。
+    const files = lessons.map((lesson) => lesson.file);
+
+    expect(files).toContain("06-1-skills.mdx");
+    expect(files).toContain("06-2-hooks-and-permissions.mdx");
+    expect(files).not.toContain("06-1-slash-commands.mdx");
   });
 
   it("draft のレッスンが残っていないこと", () => {
