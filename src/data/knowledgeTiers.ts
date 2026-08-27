@@ -36,30 +36,31 @@ export type KnowledgeTierRegistry = Record<string, KnowledgeTier[]>;
  *
  * 当サイトでは Releases 相当はナレッジに置かないため除外し、Learn を best-practices と
  * Cookbook の 2 階層に分けて 14 tier 構成とする。
+ * ラベルは日本語話者向けに訳しているが、公式サイドバーとの対応は維持している。
  */
 export const knowledgeTiers: KnowledgeTierRegistry = {
   "ai-tools/codex": [
     {
       order: 1,
-      label: "Getting Started",
+      label: "はじめに",
       description: "Codex の全体像、料金、Claude Code との比較から始める入門編",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Concepts",
+      label: "基本概念",
       description: "プロンプト・ワークフロー・モデル・サンドボックス・サブエージェント・メモリの中核概念",
       sortOrderStart: 5,
     },
     {
       order: 3,
-      label: "App",
+      label: "アプリ版",
       description: "Codex App（Desktop / Web）と Chrome 拡張・Computer Use",
       sortOrderStart: 11,
     },
     {
       order: 4,
-      label: "IDE Extension",
+      label: "IDE 拡張",
       description: "VS Code / Cursor / Windsurf / JetBrains での使い方",
       sortOrderStart: 14,
     },
@@ -71,49 +72,49 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     },
     {
       order: 6,
-      label: "Web (Cloud)",
+      label: "Web 版（クラウド）",
       description: "ブラウザから動かす並列タスク環境",
       sortOrderStart: 18,
     },
     {
       order: 7,
-      label: "Integrations",
+      label: "外部サービス連携",
       description: "Slack / Linear などの外部サービス連携",
       sortOrderStart: 19,
     },
     {
       order: 8,
-      label: "Security",
+      label: "セキュリティ",
       description: "Codex Security と脅威モデル",
       sortOrderStart: 20,
     },
     {
       order: 9,
-      label: "Configuration",
+      label: "設定",
       description: "config.toml の Basics → Advanced → Reference → Sample、Speed / Rules / Hooks / AGENTS.md / MCP",
       sortOrderStart: 21,
     },
     {
       order: 10,
-      label: "Plugins & Skills",
+      label: "プラグインと Skills",
       description: "Plugins 概要 / 自作 / Marketplace / Agent Skills",
       sortOrderStart: 30,
     },
     {
       order: 11,
-      label: "Administration & Enterprise",
+      label: "管理と法人利用",
       description: "Workspace 管理者向けセットアップとガバナンス",
       sortOrderStart: 34,
     },
     {
       order: 12,
-      label: "Automation",
+      label: "自動化",
       description: "Automations / GitHub Action / SDK による自動化",
       sortOrderStart: 35,
     },
     {
       order: 13,
-      label: "Learn (Best Practices)",
+      label: "実践のコツ",
       description: "現場で効くベストプラクティス",
       sortOrderStart: 38,
     },
@@ -231,25 +232,25 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
   "ai-tools/claude": [
     {
       order: 1,
-      label: "Getting Started",
+      label: "はじめに",
       description: "Claude 全体像と ant CLI",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Models & Plans",
+      label: "モデルと料金プラン",
       description: "Opus 4.7・Claude Design・Max プラン",
       sortOrderStart: 2,
     },
     {
       order: 3,
-      label: "Build with Claude",
+      label: "Claude で作る",
       description: "Artifacts / Files API / Agent Skills / Memory Tool",
       sortOrderStart: 5,
     },
     {
       order: 4,
-      label: "API Features",
+      label: "API の機能",
       description: "Interleaved Thinking / Citations / Structured Outputs / Prompt Caching",
       sortOrderStart: 9,
     },
@@ -260,13 +261,13 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
   "ai-tools/chatgpt": [
     {
       order: 1,
-      label: "Overview & Models",
+      label: "全体像とモデル",
       description: "ChatGPT 全体像と GPT-5 系モデル",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Plans & Surfaces",
+      label: "プランと利用環境",
       description: "Pro $100 プランと Codex 統合",
       sortOrderStart: 2,
     },
@@ -278,25 +279,25 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
   "ai-tools/gemini": [
     {
       order: 1,
-      label: "Getting Started",
+      label: "はじめに",
       description: "Gemini 全体像",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Models",
+      label: "モデル",
       description: "Gemini 3.1 Pro / Flash Live",
       sortOrderStart: 1,
     },
     {
       order: 3,
-      label: "API & Tools",
+      label: "API とツール",
       description: "API 料金・キャッシング・CLI Extensions・NotebookLM",
       sortOrderStart: 3,
     },
     {
       order: 4,
-      label: "Apps & Workspace",
+      label: "アプリと Workspace",
       description: "Deep Research / Workspace 機能 / Gems",
       sortOrderStart: 7,
     },
@@ -310,43 +311,43 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
   "web-development/supabase": [
     {
       order: 1,
-      label: "Getting Started",
+      label: "はじめに",
       description: "全体目次と読み方",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Overview",
+      label: "全体像",
       description: "Supabase の全体像",
       sortOrderStart: 10,
     },
     {
       order: 3,
-      label: "Products",
+      label: "プロダクト",
       description: "Database / Auth / Storage / Realtime / Edge Functions / Data API / AI / Cron",
       sortOrderStart: 20,
     },
     {
       order: 4,
-      label: "Security & Compliance",
+      label: "セキュリティとコンプライアンス",
       description: "コンプライアンス・RLS・Auth セキュリティ・ネットワーク・安全領域マップ",
       sortOrderStart: 30,
     },
     {
       order: 5,
-      label: "Updates",
+      label: "アップデート",
       description: "Launch Week / Changelog の継続的アップデート",
       sortOrderStart: 40,
     },
     {
       order: 6,
-      label: "Reference",
+      label: "リファレンス",
       description: "SDK / CLI / Management API の俯瞰",
       sortOrderStart: 50,
     },
     {
       order: 7,
-      label: "Hints & Sources",
+      label: "選定のヒントと出典",
       description: "プロダクト改善ヒントと一次ソース URL 集",
       sortOrderStart: 90,
     },
@@ -360,25 +361,25 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
   "web-development/vercel": [
     {
       order: 1,
-      label: "Getting Started",
+      label: "はじめに",
       description: "全体目次と読み方",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Overview",
+      label: "全体像",
       description: "AI Cloud としての全体像",
       sortOrderStart: 10,
     },
     {
       order: 3,
-      label: "Build & Operate",
+      label: "構築と運用",
       description: "Frameworks / Functions / Routing / ISR / Deployments / Domains / Storage / Observability",
       sortOrderStart: 20,
     },
     {
       order: 4,
-      label: "Security",
+      label: "セキュリティ",
       description: "Compliance / WAF / Bot Management / Deployment Protection / DDoS / 安全領域マップ",
       sortOrderStart: 30,
     },
@@ -390,19 +391,19 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     },
     {
       order: 6,
-      label: "Updates",
+      label: "アップデート",
       description: "Changelog ダイジェスト・Ship Week",
       sortOrderStart: 50,
     },
     {
       order: 7,
-      label: "Reference",
+      label: "リファレンス",
       description: "CLI / REST API / SDK の俯瞰",
       sortOrderStart: 60,
     },
     {
       order: 8,
-      label: "Hints & Sources",
+      label: "選定のヒントと出典",
       description: "プロダクト改善ヒントと一次ソース URL 集",
       sortOrderStart: 90,
     },
@@ -416,31 +417,31 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
   "web-development/cloudflare": [
     {
       order: 1,
-      label: "Getting Started",
+      label: "はじめに",
       description: "Connectivity Cloud の全体像と CLI ツール群",
       sortOrderStart: 0,
     },
     {
       order: 2,
-      label: "Tier 1: 開発者プラットフォーム中核",
+      label: "開発者プラットフォーム中核",
       description: "Workers / Pages / R2 / D1 / KV / Durable Objects / Queues / Workers AI / AI Gateway / Vectorize / Hyperdrive / Stream / Images / Tunnel / Turnstile / Access / Workflows",
       sortOrderStart: 10,
     },
     {
       order: 3,
-      label: "Tier 2: Zero Trust",
+      label: "Zero Trust",
       description: "Browser Isolation / Gateway / DLP / CASB / DEX / Email Security",
       sortOrderStart: 30,
     },
     {
       order: 4,
-      label: "Tier 3: Network & Edge",
+      label: "Network & Edge",
       description: "WAF / DDoS / Rate Limiting / Bot Management / Argo / Magic Transit / Spectrum / Load Balancing / API Shield / Cache / Waiting Room",
       sortOrderStart: 40,
     },
     {
       order: 5,
-      label: "Tier 4: その他",
+      label: "その他",
       description: "DNS / Registrar / Email Routing / Containers / Radar / Pipelines / Secrets Store / Sandbox SDK / Workers for Platforms / Zaraz など",
       sortOrderStart: 60,
     },
