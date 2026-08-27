@@ -170,6 +170,20 @@ npx wrangler workflows instances terminate onboarding <instance-id>
 npx wrangler tail
 ```
 
+## 2026年に追加された主な機能
+
+| 時期 | 変更 |
+|---|---|
+| 2026-06-02 | **binding に cron スケジュールを直接付与**できる |
+| 2026-06-05 | **saga 形式の rollback** — 失敗時に逆順で補償処理を走らせる |
+| 2026-06-23 | rollback ハンドラへ step context を渡せる |
+| 2026-07-09 | `retries.delay` に関数を渡して**動的リトライ遅延** |
+| 2026-08-04 | **CI/CD Workflows** — Artifacts リポジトリの自動ビルド・デプロイ |
+
+**saga rollback** は、途中で失敗したときに「それまでにやったことを取り消す」処理を宣言的に書ける仕組みです。決済や在庫引き当てのように、中途半端な状態で止まると困る処理で効きます。
+
+---
+
 ## 制限・注意点
 - **最大ステップ数**: 有料プランデフォルト10,000、最大25,000（Wrangler設定で拡張）。Free 1,024。
 - **最大実行期間（wall time）**: 各ステップ無制限、`step.sleep` は最大365日。

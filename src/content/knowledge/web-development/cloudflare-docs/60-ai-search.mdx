@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "AI Search", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 60
 ---
@@ -227,6 +228,22 @@ curl -X PUT \
   }' \
   "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/ai-crawl-control/pay-per-crawl"
 ```
+
+## 料金プレビューが公開された（2026-08-06）
+
+ベータ中は無料ですが、**課金開始後の単価が先に公表**されています。
+
+| 項目 | 単価 |
+|---|---|
+| Ingest | $0.75 / 100万トークン |
+| Storage | $2.00 / GB・月 |
+| Semantic query | $0.75 / 1,000クエリ |
+| Full-text query | $0.10 / 1,000クエリ |
+| Embedding / rerank | 一部の Workers AI モデルでは無料 |
+
+課金開始前にメール通知がある、と公式に明記されています。**採用を検討するなら、この単価で見積もっておくと後から慌てません。**
+
+---
 
 ## 制限・注意点
 - **AI SearchはBeta**（2026-05時点）。SLAは未提供で、APIシグネチャや課金体系は変更され得る。プロダクションで使うなら、`search()`の戻り値型を抽象化レイヤで包んでベンダー依存を局所化しておく。

@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Access", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 10
 ---
@@ -139,6 +140,36 @@ resource "cloudflare_zero_trust_access_policy" "allow_company" {
 - `cloudflared tunnel run internal-admin`
 
 これでオリジンを公開せずに `admin.example.com` をAccess配下に出せる。
+
+## 2026年の主な変更
+
+| 時期 | 変更 |
+|---|---|
+| 2026-05-19 | **Cloudflare 自身が IdP に**。既存の Cloudflare アカウントでサインインできる |
+| 2026-06-04 | IdP フェデレーション |
+| 2026-06-18 | **新規 Zero Trust 組織の既定ログイン方法が One-time PIN から Cloudflare IdP へ** |
+| 2026-08-14 | **Worker 単位・アカウント全体の Access 保護**、`ctx.access.getIdentity()` |
+| 2026-08-25 | サービストークンの猶予期間付きローテーション、一時無効化 |
+| 2026-08-25 | MCP server portals が MCP 2026-07-28 仕様に対応 |
+| — | **Managed OAuth** — CLI・SDK・AIエージェント・MCPクライアントが Access 保護アプリへ OAuth で認証できる |
+
+## 用途の線引き：一般公開アプリの認証には使えない
+
+混同されやすい点なので明記します。**Access は社内・パートナー向けの ZTNA 製品**であり、**一般ユーザーがサインアップしてログインするアプリの認証基盤ではありません。**
+
+| 理由 | 内容 |
+|---|---|
+| **セルフサインアップの仕組みがない** | アクセス可否は管理者が定義するポリシーで決まる。One-time PIN も「承認済みメールアドレス」への送信 |
+| **課金がシート制** | 認証したアクティブユーザー数に比例する。不特定多数とは相性が悪い |
+| 想定読者 | 公式の説明も employees / contractors / third-party users |
+
+2026年の変更（Cloudflare が IdP に、新規組織の既定化、Managed OAuth）も、**いずれも社内向け・AIエージェント向け**であって、一般ユーザー認証を解禁するものではありません。
+
+**向いている使い方**は「自分やチームだけが使う管理画面・社内ツールを守る」ことです。ここでは公式の想定用途と完全に一致し、少人数なら無料枠で収まります。
+
+一般公開アプリのユーザー認証が必要なら、Cloudflare 公式ドキュメントは外部の認証サービス（Stytch / Auth0 / WorkOS / Descope）の併用か、Workers 上での自前実装（`@cloudflare/workers-oauth-provider`）を示しています。
+
+---
 
 ## 制限・注意点
 - SaaSアプリにおいては、Accessはサインオン時とセッション再発行時のみポリシーを評価する。セッション継続中の継続評価はSaaS側のセッション管理に委ねられる。

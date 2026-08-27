@@ -184,6 +184,19 @@ LIMIT 20;
   data-cf-beacon='{"token": "YOUR_SITE_TOKEN"}'></script>
 ```
 
+## 移行が必要な変更
+
+**Azure Functions ベースの Microsoft Sentinel コネクタが非推奨**になりました（2026-08-26 告知）。**2026-09-14 までに移行**が必要です。Sentinel へログを送っている場合は確認してください。
+
+そのほかの変更です。
+
+| 時期 | 変更 |
+|---|---|
+| 2026-08-26 | Log Explorer にデータセット削除機能 |
+| 2026-08-21 | Web Analytics が SPA の soft navigation を正しく計測 |
+
+---
+
 ## 制限・注意点
 - **Logpushはプラン依存**：データセットの大半がEnterpriseのみ、HTTP requestsは一部Businessでも可、という不揃いな状態。導入前に必ず`/logpush/datasets`で利用可否を確認する。
 - **Log Explorer保持期間とコスト**：最大2年だが、HTTP requests全件をフィルタなしで保管するとTB単位/月になり保管料金が嵩む。`fields`絞り込み・`filter`での減量設計が必須。
