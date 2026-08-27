@@ -8,7 +8,7 @@ contentType: "reference"
 tags: ["Claude Code", "Auto mode", "セキュリティ", "承認モード", "Max"]
 sortOrder: 7
 createdAt: 2026-04-18
-updatedAt: 2026-08-11
+updatedAt: 2026-08-27
 author: "田中省伍"
 ---
 
@@ -121,6 +121,24 @@ Auto mode が自動承認しない操作は `PreToolUse` フックで追加制�
 ```
 
 Hooks が終了コード 2 を返すとツール実行を中断できます。Auto mode + Hooks で「自動化しつつ独自ルールを適用する」構成が組めます。
+
+---
+
+## 設定 UI の変更
+
+Auto mode の設定は **`/permissions` の Auto mode タブ**に統合されました。以前のように専用の設定画面を探す必要はありません。
+
+環境まわりの初期設定は `/auto-mode-setup` で生成できます。
+
+また、Bedrock / Google Cloud / Microsoft Foundry 経由でも Auto mode が使えるようになり、当初必要だったオプトイン用の環境変数は不要になりました。
+
+### 安全側の強化
+
+Auto mode は「確認を減らす」機能ですが、危険な操作は止まるよう継続的に強化されています。
+
+- 破壊的な git コマンドをブロック
+- 未解決の変数を含む削除コマンドは確認する
+- transcript の改ざんをブロック
 
 ---
 

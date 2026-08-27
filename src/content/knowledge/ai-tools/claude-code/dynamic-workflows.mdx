@@ -1,0 +1,232 @@
+---
+title: "Dynamic Workflows：数十〜数百のサブエージェントをスクリプトで統括する"
+description: "Claude がタスクに応じて JavaScript のオーケストレーションスクリプトを書き、ランタイムがバックグラウンドで実行する仕組み。サブエージェントとの違い、ultracode との関係、並列数や再開の制約、/deep-research の使い方までを整理しました。"
+category: "ai-tools"
+subcategory: "claude-code"
+difficulty: "advanced"
+contentType: "reference"
+tags: ["Claude Code", "ワークフロー", "サブエージェント", "並列実行", "ultracode"]
+sortOrder: 20
+createdAt: 2026-08-27
+author: "田中省伍"
+---
+
+## TL;DR
+
+- **Claude が書く JavaScript スクリプトが、数十〜数百のサブエージェントを統括する**仕組み
+- サブエージェントとの違いは「**次に何を動かすかを決めるのが Claude か、スクリプトか**」
+- 中間結果はスクリプトの変数に置かれるため、**Claude のコンテキストには最終結果だけが残る**
+- 起動は `/deep-research`、プロンプト中の `ultracode` キーワード、`/effort ultracode` など
+- **実行中にユーザー入力を挟めない**。段階承認が要るなら段階ごとに分ける
+
+---
+
+## 一行サマリ
+
+計画を「その場の判断」ではなく「コード」に落とし、ループと分岐と中間結果をスクリプト側に持たせる仕組みです。
+
+利用には Claude Code v2.1.154 以降が必要で、有料プラン全般、Anthropic API、Amazon Bedrock、Google Cloud の Agent Platform、Microsoft Foundry で使えます。**Pro では `/config` の Dynamic workflows 行でオンにする**必要があります。
+
+---
+
+## 解決する課題（Why）
+
+サブエージェントを使った並列化には限界があります。「次に何を動かすか」をターンごとに Claude が決めるため、次の制約が出ます。
+
+- 中間結果が**すべて Claude のコンテキストに積まれる**。対象が増えるほど圧迫する
+- 中断すると**そのターンがやり直し**になる
+- オーケストレーションそのものが再利用できない
+
+500ファイルの移行や、コードベース全体のバグ掃討のように「同じ手順を大量の対象に適用する」タスクでは、これが効いてきます。
+
+Dynamic Workflows は、**ループと分岐と中間結果をスクリプト側に持たせる**ことでこれを解きます。
+
+---
+
+## 4つの仕組みの違い
+
+公式が示す比較です。ここを押さえると使い分けが決まります。
+
+| | サブエージェント | Skills | Agent Teams | Workflows |
+|---|---|---|---|---|
+| 実体 | Claude が起動するワーカー | Claude が従う指示 | 対等なセッションを統括するリード | **ランタイムが実行するスクリプト** |
+| 次に何を動かすか決めるのは | Claude（ターンごと） | Claude（プロンプトに従う） | リードエージェント（ターンごと） | **スクリプト** |
+| 中間結果の置き場 | Claude のコンテキスト | Claude のコンテキスト | 共有タスクリスト | **スクリプトの変数** |
+| 再利用できるもの | ワーカー定義 | 指示 | チーム定義 | **オーケストレーション自体** |
+| 規模 | 1ターンに数件 | 同上 | 少数の長時間セッション | **1回に数十〜数百** |
+| 中断したとき | ターンがやり直し | ターンがやり直し | 仲間は動き続ける | **同一セッション内で再開可能** |
+
+---
+
+## 主要機能（What）
+
+### 起動のしかた
+
+**組み込みワークフロー**
+
+```text
+/deep-research <question>
+```
+
+複数の角度から Web 検索を展開し、見つけた出典を取得して相互検証し、各主張に投票して、**検証を通らなかった主張を除いた出典付きレポート**を返します。WebSearch ツールが使える必要があります。
+
+**キーワードで単発起動**
+
+```text
+ultracode: audit every API endpoint under src/routes/ for missing auth checks
+```
+
+セッションの effort を変えずに、そのタスクだけワークフローとして走らせます。「use a workflow」「ワークフローで」のような自然文でも起動します。
+
+> **v2.1.160 より前はキーワードが `workflow` でした。**自然文での依頼はどちらのバージョンでも動きます。
+
+キーワードが効くのは**自分で打ったプロンプト**だけです。`-p` 実行、スケジュールタスク、webhook / PR コメント経由では起動しません（v2.1.210 より前はこれらでも起動していました）。
+
+取り消しは macOS `Option+W`、Windows / Linux `Alt+W` です。
+
+**保存済みワークフロー**
+
+`/<name>` で実行します。プラグイン同梱なら `/acme-tools:release-audit` のように名前空間が付きます。
+
+### スクリプトの形
+
+```javascript
+export const meta = {
+  name: 'audit-routes',
+  description: 'Audit every route handler for missing auth checks',
+}
+
+const found = await agent('List every .ts file under src/routes/.', {
+  schema: {
+    type: 'object',
+    required: ['files'],
+    properties: { files: { type: 'array', items: { type: 'string' } } },
+  },
+})
+
+const audits = await pipeline(found.files, file =>
+  agent(`Audit ${file} for missing authentication checks.`, { label: file }),
+)
+
+return audits.filter(Boolean)
+```
+
+トップレベル `await` が使える素の JavaScript です。`agent()` がサブエージェントを1つ起動し、`pipeline()` がリストの各要素に対して1つずつ走らせます。
+
+**`agent()` は、途中で停止したり回復不能な API エラーに当たると `null` を返します。**`pipeline()` はその `null` を結果配列に残すので、上の例のように `filter(Boolean)` で除く必要があります。
+
+引数は `args` グローバルとして受け取ります。
+
+### 保存先
+
+| 場所 | 範囲 |
+|---|---|
+| `.claude/workflows/` | プロジェクト（リポジトリで共有） |
+| `~/.claude/workflows/` | 個人 |
+| プラグインの `workflows/` | 配布 |
+
+同名ならプロジェクトが優先されます。`/workflows` で実行を選び `s` で保存できます。
+
+---
+
+## ultracode との関係
+
+`ultracode` は **`xhigh` の推論強度と、ワークフローの自動編成を組み合わせた設定**です。オンにすると、依頼を待たずに Claude が実質的なタスクごとにワークフローを計画します。
+
+```text
+/effort ultracode
+```
+
+```bash
+claude --effort ultracode   # v2.1.203 以降
+```
+
+`/effort ultracode` は**そのセッション限り**です。全セッションへ適用するには設定の `ultracode` キーを使います。`xhigh` に対応するモデルでのみ選択肢に出ます。
+
+### 規模のガイドライン
+
+`/config` の Dynamic workflow size、または `/config workflowSizeGuideline=small` で調整します。
+
+| 値 | Claude が目安にするエージェント数 |
+|---|---|
+| `unrestricted` | 制限なし。タスクに応じて決める |
+| `small` | 5 未満 |
+| `medium` | 15 未満（**既定**、v2.1.219 以降） |
+| `large` | 50 未満 |
+
+---
+
+## 制限・注意点
+
+公式が挙げる制約です。設計に直接効くので、先に読んでおく価値があります。
+
+| 制約 | 理由 |
+|---|---|
+| **実行中にユーザー入力を挟めない** | 一時停止できるのは権限プロンプトだけ。段階ごとの承認が要るなら、**段階ごとに別のワークフローとして走らせる** |
+| **ワークフロー自身はファイルやシェルを直接触れない** | 読み書きとコマンド実行はエージェントの仕事。スクリプトは調整役 |
+| **モジュール読み込み不可** | `import()` を含むスクリプトは実行前に失敗する。ライブラリが要る処理はエージェントのタスクに寄せる |
+| **同時実行は最大16エージェント** | CPU が少ない環境（コンテナ含む）ではさらに減る |
+| 1回あたり合計 **1,000 エージェント** | 暴走ループの歯止め |
+| ファンアウト時、先頭以外は最大5秒遅れて起動 | 先頭がキャッシュしたプロンプト接頭辞を読ませるため |
+
+### コスト
+
+**同じタスクを会話で進めるより、1回の実行で目に見えて多くのトークンを使うことがあります。**まず小さいスライスで試してから広げてください。
+
+### 再開の粒度
+
+再開は**同一セッション内**でのみ可能です。中断・再開時は停止したエージェント以降が再実行されるため、**多数の小さなエージェントに分けたワークフローのほうが、1つの長いエージェントより進捗が残ります**。
+
+### 権限
+
+起動時のプロンプトの有無はセッションの権限モード次第ですが、次の点は固定です。
+
+> The subagents the workflow spawns always run in `acceptEdits` mode and inherit your tool allowlist, regardless of your session's mode. File edits are auto-approved.
+
+**ワークフローが起動するサブエージェントは、セッションのモードに関わらず常に `acceptEdits` で動き、ファイル編集は自動承認されます。**ツールの許可リストは引き継がれます。ここは事故につながりうるので、許可リストを広げた状態で大規模なワークフローを回さないでください。
+
+### 無効化
+
+- `/config` の Dynamic workflows をオフ
+- `"disableWorkflows": true`（`~/.claude/settings.json` または managed settings）
+- 環境変数 `CLAUDE_CODE_DISABLE_WORKFLOWS=1`
+
+無効化すると `ultracode` キーワードは発火せず、`/effort` の選択肢からも消えます。
+
+---
+
+## いつ選ぶか
+
+### 適しているシーン
+
+公式が挙げる例です。
+
+- コードベース全体のバグ掃討
+- 500ファイル規模の移行
+- 出典を相互検証する必要がある調査
+- 複数の独立した角度から下書きして選ぶ価値のある難しい計画
+
+**1つのエージェントがコンテキストに収めきれない規模か、同じ手順を多数の対象へ適用する場面**が目安です。
+
+### 適していないシーン
+
+- 途中で承認や入力を挟みたい処理
+- 外部ライブラリが必要な処理
+- コストがシビアな場面
+- セッションをまたいで再開したい処理
+
+---
+
+## 関連ドキュメント
+
+- 少数のタスクを委譲する場合: [サブエージェント活用ガイド](./subagents)
+- 対等なセッションを協調させる場合: [Agent Teams](./agent-teams)
+- 手順を保存して呼び出す場合: [Claude Code Skills完全ガイド](./skills)
+- プラグインとして配布する場合: [Claude Code プラグイン完全ガイド](./plugins)
+
+---
+
+## 参考リンク
+
+- [Orchestrate subagents at scale with dynamic workflows | Claude Code Docs](https://code.claude.com/docs/en/workflows)
+- [Slash commands | Claude Code Docs](https://code.claude.com/docs/en/commands)
