@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Queues", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 18
 ---
@@ -131,6 +132,19 @@ export default {
   }
 };
 ```
+
+## 2026年の主な変更
+
+| 時期 | 変更 |
+|---|---|
+| 2026-02-04 | **Workers Free プランで利用可能に**（最大10,000キュー、1日10,000操作） |
+| 2026-04-28 | リアルタイムの backlog メトリクス |
+| 2026-07-15 | **Email Sending のイベント購読**（配信・バウンス・苦情） |
+| 2026-08 | Artifacts / Workers Builds のイベント購読 |
+
+**Free プランで使えるようになった**のが大きい変更です。以前は Queues を使うだけで Workers Paid が必要でした。
+
+---
 
 ## 制限・注意点
 - **メッセージサイズ**: 128KB 上限。超過時は R2 にオフロードしポインタを送る設計に切り替える。

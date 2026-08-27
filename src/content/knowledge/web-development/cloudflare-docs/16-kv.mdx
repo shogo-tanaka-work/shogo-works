@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Workers KV", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 16
 ---
@@ -152,6 +153,25 @@ export default {
   },
 } satisfies ExportedHandler<{ MY_KV: KVNamespace }>;
 ```
+
+## 移行が必要な変更
+
+### legacy API ルートの非推奨（期限あり）
+
+2026-07-15 に旧ルートが非推奨になりました。**2026-10-15 が移行期限**です。
+
+```
+旧: /accounts/{account_id}/workers/namespaces/*
+新: /accounts/{account_id}/storage/kv/namespaces/*
+```
+
+Wrangler や公式 SDK を使っている場合は影響しませんが、**REST API を直接叩いているスクリプトがあれば要確認**です。
+
+### そのほか
+
+- `cacheTtl` の最小値が 60秒 → **30秒**（2026-01-30）
+
+---
 
 ## 制限・注意点
 

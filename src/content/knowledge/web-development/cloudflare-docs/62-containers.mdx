@@ -1,12 +1,13 @@
 ---
 title: "Cloudflare Containers：WorkersでDockerを動かすエッジコンテナ実行基盤"
-description: "Cloudflare Containersは、Workers Runtime（V8 Isolate）に収まらない任意のDockerイメージをCloudflareエッジ上の軽量VMで実行し、Workerからバインディング経由で `fetch()` 呼び出しできる「Workers拡張用コンテナ実行基盤」である。Region: Earth・Auto-sleep・Durable Object結合が組み込まれており、運用モデルはECSやCloud Runと根本的に異なる（2026-05時点でOpen Beta）。"
+description: "Cloudflare Containersは、Workers Runtime（V8 Isolate）に収まらない任意のDockerイメージをCloudflareエッジ上の軽量VMで実行し、Workerからバインディング経由で `fetch()` 呼び出しできる「Workers拡張用コンテナ実行基盤」である。Region: Earth・Auto-sleep・Durable Object結合が組み込まれており、運用モデルはECSやCloud Runと根本的に異なる。2026-04-13にWorkers Paid向けへGA（一般提供）した。"
 category: "web-development"
 subcategory: "cloudflare"
 difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Containers", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 62
 ---
@@ -191,15 +192,15 @@ npx wrangler containers images delete <image-ref>
 ```
 
 ## 制限・注意点
-- **Open Beta（2025年6月開始、2026-05時点も継続）**：API・wrangler設定キー・課金単価がGAまでに変わる可能性がある。プロダクション本番投入は慎重に。
+- **GA済み（2026-04-13、Workers Paid）**：Open Beta を経て一般提供に移行した。Sandbox SDK も同日 GA。
 - **GPU不可**：機械学習推論はWorkers AIまたは別ベンダーへ。
 - **コールドスタート1〜3秒**：イメージサイズと初期化処理に依存。レイテンシ要件がシビアな同期APIには向かない。Workerでキャッシュを噛ませる、min_instancesを使う等の対策が必要。
 - **`linux/amd64` のみ**：Apple Silicon環境からビルドする場合は `--platform=linux/amd64` の指定が必須。
 - **メモリ/ディスク上限**：単一インスタンスは最大vCPU 4 / メモリ 12 GiB / ディスク 20 GB。これを超える処理は分割するか別基盤を検討。
 - **アカウント上限**：Workers Paidでは同時メモリ6 TiB・同時vCPU 1,500・同時ディスク30 TB・Registry総容量50 GB。Enterpriseでの引き上げは個別交渉。
 - **エフェメラルディスク**：Auto-sleepで状態は消える。永続化はR2 / D1 / DO Storageへ。
-- **直接的なTCP/UDP受け不可**：エンドユーザー向けのSMTP・カスタムプロトコルサーバには使えない。Workersを介したHTTPトンネルが必須。
-- **リージョン明示不可**：データレジデンシー要件があるならGAまで様子見、または代替手段（Workers for Platforms + 専用クラスタ等）を検討。
+- **inbound TCP / gRPC に対応（2026-08-03）**：Agents Week で Workers / Containers が inbound TCP と gRPC を受けられるようになった。以前は Workers を介した HTTP トンネルが必須だったが、この制約は解消されている。
+- **リージョン明示不可**：データレジデンシー要件がある場合は代替手段（Workers for Platforms + 専用クラスタ等）を検討する。
 - **Workers Paid必須**：Free Plan単独では利用不可。$5/月の最小コストが乗る。
 
 ## 参考リンク

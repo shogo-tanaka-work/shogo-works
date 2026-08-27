@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Pages", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 17
 ---
@@ -117,6 +118,18 @@ bucket_name = "my-assets"
 ```
 
 Terraform は `cloudflare_pages_project` リソースでプロジェクト・ビルド設定・環境変数・カスタムドメインを宣言的に管理可能。
+
+## 新規プロジェクトは Workers が推奨
+
+公式ドキュメントの誘導が強くなっています。原文です。
+
+> Workers supports most Pages use cases and offers a broader feature set. It is Cloudflare's primary platform for building applications. **Start new projects with Workers.**
+
+**既存の Pages プロジェクトは動き続けます**が、これから作るなら Workers（Static Assets）を選ぶのが公式の方針です。本記事は既存プロジェクトの運用と、Pages 固有の挙動を理解するための資料として読んでください。
+
+なお 2026-08-11 から、キューイングされたビルドは自動でスキップされるようになりました。
+
+---
 
 ## 制限・注意点
 - **Free プランのビルド回数**：月 500 回上限。CI で頻繁にプレビュー生成するチームは Pro 必須。
