@@ -1,0 +1,347 @@
+---
+title: "4 フォームを受け取る｜Route Handlers と Server Actions"
+description: "問い合わせフォームの送信をサーバー側で受け取ります。Route Handlers と Server Actions の違いと使い分け、外部入力の検証、ボディサイズ上限、Vercel Functions のランタイムと実行時間の考え方を扱います。"
+category: "web-development"
+subcategory: "vercel-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 55
+prerequisites: ["vercel-03-deploy-and-preview"]
+tags: ["Vercel", "カリキュラム", "Functions", "Next.js"]
+sortOrder: 40
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+ここまでは画面だけでした。**この章からサーバー側の処理が入ります。**
+
+- Route Handlers と Server Actions の違いと、どちらを選ぶかの基準がわかる
+- フォームの送信内容を受け取り、検証して結果を返せる
+- Vercel Functions のランタイム・実行時間・ボディサイズの上限を把握できる
+
+保存はまだしません。**受け取って、検証して、結果を画面に返すところまで**が本章です。保存は第5章で足します。
+
+## サーバー側のコードはどこで動くのか
+
+Next.js のサーバー側のコードは、Vercel 上では **Vercel Functions** として動きます。リクエストが来たときだけ実行される、いわゆるサーバーレスの実行単位です。
+
+知っておくべき現状が3つあります。
+
+**1. Edge Functions は独立したプロダクトとしては廃止されました。**2025-06-25 の changelog で Edge Functions と Edge Middleware の deprecation が告知され、現在は「**Vercel Functions の Edge ランタイム**」という位置づけです。新規開発について公式は **Node.js ランタイム + Fluid compute** を推奨しています。
+
+**2. Next.js 16.3 以降、`runtime = 'edge'` はサポートされません。**ルートやページは Node.js で動きます。古い記事に出てくる次のような記述は、いま書くコードには入れないでください。
+
+```ts
+// これは Next.js 16.3 以降では使えません
+export const runtime = "edge";
+```
+
+**3. Fluid compute が新規プロジェクトの既定です。**2025-04-23 以降に作られたプロジェクトでは既定で有効です。1つの実行環境が複数のリクエストを同時に処理し、課金は Active CPU（実際に CPU を使った時間）と Provisioned Memory、呼び出し回数で計算されます。
+
+実行時間の上限は次の通りです（Fluid compute のドキュメントに記載の値、2026-08 時点）。
+
+| プラン | 既定 | 最大 | 拡張 |
+|---|---|---|---|
+| Hobby | 300 秒 | 300 秒 | 不可 |
+| Pro | 300 秒 | **800 秒（GA）** | **1800 秒（ベータ）** |
+| Enterprise | 300 秒 | **800 秒（GA）** | **1800 秒（ベータ）** |
+
+フォームを受けるだけなら数百ミリ秒で終わるので、この上限が問題になるのは重い処理を足したときです。**頭の片隅に置いておけば十分です。**
+
+## Route Handlers と Server Actions
+
+App Router には、サーバー側の処理を書く場所が2つあります。
+
+| | Route Handlers | Server Actions |
+|---|---|---|
+| 置き場所 | `src/app/api/<名前>/route.ts` | 関数の先頭に `'use server'` |
+| 呼び方 | HTTP リクエスト（URL がある） | `<form action={fn}>` から直接 |
+| URL | **公開される** | 公開されない |
+| 向いている用途 | 外部からの Webhook、モバイルアプリ、他システムからの呼び出し | **画面と一体のフォーム送信** |
+
+**この題材では Server Actions を主に使います。**理由は、フォームと処理が同じ画面の中で完結し、URL を1つ増やさずに済むからです。
+
+一方で、後から「別システムから問い合わせを投げたい」となったら Route Handler が要ります。**両方書けるようにしておく**のがこの章の狙いです。
+
+## Server Actions で受け取る
+
+まず処理本体を独立したファイルに置きます。
+
+```ts
+// src/app/actions.ts
+"use server";
+
+/** フォーム送信の結果。画面へそのまま返す */
+export type SubmitState =
+  | { status: "idle" }
+  | { status: "ok"; message: string }
+  | { status: "error"; message: string };
+
+/** FormData の値は string | File | null なので、文字列だけを取り出す */
+function readText(formData: FormData, key: string): string {
+  const value = formData.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+export async function submitInquiry(
+  _prevState: SubmitState,
+  formData: FormData,
+): Promise<SubmitState> {
+  const name = readText(formData, "name");
+  const email = readText(formData, "email");
+  const body = readText(formData, "body");
+
+  if (name.length === 0 || name.length > 100) {
+    return { status: "error", message: "お名前は1〜100文字で入力してください。" };
+  }
+  // ブラウザ側の type="email" は迂回できるため、サーバー側でも必ず確認する
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    return { status: "error", message: "メールアドレスの形式が正しくありません。" };
+  }
+  if (body.length === 0 || body.length > 2000) {
+    return { status: "error", message: "お問い合わせ内容は1〜2000文字で入力してください。" };
+  }
+
+  // 第5章でここに保存処理を足します
+  console.log("受信しました", { name, email, bodyLength: body.length });
+
+  return { status: "ok", message: "送信しました。折り返しご連絡します。" };
+}
+```
+
+**ポイントは検証をサーバー側にも書いていることです。**`<input type="email" required>` はブラウザの補助であって、リクエストを直接投げれば迂回できます。**外部から来た値は、サーバー側で必ず確認します。**
+
+`formData.get()` の戻り値は `string | File | null` です。`as string` で握りつぶさず、`typeof` で絞り込んでください。**型を無視した瞬間に、`File` が渡ってきたときの挙動が読めなくなります。**
+
+### 画面側をつなぐ
+
+送信結果を表示するため、フォームをクライアントコンポーネントにします。
+
+```tsx
+// src/app/inquiry-form.tsx
+"use client";
+
+import { useActionState } from "react";
+import { submitInquiry, type SubmitState } from "./actions";
+
+const initialState: SubmitState = { status: "idle" };
+
+export function InquiryForm() {
+  const [state, formAction, pending] = useActionState(submitInquiry, initialState);
+
+  return (
+    <form action={formAction}>
+      <p>
+        <label htmlFor="name">お名前</label>
+        <input id="name" name="name" type="text" required />
+      </p>
+      <p>
+        <label htmlFor="email">メールアドレス</label>
+        <input id="email" name="email" type="email" required />
+      </p>
+      <p>
+        <label htmlFor="body">お問い合わせ内容</label>
+        <textarea id="body" name="body" rows={6} required />
+      </p>
+      <button type="submit" disabled={pending}>
+        {pending ? "送信中…" : "送信する"}
+      </button>
+
+      {state.status !== "idle" && (
+        <p role="status">{state.message}</p>
+      )}
+    </form>
+  );
+}
+```
+
+`useActionState` は **React の API** です（`react` から import します）。第1引数の関数は `(前回の状態, formData)` を受け取る形になるため、`actions.ts` 側の第1引数が `_prevState` になっています。
+
+あとは `src/app/page.tsx` からこのコンポーネントを呼びます。
+
+```tsx
+import { InquiryForm } from "./inquiry-form";
+
+export default function Home() {
+  return (
+    <main style={{ maxWidth: 640, margin: "4rem auto", padding: "0 1rem" }}>
+      <h1>お問い合わせ</h1>
+      <InquiryForm />
+    </main>
+  );
+}
+```
+
+> **添付ファイルの `input` は、いったん外してあります。**ファイルの受け取りには後述のサイズ上限が絡むため、第5章で Vercel Blob と一緒に扱います。
+
+## 実例：同じ処理を Route Handler でも書く
+
+外部システムから JSON で投げてもらう窓口を、同じ検証ロジックで作ります。
+
+```ts
+// src/app/api/inquiries/route.ts
+import { NextResponse } from "next/server";
+
+/** 外部入力は unknown から絞り込む */
+function parseInquiry(input: unknown): { name: string; email: string; body: string } | null {
+  if (typeof input !== "object" || input === null) return null;
+  const record = input as Record<string, unknown>;
+
+  const name = typeof record.name === "string" ? record.name.trim() : "";
+  const email = typeof record.email === "string" ? record.email.trim() : "";
+  const body = typeof record.body === "string" ? record.body.trim() : "";
+
+  if (name.length === 0 || name.length > 100) return null;
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return null;
+  if (body.length === 0 || body.length > 2000) return null;
+
+  return { name, email, body };
+}
+
+export async function POST(request: Request) {
+  let payload: unknown;
+  try {
+    payload = await request.json();
+  } catch (cause) {
+    // JSON として読めない時点で処理を続ける意味がないので、ここで返す
+    return NextResponse.json({ error: "JSON として解釈できません" }, { status: 400 });
+  }
+
+  const inquiry = parseInquiry(payload);
+  if (inquiry === null) {
+    return NextResponse.json({ error: "入力内容が不正です" }, { status: 400 });
+  }
+
+  // 第5章でここに保存処理を足します
+  return NextResponse.json({ ok: true }, { status: 201 });
+}
+```
+
+ローカルで叩いて確認します。
+
+```bash
+curl -X POST http://localhost:3000/api/inquiries \
+  -H "Content-Type: application/json" \
+  -d '{"name":"テスト太郎","email":"test@example.com","body":"問い合わせ本文"}'
+```
+
+**`{"ok":true}` が返れば成功です。**わざと `email` を壊して 400 が返ることも確認してください。**通る場合だけ試して終わりにしない**のが、この手の検証の要点です。
+
+> **この URL は誰でも叩けます。**公開の問い合わせ窓口なので本コースではそれで構いませんが、内部用の API を同じ場所に足すときは、必ず別の保護を考えてください。第6章の Deployment Protection は URL 単位でしか絞れないため、**同じデプロイの中で「ここだけ公開、ここだけ非公開」という分け方はできません。**
+
+### 型で気をつける点
+
+Route Handler の第2引数から動的セグメントを取るとき、**`params` は Promise です**（Next.js 15.0.0-RC 以降）。
+
+```ts
+export async function GET(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const { id } = await context.params;
+  // …
+}
+```
+
+`await` を忘れると `[object Promise]` のような値が入り込みます。**第5章で個別の問い合わせを開くときに使います。**
+
+## つまずきやすい上限
+
+フォーム処理で実際にぶつかる上限は2つです。
+
+| 上限 | 値 | どこで効くか |
+|---|---|---|
+| **Server Actions のボディサイズ** | 既定 **1MB** | ファイルを添えて送ったときに超えやすい |
+| **Vercel Functions のリクエストボディ** | **4.5MB** | Route Handler 経由のアップロードで効く |
+
+Server Actions の上限は `next.config.ts` で変えられます。
+
+```ts
+// next.config.ts
+import type { NextConfig } from "next";
+
+const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "2mb",
+    },
+  },
+};
+
+export default nextConfig;
+```
+
+**ただし、上限を上げていく方向は行き止まりです。**Vercel Functions 側の 4.5MB という壁があるため、その先へは伸ばせません。数MBを超えるファイルを受けるなら、**ブラウザから直接ストレージへ送る**設計に切り替えます。第5章でその方法（client upload）を扱います。
+
+エラーの見え方も覚えておいてください。
+
+- Server Actions の上限超過 → **サーバー側のログにボディサイズ超過の旨が出て、アクションが失敗します**
+- Functions のボディ上限超過 → **`413` 系のレスポンス**が返ります
+
+どちらも「フォームが動かない」としか見えないため、**まずファイルサイズを疑う**と早く切り分けられます。
+
+## やってみよう
+
+1. **Server Action を作る**：`src/app/actions.ts` を作り、上のコードを写します
+2. **画面をつなぐ**：`inquiry-form.tsx` を作り、`page.tsx` から呼びます。`npm run dev` で送信し、成功メッセージが出ることを確認します
+3. **検証が効くことを確かめる**：名前を空にする、本文を2000文字より長くする、といった方法で**エラーメッセージが返ることを確認**します
+4. **Route Handler を作る**：`src/app/api/inquiries/route.ts` を作り、`curl` で 201 と 400 の両方を確認します
+5. **Preview で確認する**：ブランチを切って push し、Preview URL 上でも同じように動くことを確認します
+6. **上限を体感する**：`next.config.ts` で `bodySizeLimit` を `"1kb"` のように極端に小さくして送信し、失敗する様子とログの見え方を確認したら元に戻します
+
+演習6をやっておくと、第5章で添付ファイルを扱うときに**なぜ client upload が必要なのか**が腑に落ちます。
+
+## まとめ
+
+- Next.js のサーバー側コードは Vercel 上で **Vercel Functions** として動く
+- **Edge Functions は独立プロダクトとしては廃止（2025-06-25）**。現在は Vercel Functions の Edge ランタイムで、公式は Node.js ランタイムを推奨
+- **Next.js 16.3 以降、`runtime = 'edge'` は非サポート**
+- Fluid compute は新規プロジェクトの既定。最大実行時間は **Pro / Enterprise で 800 秒が GA、1800 秒がベータ**
+- **画面と一体のフォーム送信は Server Actions、外部から呼ばれる窓口は Route Handlers**
+- **外部入力はサーバー側で必ず検証する。**`unknown` から絞り込み、`as` で握りつぶさない
+- ボディサイズは **Server Actions 既定 1MB、Vercel Functions 4.5MB**。大きなファイルは上限を上げずに設計を変える
+
+## 理解度チェック
+
+**Q1. 新しく書くコードで、Vercel 上のランタイム指定として適切なのはどれでしょう？**
+
+1. `export const runtime = 'edge'` を明示する
+2. Edge Functions を独立したプロダクトとして選ぶ
+3. 何も指定せず Node.js ランタイムで動かす
+4. ランタイムの指定は必須で、省略できない
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：3**
+
+Edge Functions は独立プロダクトとしては 2025-06-25 に deprecated となり、現在は Vercel Functions の Edge ランタイムという位置づけです。公式は新規開発について Node.js ランタイムを推奨しており、Next.js 16.3 以降は `runtime = 'edge'` がサポートされません。指定を書かなければ Node.js で動きます。
+
+</details>
+
+**Q2. 3MB の添付ファイルをフォームから Server Action へ送ったところ失敗しました。取るべき対応として妥当なのはどれでしょう？**
+
+1. `bodySizeLimit` を 100MB に上げれば解決する
+2. Server Actions の上限は変えられないので諦める
+3. Vercel Functions 側に 4.5MB の壁があるため、上限を上げ続ける方向ではなく、ブラウザから直接ストレージへ送る設計に切り替える
+4. Edge ランタイムに切り替えれば上限がなくなる
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：3**
+
+Server Actions のボディ上限（既定 1MB）は設定で変えられますが、その先には Vercel Functions のリクエストボディ 4.5MB という制限があります。数MBを超えるファイルを扱うなら、サーバーを経由せずブラウザから直接ストレージへ送る方式（client upload）に切り替えます。第5章で実装します。
+
+</details>
+
+## 参考リンク
+
+- [Vercel Functions](https://vercel.com/docs/functions) — ランタイムと実行環境
+- [Edge runtime](https://vercel.com/docs/functions/runtimes/edge) — Node.js への移行推奨と Next.js 16.3 での非サポート
+- [Fluid compute](https://vercel.com/docs/fluid-compute) — 実行時間の上限と Active CPU 課金
+- [Next.js — Route Handlers](https://nextjs.org/docs/app/api-reference/file-conventions/route) — `route.ts` の仕様
+- [Next.js — Server Actions](https://nextjs.org/docs/app/guides/server-actions) — ボディサイズ上限と CSRF 対策
+- [Next.js — Forms](https://nextjs.org/docs/app/guides/forms) — `FormData` の受け取りと `useActionState`

@@ -1,0 +1,245 @@
+---
+title: "6 管理画面を守る｜Deployment Protection の各方式と限界"
+description: "Deployment Protection はデプロイ URL へのアクセスを絞る仕組みであり、アプリのユーザー認証ではありません。Vercel Authentication / Password Protection / Trusted IPs / Passport の違いと、Standard Protection と All Deployments という現行の scope、そして限界を扱います。"
+category: "web-development"
+subcategory: "vercel-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 45
+prerequisites: ["vercel-05-data-layer"]
+tags: ["Vercel", "カリキュラム", "Deployment Protection"]
+sortOrder: 60
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第5章の終わりで、**誰でも開ける管理画面**ができました。ここを塞ぎます。
+
+- Deployment Protection が何を守り、何を守らないのかがわかる
+- 4つの保護方式と、現行の scope（Standard Protection / All Deployments）の違いがわかる
+- **この仕組みで解ける要件と、解けない要件の線引きができる**
+
+**この章でいちばん重要なのは、最後の1点です。**
+
+## Deployment Protection はユーザー認証ではない
+
+先に結論を書きます。
+
+> **Deployment Protection は「デプロイされた URL へのアクセスを絞る」仕組みであって、アプリケーションのユーザー認証ではありません。**
+
+違いを並べます。
+
+| | Deployment Protection | アプリのユーザー認証 |
+|---|---|---|
+| 判定するもの | **その URL にアクセスしてよいか** | このユーザーは誰か |
+| 判定する場所 | アプリのコードが動く**手前** | アプリのコードの中 |
+| 単位 | **デプロイ単位**（URL 全体） | 画面単位・データ単位 |
+| 対象 | 主にチームメンバー・関係者 | 一般ユーザー |
+| 「誰が見ているか」をアプリで使えるか | **使えない**（Passport を除く） | 使える |
+
+**「デプロイ単位」という点が効きます。**保護をかけると、そのデプロイの URL 全体が保護されます。**「`/admin` だけ守って、`/`（フォーム）は公開のまま」という分け方は、この仕組みではできません。**この制約は後半で正面から扱います。
+
+公式ドキュメントも、アプリ側の認証は別のガイドとして分けて案内しています。**同じ「認証」という言葉が両方に使われるため、混同しやすい箇所です。**
+
+## 4つの保護方式
+
+2026-08 時点で選べる方式は4つです。
+
+| 方式 | 何で判定するか | 使えるプラン |
+|---|---|---|
+| **Vercel Authentication** | Vercel にログイン済みで、そのプロジェクトへの権限があるか | **全プラン**（公式の推奨） |
+| **Password Protection** | 設定した共通パスワードを知っているか | **Enterprise**、または Pro の有料 add-on |
+| **Trusted IPs** | 許可した IP アドレスから来ているか | **Enterprise のみ** |
+| **Passport** | 自前の IdP（Microsoft Entra ID / Okta / OIDC 準拠）で認証できるか | **Enterprise のみ** |
+
+補足を足します。
+
+**Vercel Authentication** が既定の選択肢です。チームメンバー、アクセスグループのメンバー、個別にアクセスを付与されたユーザー、Shareable Link を持つ人、バイパス用のヘッダーを使うツールが通れます。**このコースの題材（自分やチームだけの管理画面）には、これで足ります。**
+
+**Password Protection** は Pro では単体で使えません。**Advanced Deployment Protection（Pro で $150/月）**に含まれる形になります。この add-on に含まれるのは Password Protection、Private Production Deployments（= All Deployments scope）、Deployment Protection Exceptions の3つです。**Trusted IPs と Passport は含まれません**（どちらも Enterprise）。有効化したら最低30日は無効化できない点も、契約前に見ておく箇所です。
+
+**Trusted IPs** は許可外の IP に 404 を返します。ただし Vercel Firewall のほうが優先され、IP Blocking に載っている IP は Trusted IPs に入れていてもブロックされます。DDoS 対策のバイパスにもなりません。
+
+**Passport** は、自分たちの IdP を使って**訪問者**を認証させるものです。認証が通ると Activity Log に記録され、アプリ側で identity claim を読む API も用意されています。**4つの中で唯一、「誰が見ているか」をアプリへ渡せる方式です。**Enterprise 向けで、公式ドキュメントに beta の表記はありません（**GA と明示する記述は確認できていません**）。
+
+## 何を守るか — scope の再編
+
+方式（どう守るか）とは別に、**scope（何を守るか）**を選びます。ここは名前が変わっているので注意が要ります。
+
+### 現行の scope
+
+| scope | 何が守られるか | プラン |
+|---|---|---|
+| **Standard Protection** | **production ドメイン以外のすべてのデプロイ**（Preview、および production の生成 URL） | **全プラン**。推奨 |
+| **All Deployments** | **production ドメインを含むすべての URL** | **Pro / Enterprise** |
+
+### Legacy 扱いになった scope
+
+- **(Legacy) Standard Protection** — すべての Preview URL と deployment URL を保護。最新の production URL は保護しない
+- **(Legacy) Pre-Production Deployments** — Preview URL のみ保護。過去のものを含む production URL は公開のまま
+
+**旧設定のままのプロジェクトを引き継いだ場合、名前が同じ「Standard Protection」でも中身が違うことがあります。**設定画面で Legacy の表記が付いていないかを確認してください。
+
+なお **Only Production Deployments** という scope も現行で存在しますが、これは Trusted IPs 専用かつ Enterprise 限定です。
+
+### Standard Protection を有効にしたときの副作用
+
+Standard Protection では、**production の生成 URL（`<project>-<ハッシュ>-<scope>.vercel.app`）も制限されます。**そのため、`VERCEL_URL` や `VERCEL_BRANCH_URL` を使って自分自身へ `fetch` しているコードがあると失敗します。公式は相対パスか実際のドメインへ移行するよう案内しています。
+
+**「本番は動くのに、内部の fetch だけ 401 になる」**という症状に出会ったら、ここを疑ってください。
+
+## Hobby プランで必ず当たる制約
+
+ここが、この題材にとって最大の分かれ道です。
+
+**Hobby では、production ドメインを Deployment Protection で守れません。**Hobby で使えるのは Vercel Authentication と Standard Protection の組み合わせで、**Standard Protection の定義上、production ドメインは公開のまま**です。production ドメインを含めて守る All Deployments は Pro / Enterprise 向けです。
+
+つまり、Hobby でこの題材を進めると次のようになります。
+
+```text
+Preview URL の /admin           → 保護される（Vercel にログインしていないと見られない）
+production ドメインの /admin    → 誰でも見られる
+```
+
+**第5章の管理画面を本番へ出したままにできない、という結論になります。**取れる選択肢は3つです。
+
+| 選択肢 | 内容 | 向いている場合 |
+|---|---|---|
+| **A. Preview 環境だけで運用する** | production ブランチへマージせず、管理画面は Preview URL で使う | 学習・小規模な内部利用 |
+| **B. Pro へ上げて All Deployments を使う** | production ドメインごと保護する | 実運用。チームで使う |
+| **C. アプリ側に認証を実装する** | Deployment Protection を使わず、コードで守る | 一般ユーザーのログインも要る場合 |
+
+**このコースは A で進めます。**学習の目的（仕組みを理解すること）はそれで達せられ、費用もかからないためです。実運用に移すときは B か C を選ぶことになります。
+
+## 実例：管理画面を保護して、効いていることを確かめる
+
+### 設定する（2026-08 時点）
+
+1. プロジェクトの **Settings → Deployment Protection** を開きます
+2. **Vercel Authentication** を有効にします
+3. scope が **Standard Protection** になっていることを確認します（Legacy の表記が付いていないこと）
+4. 保存し、**設定を反映させるために再デプロイします**
+
+### 効いていることを確かめる
+
+**設定しただけで安心するのが、いちばん危ない状態です。**必ず試してください。
+
+1. **ログイン済みのブラウザ**で Preview URL の `/admin` を開きます → **見られるはず**です
+2. **シークレットウィンドウ**（Vercel にログインしていない状態）で同じ URL を開きます → **ログイン画面に飛ばされるはず**です
+3. 同じシークレットウィンドウで**フォームの画面**（`/`）も開きます → **こちらもログイン画面に飛ばされます**
+
+**3番目が、この仕組みの性質を体で理解する場所です。**Deployment Protection はデプロイ単位なので、**同じデプロイの中のフォームまで一緒に塞がれます。**「管理画面だけ守る」ことはできません。
+
+だからこそ、この題材では **A（Preview だけ保護して、公開フォームは production ドメインで出す）**という分け方が成立します。
+
+```text
+production ドメイン           → 公開のフォーム。誰でも送信できる
+Preview URL（保護あり）      → 管理画面。ログインしたチームメンバーだけ
+```
+
+**両方とも同じコードから作られていて、違うのは「どの URL 経由か」だけです。**
+
+### 自動化から叩きたいとき
+
+保護をかけると、監視ツールや CI からのアクセスも弾かれます。そのための正規の抜け道が **Protection Bypass for Automation** です。
+
+- Deployment Protection の設定画面で secret を生成します
+- リクエストに **`x-vercel-protection-bypass`** ヘッダー（またはクエリパラメータ）で secret を渡します
+- 生成した値のひとつが `VERCEL_AUTOMATION_BYPASS_SECRET` システム環境変数に入ります
+
+```bash
+curl -H "x-vercel-protection-bypass: <ここに生成した secret>" \
+  https://<preview-url>/api/inquiries
+```
+
+**この secret をリポジトリやフロントエンドのコードに置かないでください。**CI から使うなら CI のシークレット機能へ入れます。ヘッダーを付けられない相手（Slack や Stripe の Webhook など）向けにクエリパラメータ方式も用意されていますが、URL はログに残りやすいので、使うなら用途を絞ってください。
+
+バイパスされる範囲も押さえておきます。Password Protection / Vercel Authentication / Trusted IPs、Firewall の通常のブロック、Bot protection のチャレンジは通ります。一方、**攻撃検知時の DDoS mitigation とレートリミットはバイパスできません。**
+
+### 一時的に人へ見せたいとき
+
+レビュー用に社外の人へ見せたい場合は **Shareable Links** を使います。保護をかけたまま、リンクを知っている人だけが開けます。**Hobby ではアカウント全体で1本しか作れません。**取り消しは共有設定を「Only people with access」に戻します。
+
+## この仕組みでは解けないこと
+
+整理します。**次の要件が出てきたら、Deployment Protection では足りません。**
+
+| 要件 | Deployment Protection で解けるか |
+|---|---|
+| 自分やチームだけが管理画面を見る | **解ける**（本コースの題材） |
+| レビュー用に URL を関係者へ限定する | **解ける** |
+| 監視ツールから定期的に叩く | **解ける**（Protection Bypass） |
+| 同じデプロイの中で `/admin` だけ守る | **解けない**（デプロイ単位のため） |
+| **一般ユーザーが登録・ログインする** | **解けない** |
+| **ログインしたユーザーごとに見えるデータを変える** | **解けない** |
+| **「対応済みにしたのは誰か」を記録する** | **解けない**（Passport を除く） |
+
+下の3つが要件に入るなら、**アプリ側に認証を実装するのが本筋です。**その場合、**Supabase 入門コースの構成のほうが素直です。**あちらは認証と、行単位でアクセスを制御する仕組み（RLS）を前提に組み立てているため、「一般ユーザーのログイン」がコースの中に自然に収まります。
+
+**このコースの題材では、そこまで要りません。**管理画面を見るのは自分とチームだけで、公開側のフォームは認証なしで送れればよい、という前提です。**要件に対して仕組みが足りているなら、それ以上を持ち込まないのが健全です。**
+
+## やってみよう
+
+1. **保護をかける**：Settings → Deployment Protection で Vercel Authentication を有効にし、scope が Standard Protection（Legacy でないもの）であることを確認して再デプロイします
+2. **効いていることを確かめる**：シークレットウィンドウで Preview URL の `/admin` を開き、**ログイン画面へ飛ばされること**を確認します
+3. **デプロイ単位であることを確かめる**：同じシークレットウィンドウでフォームの画面も開き、**こちらも塞がれること**を確認します
+4. **production の状態を確かめる**：production ドメインの `/admin` がどうなっているかを確認します（**Hobby なら開けてしまうはずです**）
+5. **バイパスを試す**：Protection Bypass の secret を生成し、`curl` にヘッダーを付けて Preview の API へアクセスできることを確認します。**確認後、secret はどこにも残さないでください**
+6. **要件を書き出す**：作ったものを実際に運用するとしたら、上の「解けないこと」の表のどれに当たるかを書き出してみてください
+
+演習3と4が、この章の核心です。**「守れる範囲」と「守れない範囲」を両方見ておくと、次に何を選ぶべきかが自分で判断できます。**
+
+## まとめ
+
+- **Deployment Protection は URL へのアクセスを絞る仕組みで、アプリのユーザー認証ではない**
+- 判定はアプリのコードが動く**手前**で、**デプロイ単位**。`/admin` だけを守ることはできない
+- 方式は **Vercel Authentication（全プラン）/ Password Protection（Enterprise、または Pro で $150/月の Advanced Deployment Protection）/ Trusted IPs（Enterprise）/ Passport（Enterprise）**
+- scope は **Standard Protection（全プラン）と All Deployments（Pro / Enterprise）**。旧 Standard・Pre-Production は **Legacy 扱い**
+- **Hobby では production ドメインを守れない。**このコースは Preview 環境で管理画面を運用する形で進める
+- 自動化からは **`x-vercel-protection-bypass`** で正規にバイパスする。secret をコードに置かない
+- **一般ユーザーのログインが要件に入るなら、Supabase 入門コースの構成のほうが素直**
+
+## 理解度チェック
+
+**Q1. Vercel Authentication を有効にしたプロジェクトで、Vercel にログインしていない人が Preview URL のフォーム画面（`/`）を開きました。どうなるでしょう？**
+
+1. フォームは公開画面なので、そのまま表示される
+2. `/admin` だけが保護されるため、フォームは表示される
+3. 保護はデプロイ単位なので、フォームもログイン画面へ飛ばされる
+4. 表示はされるが、送信だけが失敗する
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：3**
+
+Deployment Protection はデプロイされた URL 全体を対象にします。同じデプロイに含まれる以上、公開用のフォーム画面も一緒に保護されます。「同じデプロイの中でパスごとに公開／非公開を分ける」ことはできないため、公開側と管理側で URL（環境）を分けるか、アプリ側に認証を実装するかを選ぶことになります。
+
+</details>
+
+**Q2. 「問い合わせを送った本人が、自分の問い合わせの状況だけをログインして確認できるようにしたい」という要件が追加されました。妥当な判断はどれでしょう？**
+
+1. Password Protection を有効にして、送信者へパスワードを配る
+2. Trusted IPs で送信者の IP を許可する
+3. Deployment Protection では解けない要件なので、アプリ側の認証とデータ単位のアクセス制御を検討する
+4. Standard Protection から All Deployments に変更すれば解決する
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：3**
+
+「ログインしたユーザーごとに見えるデータを変える」のは、URL 単位のアクセス制御では実現できません。アプリ側でユーザーを識別し、行単位でアクセスを制御する必要があります。この要件が中心になるなら、認証と RLS を前提に組み立てる Supabase 入門コースの構成のほうが素直です。
+
+</details>
+
+## 参考リンク
+
+- [Deployment Protection](https://vercel.com/docs/deployment-protection) — 全体像と scope の一覧
+- [Methods to Protect Deployments](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments) — 4つの方式とプランごとの可否
+- [Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication) — 誰が通れるか
+- [Passport](https://vercel.com/docs/passport) — 自前 IdP による訪問者認証
+- [Protection Bypass for Automation](https://vercel.com/docs/deployment-protection/methods-to-bypass-deployment-protection/protection-bypass-automation) — `x-vercel-protection-bypass`
+- [Application authentication on Vercel](https://vercel.com/kb/guide/application-authentication-on-vercel) — アプリ側の認証を実装する場合の考え方

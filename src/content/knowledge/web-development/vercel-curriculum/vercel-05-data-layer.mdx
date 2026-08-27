@@ -1,0 +1,382 @@
+---
+title: "5 データ層を用意する｜Vercel は DB を持たない"
+description: "Vercel が自社で持つのは Vercel Blob と Global Config だけで、汎用データベースは Marketplace 経由で外部サービスをつなぎます。Neon を Native Integration で接続して問い合わせを保存し、添付ファイルは Blob の client upload で受け取ります。"
+category: "web-development"
+subcategory: "vercel-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 60
+prerequisites: ["vercel-04-receiving-the-form"]
+tags: ["Vercel", "カリキュラム", "Storage"]
+sortOrder: 50
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第4章では受け取って捨てていました。**この章で、届いた内容が残るようになります。**
+
+- Vercel のストレージ戦略（自社で持つもの／持たないもの）がわかる
+- Marketplace の Native Integration でデータベースをつなげる
+- 添付ファイルを Vercel Blob へ、サーバーを経由せずに保存できる
+
+この章がいちばん長くなります。**データベースとファイルは別の話なので、2つに分けて進めます。**
+
+## Vercel が持つストレージ、持たないストレージ
+
+最初に全体像です。
+
+| 種類 | Vercel の提供 | 用途 |
+|---|---|---|
+| **Vercel Blob** | 自社 | ファイル・画像・添付。オブジェクトストレージ |
+| **Vercel Global Config** | 自社 | 低遅延で読む小さな設定値。フィーチャーフラグなど |
+| **汎用データベース** | **持たない** | Marketplace パートナー（Neon / Upstash / Supabase など）を使う |
+
+**Vercel は汎用データベースを自社では提供していません。**かつて存在した Vercel Postgres は提供を終了し、既存のデータベースは 2024-12 に Neon へ移管されています。
+
+この方針を「機能が足りない」と読むか「専業に任せている」と読むかは設計判断ですが、**使う側にとっては「データベースは別のサービスを選ぶ」という手順が必ず1つ増える**ということです。
+
+> **Cloudflare 入門コースとの違いがはっきり出るのがここです。**あちらは D1 という同社製の SQL データベースを `wrangler` から作れます。こちらは Marketplace を経由します。
+
+### Global Config は 2026-07-29 に改称された
+
+第1章で名前だけ出した Global Config は、**2026-07-29 に Edge Config から改称**されました。古い記事は旧名で書かれているので、対応を挙げておきます。
+
+| 旧 | 新 |
+|---|---|
+| Edge Config | **Global Config** |
+| `@vercel/edge-config` | **`@vercel/global-config`** |
+| 環境変数 `EDGE_CONFIG` | **`GLOBAL_CONFIG`** |
+| `vercel edge-config` | `vercel global-config` |
+| `edge-config.vercel.com` | `global-config.vercel.com` |
+
+旧経路はすべて動作を続けており、廃止時期の予定は告知されていません。移行時の注意が1つあります。**新しいストアを接続する前に SDK を上げてください。**接続時に `GLOBAL_CONFIG` が作られますが、旧 SDK は既定でこの変数を読まないためです。
+
+Global Config はこの題材では必須ではありません。**「管理画面を一時的に閉じるフラグ」のような使い方に向きます。**書き込み回数の上限が Hobby で月 250 回と低いので、問い合わせ本体の保存先には使えません。
+
+## データベースをつなぐ
+
+Marketplace の **Native Integration** を使うと、次の3つが Vercel 側で完結します。
+
+1. データベースのプロビジョニング（アカウント作成を別途しなくてよい）
+2. **接続用の環境変数の自動注入**
+3. **請求の統合**（Vercel の請求にまとまる）
+
+ここでは Postgres 系の **Neon** を選びます。SQL が使えて、この題材の構造に素直に合うためです。
+
+### 手順（2026-08 時点）
+
+1. プロジェクトの **Storage** タブを開きます
+2. **Create Database** から Marketplace の一覧を出し、**Neon** を選びます
+3. リージョンとプラン（無料枠のあるもの）を選んで作成します
+4. 作成後、**どの環境（Production / Preview / Development）に接続するか**を選びます
+
+CLI からも入れられます。
+
+```bash
+vercel install neon
+```
+
+接続すると、Vercel のプロジェクトに環境変数が自動で入ります。Neon の場合は次のものが注入されます。
+
+| 変数 | 内容 |
+|---|---|
+| `DATABASE_URL` | プール経由の接続文字列（PgBouncer） |
+| `DATABASE_URL_UNPOOLED` | 直接接続の接続文字列 |
+| `PGHOST` / `PGUSER` / `PGDATABASE` / `PGPASSWORD` ほか | 個別の接続情報 |
+
+**接続文字列をコードに書かないでください。**自動注入されているので、`process.env.DATABASE_URL` から読むだけで済みます。ローカルで使うときは第2章と同じく `vercel env pull` で取り出します。
+
+> **Development 環境に接続していないと `vercel env pull` で降りてきません。**「ローカルだけ動かない」ときは、ストア側の Projects タブで接続対象の環境に Development が含まれているかを確認してください。
+
+### テーブルを作る
+
+Neon のコンソール（Vercel のダッシュボードからも開けます）で SQL を実行します。
+
+```sql
+create table inquiries (
+  id          bigserial primary key,
+  name        text        not null,
+  email       text        not null,
+  body        text        not null,
+  attachment_url text,
+  handled     boolean     not null default false,
+  created_at  timestamptz not null default now()
+);
+```
+
+`handled` が「対応済みフラグ」です。第1章で決めた管理画面の要件がここに落ちます。
+
+### 保存する
+
+Neon の serverless ドライバを入れます。
+
+```bash
+npm i @neondatabase/serverless
+```
+
+接続を1か所にまとめます。
+
+```ts
+// src/lib/db.ts
+import { neon } from "@neondatabase/serverless";
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+  // 接続情報が無い状態で起動すると、実行時に原因のわかりにくい失敗になる
+  throw new Error("DATABASE_URL が設定されていません。vercel env pull を実行してください。");
+}
+
+export const sql = neon(connectionString);
+```
+
+**環境変数が無いときに黙って進めない**のが要点です。ここで落としておくと、「なぜか保存されない」という調べにくい不具合になりません。
+
+第4章の Server Action に保存処理を足します。
+
+```ts
+// src/app/actions.ts（該当部分のみ）
+import { sql } from "@/lib/db";
+
+// …検証を通過したあと
+await sql`
+  insert into inquiries (name, email, body, attachment_url)
+  values (${name}, ${email}, ${body}, ${attachmentUrl})
+`;
+```
+
+`sql` タグ付きテンプレートに値を埋めると、**プレースホルダとして渡されます。**文字列を自分で連結して SQL を組み立てないでください。ユーザーが送った本文がそのまま SQL として解釈される事故につながります。
+
+### 管理画面で読む
+
+```tsx
+// src/app/admin/page.tsx
+import { sql } from "@/lib/db";
+
+type InquiryRow = {
+  id: string;
+  name: string;
+  email: string;
+  body: string;
+  attachment_url: string | null;
+  handled: boolean;
+  created_at: string;
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function AdminPage() {
+  const rows = (await sql`
+    select id, name, email, body, attachment_url, handled, created_at
+    from inquiries
+    order by created_at desc
+    limit 50
+  `) as InquiryRow[];
+
+  return (
+    <main style={{ maxWidth: 900, margin: "4rem auto", padding: "0 1rem" }}>
+      <h1>受信一覧</h1>
+      {rows.length === 0 && <p>まだ問い合わせはありません。</p>}
+      <ul>
+        {rows.map((row) => (
+          <li key={row.id}>
+            <strong>{row.name}</strong>（{row.email}）
+            {row.handled ? "対応済み" : "未対応"}
+            <p>{row.body}</p>
+            {row.attachment_url && <a href={row.attachment_url}>添付ファイル</a>}
+          </li>
+        ))}
+      </ul>
+    </main>
+  );
+}
+```
+
+`export const dynamic = "force-dynamic"` を付けているのは、**この画面をキャッシュさせないため**です。付けないと、ビルド時の内容が固定されて新しい問い合わせが出てこないことがあります。
+
+対応済みフラグの更新も Server Action で書けます。
+
+```ts
+// src/app/admin/actions.ts
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { sql } from "@/lib/db";
+
+export async function markHandled(formData: FormData) {
+  const rawId = formData.get("id");
+  if (typeof rawId !== "string") {
+    throw new Error("id が不正です");
+  }
+
+  await sql`update inquiries set handled = true where id = ${rawId}`;
+  revalidatePath("/admin");
+}
+```
+
+`revalidatePath` は、そのパスのキャッシュを失効させて次の表示で読み直させるものです。**更新したのに一覧が変わらない、というときはここを疑ってください。**
+
+> **この管理画面は、いまの時点では誰でも開けます。**保護は第6章です。**この状態で本番へ出したまま放置しないでください。**
+
+## 実例：添付ファイルを Blob に置く
+
+第4章で見たとおり、サーバー経由のアップロードには **4.5MB** の壁があります。**ブラウザから Vercel Blob へ直接送る方式（client upload）**を使います。
+
+### ストアを作る
+
+1. プロジェクトの **Storage** から **Create Database → Blob** を選びます
+2. アクセス設定で **Private** か **Public** を選びます。**この選択は後から変更できません**
+3. 環境（Production / Preview / Development）を選んで作成します
+
+問い合わせの添付ファイルは第三者に見せるものではないので、**Private を選びます。**
+
+作成すると、次の環境変数が入ります。
+
+- `BLOB_STORE_ID` — ストアの識別子
+- `VERCEL_OIDC_TOKEN` — 自動でローテーションされる短命トークン（サーバー側アクセス用）
+- `BLOB_READ_WRITE_TOKEN` — 長命の読み書きトークン。**client upload のトークン発行に必要**
+
+```bash
+npm i @vercel/blob
+vercel env pull
+```
+
+### トークンを発行するルート
+
+ブラウザは、いきなり Blob へ送れるわけではありません。**サーバー側に「このアップロードを許可します」と言わせる**ための窓口が要ります。
+
+```ts
+// src/app/api/attachments/upload/route.ts
+import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { NextResponse } from "next/server";
+
+export async function POST(request: Request): Promise<NextResponse> {
+  const body = (await request.json()) as HandleUploadBody;
+
+  try {
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async () => {
+        // 公開の問い合わせ窓口なので送信者の認証はしない。
+        // そのぶん、種類とサイズの制限をここで必ずかける
+        return {
+          allowedContentTypes: ["image/jpeg", "image/png", "image/webp", "application/pdf"],
+          addRandomSuffix: true,
+        };
+      },
+      onUploadCompleted: async ({ blob }) => {
+        console.log("アップロード完了", blob.url);
+      },
+    });
+
+    return NextResponse.json(jsonResponse);
+  } catch (error) {
+    return NextResponse.json(
+      { error: (error as Error).message },
+      { status: 400 },
+    );
+  }
+}
+```
+
+> **`onBeforeGenerateToken` は、この仕組みの唯一の関門です。**公式も「ここで認証・認可をしないと誰でもアップロードできる」と明記しています。ログインのあるアプリなら、ここでセッションを確認します。**このコースの問い合わせフォームは認証なしの公開窓口なので、代わりに `allowedContentTypes` で受け付ける種類を絞ります。**無制限にしないでください。
+
+### 画面から送る
+
+```tsx
+// src/app/inquiry-form.tsx（該当部分のみ）
+"use client";
+
+import { upload } from "@vercel/blob/client";
+
+async function uploadAttachment(file: File): Promise<string> {
+  const blob = await upload(file.name, file, {
+    access: "private",
+    handleUploadUrl: "/api/attachments/upload",
+  });
+  return blob.url;
+}
+```
+
+送信時に、ファイルが選ばれていればまず `uploadAttachment` を呼び、返ってきた URL を `attachment_url` として保存します。**ファイル本体はサーバーを通りません。**通るのは URL の文字列だけなので、4.5MB の壁にぶつかりません。
+
+### ローカルでの注意
+
+**`onUploadCompleted` はローカル開発では呼ばれません。**Vercel からローカルホストへ到達できないためです。ローカルで確認したい場合は ngrok などのトンネルを立て、`VERCEL_BLOB_CALLBACK_URL` にその URL を設定します。
+
+このコースの構成では `onUploadCompleted` に業務ロジックを置いていない（保存は Server Action 側でやっている）ので、**ローカルでは呼ばれなくても困りません。**
+
+### 料金の目安
+
+Vercel Blob の無料枠として公式ドキュメントの料金ページに挙がっている値は、ストレージ 5GB、Simple Operations 10万回、Advanced Operations 1万回、データ転送 100GB です。**添付ファイルが数百件の規模なら、この枠に収まります。**
+
+なお、**client upload はデータ転送の課金がかかりません**（サーバー経由のアップロードは Fast Data Transfer として課金されます）。大きなファイルを扱うほど、client upload のほうが理にかなっています。
+
+## やってみよう
+
+1. **Neon をつなぐ**：Storage から Neon を作成し、Development を含む環境に接続します
+2. **テーブルを作る**：上の `create table` を実行します
+3. **ローカルへ環境変数を降ろす**：`vercel env pull` を実行し、`DATABASE_URL` が入っていることを確認します（**値を記事やチャットへ貼らないでください**）
+4. **保存する**：`src/lib/db.ts` を作り、Server Action に `insert` を足します。フォームから送信し、Neon のコンソールで行が増えることを確認します
+5. **一覧を出す**：`/admin` を実装し、送った内容が表示されることを確認します
+6. **対応済みにする**：`markHandled` を作り、ボタンから更新して一覧の表示が変わることを確認します
+7. **添付ファイルを送る**：Blob ストアを Private で作り、client upload を実装します。ファイル付きで送信し、`attachment_url` が保存されることを確認します
+
+演習3で「Development に接続していないと降りてこない」現象に当たった人は、それ自体が学びです。**環境ごとの接続はストア側で管理されている**ことを覚えておいてください。
+
+## まとめ
+
+- **Vercel が自社で持つストレージは Vercel Blob と Global Config だけ。**汎用データベースは Marketplace の外部サービス
+- Vercel Postgres は提供終了し、既存分は **2024-12 に Neon へ移管**された
+- **Native Integration はプロビジョニング・環境変数の自動注入・請求の統合まで行う**
+- **Global Config は 2026-07-29 に Edge Config から改称。**パッケージは `@vercel/global-config`、環境変数は `GLOBAL_CONFIG`
+- SQL は**タグ付きテンプレートで値を渡す**。文字列連結で組み立てない
+- 添付ファイルは **client upload** でブラウザから直接 Blob へ。4.5MB の壁を避けられる
+- **`onBeforeGenerateToken` が唯一の関門。**認証しないなら、せめて種類を絞る
+
+## 理解度チェック
+
+**Q1. Vercel でリレーショナルデータベースを使いたいとき、正しい説明はどれでしょう？**
+
+1. Vercel Postgres を有効にすれば使える
+2. Vercel Blob にテーブルを作れる
+3. Vercel は汎用データベースを自社では持たず、Marketplace のパートナー（Neon など）をつなぐ
+4. Global Config をデータベースとして使う
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：3**
+
+Vercel が自社で提供するストレージは Vercel Blob と Global Config の2つだけです。Vercel Postgres は提供を終了し、既存のデータベースは 2024-12 に Neon へ移管されました。現在は Marketplace の Native Integration で外部サービスをつなぐのが標準的な流れで、環境変数の注入と請求の統合まで Vercel 側で完結します。
+
+</details>
+
+**Q2. client upload（ブラウザから Blob へ直接送る方式）を採る主な理由はどれでしょう？**
+
+1. サーバー側のコードを書かずに済むから
+2. Vercel Functions のリクエストボディ 4.5MB の制限を経由せずに済むから
+3. 認証が不要になるから
+4. ファイルが自動的に公開されるから
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+サーバーを経由するアップロードは Vercel Functions のリクエストボディ上限（4.5MB）に縛られます。client upload ではファイル本体がサーバーを通らないため、この制限を受けません。ただしサーバー側のトークン発行ルートは必要で、その `onBeforeGenerateToken` で認証・認可や受け入れ種別の制限をかけないと、誰でもアップロードできる状態になります。
+
+</details>
+
+## 参考リンク
+
+- [Storage on Vercel](https://vercel.com/docs/storage) — 自社ストレージと Marketplace の関係
+- [Marketplace Storage](https://vercel.com/docs/marketplace-storage) — Native Integration の仕組み
+- [Vercel Postgres](https://vercel.com/docs/postgres) — 提供終了と Neon への移管
+- [Global Config migration guide](https://vercel.com/docs/global-config/migration-guide) — Edge Config からの改称と対応表
+- [Client Uploads with Vercel Blob](https://vercel.com/docs/vercel-blob/client-upload) — `handleUpload` と `upload` の使い方
+- [Vercel Blob pricing](https://vercel.com/docs/vercel-blob/usage-and-pricing) — 無料枠と課金項目
+- [Neon Vercel Native Integration](https://neon.com/docs/guides/vercel-native-integration) — 注入される環境変数

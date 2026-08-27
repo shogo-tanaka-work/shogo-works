@@ -1,0 +1,211 @@
+---
+title: "3 デプロイと Preview 環境｜ブランチごとに URL が生える"
+description: "GitHub 連携で Next.js プロジェクトを Vercel へデプロイし、Production と Preview の関係を理解します。3種類の生成 URL の使い分け、Instant Rollback、Hobby プランでの制約までを扱います。"
+category: "web-development"
+subcategory: "vercel-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 45
+prerequisites: ["vercel-02-setup"]
+tags: ["Vercel", "カリキュラム", "Deployments"]
+sortOrder: 30
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+**この章を終えると、人に見せられる URL が手に入ります。**
+
+- GitHub 連携で push するたびにデプロイされる状態を作れる
+- Production と Preview の関係、および3種類の生成 URL の違いがわかる
+- 壊したときに戻す手段（Instant Rollback）を知っている
+
+第2章で作ったフォームの画面を、そのまま公開します。
+
+## 3つの環境
+
+Vercel は既定で3つの環境を持ちます。
+
+| 環境 | いつのものか | 何で作られるか |
+|---|---|---|
+| **Local** | 開発中 | `npm run dev` / `vercel dev` |
+| **Preview** | レビュー中 | production ブランチ以外への push、PR の作成、`--prod` なしの CLI デプロイ |
+| **Production** | 公開中 | production ブランチ（既定は `main`）へのマージ |
+
+> 環境変数の設定画面では「Development」という名前が使われます。**環境そのものの呼び名（Local）と、環境変数のスコープ名（Development）が食い違っている**ため、公式ドキュメントを読むときは注意してください。
+
+Pro / Enterprise では **Custom Environments**（例: staging）を追加できます。Pro は1プロジェクトあたり1個、Enterprise は12個までで、追加費用はかかりません。
+
+## GitHub と連携する
+
+CLI でも `vercel` コマンド一発でデプロイできますが、**このコースでは Git 連携を主経路にします。**Preview 環境がブランチごとに自動で作られるのは Git 連携の側の機能だからです。
+
+### 手順（2026-08 時点）
+
+1. 第2章のプロジェクトを GitHub のリポジトリに push します
+2. Vercel のダッシュボードで **Add New → Project** を選びます
+3. GitHub 連携を許可し、リポジトリを選びます
+4. Framework Preset が **Next.js** と自動検出されていることを確認します
+5. **Deploy** を押します
+
+ビルドが終わると URL が返ってきます。
+
+> **最初のデプロイは、`--prod` を付けなくても必ず production になります。**「まず Preview で試そう」と思っていても、新規プロジェクトの1回目だけは production 扱いです。公開したくない内容を含んだ状態で最初のデプロイを走らせないでください。
+
+### Hobby プランでの注意
+
+**Hobby チームでは、GitHub organization 配下の private リポジトリからデプロイできません。**個人アカウント配下のリポジトリにするか、Pro へ上げる必要があります。学習用なら個人アカウント配下に置くのが簡単です。
+
+もうひとつ。Hobby は**非商用の個人利用に限定**されています。仕事の成果物として作るなら Pro が必要です。この線引きは第7章で詳しく扱います。
+
+## 3種類の URL
+
+デプロイすると、複数の URL が生えます。**それぞれ寿命と用途が違います。**
+
+| 種類 | 形 | 性質 |
+|---|---|---|
+| **コミット単位の URL** | `<project>-<9文字のハッシュ>-<scope>.vercel.app` | そのコミットのビルドに固定。**永続的に残る** |
+| **ブランチ単位の URL** | `<project>-git-<branch>-<scope>.vercel.app` | そのブランチの最新に追従する |
+| **CLI 由来の URL** | `<project>-<scope>.vercel.app`（チームでは作者名が入る） | `vercel` コマンドでのデプロイに割り当てられる |
+
+`<scope>` はアカウントまたはチームの **slug** です（表示名ではありません）。`.vercel.app` の前が63文字を超えると切り詰められます。
+
+**使い分けの目安はこうです。**
+
+- レビュー依頼で「この版を見てほしい」と言いたい → **コミット単位の URL**。後から中身が変わりません
+- 「この機能ブランチの最新を見てほしい」 → **ブランチ単位の URL**。push するたび内容が更新されます
+
+> **生成された URL は既定で公開されています。**「ハッシュ付きだから誰にも見つからない」という前提で機密情報を置かないでください。塞ぐ方法は第6章で扱います。
+
+## 実例：ブランチを切って Preview を確認する
+
+フォームの見出しを変える、という小さな変更で流れを通します。
+
+```bash
+git switch -c feat/form-heading
+```
+
+`src/app/page.tsx` の見出しを書き換えます。
+
+```tsx
+<h1>お問い合わせフォーム</h1>
+```
+
+コミットして push します。
+
+```bash
+git add src/app/page.tsx
+git commit -m "feat: フォームの見出しを具体的にする"
+git push -u origin feat/form-heading
+```
+
+**push した数十秒後には、このブランチ専用の URL でビルド結果が見られます。**Vercel のダッシュボードの Deployments 一覧か、GitHub 上で PR を作れば PR のコメントに URL が出ます。
+
+ここで確認してほしいのは**本番が変わっていないこと**です。production ブランチにはまだマージしていないので、本番の URL は元の見出しのままです。
+
+```text
+main ブランチ          → 本番 URL（見出しは「お問い合わせ」のまま）
+feat/form-heading      → Preview URL（見出しが「お問い合わせフォーム」）
+```
+
+**この分離がそのまま安全装置になります。**レビューは Preview URL で行い、納得してからマージする、という流れが標準です。
+
+PR をマージすると production ブランチが更新され、本番が自動で入れ替わります。
+
+### CLI からデプロイする場合
+
+Git 連携を使わずに手元から直接投げることもできます。
+
+```bash
+vercel          # Preview デプロイを作る
+vercel --prod   # Production へデプロイする
+```
+
+**急ぎで本番へ出す手段として便利ですが、履歴が Git に残らない点に注意してください。**チームで運用するなら Git 連携を主にして、CLI は動作確認に使うのが無難です。
+
+## 壊したときに戻す
+
+本番に問題のあるものを出してしまったときの手段が **Instant Rollback** です。
+
+- 過去に production ドメインへ割り当てられていたデプロイへ戻せます
+- **Hobby は「直前のデプロイ」にだけ戻せます。**Pro / Enterprise は対象となる任意のデプロイへ戻せます
+- **環境変数は戻りません。**環境変数を変えたことが原因の障害は、Rollback だけでは直りません
+
+つまずきやすいのはここです。
+
+> **ロールバックすると、production ドメインの自動割り当てが OFF になります。**その状態で production ブランチへ push しても本番に反映されません。Undo Rollback を実行するか、`vercel promote <デプロイのURLまたはID>` で明示的に昇格させてください。「デプロイしたのに本番が変わらない」ときは、まずここを疑います。
+
+## ビルドが通らないときに見る場所
+
+| 症状 | 見るところ |
+|---|---|
+| ローカルでは動くのにビルドで落ちる | Settings → Build and Deployment の **Node.js Version**。ローカルと揃える |
+| ビルドは通るが画面が真っ白 | **Output Directory** の設定。Framework Preset が Next.js になっているか |
+| モノレポでビルド対象がずれる | **Root Directory**。指定するとその外のファイルへはアクセスできない |
+| そもそもビルドが始まらない | Git 連携の権限。private リポジトリの場合は上記の Hobby 制約 |
+
+ビルドログはデプロイの詳細画面に全文が残ります。**「失敗しました」で終わらせず、最初のエラー行まで遡ってください。**後続のエラーは最初の1件の巻き添えであることが多いです。
+
+## やってみよう
+
+1. **GitHub に push する**：第2章のプロジェクトをリポジトリにして push します
+2. **Vercel にインポートする**：ダッシュボードからリポジトリを選び、Framework Preset が Next.js であることを確認してデプロイします
+3. **本番 URL を開く**：フォームの画面が表示されることを確認します
+4. **ブランチを切って Preview を作る**：見出しを変えたブランチを push し、**本番が変わっていないこと**と **Preview URL で変更が見えること**の両方を確認します
+5. **URL の種類を見比べる**：Deployments 一覧で、同じデプロイに複数の URL が割り当てられていることを確認します
+6. **マージして本番を更新する**：PR をマージし、本番 URL が入れ替わることを確認します
+
+演習4が本章の中心です。**「本番を触らずに変更を見せられる」という体験をここで持っておくと、以降の章で安心して手を動かせます。**
+
+## まとめ
+
+- 環境は **Local / Preview / Production** の3つ。環境変数の設定画面では Local が「Development」と表記される
+- **新規プロジェクトの最初のデプロイは、`--prod` を付けなくても production になる**
+- URL は3種類。**コミット単位は固定、ブランチ単位は最新に追従**する
+- **生成された URL は既定で公開されている。**塞ぐのは第6章
+- Hobby では **organization 配下の private リポジトリからデプロイできない**
+- Instant Rollback は Hobby では**直前のデプロイのみ**。**環境変数は戻らない**
+- ロールバック後は **production ドメインの自動割り当てが OFF になる**。`vercel promote` か Undo Rollback で戻す
+
+## 理解度チェック
+
+**Q1. ブランチ単位の Preview URL（`<project>-git-<branch>-<scope>.vercel.app`）の性質はどれでしょう？**
+
+1. そのブランチの特定コミットに固定され、後から内容は変わらない
+2. そのブランチの最新デプロイに追従し、push するたび内容が変わる
+3. production ブランチにマージされた時点で無効になる
+4. Deployment Protection を設定しないと生成されない
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+ブランチ単位の URL は、そのブランチの最新のデプロイを指します。内容を固定して共有したい場合は、コミット単位の URL（`<project>-<ハッシュ>-<scope>.vercel.app`）を使います。レビュー依頼で「見た内容と今の内容が違う」という事故を避けたいなら、後者を渡します。
+
+</details>
+
+**Q2. 本番で不具合が出たので Instant Rollback を実行しました。その後 production ブランチへ修正を push しましたが、本番に反映されません。最初に疑うべきはどれでしょう？**
+
+1. ビルドキャッシュが残っている
+2. ロールバックによって production ドメインの自動割り当てが OFF になっている
+3. Preview 環境の環境変数が誤っている
+4. Framework Preset の設定が外れている
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+ロールバックすると production ドメインの自動割り当てが無効になります。以降の push は自動では本番へ反映されません。Undo Rollback を実行するか、`vercel promote` で対象のデプロイを明示的に昇格させる必要があります。あわせて、ロールバックでは環境変数が戻らない点も押さえておいてください。
+
+</details>
+
+## 参考リンク
+
+- [Environments](https://vercel.com/docs/deployments/environments) — Local / Preview / Production と Custom Environments
+- [Generated URLs](https://vercel.com/docs/deployments/generated-urls) — 3種類の URL の形と性質
+- [Instant Rollback](https://vercel.com/docs/instant-rollback) — 戻し方とプランごとの制約
+- [Git Integration](https://vercel.com/docs/git) — production branch の決まり方と private リポジトリの扱い
+- [vercel deploy](https://vercel.com/docs/cli/deploy) — CLI からのデプロイと `--prod`
