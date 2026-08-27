@@ -1,0 +1,243 @@
+---
+title: "3 最初のデプロイ｜URL が返るところまで"
+description: "wrangler login で認証し、wrangler deploy で Worker を公開して workers.dev の URL を得るまでを扱います。デプロイ後のログの見方、バージョンの確認とロールバック、公開されたことの意味も整理します。"
+category: "web-development"
+subcategory: "cloudflare-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 35
+prerequisites: ["cloudflare-02-setup"]
+tags: ["Cloudflare", "カリキュラム", "Workers", "デプロイ"]
+sortOrder: 30
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第2章でローカルに表示したフォームを、**インターネットから開ける URL** に変えます。この章のゴールは、スマートフォンの回線からでも開ける `https://contact-desk.<サブドメイン>.workers.dev` が手に入ることです。
+
+- `wrangler login` で Wrangler と Cloudflare アカウントを結び付けられる
+- `wrangler deploy` で公開し、URL の構成を説明できる
+- 公開後のログを `wrangler tail` とダッシュボードで確認できる
+- 問題が起きたとき、前のバージョンへ戻せる
+
+**データベースもファイル保存もまだ入っていない状態で、先に公開まで通します。**最後にまとめてデプロイすると、失敗したときに原因の切り分けができなくなるためです。
+
+## ログインする
+
+```bash
+npx wrangler login
+```
+
+ブラウザが開き、Cloudflare の認可画面が出ます。許可すると、Wrangler がアカウントを操作できるようになります（OAuth 方式です）。
+
+確認します。
+
+```bash
+npx wrangler whoami
+```
+
+メールアドレスとアカウント ID、そして付与されている権限の一覧が表示されます。**ここに表示されるアカウントが、これから Worker・D1・R2 の作られる先です。**複数のアカウントに所属している場合は、意図したアカウントかを必ず確認してください。
+
+| 症状 | 対処 |
+|---|---|
+| ブラウザが開かない（リモートサーバー上など） | 表示された URL を手元のブラウザで開きます |
+| 別のアカウントで入ってしまった | `npx wrangler logout` してから入り直します |
+| 複数アカウントに所属していて選べない | `CLOUDFLARE_ACCOUNT_ID` 環境変数でアカウント ID を指定します |
+
+> **認証情報の保存場所が気になる場合は `npx wrangler whoami` の出力を見てください。**保存先も併せて報告されます。OS のキーチェーンを使いたくない場合は `npx wrangler login --no-use-keyring` があります。
+
+## デプロイする
+
+```bash
+npx wrangler deploy
+```
+
+初回は `*.workers.dev` のサブドメインを登録するよう促されます。**アカウントごとに1つ決めるもの**で、以降すべての Worker がこのサブドメインの下にぶら下がります。
+
+成功すると、次の形の URL が表示されます。
+
+```text
+https://<WORKER_NAME>.<YOUR_SUBDOMAIN>.workers.dev
+```
+
+- `<WORKER_NAME>` は `wrangler.jsonc` の `name`（このコースでは `contact-desk`）
+- `<YOUR_SUBDOMAIN>` はいま決めたアカウントのサブドメイン
+
+開いてフォームが表示されれば成功です。**手元のマシンだけでなく、モバイル回線からも開けることを確認してください。**localhost と違い、これは世界中から到達できます。
+
+### いま起きたこと
+
+`wrangler deploy` は、ローカルのコードをバンドルして Cloudflare にアップロードし、**Cloudflare のネットワーク全体へ配ります。**サーバーの起動もリージョンの選択も出てきません。この「置く場所を決めない」性質が Workers の特徴です。
+
+一方で、この単純さには裏返しがあります。**いま公開した URL は誰でも開けます。**第6章で管理画面を作るとき、この点が問題になります。先に頭の隅に置いておいてください。
+
+### デプロイ前に中身だけ確かめたいとき
+
+```bash
+npx wrangler deploy --dry-run --outdir dist
+```
+
+アップロードせずにバンドルだけ行います。**設定ミスやビルドエラーを、公開せずに洗い出せます。**CI に組み込む場合はこちらを先に走らせるのが定石です。
+
+## 動いていることを確かめる
+
+デプロイした「つもり」で終わらせないために、3つの角度から確認します。
+
+### 1. リアルタイムのログを見る
+
+別のターミナルを開いて実行します。
+
+```bash
+npx wrangler tail
+```
+
+その状態で公開 URL をブラウザで開くと、リクエストのログが流れます。`console.log()` の出力もここに出ます。
+
+```bash
+npx wrangler tail --status error
+```
+
+エラーになったリクエストだけに絞れます。**本番で「たまに落ちる」を追うときの最初の道具です。**
+
+### 2. ダッシュボードのログを見る
+
+`wrangler.jsonc` に次の設定が入っていれば、ログが保存され、ダッシュボードから後追いで検索できます。
+
+```jsonc
+{
+  "observability": {
+    "enabled": true
+  }
+}
+```
+
+第2章で生成した雛形には最初から入っています。入っていない場合は追記して `npx wrangler deploy` し直してください。
+
+`wrangler tail` は「いま流れているもの」しか見えません。**「昨日の夜のエラー」を追うにはダッシュボード側のログが要ります。**両方使い分けます。
+
+### 3. バージョンを確認する
+
+```bash
+npx wrangler versions list
+```
+
+直近のバージョンが表示されます。`wrangler deploy` するたびに新しいバージョンが作られ、それが現在の配信対象になります。
+
+## 壊したときに戻す
+
+公開したあとに「さっきの状態に戻したい」は必ず起きます。**先に戻し方を確認しておくのが、安心してデプロイするコツです。**
+
+```bash
+npx wrangler rollback
+```
+
+直前のデプロイへ戻します。引数にバージョン ID を渡せば、任意のバージョンを指定できます。
+
+```bash
+npx wrangler deployments list
+```
+
+過去のデプロイの履歴を確認できます。
+
+> **ロールバックはコードを戻しますが、データは戻しません。**第4章でデータベースを入れたあとは、「コードを戻せば元通り」ではなくなります。この区別は第7章でもう一度扱います。
+
+## 実例：404 のときに何が起きているか
+
+いま `/healthz` 以外の未知のパスを開くと `Not Found` が返ります。これは Cloudflare が返しているのではなく、**第2章で書いた最後の1行が返しています。**
+
+```ts
+return new Response("Not Found", { status: 404 });
+```
+
+`wrangler tail` を開いた状態で `https://<公開URL>/adminn`（わざと綴りを間違える）を開いてみてください。ログにはリクエストが記録され、`outcome` は `ok` になります。**アプリとしては 404 でも、Worker としては正常終了している**からです。
+
+この区別は運用で効きます。`--status error` で絞ったときに出てくるのは「Worker が例外を投げた」ものだけで、**アプリの 4xx は自分でログに出さない限り見えません。**必要ならこう足します。
+
+```ts
+if (!matched) {
+  console.log(JSON.stringify({ event: "not_found", path: url.pathname }));
+  return new Response("Not Found", { status: 404 });
+}
+```
+
+**ログに個人情報や入力本文をそのまま書かないでください。**パスやステータスなど、追跡に必要な最小限に留めます。
+
+## 無料枠の目安
+
+2026-08 時点の Workers Free プランの主な枠です。
+
+| 項目 | Free |
+|---|---|
+| リクエスト数 | 100,000 / 日 |
+| CPU 時間 | 10 ミリ秒 / 呼び出し |
+| リクエストボディのサイズ | 100 MB |
+| スクリプトサイズ（gzip 後） | 3 MB |
+
+**CPU 時間の 10 ミリ秒は「実際に計算していた時間」です。**データベースや R2 の応答を待っている時間は含まれません。この題材で 10 ミリ秒に当たることは、まずありません。
+
+有料プランは月額 $5 からで、月間 1,000 万リクエストと CPU 時間 3,000 万ミリ秒が含まれます。費用の考え方は第7章でまとめます。
+
+## やってみよう
+
+1. **`npx wrangler login` して `npx wrangler whoami` で確認する。**表示されたアカウントが意図したものかを見てください
+2. **`npx wrangler deploy` する。**サブドメイン名は後から変えにくいので、少し考えてから決めます
+3. **公開 URL をスマートフォンから開く。**Wi-Fi を切ってモバイル回線で開くと、本当に外から見えていることが確認できます
+4. **`npx wrangler tail` を開いた状態でアクセスする。**ログが流れることを見ます
+5. **わざと壊して戻す。**`src/index.ts` の HTML を1行削って `deploy` し、表示が変わったのを確認したら `npx wrangler rollback` で戻します
+
+5番目は必ずやってください。**戻し方を知らないまま本番を持つのが、いちばん危ない状態です。**
+
+## まとめ
+
+- `npx wrangler login` で OAuth 認証、`npx wrangler whoami` で対象アカウントを確認する
+- `npx wrangler deploy` で公開。URL は **`<WORKER_NAME>.<YOUR_SUBDOMAIN>.workers.dev`**
+- サブドメインは**アカウントに1つ**。以降すべての Worker がその下に並ぶ
+- 公開した URL は**誰でも開ける**。管理画面を足す前に、この事実を踏まえる必要がある（第6章）
+- ログは `wrangler tail`（いま）とダッシュボード（後追い）で使い分ける。`observability.enabled` が要る
+- `npx wrangler rollback` で前のバージョンへ戻せる。**ただし戻るのはコードだけで、データは戻らない**
+- Free プランは 100,000 リクエスト/日、CPU 時間 10 ミリ秒/呼び出し
+
+## 理解度チェック
+
+**Q1. `wrangler tail --status error` で絞っても、アプリが返している 404 が出てきません。なぜでしょう？**
+
+1. 404 はログに残らない仕様だから
+2. `--status error` は Worker が例外を投げたリクエストを対象にしており、正常に 404 を返した呼び出しは `ok` として扱われるから
+3. `observability.enabled` が false だから
+4. 無料プランではエラーログが取れないから
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+Worker としては `Response` を返して正常終了しているため、invocation status は `ok` です。アプリケーションとしての 4xx を追いたい場合は、自分で `console.log()` を出すか、ダッシュボードのログでステータスコードを条件に検索します。**「フレームワークが勝手にログを出してくれる」層がないのが Workers です。**
+
+</details>
+
+**Q2. デプロイ後に不具合が見つかりました。`npx wrangler rollback` で前のバージョンに戻せば、完全に元の状態に戻せるでしょうか？**
+
+1. 戻せる。コードもデータも巻き戻る
+2. コードは戻るが、その間に書き込まれたデータは戻らない
+3. 戻せない。再デプロイするしかない
+4. 有料プランでのみ戻せる
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+ロールバックが扱うのは Worker のバージョン、つまりコードと設定です。第4章以降で D1 や R2 にデータを書き込むようになると、**その間に入ったデータはロールバックしても消えませんし、壊れた形で入ったデータも直りません。**データの巻き戻しは別の手段（D1 の Time Travel など）で考える必要があります。
+
+</details>
+
+## 参考リンク
+
+- [Wrangler のコマンド一覧](https://developers.cloudflare.com/workers/wrangler/commands/)
+- [リアルタイムログ（wrangler tail）](https://developers.cloudflare.com/workers/observability/logs/real-time-logs/)
+- [Workers Logs](https://developers.cloudflare.com/workers/observability/logs/workers-logs/)
+- [バージョンとデプロイ](https://developers.cloudflare.com/workers/configuration/versions-and-deployments/)
+- [Workers の料金](https://developers.cloudflare.com/workers/platform/pricing/)
+- [Workers の制限値](https://developers.cloudflare.com/workers/platform/limits/)

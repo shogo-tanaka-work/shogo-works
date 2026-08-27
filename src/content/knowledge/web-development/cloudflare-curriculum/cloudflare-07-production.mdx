@@ -1,0 +1,376 @@
+---
+title: "7 公開して運用する｜独自ドメイン・環境分離・シークレット・費用"
+description: "workers.dev から独自ドメインへ移し、本番と検証を分け、シークレットを安全に持たせるところまでを扱います。運用開始後に効いてくるログの見方と、この構成が毎月いくらになるかの見積もり方も整理します。"
+category: "web-development"
+subcategory: "cloudflare-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 55
+prerequisites: ["cloudflare-06-access"]
+tags: ["Cloudflare", "カリキュラム", "Workers", "運用"]
+sortOrder: 70
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+動くものはできました。**ここからは「使い続けられる形にする」章です。**
+
+- 独自ドメインで公開し、`workers.dev` の URL を閉じられる
+- 本番と検証を分け、壊さずに変更を試せる
+- API キーなどのシークレットを、コードにも Git にも置かずに持たせられる
+- この構成が毎月いくらになるかを、自分で見積もれる
+
+**最後の章なので、運用開始前のチェックリストも置きます。**
+
+## 独自ドメインで公開する
+
+### まずドメインを Cloudflare に載せる
+
+Workers に独自ドメインを割り当てるには、**そのドメインが Cloudflare のゾーンとして有効になっている**必要があります。方法は2つです。
+
+| 方法 | 手順 |
+|---|---|
+| すでに持っているドメインを移す | Cloudflare にドメインを追加し、レジストラ側のネームサーバーを Cloudflare のものへ変更する |
+| Cloudflare で取得する | Cloudflare Registrar で新規に取得する |
+
+Cloudflare Registrar は**原価提供**を明言しています。ドキュメントには "will only charge you what is paid to the registry for your domain. No markup. No surprise fees." とあります。**このコースで発生する費用は、実質ここだけです。**
+
+### Custom Domain を割り当てる
+
+`wrangler.jsonc` に追記します。
+
+```jsonc
+{
+  "routes": [
+    { "pattern": "contact.example.com", "custom_domain": true }
+  ]
+}
+```
+
+`npx wrangler deploy` すると、DNS レコードと証明書が自動で作られます。**手で DNS を触る必要はありません。**
+
+ダッシュボードから設定する場合は `Workers & Pages` → 対象の Worker → `Settings` → `Domains & Routes` → `Add` → `Custom Domain` です。
+
+### Custom Domain と Route の違い
+
+似た機能が2つあるので、選び方を整理します。
+
+| | Custom Domain | Route |
+|---|---|---|
+| 書き方 | `custom_domain: true` | `pattern` と `zone_name` |
+| マッチ | **完全一致。**ワイルドカード不可 | **パターン一致。**`example.com/api/*` のような書き方ができる |
+| DNS | 自動で作られる | 事前に手で用意する |
+| 想定 | **Worker 自身がそのホストの中身**であるとき | 既存のサイトの一部だけを Worker に通すとき |
+
+このコースの Worker は「そのホストの中身そのもの」なので、**Custom Domain が正解**です。既存サイトの `/api/*` だけを Worker に処理させたい、といった場合に Route を使います。
+
+### `workers.dev` を閉じる
+
+独自ドメインに移したら、**元の `*.workers.dev` の URL を閉じてください。**
+
+```jsonc
+{
+  "workers_dev": false
+}
+```
+
+理由は第6章の続きです。**保護されていない経路が1本でも残っていれば、そこが穴になります。**独自ドメイン側だけを守って `workers.dev` を開けたままにするのは、鍵をかけた玄関の横に開いた勝手口を残すのと同じです。
+
+Worker 単位で Access を有効にしている場合は `workers.dev` も自動的に保護対象になりますが、**閉じられるものは閉じておくのが安全側**です。
+
+## 本番と検証を分ける
+
+いま `npx wrangler deploy` は、本番を直接書き換えます。**「試したいだけ」のときに本番が変わるのは困ります。**分け方は2つあります。
+
+### 方法1: 名前付き環境
+
+`wrangler.jsonc` に環境を定義します。
+
+```jsonc
+{
+  "name": "contact-desk",
+  "env": {
+    "staging": {
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "contact-desk-db-staging",
+          "database_id": "検証用に作った UUID"
+        }
+      ],
+      "r2_buckets": [
+        { "binding": "UPLOADS", "bucket_name": "contact-desk-uploads-staging" }
+      ]
+    }
+  }
+}
+```
+
+```bash
+npx wrangler deploy --env staging
+```
+
+**環境を作ると、`<Worker名>-<環境名>` という別の Worker ができます。**この例なら `contact-desk-staging` です。データベースもバケットも別なので、検証で入れたデータが本番に混ざりません。
+
+**バインディングは継承されません。**トップレベルに書いた `d1_databases` は `env.staging` に自動では引き継がれないので、環境ごとに明示します。**面倒に見えますが、「検証環境が本番の DB を掴んでいた」という事故を構造的に防ぎます。**
+
+D1 のマイグレーションも環境ごとに当てます。
+
+```bash
+npx wrangler d1 migrations apply contact-desk-db-staging --remote
+```
+
+### 方法2: プレビュー URL
+
+「デプロイせずに、この変更だけ見たい」場合はこちらです。
+
+```bash
+npx wrangler versions upload --preview-alias staging
+```
+
+新しいバージョンをアップロードしますが、**本番の配信対象は切り替えません。**代わりにプレビュー用の URL が発行されます。
+
+```text
+<ALIAS>-<WORKER_NAME>.<SUBDOMAIN>.workers.dev
+```
+
+問題なければ、そのバージョンを本番に上げます。
+
+```bash
+npx wrangler versions deploy
+```
+
+**プレビュー URL も `workers.dev` の下に出ます。**中身が本番のデータベースを向いているなら、ここも守る対象です。第6章で Worker 単位の Access を有効にしていれば、プレビュー URL も保護対象に入ります。
+
+### どちらを使うか
+
+| 状況 | 選択 |
+|---|---|
+| データを汚さずに機能を試したい | **名前付き環境**（別の D1 / R2 を持つ） |
+| コードの変更だけを本番データで確認したい | **プレビュー URL** |
+| 段階的に切り替えたい | `wrangler versions deploy` でバージョンごとの配分を指定する |
+
+## シークレットを持たせる
+
+問い合わせが届いたら通知を飛ばす、という機能を足すとします。通知先の URL や API キーが必要になります。
+
+### 置き場所は3つある
+
+| 置き場所 | 見えるか | 用途 |
+|---|---|---|
+| `wrangler.jsonc` の `vars` | **平文で見える。**Git にも入る | 秘密でない設定値（表示件数、機能フラグ） |
+| `wrangler secret put` で登録するシークレット | **値は Wrangler にもダッシュボードにも表示されない** | API キー、Webhook URL、署名鍵 |
+| `.dev.vars` ファイル | ローカル開発専用 | 手元で動かすときの値 |
+
+公式ドキュメントにも "Do not use `vars` to store sensitive information" と明記されています。**判断に迷ったらシークレット側に置いてください。**
+
+### 登録する
+
+```bash
+npx wrangler secret put NOTIFY_WEBHOOK_URL
+```
+
+対話的に値を聞かれます。**コマンド履歴に値が残らないので、この形が安全です。**
+
+`wrangler secret put` は**登録と同時に新しいバージョンをデプロイします。**段階的なデプロイを使っている場合は `npx wrangler versions secret put` を使ってください。
+
+環境ごとに登録する場合は `--env` を付けます。
+
+```bash
+npx wrangler secret put NOTIFY_WEBHOOK_URL --env staging
+```
+
+### ローカルで使う
+
+`.dev.vars` をプロジェクトのルートに置きます。
+
+```text
+NOTIFY_WEBHOOK_URL=https://example.invalid/dummy-endpoint
+```
+
+**このファイルは必ず `.gitignore` に入れてください。**公式ドキュメントにも "`.dev.vars` and `.env` files should not be committed to git" とあります。生成された `.gitignore` には既定で入っていますが、目で確認してください。
+
+```bash
+grep dev.vars .gitignore
+```
+
+型についても補足します。**シークレットは設定ファイルに現れないため、そのままでは `Env` の型に入りません。**`.dev.vars` に同じ名前のキーを書いてから型を生成すると、`Env` に反映されます。
+
+```bash
+npm run cf-typegen
+```
+
+`worker-configuration.d.ts` に `NOTIFY_WEBHOOK_URL: string;` が入ります。
+
+> **アカウント単位でシークレットを一元管理する Secrets Store** という機能もありますが、2026-08 時点では Open Beta です。本番の要になる部分をベータ機能に預けるかは、判断のうえで決めてください。
+
+### 通知処理を書く
+
+```ts
+/** 通知は失敗しても本体の保存を巻き戻さない。縮退可能な処理として扱う */
+async function notifyNewInquiry(env: Env): Promise<void> {
+  const response = await fetch(env.NOTIFY_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    // 本文や氏名は送らない。通知に必要な最小限だけにする
+    body: JSON.stringify({ text: "新しいお問い合わせが届きました。" }),
+    signal: AbortSignal.timeout(5000),
+  });
+
+  if (!response.ok) {
+    console.error(JSON.stringify({ event: "notify_failed", status: response.status }));
+  }
+}
+```
+
+呼び出しは `ctx.waitUntil()` で行います。
+
+```ts
+  ctx.waitUntil(
+    notifyNewInquiry(env).catch((error: unknown) => {
+      console.error(JSON.stringify({ event: "notify_error" }), error);
+    }),
+  );
+```
+
+3点だけ確認してください。
+
+- **`ctx.waitUntil()` に渡す。**レスポンスを返した後も処理を続けられます。渡さないと途中で打ち切られることがあります
+- **`.catch()` を必ず付ける。**通知の失敗で問い合わせの保存まで失敗させない、という判断を明示します
+- **タイムアウトを付ける。**通知先が応答しないときに、こちらが引きずられないようにします
+
+**保存は継続不能な失敗、通知は縮退可能な失敗**です。この区別をコードから読めるようにしておきます。
+
+## 運用中に見るもの
+
+| 見たいもの | 手段 |
+|---|---|
+| いま流れているリクエスト | `npx wrangler tail` |
+| 昨日のエラー | ダッシュボードの Workers Logs（`observability.enabled` が必要） |
+| どのバージョンが動いているか | `npx wrangler versions list` / `npx wrangler deployments list` |
+| 直前の状態に戻す | `npx wrangler rollback` |
+| データを戻す | D1 の Time Travel（Free は7日、Paid は30日） |
+
+**コードとデータで戻し方が違う**のは第3章で触れたとおりです。D1 側には Time Travel があり、Free プランでも7日ぶん遡れます。**R2 に対応する仕組みはこの範囲では扱いません。**削除する処理を書くときは、消す前に確認を挟む設計にしてください。
+
+## いくらかかるか
+
+2026-08 時点の無料枠を並べます。
+
+| サービス | Free の枠 |
+|---|---|
+| Workers | 100,000 リクエスト/日、CPU 時間 10 ミリ秒/呼び出し |
+| D1 | 読み取り 500万行/日、書き込み 10万行/日、ストレージ合計 5 GB |
+| R2 | ストレージ 10 GB-month/月、Class A 100万/月、Class B 1,000万/月、エグレス無料 |
+| Cloudflare Registrar | 無料ではないが**原価提供** |
+| Cloudflare Zero Trust（Access） | 無料枠あり。**2026-08 時点、含まれるシート数を公式ドキュメント上で確認できませんでした。**ダッシュボードのプラン画面で確認してください |
+
+社内の問い合わせ窓口（1日数十件、添付は数 MB、管理者3名）という規模を当てはめると、**Workers・D1・R2 のいずれも無料枠の内側**です。**この構成で実際に発生するのはドメイン代**、というのが第1章で書いた見立ての中身です。
+
+有料に移るときの目安も挙げておきます。
+
+- Workers の有料プランは**月額 $5 から**。月間 1,000万リクエストと CPU 時間 3,000万ミリ秒が含まれます
+- D1 は書き込み 10万行/日が先に効きます。**1件の問い合わせで書く行数を数えておく**と予測できます
+- R2 はストレージが先に効きます。**添付の上限（このコースでは 10 MB）× 想定件数**で概算します
+
+**見積もりの型は「どの枠に先に当たるか」を1つ特定することです。**すべてを均等に心配しても判断できません。
+
+## 運用開始前のチェックリスト
+
+第6章までの内容も含めて、公開前に確認する項目です。
+
+| 項目 | 確認内容 |
+|---|---|
+| 公開フォーム | 認証なしで開ける。送信できる |
+| 管理画面 | **ログアウトした別ブラウザから開けない** |
+| 添付のダウンロード | 管理画面と同じ保護がかかっている |
+| `workers.dev` | 独自ドメインへ移したら `workers_dev: false` で閉じた |
+| プレビュー URL | 保護されている、または本番データを向いていない |
+| シークレット | Git に入っていない。`.dev.vars` が `.gitignore` にある |
+| 入力検証 | 空・長すぎ・不正な形式が弾ける |
+| エスケープ | 問い合わせ本文が HTML として解釈されない |
+| ログ | 本文・メールアドレスをログに出していない |
+| ロールバック | 一度実際に試した |
+| マイグレーション | 本番に適用済み。ファイルが Git に入っている |
+
+**上から3つを最初に確認してください。**この題材でいちばん実害が大きいのは、他人が送った問い合わせが公開されることです。
+
+## 3つのコースを行き来する
+
+同じ題材を別のプラットフォームで作ると、**プラットフォームの引き受ける範囲の違い**が見えます。
+
+- [Vercel 入門コース](/knowledge/web-development/vercel-curriculum) — Preview 環境の考え方がこのコースの「名前付き環境 / プレビュー URL」とどう違うか。データ層を外部に持つ構成の組み方
+- [Supabase 入門コース](/knowledge/web-development/supabase-curriculum) — **一般ユーザーがログインするアプリ**をどう作るか。第6章で扱えなかった領域はここで扱います
+
+製品ごとの詳細を引きたくなったら [Cloudflare リファレンス](/knowledge/web-development/cloudflare)が使えます。
+
+## やってみよう
+
+1. **ドメインを Cloudflare に載せ、Custom Domain を割り当てる。**新規に取るなら Registrar が原価です
+2. **`workers_dev: false` にしてデプロイし、古い URL が閉じたことを確認する**
+3. **`staging` 環境を作る。**別の D1 と R2 を用意し、`--env staging` でデプロイしてマイグレーションを当てます
+4. **シークレットを1つ登録する。**`npx wrangler secret put` を使い、`.dev.vars` が `.gitignore` にあることを確認します
+5. **通知処理を足す。**`ctx.waitUntil()` と `.catch()` を付け、通知先をわざと存在しない URL にして**問い合わせの保存だけは成功する**ことを確認します
+6. **チェックリストを上から順に確認する**
+
+5番目が、この章でいちばん実務に近い演習です。**「壊れてもよい処理」を「壊れると全部止まる処理」にしない**書き方を、手を動かして確認してください。
+
+## まとめ
+
+- 独自ドメインには**ゾーンとして Cloudflare に載っていること**が必要。Registrar は原価提供
+- Worker 自身がそのホストの中身なら **Custom Domain**。既存サイトの一部を通すなら Route
+- 独自ドメインへ移したら **`workers_dev: false`** で古い経路を閉じる
+- 環境分離は**名前付き環境**（`<Worker名>-<環境名>`）。**バインディングは継承されない**ので環境ごとに書く
+- 本番データのまま変更だけ確認するなら **`wrangler versions upload --preview-alias`**
+- シークレットは **`wrangler secret put`**。`vars` に秘密を入れない。`.dev.vars` は `.gitignore`
+- `.dev.vars` にキーを置いて `npm run cf-typegen` すると、シークレットが `Env` の型に入る
+- 縮退可能な処理は **`ctx.waitUntil()` + `.catch()` + タイムアウト**で、本体を巻き込まない形にする
+- **どの無料枠に先に当たるかを1つ特定する**のが、費用見積もりの型
+- 公開前にチェックリストを通す。**上位3項目は他人のデータの公開に直結する**
+
+## 理解度チェック
+
+**Q1. `staging` 環境を作り、トップレベルにだけ `d1_databases` を書いたまま `--env staging` でデプロイしました。何が起きるでしょう？**
+
+1. トップレベルの設定が継承され、検証環境が本番のデータベースを掴む
+2. バインディングは継承されないため、`env.DB` が存在せず動かない
+3. 自動的に検証用のデータベースが作られる
+4. デプロイ自体が拒否される
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+Wrangler の名前付き環境では、`vars` や `kv_namespaces`、`d1_databases` といったバインディングは継承されません。環境ごとに明示する必要があります。**一見不便ですが、「検証環境が本番の DB を掴んでいた」という事故が構造的に起きない**という意味があります。書き忘れは動かないことで気づけます。
+
+</details>
+
+**Q2. 通知先の Webhook が応答しなくなりました。問い合わせの保存はどうあるべきでしょう？**
+
+1. 通知が失敗したら保存も取り消す
+2. 保存は成功させ、通知の失敗はログに残して切り離す
+3. 通知が成功するまでリトライし続ける
+4. 通知が失敗したら 500 を返す
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+保存は継続不能な失敗、通知は縮退可能な失敗です。**送信者から見れば、通知が飛んだかどうかは関係ありません。**保存できたなら成功として返すべきです。ただし黙って捨てるのではなく、`console.error()` で「通知が落ちている」ことが後から分かる形にします。無制限のリトライは、Worker の実行を引き延ばすうえに相手側の復旧も妨げます。
+
+</details>
+
+## 参考リンク
+
+- [Workers の Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/)
+- [Workers の Routes](https://developers.cloudflare.com/workers/configuration/routing/routes/)
+- [Wrangler の環境](https://developers.cloudflare.com/workers/wrangler/environments/)
+- [プレビュー URL](https://developers.cloudflare.com/workers/versions-and-deployments/preview-urls/)
+- [Workers のシークレット](https://developers.cloudflare.com/workers/configuration/secrets/)
+- [Secrets Store](https://developers.cloudflare.com/secrets-store/)
+- [Cloudflare Registrar](https://developers.cloudflare.com/registrar/)
+- [D1 の料金](https://developers.cloudflare.com/d1/platform/pricing/)

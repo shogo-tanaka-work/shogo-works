@@ -1,0 +1,351 @@
+---
+title: "5 ファイルを受け取る｜R2 に添付を保存し、安全に取り出す"
+description: "R2 バケットを作って Worker にバインドし、フォームの添付ファイルを保存します。公開バケットではなく Worker 経由で配信する理由、キーの設計、ファイル名の扱い、D1 と R2 をまたぐ書き込みの失敗をどう考えるかを扱います。"
+category: "web-development"
+subcategory: "cloudflare-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 60
+prerequisites: ["cloudflare-04-d1-database"]
+tags: ["Cloudflare", "カリキュラム", "R2", "ファイルアップロード"]
+sortOrder: 50
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+フォームには `attachment` という入力欄がありますが、第4章まではそれを捨てていました。ここで受け取ります。
+
+- R2 バケットを作り、Worker にバインドできる
+- 添付ファイルを検証して保存し、D1 にその所在を記録できる
+- 管理画面から**安全に**ダウンロードさせられる
+- 公開バケットや署名付き URL を、いつ使い・いつ使わないか判断できる
+
+**ファイルの受け取りは、Web アプリでいちばん事故が起きやすい部分です。**この章は「動かす」より「なぜそうするか」に紙幅を割きます。
+
+## R2 とは
+
+Cloudflare のオブジェクトストレージです。S3 互換の API も持っていますが、Workers からはバインディング経由で直接呼べます。
+
+2026-08 時点の料金です。
+
+| 項目 | Free | 超過時（Standard） |
+|---|---|---|
+| ストレージ | 10 GB-month / 月 | $0.015 / GB-month |
+| Class A 操作（書き込み系） | 100万 / 月 | $4.50 / 100万リクエスト |
+| Class B 操作（読み取り系） | 1,000万 / 月 | $0.36 / 100万リクエスト |
+| エグレス（外向きの転送） | **無料** | **無料** |
+
+**エグレスが無料**なのが R2 の性格を決めています。公式ドキュメントにも "Egressing directly from R2, including via the Workers API, S3 API, and `r2.dev` domains does not incur data transfer (egress) charges and is free." と明記されています。ファイルを配れば配るほど転送料が増える、という心配をしなくて済みます。
+
+### なぜ D1 に入れないのか
+
+第1章で触れた話を、数字で確認します。
+
+D1 の Free プランは読み取り 500万行/日、1データベース 500 MB です。**5 MB の PDF を10件受け取っただけで、データベースの1割を使います。**さらに、管理画面の一覧で全列を取るクエリを書くと、表示のたびに全件のバイナリを読むことになります。
+
+R2 は 10 GB-month まで無料で、読み書きは操作回数で数えます。**大きくて構造のないデータは R2、小さくて検索したいデータは D1。**この分担は Cloudflare に限らず共通の型です。
+
+## バケットを作る
+
+```bash
+npx wrangler r2 bucket create contact-desk-uploads
+```
+
+`wrangler.jsonc` にバインディングを追記します。
+
+```jsonc
+{
+  "r2_buckets": [
+    {
+      "binding": "UPLOADS",
+      "bucket_name": "contact-desk-uploads"
+    }
+  ]
+}
+```
+
+D1 と違い、フィールドは `binding` と `bucket_name` の2つだけです。ID はありません。
+
+型を再生成します。
+
+```bash
+npm run cf-typegen
+```
+
+`Env` に `UPLOADS: R2Bucket` が入ります。
+
+## 保存する
+
+第4章の `createInquiry()` を書き換えます。追加する定数と関数から。
+
+```ts
+/** 受け付ける添付の上限。Workers のリクエストボディ上限（Free で 100 MB）より十分小さく取る */
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+/**
+ * 添付を R2 へ保存し、キーを返す。
+ * キーに元のファイル名を含めない。名前は D1 側に持たせる。
+ */
+async function saveAttachment(env: Env, inquiryId: string, file: File): Promise<string> {
+  const key = `inquiries/${inquiryId}/${crypto.randomUUID()}`;
+  await env.UPLOADS.put(key, await file.arrayBuffer(), {
+    // 送られてきた content-type は自己申告なので信用しない。配信側で無害化する
+    httpMetadata: { contentType: "application/octet-stream" },
+  });
+  return key;
+}
+```
+
+`createInquiry()` の後半を差し替えます。
+
+```ts
+  const id = crypto.randomUUID();
+
+  const uploaded = form.get("attachment");
+  const hasAttachment = uploaded instanceof File && uploaded.size > 0;
+
+  if (hasAttachment && uploaded.size > MAX_ATTACHMENT_BYTES) {
+    return new Response(renderPage("送信できませんでした", "添付ファイルが大きすぎます。"), {
+      status: 400,
+      headers: HTML_HEADERS,
+    });
+  }
+
+  // R2 への保存を先に済ませ、D1 には「保存済みのキー」だけを書く
+  const attachmentKey = hasAttachment ? await saveAttachment(env, id, uploaded) : null;
+  const attachmentName = hasAttachment ? uploaded.name.slice(0, 255) : null;
+
+  await env.DB.prepare(
+    `INSERT INTO inquiries (id, name, email, message, attachment_key, attachment_name)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  )
+    .bind(id, name, email, message, attachmentKey, attachmentName)
+    .run();
+```
+
+第4章でこの2列を先に作っておいたので、**マイグレーションを足さずに済みます。**
+
+### キーの設計
+
+```text
+inquiries/<問い合わせID>/<ランダムなUUID>
+```
+
+3つの判断が入っています。
+
+**1. 元のファイル名をキーに入れません。**利用者は上位ディレクトリを指す名前も、絵文字だらけの名前も送ってきます。キーに使うと、扱いづらいだけでなく、保存場所の推測にもつながります。
+
+**2. 問い合わせ ID でディレクトリを切ります。**R2 に本当のディレクトリはありませんが、プレフィックスで一覧が取れます。**あとで「この問い合わせに紐づくファイルを全部消す」ができる形にしておきます。**
+
+**3. ファイル名は D1 の `attachment_name` に持ちます。**表示に使う名前と、保存場所を示すキーを分離します。
+
+### `content-type` を信用しない
+
+`file.type` はブラウザが付けた自己申告です。**中身が HTML のファイルを画像だと名乗って送ることができます。**そのまま保存して、そのまま返すと、こちらのドメイン上で任意の HTML が動きます。
+
+対策は2段構えです。
+
+- 保存時は `application/octet-stream` に倒す
+- 配信時は必ずダウンロードとして返し、ブラウザに中身を推測させない
+
+拡張子や MIME タイプで受け付ける種類を絞りたい場合は、追加で検証を入れてください。ただし**自己申告の値だけを見た絞り込みは、素通りされる前提**で考えます。
+
+## 取り出す
+
+管理画面からダウンロードできるようにします。
+
+```ts
+interface AttachmentRow {
+  attachment_key: string | null;
+  attachment_name: string | null;
+}
+
+/** 日本語ファイル名も壊さずに返すためのヘッダー組み立て */
+function buildContentDisposition(filename: string): string {
+  const asciiFallback = filename.replace(/[^\x20-\x7e]/g, "_").replaceAll('"', "");
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encodeURIComponent(filename)}`;
+}
+
+async function downloadAttachment(inquiryId: string, env: Env): Promise<Response> {
+  const row = await env.DB.prepare(
+    "SELECT attachment_key, attachment_name FROM inquiries WHERE id = ?",
+  )
+    .bind(inquiryId)
+    .first<AttachmentRow>();
+
+  if (row === null || row.attachment_key === null) {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  const object = await env.UPLOADS.get(row.attachment_key);
+  if (object === null) {
+    // D1 には記録があるのに R2 に実体がない。運用上の異常なので必ず記録する
+    console.error(JSON.stringify({ event: "attachment_missing", inquiryId }));
+    return new Response("Not Found", { status: 404 });
+  }
+
+  const headers = new Headers();
+  object.writeHttpMetadata(headers);
+  headers.set("etag", object.httpEtag);
+  headers.set("x-content-type-options", "nosniff");
+  headers.set("content-disposition", buildContentDisposition(row.attachment_name ?? "attachment"));
+
+  return new Response(object.body, { headers });
+}
+```
+
+ルーティングに1本足します。
+
+```ts
+      const attachmentMatch = url.pathname.match(
+        /^\/admin\/inquiries\/([0-9a-f-]{36})\/attachment$/,
+      );
+      if (request.method === "GET" && attachmentMatch !== null) {
+        return await downloadAttachment(attachmentMatch[1], env);
+      }
+```
+
+一覧のクエリに `attachment_name` を追加し、`InquiryRow` に `attachment_name: string | null` を足したうえで、`renderAdminPage()` にリンクを足します。
+
+```ts
+  const attachmentCell =
+    row.attachment_name === null
+      ? "—"
+      : `<a href="/admin/inquiries/${encodeURIComponent(row.id)}/attachment">${escapeHtml(row.attachment_name)}</a>`;
+```
+
+### ヘッダーの役割
+
+| ヘッダー | 役割 |
+|---|---|
+| `writeHttpMetadata(headers)` | R2 に保存したメタデータ（`contentType` など）をレスポンスヘッダーへ写す |
+| `etag` に `httpEtag` | 引用符付きの正しい形式の ETag。ブラウザのキャッシュ検証が効く |
+| `content-disposition: attachment` | 画面に表示せず、ダウンロードさせる |
+| `x-content-type-options: nosniff` | ブラウザに中身から型を推測させない |
+
+`httpEtag` を使うのは、`etag` プロパティが引用符なしの生の値だからです。**HTTP ヘッダーとして正しい形にするために `httpEtag` を使う**、と覚えてください。
+
+## なぜ公開バケットにしないのか
+
+R2 には、バケットを `r2.dev` のサブドメインで直接公開する機能があります。**この題材では使いません。**理由は2つです。
+
+**1. 公式が本番利用を想定していません。**公開バケットのドキュメントには "Public access through `r2.dev` subdomains is rate-limited and should only be used for development purposes." "This endpoint is intended for non-production traffic." と書かれています。本番ではカスタムドメインの設定が求められます。
+
+**2. URL を知っていれば誰でも開けます。**この題材で扱うのは、他人が送ってきた添付です。**管理画面を第6章で守っても、添付が公開 URL にあるなら意味がありません。**
+
+代わりに **Worker を経由して返します。**そうすると、第6章で Worker の手前に認証を置いた時点で、添付も自動的に守られます。**守る対象を1か所にまとめるのが要点です。**
+
+### 署名付き URL はどうか
+
+R2 は S3 互換 API で署名付き URL（presigned URL）を発行できます。「一時的にこの1件だけ渡したい」という場面には向きます。
+
+2026-08 時点で押さえておく制約です。
+
+- 有効期限は **1秒から7日（604,800秒）**まで
+- 対応する操作は **GET / HEAD / PUT / DELETE**。フォームからの POST アップロードには使えない
+- **S3 API のドメインでのみ機能し、カスタムドメインでは使えない**
+- **URL を持つ人は誰でも、期限内なら操作できる**
+
+最後の1点が判断の分かれ目です。**リンクが転送されれば、転送された先の人も開けます。**「関係者だけに見せる」が要件なら、Worker 経由 + 手前の認証のほうが素直です。
+
+## 実例：D1 と R2 をまたぐ書き込みは、まとめて失敗できない
+
+このコードは R2 に置いてから D1 に書きます。**R2 が成功して D1 が失敗すると、誰からも参照されないファイルが R2 に残ります。**
+
+トランザクションで包むことはできません。別のサービスだからです。取れる方針は3つです。
+
+| 方針 | 内容 | 向き不向き |
+|---|---|---|
+| **孤児を許して後で掃除する** | R2 → D1 の順。失敗したオブジェクトは後からプレフィックスで探して削除 | **この題材ではこれで十分。**孤児は容量を食うだけで、実害が小さい |
+| 先に D1、後で R2 | D1 に「アップロード中」の行を作り、R2 成功後に更新 | 中途半端な行が一覧に出ないよう、状態列と絞り込みが要る |
+| 参照されるまで確定しない | 別のプレフィックスに置き、確定時に移す | この規模には過剰 |
+
+**大事なのは「どちらが起きうるか」を知って選ぶことです。**「トランザクションがあるから大丈夫」という前提が使えない場面がある、と分かっていれば設計を誤りません。
+
+掃除のコマンドを挙げておきます。
+
+```bash
+npx wrangler r2 object delete contact-desk-uploads/inquiries/<問い合わせID>/<オブジェクトID>
+```
+
+問い合わせを削除する機能を作るなら、**D1 の行を消す前に、対応する R2 のオブジェクトを消す**順にしてください。逆順だと、消すべきキーが分からなくなります。
+
+## つまずきやすい点
+
+| 症状 | 原因と対処 |
+|---|---|
+| `attachment` が常に空 | フォームの `enctype="multipart/form-data"` が抜けています |
+| `env.UPLOADS` が型エラー | `npm run cf-typegen` を実行していません |
+| ローカルでは保存できるのに本番で 500 | 本番のバケットができていない、または設定を反映せずにデプロイしています。`wrangler tail` で確認します |
+| 大きなファイルで失敗する | 上限は2段あります。アプリ側の `MAX_ATTACHMENT_BYTES` と、Workers のリクエストボディ上限（Free で 100 MB）です |
+| ダウンロード時に日本語ファイル名が化ける | `filename*=UTF-8` の指定を確認します。ASCII のフォールバックだけだと化けます |
+
+**ローカルの `wrangler dev` は、R2 もローカルに保存します。**本番のバケットは触りません。`--remote` を付けた場合だけ本番を見ます。
+
+## やってみよう
+
+1. **バケットを作り、バインドし、`npm run cf-typegen` する**
+2. **ローカルで小さなファイルを添付して送信する。**`/admin` にファイル名が出て、リンクからダウンロードできれば成功です
+3. **上限を超えるファイルを送る。**`MAX_ATTACHMENT_BYTES` を一時的に `1024` にすると簡単に試せます。400 が返ることを確認します
+4. **`content-disposition` を外してみる。**HTML ファイルを添付して送り、ダウンロードリンクを開いたときの挙動を比べます。**確認したら必ず戻してください**
+5. **孤児を作ってみる。**`saveAttachment()` の呼び出し直後に例外を投げるコードを一時的に入れて送信し、オブジェクトだけが残ることを確認します。確認後は削除して元に戻します
+6. **本番へデプロイして、実ファイルで確認する**
+
+4番目は、**なぜ「ダウンロードさせる」と書いているのかを体で理解するため**の演習です。自分だけが触れる環境でだけ試してください。
+
+## まとめ
+
+- 大きくて構造のないデータは **R2**、小さくて検索したいデータは **D1**
+- R2 の Free 枠はストレージ 10 GB-month/月、Class A 100万/月、Class B 1,000万/月。**エグレスは無料**
+- バインディングは `binding` と `bucket_name` の2つだけ
+- **キーに元のファイル名を入れない。**名前は D1 の列に持つ
+- **`content-type` の自己申告を信用しない。**保存時は倒し、配信時は `content-disposition: attachment` と `nosniff` で無害化する
+- `writeHttpMetadata()` と `httpEtag` でレスポンスヘッダーを組み立てる
+- **公開バケット（`r2.dev`）は公式に開発用途。**本番の添付配信には使わない
+- 署名付き URL は**期限つきで、URL を持つ人なら誰でも開ける**。「関係者だけ」という要件には Worker 経由が素直
+- **D1 と R2 をまたぐ書き込みはまとめて失敗できない。**孤児が出る前提で方針を決める
+
+## 理解度チェック
+
+**Q1. 添付ファイルを `r2.dev` の公開 URL で配ることにしました。何が問題でしょう？**
+
+1. エグレス料金がかかる
+2. 公式に開発用途とされている経路であることに加え、URL を知っている人なら誰でも開けるため、第6章で管理画面を守っても添付は守られない
+3. 日本語のファイル名が使えなくなる
+4. Worker からアクセスできなくなる
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+公開バケットのドキュメントには "should only be used for development purposes" と明記されています。加えて、この題材で扱うのは他人から送られた添付です。**守る場所が2か所に分かれると、片方だけ守って安心する事故が起きます。**Worker 経由に寄せておけば、第6章で Worker の手前に認証を置いた瞬間に添付も守られます。なお、R2 のエグレスは公開バケット経由でも無料なので、1は誤りです。
+
+</details>
+
+**Q2. R2 へのアップロードには成功したが、直後の D1 への INSERT が失敗しました。何が起きているでしょう？**
+
+1. R2 のアップロードも自動的に取り消される
+2. 参照されないオブジェクトが R2 に残る。別サービスをまたぐためトランザクションでまとめられない
+3. Worker が再実行されて整合が取れる
+4. D1 の Time Travel で R2 も巻き戻せる
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+D1 と R2 は別のサービスなので、2つの書き込みを1つのトランザクションにできません。**孤児オブジェクトが残る前提で、掃除の方針か、書き込み順の工夫かを選びます。**この題材では孤児を許して後から掃除する方針で十分です。D1 の Time Travel はデータベース側の機能で、R2 には及びません。
+
+</details>
+
+## 参考リンク
+
+- [R2 の Get started（CLI）](https://developers.cloudflare.com/r2/get-started/cli/)
+- [R2 の Workers API リファレンス](https://developers.cloudflare.com/r2/api/workers/workers-api-reference/)
+- [R2 の公開バケット](https://developers.cloudflare.com/r2/buckets/public-buckets/)
+- [R2 の署名付き URL](https://developers.cloudflare.com/r2/api/s3/presigned-urls/)
+- [R2 の料金](https://developers.cloudflare.com/r2/pricing/)
+- [Workers の制限値](https://developers.cloudflare.com/workers/platform/limits/)
