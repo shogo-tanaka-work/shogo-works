@@ -159,6 +159,57 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     },
   ],
   /**
+   * Codex 入門コースの tier 構成（全7章）。
+   * Claude Code 入門コースと重複するテーマ（プロンプトの型・Excel 処理・
+   * Web 制作・データ分析）は意図的に置かず、そちらへリンクで逃がす。
+   * 残るのは Codex 固有の内容だけになる。
+   * sortOrder は「章番号 × 10 + レッスン番号」（第1章 = 11,12,13）。
+   */
+  "ai-tools/codex-curriculum": [
+    {
+      order: 1,
+      label: "第1章 Codex とは",
+      description: "どこでも同じエージェントが動く設計・Claude Code との違い・使えるプラン",
+      sortOrderStart: 10,
+    },
+    {
+      order: 2,
+      label: "第2章 入口を選んで動かす",
+      description: "App / CLI / Web / Chrome から自分の入口を選び、最初の指示を出す",
+      sortOrderStart: 20,
+    },
+    {
+      order: 3,
+      label: "第3章 安全に走らせる",
+      description: "承認モードとサンドボックスの2層構造を理解し、自分の運用モードを決める",
+      sortOrderStart: 30,
+    },
+    {
+      order: 4,
+      label: "第4章 AGENTS.md で覚えさせる",
+      description: "毎回の説明をなくす。階層で積み上げ、チームで共有する",
+      sortOrderStart: 40,
+    },
+    {
+      order: 5,
+      label: "第5章 Codex ならではの任せ方",
+      description: "GUI での並行作業・クラウドと GitHub・ブラウザ操作・画面操作",
+      sortOrderStart: 50,
+    },
+    {
+      order: 6,
+      label: "第6章 仕組みにする",
+      description: "Skills でノウハウを預け、プラグインを入れ、定期実行させる",
+      sortOrderStart: 60,
+    },
+    {
+      order: 7,
+      label: "第7章 コストと組織導入",
+      description: "クレジットの仕組みと節約・チーム展開・セキュリティ",
+      sortOrderStart: 70,
+    },
+  ],
+  /**
    * Claude Code カリキュラムの tier 構成（全11章）。第2章のみ CLI / GUI 分岐で6レッスン。
    * sortOrder は「章番号 × 10 + レッスン連番」で振る（第1章 = 10,11,12 … 第11章 = 110,111,112）。
    */

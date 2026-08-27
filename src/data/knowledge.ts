@@ -96,10 +96,16 @@ export const subcategories: Partial<
         "入門コースを終えた方向け。設定ファイル・権限設計・Hooks / Skills / サブエージェント / MCP / Agent SDK を、必要なときに引くための解説",
     },
     {
-      slug: "codex",
-      label: "OpenAI Codex",
+      slug: "codex-curriculum",
+      label: "Codex 入門コース",
       description:
-        "OpenAIのクラウド型コーディングエージェント。CLI / IDE拡張 / クラウドエージェント",
+        "はじめての方はこちら。OpenAI Codex を業務で使えるようにする全7章・21レッスン。承認モードとサンドボックスの2層構造、GUI での並行作業、ブラウザ操作まで、Codex ならではの部分に絞った構成",
+    },
+    {
+      slug: "codex",
+      label: "OpenAI Codex リファレンス",
+      description:
+        "入門コースを終えた方向け。CLI / IDE拡張 / クラウドエージェントの機能詳細、config.toml の全キー、プラグイン、SDK、CI 連携までを必要なときに引くための解説",
     },
     {
       slug: "chatgpt",
