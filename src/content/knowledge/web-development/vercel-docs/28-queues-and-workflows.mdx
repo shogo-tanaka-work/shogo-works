@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Vercel", "Queues", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-28
 author: "田中省伍"
 sortOrder: 28
 ---
@@ -21,6 +22,13 @@ sortOrder: 28
 - Workflows ではすべての state transition が event として記録され、デプロイ・クラッシュをまたいで決定的に replay される。観測性はダッシュボードの Observability → Workflows から確認でき、追加コードなしに run 単位で trace できる。
 
 ## Vercel Queues / Vercel Workflows とは
+
+> **Queues は 2026-08-28 時点で public beta です。**2026-02-27 に limited beta から public beta へ移りましたが、GA のアナウンスは確認できていません。本番採用の判断材料にする場合はこの点を織り込んでください。
+>
+> 主な上限は、TTL 最大 7 日（既定 24 時間）、visibility timeout 最大 60 分（既定 60 秒）、メッセージ最大 100 MB、課金は 4 KiB 単位。単価は $0.60 / 100 万 operations から（リージョン別）。Python SDK も 2026-08-19 から beta で提供されています。
+>
+> 出典: [Vercel Queues now in public beta](https://vercel.com/changelog/vercel-queues-now-in-public-beta) / [Queues Pricing and Limits](https://vercel.com/docs/queues/pricing)
+
 
 Vercel Queues は、サーバーレス向けに設計された durable event streaming システムである。プロデューサーはトピックにメッセージを publish し、独立した consumer group がそれぞれ並列にメッセージを消費する。各トピックは durable な append-only log として動作し、メッセージは TTL（最小 60 秒、最大 7 日、デフォルト 24 時間）が切れるまで保持される。後から参加した consumer group も、まだ expire していない履歴を replay できる構造であり、Kafka 的な fan-out モデルをマネージドかつサーバーレス前提で提供している点が特徴である。
 

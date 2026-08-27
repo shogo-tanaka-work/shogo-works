@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Workers", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 24
 ---
@@ -103,6 +104,27 @@ npx wrangler check startup
   ]
 }
 ```
+
+## 2026年の主な変更
+
+Agents Week（2026-08-03〜07）を中心に、Workers の前提が変わった点です。
+
+| 時期 | 変更 |
+|---|---|
+| 2026-08-04 | **Node.js 互換フラグが既定で有効に**。`nodejs_compat` を明示しなくても Node.js 互換 API が使える |
+| 2026-08-03 | **inbound TCP / gRPC に対応**。HTTP 以外のプロトコルを直接受けられる |
+| 2026-08-03 | **Python ⇄ JavaScript Workers の RPC 相互呼び出し** |
+| 2026-08-14 | **Access による Worker 単位・アカウント全体の保護**と `ctx.access.getIdentity()` |
+| 2026-08-19 | Vitest 統合が `@cloudflare/vitest-pool-workers` → **`@cloudflare/vitest-plugin`** へ改称 |
+| 2026-07-28 | `tracing.startActiveSpan()` / `span.end()` ランタイム API |
+| 2026-08-04 | ローカル tracing、`wrangler login --device` |
+| 2026-07-31 | `wrangler check startup` がバンドルサイズと起動時CPUを表示 |
+| 2026-07-20 | Pay-as-you-go アカウントで Budget alerts が $10 閾値で既定有効 |
+| 2026-07-08 | **Cloudflare Drop** — アカウント無しで静的サイトを1時間プレビュー公開 |
+
+**Node.js 互換の既定有効化**が特に影響します。以前は「Workers では Node.js の API が使えない」ことを前提に設計していた箇所を、見直す価値があります。
+
+---
 
 ## 制限・注意点
 - CPU時間: Free 10 ms / 呼び出し、Paid 最大 5 分（デフォルト30秒）

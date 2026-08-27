@@ -64,7 +64,7 @@ REST API の主要ドメインも、本シリーズの章と概ね一対一で�
 | Webhooks | Webhooks の登録・配信 | `27-observability-and-analytics` |
 | Integrations | Marketplace 連携の構成・リソース | `26-storage-and-marketplace` |
 | Secure Compute | 専用ネットワーク作成・接続 | `30-security-compliance` / `34-ddos-and-network` |
-| Edge Config | Edge Config の読み書き | `22-routing-middleware-and-edge` |
+| Global Config | Global Config の読み書き | `22-routing-middleware-and-edge` |
 | Teams / Access Groups | チーム・権限管理 | `33-deployment-protection-and-rbac` |
 
 Build Output API は通常のアプリ開発者は意識しなくてよい。Next.js / Nuxt / SvelteKit など主要フレームワークは内部でこの仕様に沿って `.vercel/output` を生成しており、開発者は `vercel deploy` を叩くだけで Functions / ISR / Image Optimization 等の機能が自動的に有効化される。フレームワーク自体を作る、もしくは既存フレームワークから外れた成果物を Vercel に載せたい場合に限り、この API の仕様を直接読む必要が出てくる。

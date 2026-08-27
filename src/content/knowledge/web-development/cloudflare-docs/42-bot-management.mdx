@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Bot Management", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 42
 ---
@@ -195,6 +196,37 @@ export default {
   }
 };
 ```
+
+## AI トラフィックの制御（2026年の変更）
+
+ここは 2026 年でもっとも動いた領域です。
+
+### 3つの用途で個別に制御できる（2026-07-01、Free 含む全プラン）
+
+AI クローラーを一括で許可／拒否するのではなく、**用途ごとに分けて判断**できます。
+
+| 用途 | 何をするか |
+|---|---|
+| **Search** | 検索結果に載せるためのクロール |
+| **Agent** | AI エージェントがユーザーの依頼で取りに来るアクセス |
+| **Training** | モデルの学習データとして収集 |
+
+**2026-09-15 以降に登録される新規ドメインは、広告収益ページで Training と Agent をブロックし、Search は許可する設定が既定**になります。既存ドメインの設定は変わりません。
+
+「AI に読ませたくない」と「検索に出したい」は両立するので、この分割は実務的に効きます。
+
+### Bot Preference Sync（2026-08-21、全プラン）
+
+Cloudflare 側で設定した AI ボットのポリシーから、**`robots.txt` を自動生成して同期**します。新規は既定で有効です。
+
+これまでは「Cloudflare のダッシュボードで拒否したのに `robots.txt` は許可のまま」という食い違いが起きがちでしたが、それが解消されます。
+
+### そのほか
+
+- **BotBase**（追跡しているボットの一覧）
+- **Attribution Business Insights**（Enterprise Bot Management）
+
+---
 
 ## 制限・注意点
 - 1〜99の生スコア、JA3/JA4、Anomaly Detection、AI Labyrinthのフル機能はEnterprise（Bot Management for Enterprise）限定。Pro/Businessはカテゴリ判定どまりである点を最初に握っておく。

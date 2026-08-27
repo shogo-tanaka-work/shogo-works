@@ -7,13 +7,16 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "AI Gateway", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 11
 ---
 # AI Gateway
 
 ## 一行サマリ
-複数LLMプロバイダの前段に置くプロキシで、観測（ログ・分析・コスト追跡）、キャッシュ、レート制限、フォールバック、リトライ、ガードレールを1行のエンドポイント差し替えだけで提供するCloudflareのマネージドサービスである。
+複数LLMプロバイダに対する観測（ログ・分析・コスト追跡）、キャッシュ、レート制限、フォールバック、リトライ、ガードレールを提供するCloudflareのマネージドサービス。**2026-08-07 に Workers AI と統合され、単一の AI コントロールプレーンになった。**
+
+> **「前段に置くプロキシ」という理解は現在の構成と合わない。**統合後は `env.AI.run()` が Workers AI と外部プロバイダの双方を扱い、明示的に gateway を作らなくても default gateway が自動生成される。AI Gateway のプリペイドクレジットは Workers AI の推論にも充当される。詳細は [Workers AI](./workers-ai) を参照。
 
 ## 解決する課題（Why）
 - マルチプロバイダ運用でログ・分析が分散し、横断的に「誰が・どのモデルで・いくら使ったか」を把握できない。
@@ -115,6 +118,18 @@ curl https://gateway.ai.cloudflare.com/v1/<ACCOUNT_ID>/<GATEWAY_ID> \
     {"provider":"openai","endpoint":"chat/completions","headers":{...},"query":{...}}
   ]'
 ```
+
+## 2026年に追加された主な機能
+
+| 時期 | 内容 |
+|---|---|
+| 2026-05-21 | **統一 REST API**。`api.cloudflare.com` 経由で Workers AI と外部プロバイダを同一 API から扱える |
+| 2026-06-05 | **spend limit**。金額ベースの予算を設定し、超過時にブロックする |
+| 2026-06-12 | ログに User-Agent を記録 |
+| 2026-08-05 | **User Insights ダッシュボード**と、Access 連携の identity-aware 制御 |
+| 2026-08-07 | **Workers AI との統合**（上記） |
+
+---
 
 ## 制限・注意点
 - キャッシュ可能なリクエストサイズは25MB/リクエスト、Cache TTLは最大1か月。

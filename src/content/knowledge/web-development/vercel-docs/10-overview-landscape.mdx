@@ -42,7 +42,7 @@ Next.js との関係は単なる「サポート対象フレームワーク」で
 | ISR & Image Optimization | Incremental Static Regeneration、Image Optimization、Cache-Control、CDN Cache、Runtime Cache API、stale-if-error。 |
 | Deployments & Environments | Preview / Production / Custom 環境、Rolling Releases、Instant Rollback、Skew Protection、Spend Management。 |
 | Domains & Delivery Network | Vercel Delivery Network（CDN）、Domains、HTTPS DNS records、Bulk Redirects。 |
-| Storage & Marketplace | Vercel Blob、Edge Config、Marketplace 経由の Neon / Upstash / Supabase / Convex / Clerk / Stripe など。 |
+| Storage & Marketplace | Vercel Blob、Global Config、Marketplace 経由の Neon / Upstash / Supabase / Convex / Clerk / Stripe など。 |
 | Observability & Analytics | Observability Suite、Web Analytics、Speed Insights、Runtime Logs、Drains、OpenTelemetry。 |
 | Security & Compliance | SOC2 / ISO / HIPAA BAA / GDPR、Conformance、OIDC Federation、DPA。 |
 | WAF & Firewall | Vercel WAF、Firewall API、Custom rules、Terraform Provider、IP CIDR ブロック。 |
@@ -98,7 +98,7 @@ Vercel を触り始める段階で最低限押さえるべき概念は三つに�
 - **環境変数とシークレット**: 環境変数は Production / Preview / Development で別管理になる。`.env` をコミットしない、Edge Functions では環境変数の利用に制約があった経緯（現在は緩和済）がある、Marketplace 統合は資格情報を自動で同期する、という三点を起動時に意識する。
 - **Deployment Protection と Preview の公開範囲**: Preview デプロイのデフォルト公開範囲はチームごとに異なり、誤って外部からアクセス可能な状態で機密データを含めると事故になる。Protected Preview や Password Protection を初期段階で有効化する。
 - **Spend Management と無料枠**: Hobby プランの無料枠は AI 系機能（特に AI Gateway 経由のモデル呼び出し、Functions の長時間実行）で簡単に消費される。Spend Management は本番デプロイを停止する設定がデフォルトであり、停止条件と通知経路を事前に握っておく。
-- **ベンダーロックインと回避策**: Build Output API と標準フレームワーク群により、最低限の互換は保たれている。一方で AI Gateway / v0 / Vercel Agent / Edge Config / Skew Protection といった独自機能に深く依存すると、他プラットフォームへの移行コストは上がる。Incremental Migration ガイドが「Vercel に移る」側のみを扱っていることも踏まえ、撤退経路は別途設計する。
+- **ベンダーロックインと回避策**: Build Output API と標準フレームワーク群により、最低限の互換は保たれている。一方で AI Gateway / v0 / Vercel Agent / Global Config / Skew Protection といった独自機能に深く依存すると、他プラットフォームへの移行コストは上がる。Incremental Migration ガイドが「Vercel に移る」側のみを扱っていることも踏まえ、撤退経路は別途設計する。
 - **AI ボット・WAF の前提変化**: AI Bots Managed Ruleset と BotID により、AI クローラーや自動化トラフィックの扱いがデフォルトで変わってきている。robots.txt のみで制御してきたサイトは、Firewall ルールの確認が必要になる。
 
 これらは Vercel 全体に効く横断的な前提であり、後続章の各論（Functions / Routing / ISR / Storage / Security / AI Gateway など）はいずれもこの前提のうえに立つ。
