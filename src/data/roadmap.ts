@@ -162,6 +162,42 @@ export const roadmapPaths: RoadmapPath[] = [
     ],
   },
   {
+    id: "codex-zero-to-master",
+    title: "Codex をゼロから業務で使いこなす（カリキュラム）",
+    description:
+      "OpenAI Codex を業務で使えるようにする全7章・21レッスンの学習コースです。承認モードとサンドボックスの2層構造、GUI での並行作業、ブラウザ操作など Codex ならではの部分に絞っています。指示の出し方など各ツール共通の基礎は Claude Code 入門コース側で扱います。",
+    steps: [
+      {
+        ref: "ai-tools/codex-curriculum/01-1-what-is-codex",
+        note: "第1章。どこでも同じエージェントが動く、という設計から。",
+      },
+      {
+        ref: "ai-tools/codex-curriculum/02-0-choose-your-surface",
+        note: "第2章。App / CLI / Web / Chrome から自分の入口を選ぶ。",
+      },
+      {
+        ref: "ai-tools/codex-curriculum/03-1-approval-modes",
+        note: "第3章。このコースの中核。承認とサンドボックスの2層構造を理解する。",
+      },
+      {
+        ref: "ai-tools/codex-curriculum/04-1-agents-md",
+        note: "第4章。AGENTS.md で「毎回同じ説明」から卒業する。",
+      },
+      {
+        ref: "ai-tools/codex-curriculum/05-1-parallel-work",
+        note: "第5章。並行作業・クラウド・ブラウザ操作という Codex 固有の任せ方。",
+      },
+      {
+        ref: "ai-tools/codex-curriculum/06-1-skills",
+        note: "第6章。Skills・プラグイン・定期実行で仕組みにする。",
+      },
+      {
+        ref: "ai-tools/codex-curriculum/07-1-cost",
+        note: "第7章。コストを抑え、チームへ広げ、安全に使い続ける。",
+      },
+    ],
+  },
+  {
     id: "claude-code-zero-to-master",
     title: "Claude Code をゼロから業務で使いこなす（カリキュラム）",
     description:

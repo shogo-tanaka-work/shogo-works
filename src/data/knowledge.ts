@@ -99,7 +99,7 @@ export const subcategories: Partial<
       slug: "codex-curriculum",
       label: "Codex 入門コース",
       description:
-        "はじめての方はこちら。OpenAI Codex を業務で使えるようにする全7章・20レッスン。承認モードとサンドボックスの2層構造、GUI での並行作業、ブラウザ操作まで、Codex ならではの部分に絞った構成",
+        "はじめての方はこちら。OpenAI Codex を業務で使えるようにする全7章・21レッスン。承認モードとサンドボックスの2層構造、GUI での並行作業、ブラウザ操作まで、Codex ならではの部分に絞った構成",
     },
     {
       slug: "codex",
