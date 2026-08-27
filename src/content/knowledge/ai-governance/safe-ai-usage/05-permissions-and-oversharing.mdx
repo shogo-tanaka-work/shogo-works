@@ -5,7 +5,7 @@ category: "ai-governance"
 subcategory: "safe-ai-usage"
 difficulty: "intermediate"
 contentType: "course"
-tags: ["Microsoft 365 Copilot", "アクセス権", "過剰共有", "AIガバナンス", "情報セキュリティ"]
+tags: ["Microsoft Copilot", "アクセス権", "過剰共有", "AIガバナンス", "情報セキュリティ"]
 sortOrder: 5
 createdAt: 2026-08-27
 author: "田中省伍"
@@ -79,11 +79,18 @@ author: "田中省伍"
 | 手立て | 何をするものか | 位置づけ |
 |---|---|---|
 | **共有の見直し** | SharePoint / OneDrive で「リンクを知っている全員」「社内全員」になっている共有を棚卸しし、必要な人だけに絞り直す。広く共有されている場所を一覧できるレポート機能もある | **ここが本丸** |
-| **検索の制限**（Restricted Content Discovery） | サイト単位で、組織全体検索と Copilot での発見を一時的に制限する。権限も索引も削除しない | 棚卸しが終わるまでの **時間稼ぎ**。サイト内検索や、利用者が自分で開いている文書の要約には効かず、反映にも時間がかかる。**本対応はアクセス権の是正** |
-| **ラベルと DLP**（Microsoft Purview） | 機密度ラベルで「社外秘」等の分類を付け、DLP のルールでポリシー設定に応じて監査・警告・ブロックする | Copilot 向けの既定ポリシーはシミュレーションモードで提供される。**入れれば社外へ出せなくなる、ではない** |
+| **検索の制限**（Restricted Content Discovery） | SharePoint サイト単位で、組織全体の検索（SharePoint ホーム、Office.com、Bing）と Copilot からの発見を制限する。あわせて、そのサイトから Copilot ボタンや AI 操作メニューといった **AI 機能の入口も消える** | 公式に **「一時的なガバナンス統制」** と位置づけられている。**本対応はアクセス権の是正** |
+| **ラベルと DLP**（Microsoft Purview） | 機密度ラベルで分類を付け、Copilot 向けの DLP ポリシーで **ラベル付きアイテムを回答の生成材料から除外する**（引用には現れるが、本文の内容は回答に使われない） | 「Default DLP policy - Protect sensitive M365 Copilot interactions」という既定ポリシーが用意され、**初期状態はシミュレーションモード**（イベントを記録するだけ）。**入れれば社外へ出せなくなる、ではない** |
 | **未承認AIの検知** | Microsoft Entra / Global Secure Access などで、承認外のAIサービスへの通信を可視化する | 第3回の Shadow AI を **会社側から見つける** 仕組み |
 
 どれも「これを入れれば安全」という性質のものではない。**利用者が気をつけるだけでは限界があるので、組織として守る仕組みを併用する** という話になる。この一覧は、システム管理を担う部門に持ち帰る価値がある。
+
+Restricted Content Discovery について、誤解しやすい点を4つ補足しておく。
+
+- **権限は変わらない。索引からも削除されない** — すでにアクセス権を持つ人は、これまでどおり直接開ける。Purview の eDiscovery や自動ラベル付けにも影響しない
+- **効かない範囲がある** — サイト内から始まる検索、および **利用者が自分で開いている文書の要約** には効かない
+- **反映に時間がかかる** — サイト単位のプロパティを検索索引へ伝播させるため、**50万アイテムを超えるサイトでは1週間以上** かかることがある
+- **前提条件がある** — Copilot ライセンスに加えて SharePoint Advanced Management が必要。また過剰に適用すると、検索と Copilot が使える情報が減って回答の網羅性が落ちる
 
 ## 5. この回のまとめ
 
@@ -93,5 +100,15 @@ author: "田中省伍"
 - 過剰共有は利用者では塞げない。共有の棚卸しを本丸として、組織側の仕組みを併用する
 
 組織としてこの層をどう設計するかは、[AI導入ガバナンス解説 第2回](/knowledge/ai-governance/guide/02-governance/) の Who / What / Where の3軸が対応する。
+
+
+## 出典
+
+本記事の記述は、以下の公式ドキュメントで確認している（最終確認: 2026年8月27日）。
+
+- [Data, Privacy, and Security for Microsoft Copilot](https://learn.microsoft.com/en-us/copilot/microsoft-365/microsoft-365-copilot-privacy) — 閲覧権限の範囲、Semantic Index が ID ベースのアクセス境界を尊重すること
+- [Restrict discovery of SharePoint sites and content](https://learn.microsoft.com/en-us/sharepoint/restricted-content-discovery) — Restricted Content Discovery の動作範囲・前提条件・反映時間
+- [Microsoft Purview DLP for Microsoft 365 Copilot and Copilot Chat](https://learn.microsoft.com/en-us/purview/dlp-microsoft365-copilot-location-learn-about) — Copilot 向け DLP の動作
+- [Learn about the default DLP policy for Microsoft 365 Copilot location](https://learn.microsoft.com/en-us/purview/dlp-microsoft365-copilot-location-default-policy) — 既定ポリシーとシミュレーションモード
 
 → 前: [第4回 ハルシネーション](/knowledge/ai-governance/safe-ai-usage/04-hallucination/) ｜ 次: [第6回 生成物と外部入力](/knowledge/ai-governance/safe-ai-usage/06-output-and-external-input/)
