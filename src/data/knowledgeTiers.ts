@@ -165,6 +165,154 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
    * 残るのは Codex 固有の内容だけになる。
    * sortOrder は「章番号 × 10 + レッスン番号」（第1章 = 11,12,13）。
    */
+  /**
+   * Cloudflare 入門コースは「問い合わせフォームと管理画面を作って公開する」という
+   * 単一の題材を最後まで通す構成にしている。リファレンス側（web-development/cloudflare）が
+   * 製品ごとの網羅を担うため、ここでは題材に必要な製品だけを順番に足していく。
+   */
+  "web-development/cloudflare-curriculum": [
+    {
+      order: 1,
+      label: "第1章 何を作るか",
+      description: "題材の全体像と、Cloudflare のどの部品を使うかを決める",
+      sortOrderStart: 10,
+    },
+    {
+      order: 2,
+      label: "第2章 環境を用意する",
+      description: "アカウント作成・Wrangler・ローカルで動かすまで",
+      sortOrderStart: 20,
+    },
+    {
+      order: 3,
+      label: "第3章 最初のデプロイ",
+      description: "Workers を公開し、URL が返ってくるところまで到達する",
+      sortOrderStart: 30,
+    },
+    {
+      order: 4,
+      label: "第4章 データを保存する",
+      description: "D1 にテーブルを作り、フォームの送信内容を残す",
+      sortOrderStart: 40,
+    },
+    {
+      order: 5,
+      label: "第5章 ファイルを受け取る",
+      description: "R2 に添付ファイルを保存し、安全に取り出す",
+      sortOrderStart: 50,
+    },
+    {
+      order: 6,
+      label: "第6章 管理画面を守る",
+      description: "Cloudflare Access で自分たちだけの画面にする。一般ユーザー認証に使えない理由も扱う",
+      sortOrderStart: 60,
+    },
+    {
+      order: 7,
+      label: "第7章 公開して運用する",
+      description: "独自ドメイン・環境分離・シークレット・費用の見方",
+      sortOrderStart: 70,
+    },
+  ],
+
+  /**
+   * Vercel 入門コースは Cloudflare 入門コースと同じ題材を Next.js + Vercel で作る。
+   * 章番号も対応させてあるので、両方を読むと同じ課題への解き方の違いが比較できる。
+   */
+  "web-development/vercel-curriculum": [
+    {
+      order: 1,
+      label: "第1章 何を作るか",
+      description: "題材の全体像と、Vercel が引き受ける範囲・引き受けない範囲",
+      sortOrderStart: 10,
+    },
+    {
+      order: 2,
+      label: "第2章 環境を用意する",
+      description: "Next.js プロジェクトと Vercel CLI、ローカルで動かすまで",
+      sortOrderStart: 20,
+    },
+    {
+      order: 3,
+      label: "第3章 デプロイと Preview 環境",
+      description: "本番と Preview の関係、ブランチごとの URL",
+      sortOrderStart: 30,
+    },
+    {
+      order: 4,
+      label: "第4章 フォームを受け取る",
+      description: "Route Handlers と Server Actions でサーバー側の処理を書く",
+      sortOrderStart: 40,
+    },
+    {
+      order: 5,
+      label: "第5章 データ層を用意する",
+      description: "Vercel は DB を持たない。Marketplace 経由で外部サービスをつなぐ",
+      sortOrderStart: 50,
+    },
+    {
+      order: 6,
+      label: "第6章 管理画面を守る",
+      description: "Deployment Protection の各方式と、その限界",
+      sortOrderStart: 60,
+    },
+    {
+      order: 7,
+      label: "第7章 公開して運用する",
+      description: "独自ドメイン・環境変数・Observability・費用の見方",
+      sortOrderStart: 70,
+    },
+  ],
+
+  /**
+   * Supabase 入門コースも同じ題材を扱うが、他の2コースと違い一般ユーザーのログインまで
+   * 含められる。そのぶん RLS（行レベルセキュリティ）が中心テーマになる。
+   */
+  "web-development/supabase-curriculum": [
+    {
+      order: 1,
+      label: "第1章 何を作るか",
+      description: "題材の全体像と、Supabase が1つでまかなう範囲",
+      sortOrderStart: 10,
+    },
+    {
+      order: 2,
+      label: "第2章 テーブルを設計する",
+      description: "プロジェクト作成、スキーマ、マイグレーションの残し方",
+      sortOrderStart: 20,
+    },
+    {
+      order: 3,
+      label: "第3章 RLS を理解する",
+      description: "本コースの中心。ポリシーを書かないと何が起きるか",
+      sortOrderStart: 30,
+    },
+    {
+      order: 4,
+      label: "第4章 ログインを付ける",
+      description: "Supabase Auth で一般ユーザーのサインアップとログイン",
+      sortOrderStart: 40,
+    },
+    {
+      order: 5,
+      label: "第5章 ファイルを受け取る",
+      description: "Storage のバケットとポリシー",
+      sortOrderStart: 50,
+    },
+    {
+      order: 6,
+      label: "第6章 サーバー側の処理",
+      description: "Edge Functions を使う場面と使わない場面",
+      sortOrderStart: 60,
+    },
+    {
+      order: 7,
+      label: "第7章 公開して運用する",
+      description: "ブランチング・バックアップ・費用の見方",
+      sortOrderStart: 70,
+    },
+  ],
+
   "ai-tools/codex-curriculum": [
     {
       order: 1,
