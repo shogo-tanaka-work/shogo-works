@@ -11,6 +11,8 @@
   --color-primary: hsl(168 76% 42%);
   --color-primary-foreground: hsl(0 0% 100%);
   --color-secondary: hsl(210 40% 96%);
+  /* 記事ページのナビゲーション領域。本文と見分けるためだけの面（docs/DESIGN.md） */
+  --color-panel: hsl(210 40% 98%);
   --color-secondary-foreground: hsl(222 47% 11%);
   --color-muted: hsl(210 40% 96%);
   --color-muted-foreground: hsl(215 16% 47%);
