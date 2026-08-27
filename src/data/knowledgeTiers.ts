@@ -631,7 +631,8 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 2,
       label: "開発者プラットフォーム中核",
-      description: "Workers / Pages / R2 / D1 / KV / Durable Objects / Queues / Workers AI / AI Gateway / Vectorize / Hyperdrive / Stream / Images / Tunnel / Turnstile / Access / Workflows",
+      description:
+        "Workers / Pages / R2 / D1 / KV / Durable Objects / Queues / AI（Workers AI と AI Gateway の統合コントロールプレーン）/ Vectorize / Hyperdrive / Stream / Images / Tunnel / Turnstile / Access / Workflows",
       sortOrderStart: 10,
     },
     {
@@ -643,7 +644,8 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 4,
       label: "Network & Edge",
-      description: "WAF / DDoS / Rate Limiting / Bot Management / Argo / Magic Transit / Spectrum / Load Balancing / API Shield / Cache / Waiting Room",
+      description:
+        "WAF / DDoS / Rate Limiting / Bot Management / Argo / Magic Transit / Cloudflare WAN / Spectrum / Load Balancing / API Shield / Cache / Waiting Room",
       sortOrderStart: 40,
     },
     {

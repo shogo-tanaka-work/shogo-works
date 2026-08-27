@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Tunnel", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 21
 ---
@@ -86,7 +87,7 @@ Cloudflare Tunnel 単体では、公開ホスト名を知っていれば誰で�
 4. ポリシー例: 「`@example.com` ドメインかつ社用デバイスのみ許可」。
 5. ユーザーは ブラウザでSSO → Access JWT発行 → Tunnel経由でオリジン到達。VPNクライアント不要。
 
-これによりVPN置換・SaaS的アクセス体験・きめ細かな条件付きアクセス（デバイス姿勢、地理、時間帯）を実現できる。SSH/RDPもブラウザレンダリングで提供可能（Browser Rendering連携）。
+これによりVPN置換・SaaS的アクセス体験・きめ細かな条件付きアクセス（デバイス姿勢、地理、時間帯）を実現できる。SSH/RDPもブラウザレンダリングで提供可能（**Browser Run** 連携。2026-04-15 に Browser Rendering から改称）。
 
 ## 料金モデルの要点
 - **cloudflared / Tunnel 自体は無料**。トンネル本数・帯域・データ転送量に追加料金なし。
@@ -129,6 +130,20 @@ sudo cloudflared service install
 - ダッシュボードで作成 → 発行された Tunnel Token を使い `cloudflared tunnel run --token <TOKEN>` だけで起動。
 - 設定（ingress, public hostname）はダッシュボードから編集、即時反映。
 - Terraform `cloudflare_tunnel` / `cloudflare_tunnel_config` リソースでIaC化可能。
+
+## Cloudflare Mesh との使い分け
+
+2026-04-14 に **Cloudflare Mesh** が登場し、WARP Connector が mesh node へ改称されました。Tunnel との役割が分かれます。
+
+| | Cloudflare Tunnel | Cloudflare Mesh |
+|---|---|---|
+| 向き | **外向き**。内部サービスをインターネットへ公開する | **内部同士**。拠点・ユーザー・Workers をプライベート網でつなぐ |
+| 到達方法 | 公開ホスト名（`app.example.com`） | プライベートIPでの相互到達 |
+| 典型用途 | 社内Webアプリの公開、開発環境の共有 | 拠点間接続、エージェントへの限定的なアクセス付与 |
+
+「外に出すなら Tunnel、内側でつなぐなら Mesh」と覚えると判断しやすくなります。
+
+---
 
 ## 制限・注意点
 - cloudflared は常にCFエッジへ接続できる必要がある。完全閉域網では使えない。

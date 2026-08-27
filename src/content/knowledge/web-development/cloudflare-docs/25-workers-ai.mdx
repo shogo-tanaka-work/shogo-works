@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Workers AI", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 25
 ---
@@ -133,14 +134,28 @@ curl https://api.cloudflare.com/client/v4/accounts/$ACCOUNT/ai/run/@cf/meta/llam
 - 上限緩和・プライベートカスタムモデルはCustom Requirements Formで個別交渉
 - フロンティアモデル不在：高度な推論・長文context・最新ベンチ最強系は別系統が必要
 
-## AI Gateway との併用
-Workers AIだけでフロンティアモデル要件を満たせない場合、**AI Gateway** をフロントに置きOpenAI/Anthropic/Bedrock/Vertex/Workers AIへルーティングする構成が定石。
-- キャッシュ（同一プロンプトの再利用でコスト削減）
-- レート制限・リトライ・モデルフォールバック（OpenAI障害時にWorkers AIへ自動切替）
-- ログ・分析・コスト可視化を一元化
-- Workers AI自体もAI Gatewayの`run`オプションでgateway経由実行可能
+## AI Gateway との関係：2026-08 に統合された
 
-典型構成: Workers → AI Gateway → (Workers AI / OpenAI / Anthropic) → Vectorize で記憶。
+> **2026-08-07 の Agents Week で、Workers AI と AI Gateway は単一の AI コントロールプレーンへ統合されました。**「AI Gateway をフロントに置くプロキシ」という従来の理解は、現在の構成と合いません。
+
+統合によって変わった点です。
+
+| | 統合前 | 統合後 |
+|---|---|---|
+| 呼び出し | Workers AI と外部プロバイダで別経路 | **`env.AI.run()` が両方に対応** |
+| gateway の作成 | 明示的に作る必要があった | **明示しなくても default gateway が自動生成される** |
+| クレジット | 別建て | AI Gateway のプリペイドクレジットが **Workers AI の推論にも充当される** |
+| レート上限 | — | 統合課金の利用でフロンティアモデルが緩和（50 req/min） |
+
+引き続き使える機能です。
+
+- キャッシュ（同一プロンプトの再利用でコスト削減）
+- レート制限・リトライ・モデルフォールバック
+- ログ・分析・コスト可視化の一元化
+- **spend limit**（2026-06-05 追加）— 金額ベースの予算を設定し、超過時にブロックする
+- **User Insights ダッシュボードと Access 連携の identity-aware 制御**（2026-08-05 追加）
+
+典型構成: Workers → `env.AI.run()`（Workers AI / 外部プロバイダ）→ Vectorize で記憶。
 
 ## 参考リンク
 - 公式トップ: https://developers.cloudflare.com/workers-ai/

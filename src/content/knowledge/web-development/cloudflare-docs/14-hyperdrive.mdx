@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Hyperdrive", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 14
 ---
@@ -59,7 +60,9 @@ Hyperdriveは分散システムなので、クライアントが既存プール�
 
 ## 対応DB
 - **PostgreSQL系**: PostgreSQL本体、Neon、Supabase、AWS RDS Postgres、Aurora Postgres、Google Cloud SQL Postgres、Azure Database for PostgreSQL、CockroachDB、Timescale等
-- **MySQL系**: MySQL本体、PlanetScale、AWS RDS MySQL、Aurora MySQL、Google Cloud SQL MySQL等
+- **MySQL系**: MySQL本体、PlanetScale、AWS RDS MySQL、Aurora MySQL、Google Cloud SQL MySQL等。**MySQL サポートは 2026-08-07 に GA**（それ以前は GA ではなかった）。あわせて接続プールの手動リスタートが可能になった
+- PlanetScale の Postgres / MySQL は、2026-06-18 以降 Hyperdrive のダッシュボードから直接作成できる
+- プライベートネットワーク上のDBへは **Workers VPC 経由が公式の推奨経路**（2026-04-29）
 
 ドライバは`postgres.js` / `node-postgres (pg)` / `mysql2`等の標準ライブラリがそのまま動く。Named prepared statementsは`postgres.js`と`node-postgres`が最適。
 

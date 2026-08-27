@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Turnstile", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 22
 ---
@@ -131,6 +132,20 @@ app.post('/login', async (c) => {
 
 ### 3. テストキー
 本番デプロイ前に、Cloudflare公式のテスト用sitekey/secret keyを使えば、実チャレンジを発火させずに統合テストができる。
+
+## Turnstile Spin（2026-08-10 GA）
+
+ウィジェットの作成から検証の配線までを一括で行える仕組みが GA しました。3つの経路があります。
+
+| 経路 | 使いどころ |
+|---|---|
+| ダッシュボード | 画面から作る |
+| Wrangler CLI | 手元から作る |
+| **AI コーディングエージェント** | Claude Code などから「Turnstile を入れて」と頼む |
+
+サーバー側の `siteverify` 呼び出しまで配線し、検証テストも内蔵されています。**「入れたつもりで検証していなかった」という典型的な事故を防げます。**
+
+---
 
 ## 制限・注意点
 - **サーバー検証は必須**。クライアント側で完結させると無意味であり、Turnstile Analyticsの検証メトリクスがゼロのままになる

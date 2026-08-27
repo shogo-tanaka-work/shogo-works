@@ -1,12 +1,13 @@
 ---
-title: "Routing Middleware & Edge Network — リクエストの最前線で何ができるか"
-description: "Vercel の Routing Middleware（旧 Edge Middleware）と Edge Network の仕組みを解説。リクエスト書き換え・リダイレクト・認証ゲートを Edge で実行する設計と、Edge ランタイムの Node.js 互換性、Functions との使い分けまでカバーする。"
+title: "Routing Middleware & Vercel CDN — リクエストの最前線で何ができるか"
+description: "Vercel の Routing Middleware（旧 Edge Middleware）と Vercel CDN の仕組みを解説。リクエスト書き換え・リダイレクト・認証ゲートを Edge で実行する設計と、Edge ランタイムの Node.js 互換性、Functions との使い分けまでカバーする。"
 category: "web-development"
 subcategory: "vercel"
 difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Vercel", "Routing Middleware", "ドキュメント要約"]
 createdAt: 2026-05-08
+updatedAt: 2026-08-28
 author: "田中省伍"
 sortOrder: 22
 ---
@@ -15,18 +16,18 @@ sortOrder: 22
 
 - Vercel が「Edge Middleware」と呼んでいた機能は、現行ドキュメントでは **Routing Middleware** に名称が改められ、Fluid Compute の上で動く一段抽象化された存在になっている。実体としては従来通り「リクエストがキャッシュやフレームワークに到達する前に走るコード」であり、書き換え（rewrite）・リダイレクト（redirect）・認証ゲート・ヘッダー付与・A/B テスト振り分けが主な責務である。
 - 既定のランタイムは依然 Edge（V8 アイソレート）だが、Routing Middleware では `runtime: 'nodejs'` への切り替えが正式にサポートされた。Edge は起動オーバーヘッドが小さく地理分散しやすい一方、Node.js は npm 依存と長時間処理の自由度が高い。Routing Middleware を Node.js で動かすという選択肢が「Edge 一択」だった時代を終わらせている。
-- Edge Network は 51 か国・126+ PoP・20 計算リージョンで構成され、PoP は TCP 終端と DDoS 防御を担当し、TLS 終端と関数の実行は最寄りの計算リージョンで行われる。Routing Middleware も Edge Functions も「ユーザーから一番近い PoP」ではなく「PoP から最寄りのリージョン」で実行されるという理解が、レイテンシ設計の起点になる。
+- Vercel CDN は 51 か国・126+ PoP・20 計算リージョンで構成され、PoP は TCP 終端と DDoS 防御を担当し、TLS 終端と関数の実行は最寄りの計算リージョンで行われる。Routing Middleware も Functions も「ユーザーから一番近い PoP」ではなく「PoP から最寄りのリージョン」で実行されるという理解が、レイテンシ設計の起点になる。
 - Edge ランタイムは Web 標準 API（`fetch` / `Request` / `Response` / `crypto.subtle` / `URLPattern` など）と一部 Node.js モジュール（`async_hooks` / `events` / `buffer` / `assert` / `util`）に絞られる。`fs` などのファイル I/O・`require`・`eval`・`new Function` は使えない。
 - 環境変数は 5 KB → 64 KB に拡大され、`process.env[VAR]` の動的アクセスも許可された。Edge での認証ゲートを実装する際は、シークレットを Middleware 内で扱える前提で設計してよい段階に入っている。
 - 設計上の正解は「Edge で何でもやる」ではなく「Routing Middleware は薄く速く、重い処理は Functions に委譲する」。Middleware の実行時間はリクエストの体感レイテンシにそのまま乗るため、ここに重い処理を置くと全リクエストが遅くなる。
 
-## Vercel の Routing Middleware と Edge Network とは
+## Vercel の Routing Middleware と Vercel CDN とは
 
 Routing Middleware は、リクエストが CDN キャッシュやアプリケーションコードに届く前に Vercel のグローバルネットワーク上で走るコードのことを指す。公式ドキュメントの定義を素直に取れば「executes code before a request is processed on a site」であり、用途は **rewrite / redirect / ヘッダー操作 / 認証ゲート / 国・デバイス・実験フラグによる振り分け** に集約される。応答そのものを返してもよいし、`fetch` で別オリジンに転送しても、`Response` を作らずに次のハンドラへ流してもよい、という柔軟さがある。
 
 歴史的な経緯を整理しておくと、この機能はもともと 2022 年 6 月に **Edge Middleware** として GA した。Edge Functions の Public Beta と同時期にリリースされ、「リクエストの最前線で動くコード = Edge」という構図がそのまま製品名になっていた。その後、Fluid Compute（2025 年 4 月にデフォルト化）の登場で計算基盤が一本化され、Middleware も Fluid 上のひとつのワークロードとして扱われるようになる。現在の docs では「Routing Middleware」という名称に統一され、ランタイムは Edge / Node.js / Bun から選べる構成に変わっている。**「Edge Middleware は廃止されたわけではなく、Routing Middleware の既定ランタイムが Edge」と読むのが正確である。**
 
-Edge Network は、この Middleware と Functions が乗る土台にあたる。Vercel は世界 51 か国に 126 を超える PoP（Points of Presence）を持ち、PoP の背後に 20 の計算リージョン（`iad1` Washington / `hnd1` Tokyo / `kix1` Osaka / `fra1` Frankfurt など）を配置している。PoP の役割は TCP 終端・ルーティング・DDoS 緩和までで、TLS 終端と関数の実行は最寄りの計算リージョンで行われる。「Edge」と一口に言っても、CDN キャッシュ応答だけが PoP で完結し、Middleware・Functions の実行は計算リージョンまで届く必要がある、という二段構造を覚えておくと挙動の予測がしやすい。
+Vercel CDN は、この Middleware と Functions が乗る土台にあたる。Vercel は世界 51 か国に 126 を超える PoP（Points of Presence）を持ち、PoP の背後に 20 の計算リージョン（`iad1` Washington / `hnd1` Tokyo / `kix1` Osaka / `fra1` Frankfurt など）を配置している。PoP の役割は TCP 終端・ルーティング・DDoS 緩和までで、TLS 終端と関数の実行は最寄りの計算リージョンで行われる。「Edge」と一口に言っても、CDN キャッシュ応答だけが PoP で完結し、Middleware・Functions の実行は計算リージョンまで届く必要がある、という二段構造を覚えておくと挙動の予測がしやすい。
 
 地理分散の設計思想は「広く薄くではなく、密度の高いリージョンを少数配置してキャッシュヒット率を最大化する」方向である。PoP の数は多いがキャッシュは計算リージョン側に集中させ、PoP からは私設低レイテンシネットワークでリージョンへ流す。これにより、グローバル分散の恩恵（ユーザーから PoP までの距離）と、キャッシュヒット率の高さ（人気コンテンツがリージョンに残りやすい）を両立している。
 
@@ -63,18 +64,51 @@ Edge Network は、この Middleware と Functions が乗る土台にあたる�
 
 ### Routing Middleware と Edge / Node.js Function の境界
 
-| 観点 | Routing Middleware（Edge 既定） | Edge Function | Node.js Function |
+| 観点 | Routing Middleware（Edge 既定） | Vercel Functions（Edge ランタイム） | Vercel Functions（Node.js ランタイム） |
 | --- | --- | --- | --- |
 | 実行タイミング | キャッシュ・ルーティング前 | ルート解決後・URL に紐づく | ルート解決後・URL に紐づく |
 | 既定ランタイム | Edge（Node.js / Bun へ切替可） | V8 アイソレート | Node.js 22+ |
 | 起動オーバーヘッド | 極小（アイソレート） | 極小 | コンテナ立ち上げあり（Fluid で軽減） |
 | 利用可能 API 範囲 | Web 標準 + Node 互換の小サブセット | 同左 | フル Node.js（`fs` / native addon 含む） |
-| 最大初回応答時間 | 25 秒 | 25 秒 | 設定に依存（Hobby 300 秒 / Pro 800 秒） |
+| 最大初回応答時間 | 25 秒 | 25 秒 | 設定に依存（Hobby 300 秒 / Pro・Enterprise 800 秒。1800 秒はベータ） |
 | 主用途 | rewrite / redirect / 認証ゲート / A/B 振り分け | API・SSR を低レイテンシで | DB・ML・重い計算・既存 npm 依存 |
 | リクエストへの影響 | 全リクエストの体感レイテンシに直接加算 | 該当ルートのみ | 該当ルートのみ |
 | コードサイズ上限 | Edge 関数と同一（Hobby 1 MB / Pro 2 MB / Enterprise 4 MB、gzip 後） | 同左 | Fluid Compute の制限に準拠 |
 
 「Middleware は速く、Functions は重く」が現状の正しい読み方である。Routing Middleware を Node.js ランタイムで動かす選択肢は登場したが、それは「重い処理を Middleware に置いてよい」という意味ではなく、「既存 npm 依存（`jsonwebtoken` など）が Edge ランタイムで動かないときの逃げ道」と捉えるのが妥当である。
+
+## Edge Functions は独立プロダクトとしては廃止された
+
+本文で「Edge Function」と呼ばれてきた独立プロダクトは、2025-06-25 に **Vercel Functions へ統合され deprecated** になりました。現在の正しい呼び方は「**Vercel Functions の Edge ランタイム**」です。設定単位のプロダクトが消えただけで、Edge ランタイム自体が使えなくなったわけではありません。
+
+ただし移行を促す変更が続いています。
+
+| 内容 | 影響 |
+|---|---|
+| 公式ドキュメントが Node.js ランタイムへの移行を推奨 | Fluid Compute 上では Node.js の起動オーバーヘッドが小さく、Edge を選ぶ理由が薄れた |
+| **Next.js 16.3 以降は `runtime = 'edge'` を非サポート** | Next.js を上げるタイミングで、`export const runtime = 'edge'` を書いたルートは書き換えが必要 |
+
+新規に組む場合、**まず Node.js ランタイムで組み、レイテンシ要件が満たせないときだけ Edge を検討する**、が現行の既定路線です。
+
+出典: [Edge runtime | Vercel Docs](https://vercel.com/docs/functions/runtimes/edge)
+
+---
+
+## 「Edge Config」は「Global Config」に改称された
+
+2026-07-29 に **Edge Config は Global Config へ改称**されました。本記事の記述も新名称に揃えています。
+
+| 対象 | 旧 | 新 |
+|---|---|---|
+| 製品名 | Edge Config | **Global Config** |
+| SDK | `@vercel/edge-config` | **`@vercel/global-config`** |
+| 環境変数 | `EDGE_CONFIG` | **`GLOBAL_CONFIG`** |
+
+同時に上限も緩和されました。**サイズ上限が全プラン 1 MB**（従来は 8 KB〜512 KB のプラン別）、Pro・Enterprise は **store 数が無制限**、書き込みは **1 時間あたり 100 回**（従来は 1 日あたり 480 回）です。
+
+出典: [Edge Config is now Global Config](https://vercel.com/changelog/edge-config-is-now-global-config) / [Vercel Global Config](https://vercel.com/docs/global-config)
+
+---
 
 ## 使い方
 
@@ -130,28 +164,28 @@ export const config = {
 - **`NextResponse.rewrite` と `NextResponse.redirect` の使い分け**。rewrite は URL を内部的に書き換えるだけでブラウザのアドレスバーは元のままになる（A/B テストやロケール透過に向く）。redirect は HTTP 30x を返してブラウザに新 URL を要求し直させる（恒久移転や認証失敗時の `/login` 誘導に向く）。
 - **`runtime` の選択**。Edge で十分なら既定の `'edge'` のままにする。`jsonwebtoken` のように Node 固有 API に依存するライブラリを使う必要があれば `'nodejs'` に切り替える。Bun を使う場合は `vercel.json` の `bunVersion` 指定と組み合わせて `'nodejs'` を選ぶ構成になる。
 
-A/B テストにする場合は (2) のロケール分岐を、Cookie で割当を保持しつつ rewrite で variant ページに飛ばす形に置き換えればよい。実験フラグや Edge Config と組み合わせると、デプロイなしで割当比率を変えられる構成になる。
+A/B テストにする場合は (2) のロケール分岐を、Cookie で割当を保持しつつ rewrite で variant ページに飛ばす形に置き換えればよい。実験フラグや Global Config と組み合わせると、デプロイなしで割当比率を変えられる構成になる。
 
 ## 注意点・セキュリティ観点
 
 Edge での実行は速いが、設計を誤ると「全リクエストを遅くする単一障害点」にもなる。実装に入る前に以下を確認しておく。
 
 - **Edge Runtime の API 制限を起点にライブラリを選ぶ**。`fs` / `child_process` / native addon に依存する npm パッケージは Edge では動かない。`jsonwebtoken` は Node 専用 API を踏むため、Edge では `jose` など Web Crypto ベースのライブラリに置き換えるか、Routing Middleware を `runtime: 'nodejs'` に切り替える。`require` が混じっているライブラリも全滅するため、ESM 提供の有無を最初に確認する。`eval` / `new Function(string)` を内部で使うテンプレートエンジン（古い `vue-template-compiler` 系など）は Edge ランタイムで実行時エラーになる。
-- **`fetch` のキャッシュ挙動が Middleware では効きづらい**。Middleware 内で `fetch` を呼ぶ場合、CDN のキャッシュ層は通っていない。同じ外部 API を毎リクエスト叩くと、Middleware が遅くなるだけでなくサードパーティの rate limit にも引っかかる。地理的に遠いデータベースを Middleware から直接触るのも同じ理由でアンチパターンであり、ドキュメントは Edge Config / Vercel Blob のようなグローバルストレージに寄せることを明示的に推奨している。
+- **`fetch` のキャッシュ挙動が Middleware では効きづらい**。Middleware 内で `fetch` を呼ぶ場合、CDN のキャッシュ層は通っていない。同じ外部 API を毎リクエスト叩くと、Middleware が遅くなるだけでなくサードパーティの rate limit にも引っかかる。地理的に遠いデータベースを Middleware から直接触るのも同じ理由でアンチパターンであり、ドキュメントは Global Config / Vercel Blob のようなグローバルストレージに寄せることを明示的に推奨している。
 - **環境変数の注入タイミング**。Edge ランタイムでも `process.env.X` でアクセスできるが、Middleware にバインドする環境変数はビルド・デプロイ時に確定する点は押さえておく。サイズ制限は 5 KB から 64 KB に拡張され、`process.env[\`${PREFIX}_SECRET\`]` のような動的アクセスも許可されているため、シークレットを Middleware で扱う前提で設計してよい。一方で `constructor` / `__proto__` / `hasOwnProperty` といった `Object.prototype` の名前は環境変数として登録しても無視される（プロトタイプ汚染対策）。
-- **Edge での認証実装の落とし穴**。Routing Middleware で認証ゲートを置く構成は強力だが、検証は Web Crypto（`SubtleCrypto`）で完結させること、シークレットは Middleware にしか配らないこと、Cookie は `Secure` / `HttpOnly` / `SameSite` を必ず指定することの 3 点は最低限押さえる。Middleware で `fetch` してセッションを検証しに行く設計は、外部依存先がダウンしたときに全リクエストが落ちるリスクを抱える。Edge Config に最小限のセッションメタを置く、JWT を Edge で検証してから Functions に流す、といった構成がレイテンシ的にも障害分離的にも安全である。
+- **Edge での認証実装の落とし穴**。Routing Middleware で認証ゲートを置く構成は強力だが、検証は Web Crypto（`SubtleCrypto`）で完結させること、シークレットは Middleware にしか配らないこと、Cookie は `Secure` / `HttpOnly` / `SameSite` を必ず指定することの 3 点は最低限押さえる。Middleware で `fetch` してセッションを検証しに行く設計は、外部依存先がダウンしたときに全リクエストが落ちるリスクを抱える。Global Config に最小限のセッションメタを置く、JWT を Edge で検証してから Functions に流す、といった構成がレイテンシ的にも障害分離的にも安全である。
 - **Middleware の実行時間が見えにくい**。Middleware の時間はそのままユーザーの体感レイテンシに乗るが、Functions ほど目立つメトリクスにはならない。Observability Plus の query builder で「Middleware 単体の P95 / P99」「rewrite / redirect の比率」「rewrite ターゲットの分布」を可視化しておかないと、気づかないうちに Middleware が全リクエストの足を引っ張る状態になる。最大初回応答時間 25 秒、以後ストリーム最大 300 秒という上限はあるが、Middleware で許容してよい時間はせいぜい数十ミリ秒のオーダーと考えるべきである。
 - **リクエストの上限値**。Routing Middleware が処理できるリクエストの上限は、URL 14 KB / リクエストボディ 4 MB / ヘッダー数 64 / ヘッダー長 16 KB と決まっている。長い OAuth コールバック URL や大きな multipart アップロードを matcher に含めると、Middleware の段階で弾かれる可能性がある点は把握しておく。
-- **コードサイズ上限**。Edge ランタイム関数のコードサイズ上限は gzip 後で Hobby 1 MB / Pro 2 MB / Enterprise 4 MB。Middleware に大きな辞書（地域 IP DB や i18n 全リソース）を埋め込むと、ここに簡単に到達する。動的データは Edge Config に逃がし、Middleware 自体は薄く保つのが原則になる。
+- **コードサイズ上限**。Edge ランタイム関数のコードサイズ上限は gzip 後で Hobby 1 MB / Pro 2 MB / Enterprise 4 MB。Middleware に大きな辞書（地域 IP DB や i18n 全リソース）を埋め込むと、ここに簡単に到達する。動的データは Global Config に逃がし、Middleware 自体は薄く保つのが原則になる。
 
 総じて、Routing Middleware の設計指針は「全リクエストが通る場所に、何を置くべきで、何を置くべきでないか」に尽きる。書き換え・リダイレクト・軽量な認可判定は Middleware の正しい仕事であり、データベースアクセスや重い計算は Functions 側で受け止めるという境界を最初に引いておくと、後から Middleware が肥大化して全体が遅くなる事故を防げる。
 
 ## 一次ソース（原文）
 
 - Routing Middleware — https://vercel.com/docs/routing-middleware
-- Edge Runtime — https://vercel.com/docs/functions/runtimes/edge-runtime
-- Vercel CDN overview（Edge Network 構造） — https://vercel.com/docs/edge-network
-- Global network and regions — https://vercel.com/docs/edge-network/regions
+- Edge Runtime — https://vercel.com/docs/functions/runtimes/edge
+- Vercel CDN overview — https://vercel.com/docs/cdn
+- Global network and regions — https://vercel.com/docs/regions
 - Vercel Edge Middleware is now generally available — https://vercel.com/changelog/vercel-edge-middleware-is-now-generally-available
 - Vercel Edge Functions are now in public beta — https://vercel.com/changelog/vercel-edge-functions-are-now-in-public-beta
 - Improved Node.js compatibility for Edge Middleware and Edge Functions — https://vercel.com/changelog/improved-node-js-compatibility-for-edge-middleware-and-edge-functions

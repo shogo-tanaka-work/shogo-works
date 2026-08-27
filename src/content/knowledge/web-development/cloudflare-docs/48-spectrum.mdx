@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Spectrum", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 48
 ---
@@ -47,7 +48,7 @@ Argoを契約している場合、Spectrumトラフィックも実測RTTベー�
 Cloudflare Load Balancerをoriginに指定でき、TCPヘルスチェック（接続成功 or 任意のバナー文字列マッチ）でフェイルオーバー、ジオステアリング（最寄りリージョンへ振る）、加重ステアリング、Session Affinityを適用できる。「Tokyo / Singapore / Frankfurt にゲームサーバーを置き、プレイヤーの最寄りに飛ばす」がL4のまま実現する。
 
 ### Wireshark / PCAP 連携
-Enterpriseプランでは、特定Spectrumアプリのエッジ受信パケットをCloudflareダッシュボード/APIからPCAP形式でキャプチャできる（Magic Network Monitoring / PCAPs機能）。L4トラブル（TCP RSTの発生源、独自プロトコルのハンドシェイク失敗）をエッジ側から直接観測できる。
+Enterpriseプランでは、特定Spectrumアプリのエッジ受信パケットをCloudflareダッシュボード/APIからPCAP形式でキャプチャできる（Network Flow / PCAPs機能）。L4トラブル（TCP RSTの発生源、独自プロトコルのハンドシェイク失敗）をエッジ側から直接観測できる。
 
 ## アーキテクト視点：いつ選ぶか
 
