@@ -13,6 +13,8 @@ sortOrder: 46
 ---
 # Magic Transit / Cloudflare WAN
 
+> **2026-02-17 に Cloudflare One の製品名が変更されました。**Magic WAN → **Cloudflare WAN**、Magic WAN Connector → **Cloudflare One Appliance**、Magic Firewall → **Cloudflare Network Firewall**、Magic Network Monitoring → **Network Flow**。機能・課金・設定はそのままです。**Magic Transit は改称されていません。**
+
 ## 一行サマリ
 Magic Transitは「インターネット側から自社の既存IP帯域（最低/24）に来るトラフィック」をBGPアナウンスでCloudflareエッジに引き込み、Anycast PoPでDDoS吸収・L3-L4ファイアウォール適用後にGRE/IPsec/CNI経由で自社データセンターへ戻す“DDoS防御つきインターネットゲートウェイ”である。一方Cloudflare WANは「自社拠点・クラウド・リモートユーザー（WARP）相互の社内通信」をCloudflareネットワーク上のオーバーレイとして束ね、MPLS・ハブ&スポークVPNを置き換えるWANaaS（SD-WAN）であり、トラフィックの“向き”と“目的”が真逆の製品である。
 
@@ -201,10 +203,10 @@ curl -X POST "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/magic/
 
 ## 参考リンク
 - Magic Transit：https://developers.cloudflare.com/magic-transit/
-- Cloudflare WAN：https://developers.cloudflare.com/magic-wan/
-- Cloudflare Network Firewall（Network Firewall）：https://developers.cloudflare.com/magic-firewall/
+- Cloudflare WAN：https://developers.cloudflare.com/cloudflare-wan/
+- Cloudflare Network Firewall（Network Firewall）：https://developers.cloudflare.com/cloudflare-network-firewall/
 - Cloudflare Network Interconnect：https://developers.cloudflare.com/network-interconnect/
-- Cloudflare One Appliance：https://developers.cloudflare.com/magic-wan/configuration/connector/
+- Cloudflare One Appliance：https://developers.cloudflare.com/cloudflare-wan/configuration/appliance/
 - Magic Transit BYOIP：https://developers.cloudflare.com/byoip/
 - Cloudflare API（Magic Transit/WAN）：https://developers.cloudflare.com/api/operations/magic-ipsec-tunnels-list-i-psec-tunnels
 - Terraform `cloudflare` provider：https://registry.terraform.io/providers/cloudflare/cloudflare/latest/docs
