@@ -155,7 +155,7 @@
 - **対象読者**: 初心者
 - **想定文字数**: 短（~2,000字）
 - **一次ソース**:
-  - https://developers.openai.com/codex/quickstart
+  - https://learn.chatgpt.com/docs/codex/cli
   - https://github.com/openai/codex
 
 **見出し構成**:
@@ -178,8 +178,8 @@
 - **対象読者**: 中級
 - **想定文字数**: 中（~5,000字）
 - **一次ソース**:
-  - https://developers.openai.com/codex/cli/features
-  - https://developers.openai.com/codex/cli/reference
+  - https://learn.chatgpt.com/docs/codex/cli
+  - https://learn.chatgpt.com/docs/developer-commands?surface=cli
 
 **見出し構成**:
 
@@ -203,10 +203,10 @@
 - **対象読者**: 中級
 - **想定文字数**: 中（~5,000字）
 - **一次ソース**:
-  - https://developers.openai.com/codex/config-basic
-  - https://developers.openai.com/codex/config-advanced
-  - https://developers.openai.com/codex/config-reference
-  - https://developers.openai.com/codex/config-sample
+  - https://learn.chatgpt.com/docs/config-file/config-basic
+  - https://learn.chatgpt.com/docs/config-file/config-advanced
+  - https://learn.chatgpt.com/docs/config-file/config-reference
+  - https://learn.chatgpt.com/docs/config-file/config-sample
 
 **見出し構成**:
 
@@ -229,8 +229,8 @@
 - **対象読者**: 上級
 - **想定文字数**: 中（~5,000字）
 - **一次ソース**:
-  - https://developers.openai.com/codex/mcp
-  - https://developers.openai.com/codex/config-advanced
+  - https://learn.chatgpt.com/docs/extend/mcp?surface=cli
+  - https://learn.chatgpt.com/docs/config-file/config-advanced
 
 **見出し構成**:
 
@@ -253,8 +253,8 @@
 - **対象読者**: 上級
 - **想定文字数**: 中（~5,000字）
 - **一次ソース**:
-  - https://developers.openai.com/codex/concepts/sandboxing
-  - https://developers.openai.com/codex/agent-approvals-security
+  - https://learn.chatgpt.com/docs/sandboxing
+  - https://learn.chatgpt.com/docs/agent-approvals-security
 
 **見出し構成**:
 
@@ -365,8 +365,8 @@
 
 ### Codex
 
-- ドキュメント全体: https://developers.openai.com/codex
+- ドキュメント全体: https://learn.chatgpt.com/docs
 - Cookbook（Codexトピック）: https://developers.openai.com/cookbook/topic/codex
-- Changelog: https://developers.openai.com/codex/changelog
-- 料金: https://developers.openai.com/codex/pricing
+- Changelog: https://learn.chatgpt.com/docs/changelog
+- 料金: https://learn.chatgpt.com/docs/pricing
 - GitHub: https://github.com/openai/codex

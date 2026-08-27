@@ -156,9 +156,9 @@
 
 ### 学び8: OpenAI Codex changelog の URL が `learn.chatgpt.com` へ移動
 
-- **検知**: 2026-08-16 の巡回で `https://developers.openai.com/codex/changelog` が `https://learn.chatgpt.com/docs/changelog` へ 308 Permanent Redirect。
+- **検知**: 2026-08-16 の巡回で `https://learn.chatgpt.com/docs/changelog` が `https://learn.chatgpt.com/docs/changelog` へ 308 Permanent Redirect。
 - **対処**: source-catalog の OpenAI Codex 補助ソース欄を `https://learn.chatgpt.com/docs/changelog` へ差し替える。学び5 で「`learn.chatgpt.com` は API の価格改定は載らない」と記録済みのため、その注記は引き続き有効。
-- **カタログ取り込み**: 未（次月レビューで source-catalog.md の OpenAI Codex 行を更新）。
+- **カタログ取り込み**: 済（source-catalog.md の OpenAI Codex 行は更新済み）。あわせて 2026-08-27 に Knowledge 側の記事 45 本の一次ソースも新ドメインへ移行した。**単純置換は不可**で、`config-*` は `/docs/config-file/`、`agents-md`・`rules`・`speed`・`subagents` は `/docs/agent-configuration/`、`integrations/*` は `/docs/third-party/` のようにパスが再編されている。また **catch-all リダイレクトがあり、存在しないパスでも 308 を返す**。308 が返ることをリンク健在の根拠にしないこと。
 
 ### 学び9: `blog.cloudflare.com` の個別ポストは Exa がクロールエラーを返す
 
