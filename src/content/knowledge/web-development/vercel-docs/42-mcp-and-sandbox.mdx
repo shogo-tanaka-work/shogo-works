@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Vercel", "MCP", "ドキュメント要約"]
 createdAt: 2026-05-08
+updatedAt: 2026-08-28
 author: "田中省伍"
 sortOrder: 42
 ---
@@ -15,8 +16,8 @@ sortOrder: 42
 
 - Vercel MCP は AI クライアント（Devin / Raycast / Windsurf / Goose / Cursor / ChatGPT など）と外部システムを橋渡しする「公式 MCP サーバー」のホスティング層。Vercel が認可したクライアントのみが `https://mcp.vercel.com` に接続できる
 - Vercel Sandbox は Firecracker microVM で隔離された短命 Linux 環境。AI エージェントの生成コード・ユーザー投稿コード・サードパーティスクリプトを本番環境に触れさせずに実行するための「破棄前提の計算基盤」として設計されている
-- 2026 年に GA 化された Sandbox は `sudo` と RPM パッケージインストールに対応し、`node24 / node22 / python3.13` ランタイム上で Go・Python・任意のシステム依存を実行時にインストールできる
-- Snapshots と Persistent Sandboxes（Beta）により、「依存インストール済みの状態を保存して再開」「停止しても自動で状態保持して再開時に再注入」という二系統の状態管理が用意されている
+- 既定イメージは `vercel/sandbox/universal`（Node.js LTS ＋ **Python 3.14**、コーディングエージェント同梱）。Ubuntu / Arch など任意の Linux イメージや、Vercel Container Registry の独自 OCI イメージも指定できる
+- **Persistence は現在の既定**（`persistent: false` で opt-out）。ただし自動 snapshot は **Snapshot Storage として別課金**になるため、「状態保持は無料」と読まないこと
 - `x402-mcp` により MCP ツール単位での超少額課金（100〜200ms 確認、$0.001 未満も可）が可能になり、AI エージェントが事前登録なしで有料ツールを呼び出すフローが現実になった
 - Sandbox は SDK（`@vercel/sandbox`）と CLI に加え、REST API v2 beta（`GET /v2/sandboxes` 等）でも管理可能。Persistent / Snapshot / Tags / NetworkPolicy のメタデータが API レスポンスに含まれる
 
@@ -29,7 +30,7 @@ Vercel MCP と Vercel Sandbox は、いずれも「AI エージェントを実�
 1. Vercel 自身が提供する公式 MCP サーバー（`https://mcp.vercel.com`）。Devin / Raycast / Windsurf / Goose などのクライアントが、Vercel の Project / Deployment / Logs といったプラットフォーム機能をエージェントから直接操作できる
 2. 開発者が自前の MCP サーバーを Vercel にデプロイするためのプラットフォーム機能（Functions / Fluid Compute をベースに、Nuxt や Next.js で MCP エンドポイントを公開する）
 
-**Vercel Sandbox** は LLM や MCP クライアントが「安全には実行できない」コードを引き受けるための隔離環境。各サンドボックスは Firecracker microVM 上で起動し、専用ファイルシステム・専用ネットワーク・専用ユーザー（`vercel-sandbox`）で隔離される。デフォルトで 5 分・最長で Pro/Enterprise は 5 時間まで延長可能な短命 VM であり、状態は明示的に Snapshot するか Persistent Sandbox にしない限り破棄される。
+**Vercel Sandbox** は LLM や MCP クライアントが「安全には実行できない」コードを引き受けるための隔離環境。各サンドボックスは Firecracker microVM 上で起動し、専用ファイルシステム・専用ネットワーク・専用ユーザー（`vercel-sandbox`）で隔離される。既定のタイムアウトは 5 分、1 セッションの上限は Hobby 45 分 / Pro・Enterprise 24 時間です。**現在は persistence が既定**のため、停止しても状態は自動で保存され、次回アクセス時に再開されます。破棄前提で使いたい場合は `persistent: false` を明示します。
 
 二つを組み合わせると、「MCP 経由で受け取ったツール呼び出しの実行を、Sandbox 内に閉じ込める」というアーキテクチャになる。エージェントが任意の `npm install` や `pip install` を実行しても、本番のプロジェクト・データベース・シークレットには触れない。
 
@@ -51,16 +52,32 @@ Vercel MCP と Vercel Sandbox は、いずれも「AI エージェントを実�
 
 | 機能 | 状態 | 内容 |
 | --- | --- | --- |
-| Firecracker microVM 隔離 | GA | 専用 FS・専用ネットワーク。Amazon Linux 2023 ベース |
-| ランタイム | GA | `node24`（既定）/ `node22` / `python3.13` |
-| `sudo` / RPM インストール | GA | `runCommand({ sudo: true })` で `dnf install` 等が可能 |
+| Firecracker microVM 隔離 | GA | 専用 FS・専用ネットワーク・専用ユーザー |
+| 既定イメージ | GA | `vercel/sandbox/universal`（Node.js LTS ＋ Python 3.14、コーディングエージェント同梱）。任意の Linux / 独自 OCI イメージも可 |
+| `sudo` / パッケージインストール | GA | `runCommand({ sudo: true })` でパッケージマネージャを実行できる |
 | Snapshots | GA | 既定 30 日、`expiration: 0` で無期限、`ms('14d')` 等で任意指定 |
-| Persistent Sandboxes | Beta | 停止時に自動で状態保存、再開時に透過セッション生成。状態保管は無料、CPU 課金のみ |
+| Persistence | **既定** | 停止時に自動で状態保存、再開時に透過セッション生成。**snapshot は Snapshot Storage として別課金**（Pro $0.002630137/GB-月、Enterprise $0.08/GB-月） |
 | Tags | Beta | key/value で環境・チームなどに分類 |
 | NetworkPolicy | GA | `allow-all`（既定）/ `deny-all` / `allow` / `subnets.allow` / `subnets.deny` |
 | 起動時間 | GA | ミリ秒オーダー |
-| デフォルトタイムアウト | GA | 5 分。Hobby は 45 分、Pro/Enterprise は 5 時間まで延長可 |
+| セッション上限 | GA | 既定 5 分。Hobby 45 分 / Pro・Enterprise **24 時間**まで延長可 |
+| リージョン | GA | `iad1`（既定）/ `sfo1` / `cle1` / `cdg1`。Pro・Enterprise は failover を設定できる |
+| vCPU 上限 | GA | Hobby 4 / Pro 8 / Enterprise 32。同時実行は Hobby 10 / Pro・Enterprise 10,000 |
 | `x402-mcp`（超少額課金） | 利用可 | MCP ツール単位で `paidTool()` を定義し `withPayment()` で呼び出す |
+
+### Sandbox の料金（iad1、2026-08-21 時点）
+
+| 項目 | 単価 |
+|---|---|
+| Active CPU | $0.128 / 時 |
+| Provisioned Memory | $0.0212 / GB-時 |
+| Creations | $0.60 / 100 万 |
+| Data Transfer | $0.15 / GB |
+| **Snapshot Storage** | **Pro $0.002630137 / GB-月、Enterprise $0.08 / GB-月** |
+
+persistence が既定になったことで、**放置したサンドボックスは CPU を消費しなくても Snapshot Storage を消費し続けます。**使い捨て用途では `persistent: false` を明示するか、不要になった snapshot を整理してください。
+
+出典: [Vercel Sandbox pricing and quotas](https://vercel.com/docs/sandbox/pricing) / [Sandbox Persistence](https://vercel.com/docs/sandbox/concepts/persistent-sandboxes) / [Vercel Sandbox is now globally available](https://vercel.com/changelog/vercel-sandbox-is-now-globally-available)
 
 ### SDK と REST API の対応関係
 

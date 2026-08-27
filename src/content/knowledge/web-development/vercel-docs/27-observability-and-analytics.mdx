@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Vercel", "Observability", "ドキュメント要約"]
 createdAt: 2026-05-08
+updatedAt: 2026-08-28
 author: "田中省伍"
 sortOrder: 27
 ---
@@ -38,7 +39,7 @@ Observability Suite と Analytics 系の機能は次の対応関係で整理で�
 
 Runtime Logs の保持期間はデフォルトで 3 日であり、Observability Plus を有効化したチームに限り 30 日へ延長される（2025 年 8 月公開）。同時に同時クエリ可能な範囲は連続 14 日分に制限される点にも留意したい。Notebooks は 2025 年 6 月から Observability Plus に追加された機能で、複数クエリをひとつの分析シートとして保存・共有できる。Metrics 検索は 2025 年 8 月の改善で `TTFB` などの略称検索とキーボードナビゲーションに対応した。
 
-Drains は 2025 年以降、Logs に加えて Traces・Speed Insights・Analytics の四種を扱う統合パイプラインへ拡張された。Traces は OTLP/HTTP のみ対応で、gRPC は未サポートである。料金は Pro 以上で、データ種別を問わず 1 単位 0.50 ドルの従量課金となっている。
+Drains は 2025 年以降、Logs に加えて Traces・Speed Insights・Analytics の四種を扱う統合パイプラインへ拡張された。Traces は OTLP/HTTP のみ対応で、gRPC は未サポートである。料金は Pro 以上で「Drains Volume $0.50」と公示されているが、**公式の料金表に単位（GB あたりか件あたりか）の明示がない**。見積もりに使う前に [Pricing on Vercel](https://vercel.com/docs/pricing) で最新の表記を確認すること。
 
 ## 使い方
 
