@@ -221,6 +221,43 @@ export CLAUDE_CODE_ENABLE_TODO_TOOLS=1
 
 ---
 
+## 応答のしかたを変える：Output styles
+
+Claude の**応答の仕方**（役割・トーン・出力形式）を切り替えられます。知識や能力ではなく、返し方だけが変わります。
+
+| スタイル | 特徴 |
+|---|---|
+| Default | 標準 |
+| **Concise** | 前置きと実況を省き、結果から先に述べる。説明を求めれば詳しく答える。**エラー報告・セキュリティ警告・破壊的操作の確認は省略しない** |
+| Proactive | 確認を待たずに実行し、判断を自分で埋める。ただし権限モードは変えない |
+| Explanatory | 作業の合間に解説を挟む |
+| Learning | `TODO(human)` を置いて、実装を学習者に任せる |
+
+設定は `/config` の Output style から行います。直接書くこともできます。
+
+```json
+{ "outputStyle": "Concise" }
+```
+
+自作もできます。`~/.claude/output-styles/` または `.claude/output-styles/` に Markdown を1枚置くだけです。
+
+```markdown
+---
+name: Diagrams first
+description: Lead every explanation with a diagram
+keep-coding-instructions: true
+---
+
+コードや構成を説明するときは、まず Mermaid の図で構造を示してから文章で説明してください。
+```
+
+注意点が2つあります。
+
+- **単独の `/output-style` コマンドは v2.1.91 で削除**されました。`/config` を使ってください
+- **セッション開始時に一度だけ読まれます。**変更を反映するには `/clear` するか新しいセッションを開始してください
+
+---
+
 ## 主要コマンド早見表
 
 | カテゴリ | コマンド | 用途 |

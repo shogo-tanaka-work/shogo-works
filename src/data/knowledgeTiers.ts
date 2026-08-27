@@ -153,7 +153,8 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 4,
       label: "拡張とカスタマイズ",
-      description: "Hooks / Skills / サブエージェント / MCP / メモリ / Agent SDK で拡張する",
+      description:
+        "Hooks / Skills / サブエージェント / MCP / メモリ / プラグイン / ワークフロー / Agent SDK で拡張する",
       sortOrderStart: 12,
     },
   ],

@@ -1,6 +1,6 @@
 ---
 title: "Claude Code カスタムスラッシュコマンド実践：引数・フロントマター・実例集"
-description: "Claude Code のカスタムスラッシュコマンドを Skills と区別しながら整理。$ARGUMENTS / $1$2 の引数、description / allowed-tools / argument-hint のフロントマター、実用コマンド例までを集約。"
+description: "Claude Code のカスタムスラッシュコマンドを Skills との関係から整理。$ARGUMENTS と 0 始まりの位置引数、arguments による名前付き引数、description / allowed-tools / argument-hint のフロントマター、実用コマンド例までを集約。"
 category: "ai-tools"
 subcategory: "claude-code"
 difficulty: "intermediate"
@@ -15,7 +15,7 @@ author: "田中省伍"
 ## TL;DR
 
 - **公式ではカスタムコマンドは Skills へ統合済み。**`.claude/commands/<name>.md` は動作するが互換パス扱い
-- 引数は **`$ARGUMENTS`**（全部まとめて）と **`$1` `$2` `$3`...**（位置引数）の2種類。スペース区切りで自動パース
+- 引数は **`$ARGUMENTS`**（全部まとめて）と **`$0` `$1` `$2`...**（位置引数、**0 始まり**）と、`arguments` で宣言する **`$name`**（名前付き）の3種類
 - フロントマターでは **`description`**（一覧での説明）、**`allowed-tools`**（権限制限）、**`argument-hint`**（入力ヒント）の3つが運用上の必須セット
 - これから作るなら `.claude/skills/<name>/SKILL.md` 形式。旧形式は `name` / `paths` が無視され、同名の skill に負ける
 
@@ -92,7 +92,14 @@ $ARGUMENTS
 
 `$ARGUMENTS` には `/analyze-error` 以降のテキストが**そのまま**入ります。改行・記号・スペースを保持できるので、長いエラーログをそのまま流し込む用途に向きます。
 
-### `$1` `$2` `$3` ：位置引数で受ける
+### `$0` `$1` `$2` ：位置引数で受ける
+
+> **インデックスは 0 始まりです。**`$0` が**第1引数**、`$1` が第2引数です。公式ドキュメントの原文は次のとおりです。
+>
+> > `$N` — Shorthand for `$ARGUMENTS[N]`, such as `$0` for the first argument or `$1` for the second.
+> > — [Skills | Claude Code Docs](https://code.claude.com/docs/en/skills)
+>
+> **コマンド名を参照する変数は存在しません。**`$0` をコマンド名だと解説している記事（本記事の旧版を含む）を見かけたら、現行仕様と食い違っています。
 
 ```markdown
 ---
@@ -100,7 +107,7 @@ description: 2つのファイルを比較
 argument-hint: [ファイル1] [ファイル2]
 ---
 
-@$1 と @$2 を比較し、差分の意味を説明してください。
+@$0 と @$1 を比較し、差分の意味を説明してください。
 特に重要な差分があれば強調してください。
 ```
 
@@ -110,20 +117,48 @@ argument-hint: [ファイル1] [ファイル2]
 /compare-files src/old.ts src/new.ts
 ```
 
-スペース区切りで分割され、`$1` = `src/old.ts`、`$2` = `src/new.ts` になります。`$0` はコマンド名そのもの（`compare-files`）が入ります。
+`$0` = `src/old.ts`、`$1` = `src/new.ts` になります。`$ARGUMENTS[0]` `$ARGUMENTS[1]` と書いても同じです。
 
-### スペースを含む引数の制約
+### 名前付き引数で読みやすくする
 
-位置引数はスペースで自動分割されます。クォートで囲ってもそのまま渡される実装が多いので、**スペースを含むパラメータは `$ARGUMENTS` 側で受けて Claude にパースさせる**のが現実解です。「ファイル名にスペースを含む可能性がある」ようなケースでは `$1` に頼らない設計にします。
+位置番号は取り違えやすいので、`arguments` フロントマターで名前を付けられます。名前は宣言順に位置へ対応します。
+
+```markdown
+---
+description: 2つのファイルを比較
+arguments: [before, after]
+---
+
+@$before と @$after を比較し、差分の意味を説明してください。
+```
+
+`$0` / `$1` より意図が読み取れるので、引数が2つ以上あるなら基本的にこちらを使ってください。
+
+### スペースを含む引数
+
+**シェル同様のクォートが効きます。**複数語をひとつの引数として渡したい場合はクォートで囲ってください。
+
+```
+/my-skill "hello world" second
+```
+
+この場合 `$0` は `hello world`、`$1` は `second` になります。
 
 ### 引数が足りない時の挙動
 
-`$1` が指定されていない場合、その変数は空文字列に展開されます。プロンプトが「`$1` のテストを書いて」のような形だと「のテストを書いて」になり、Claude が混乱します。対策は2つです。
+挙動が2種類あるので区別してください。
+
+| 記法 | 対応する引数が無いとき |
+|---|---|
+| `$0` `$1` などの位置指定 | **置換されず、そのまま文字列として残る**（`$2` と書かれたまま） |
+| `arguments` で宣言した `$name` | **空文字列に展開される** |
+
+位置指定が置換されずに残ると、プロンプトに `$2` という文字列が紛れ込みます。対策は2つです。
 
 1. プロンプト内で「引数が空なら現在の会話のコードを対象とする」のような分岐を明示する
-2. `argument-hint` を必ず書く（UI 上で必要数の入力を促せる）
+2. `argument-hint` を必ず書く（入力時に必要な引数を促せる）
 
-両方やっておくと事故が減ります。
+なお、文中で `$1.00` のようにリテラルの `$` を書きたい場合は `\$1.00` とバックスラッシュでエスケープします。
 
 ---
 
@@ -198,17 +233,18 @@ allowed-tools: Bash(git:*), Bash(npm test)
 ---
 description: PR レビュー用の情報を集約
 argument-hint: <branch-name> <category>
+arguments: [branch, category]
 allowed-tools: Bash(git:*), Bash(gh:*), Read
 ---
 
 PR レビュー前の情報を準備してください。
 
-- 対象ブランチ: $1
-- 変更カテゴリ: $2
+- 対象ブランチ: $branch
+- 変更カテゴリ: $category
 
-1. `git log main..$1 --oneline` でコミット一覧
-2. `git diff main...$1 --stat` で変更ファイル一覧
-3. $2 の観点（例: security / performance / readability）で重点レビューポイントを 3 つ抽出
+1. `git log main..$branch --oneline` でコミット一覧
+2. `git diff main...$branch --stat` で変更ファイル一覧
+3. $category の観点（例: security / performance / readability）で重点レビューポイントを 3 つ抽出
 4. 結果を Markdown で出力
 ```
 
