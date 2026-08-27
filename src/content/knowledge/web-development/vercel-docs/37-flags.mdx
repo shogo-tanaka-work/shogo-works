@@ -13,7 +13,7 @@ sortOrder: 37
 
 ## この章の要点
 
-Vercel Flags は Vercel が提供する自社製のフィーチャーフラグ・プロバイダーであり、外部 SaaS を増やさずに Dashboard 上でフラグの作成・ターゲティング・段階的ロールアウト・A/B テストまでを完結できる。アプリ側からの評価には `flags`（旧 `@vercel/flags`）パッケージを軸とする Flags SDK を使い、Next.js（App Router / Pages Router / Middleware）と SvelteKit に対しフレームワークネイティブの `flag()` API を提供する。Vercel Toolbar に組み込まれた Flags Explorer により、サインインしたチームメンバーは本番・Preview・ローカルのいずれの環境でもブラウザ上でフラグを上書きでき、上書きはブランチ単位や URL 単位で共有できる。値の型は Boolean / String / Number に加え 2026-05-07 のチェンジログで JSON 値が追加され、AI モデル設定など複数フラグを 1 つにまとめられるようになった。Flags SDK は Vercel 自社プロバイダーだけでなく LaunchDarkly / Statsig / Hypertune / GrowthBook / Optimizely / Split / PostHog / Flagsmith / Edge Config / OpenFeature 互換各社（AB Tasty / CloudBees / ConfigCat / DevCycle / FeatBit / flagd / Flipt / GO FeatureFlag / Kameloon / Tggl など）にもアダプター経由で接続可能で、Marketplace の課金・SSO に統合される。評価は Edge Middleware / Server Component で実行できるよう設計されており、`reportValue` 経由で Runtime Logs と Web Analytics に自動報告され、コンバージョンや Core Web Vitals との相関分析を Vercel ダッシュボード内で完結できる。
+Vercel Flags は Vercel が提供する自社製のフィーチャーフラグ・プロバイダーであり、外部 SaaS を増やさずに Dashboard 上でフラグの作成・ターゲティング・段階的ロールアウト・A/B テストまでを完結できる。アプリ側からの評価には `flags`（旧 `@vercel/flags`）パッケージを軸とする Flags SDK を使い、Next.js（App Router / Pages Router / Middleware）と SvelteKit に対しフレームワークネイティブの `flag()` API を提供する。Vercel Toolbar に組み込まれた Flags Explorer により、サインインしたチームメンバーは本番・Preview・ローカルのいずれの環境でもブラウザ上でフラグを上書きでき、上書きはブランチ単位や URL 単位で共有できる。値の型は Boolean / String / Number に加え 2026-05-07 のチェンジログで JSON 値が追加され、AI モデル設定など複数フラグを 1 つにまとめられるようになった。Flags SDK は Vercel 自社プロバイダーだけでなく LaunchDarkly / Statsig / Hypertune / GrowthBook / Optimizely / Split / PostHog / Flagsmith / Global Config / OpenFeature 互換各社（AB Tasty / CloudBees / ConfigCat / DevCycle / FeatBit / flagd / Flipt / GO FeatureFlag / Kameloon / Tggl など）にもアダプター経由で接続可能で、Marketplace の課金・SSO に統合される。評価は Edge Middleware / Server Component で実行できるよう設計されており、`reportValue` 経由で Runtime Logs と Web Analytics に自動報告され、コンバージョンや Core Web Vitals との相関分析を Vercel ダッシュボード内で完結できる。
 
 ## Vercel Flags とは
 
@@ -51,7 +51,7 @@ Flags Explorer は Vercel Toolbar 内のパネルで、サインインしたチ�
 
 ### 外部プロバイダーアダプター
 
-Flags SDK のもう一つの顔は「アダプター集」である。`flags-sdk.dev` のディレクトリには Vercel / Statsig / Hypertune / GrowthBook / Edge Config / LaunchDarkly / Reflag / PostHog / Flagsmith に加え、OpenFeature 互換として AB Tasty / CloudBees / ConfigCat / DevCycle / FeatBit / flagd / Flipt / GO FeatureFlag / Kameloon / Split / Tggl、その他 Optimizely / Split が並ぶ。アプリ側の `flag()` 呼び出しは変えず、`adapter` を差し替えるだけでバックエンドを切り替えられる設計で、Vercel Marketplace 経由で導入した SaaS は Vercel の請求・SSO・ダッシュボードに統合される。
+Flags SDK のもう一つの顔は「アダプター集」である。`flags-sdk.dev` のディレクトリには Vercel / Statsig / Hypertune / GrowthBook / Global Config / LaunchDarkly / Reflag / PostHog / Flagsmith に加え、OpenFeature 互換として AB Tasty / CloudBees / ConfigCat / DevCycle / FeatBit / flagd / Flipt / GO FeatureFlag / Kameloon / Split / Tggl、その他 Optimizely / Split が並ぶ。アプリ側の `flag()` 呼び出しは変えず、`adapter` を差し替えるだけでバックエンドを切り替えられる設計で、Vercel Marketplace 経由で導入した SaaS は Vercel の請求・SSO・ダッシュボードに統合される。
 
 ### Observability と Web Analytics 統合
 
@@ -218,7 +218,7 @@ Flags SDK で評価したフラグは自動的に `reportValue` 経由で Web An
 
 第五に A/B 計測の観測偏りである。`reportValue` は評価したリクエストにのみ紐づくため、Server Component とクライアントの両方でフラグを評価していると二重カウントが起きる、あるいは評価せずにそのバリアントの UI を出すと未報告になり計測が歪む。1 つのバリアント決定につき 1 度だけ評価する規律と、Web Analytics 上のコンバージョン定義を SRM（Sample Ratio Mismatch）チェックで監視する運用を推奨する。
 
-第六に Edge での評価コストである。Vercel Flags はグローバル複製と Embedded Definitions により評価そのものは極めて軽いが、外部プロバイダー（LaunchDarkly / Statsig 等）を Edge から直接叩くアダプター構成では SaaS の SLA・地理レイテンシがクリティカルパスに入る。Edge Config 連携や、ビルド時に定義をプリフェッチして Edge にバンドルするアダプターを選ぶ、あるいはバックグラウンド更新型のアダプターを選ぶことで、評価レイテンシを Vercel ネットワーク内に閉じ込められる。
+第六に Edge での評価コストである。Vercel Flags はグローバル複製と Embedded Definitions により評価そのものは極めて軽いが、外部プロバイダー（LaunchDarkly / Statsig 等）を Edge から直接叩くアダプター構成では SaaS の SLA・地理レイテンシがクリティカルパスに入る。Global Config 連携や、ビルド時に定義をプリフェッチして Edge にバンドルするアダプターを選ぶ、あるいはバックグラウンド更新型のアダプターを選ぶことで、評価レイテンシを Vercel ネットワーク内に閉じ込められる。
 
 第七に SLA とフォールバックである。`flag()` の `defaultValue` と Embedded Definitions のフォールバックを必ず設定し、フラグサービスへの到達不能時にもアプリが安全側に倒れる挙動を保証する。特にキルスイッチ用途のフラグは「Off が安全」になるよう論理を反転させて持っておくのが原則である。
 

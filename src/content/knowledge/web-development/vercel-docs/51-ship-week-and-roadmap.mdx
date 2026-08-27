@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Vercel", "Ship Week", "ドキュメント要約"]
 createdAt: 2026-05-08
+updatedAt: 2026-08-28
 author: "田中省伍"
 sortOrder: 51
 ---
@@ -14,7 +15,7 @@ sortOrder: 51
 ## この章の要点
 
 - **Vercel Ship** は半期に一度開催される Vercel のフラッグシップ発表イベント。Changelog が日々の細かい更新を流すのに対し、Ship は **戦略の塊** をまとめて打ち出す場として機能する
-- 直近の流れを俯瞰すると、2024 → 2025 → 2026 で重心が「Frontend Cloud」から「**AI Cloud**」へと明確にシフトしている。Firewall・v0・AI SDK（2024）→ Fluid Compute / Active CPU / BotID / Rolling Releases（2025）→ AI Gateway / Agent / Sandbox（2026）という系譜
+- 直近の流れを俯瞰すると、2024 → 2025 → 2026 で重心が「Frontend Cloud」から「**AI Cloud**」へと明確にシフトしている。Firewall・v0・AI SDK（2024）→ Fluid Compute / Active CPU / BotID / Rolling Releases（2025）→ **Agent Stack・フルスタック化・エンタープライズ**（2026）という系譜
 - 4 軸で読むと整理しやすい：(1) **AI Cloud 化**（AI Gateway / Sandbox / Agent）、(2) **Compute 進化**（Fluid Compute / Active CPU pricing）、(3) **セキュリティ強化**（Firewall / BotID / Deployment Protection）、(4) **Pricing 透明化**（2024-04 の Infrastructure Pricing 改善 → 2025 の Active CPU）
 - **AI Accelerator** は Ship と並走するもう一つの戦略軸。6 週間 / 40 社 / 800 万ドル超のクレジットで、Vercel を中心とした AI スタートアップの生態系を作りに行っている
 - Ship 発表は「ビジョンと実装済み機能の境界が曖昧」になりがち。本章は道標であり、各機能の実装可否は本シリーズ各章および公式 Docs / Changelog で再確認する前提で読む
@@ -55,16 +56,39 @@ Changelog との違いは粒度と意図にある。
 - **BotID**（Invisible CAPTCHA）：Checkout / Login / LLM 呼び出しなど高コスト経路を「人間/Bot」で守る。reCAPTCHA 系の代替。詳細は [Bot Management と BotID](/knowledge/web-development/vercel/32-bot-management-and-botid) を参照
 - **AI Gateway 系の整備**：複数モデルベンダーへの統一インターフェース。詳細は [AI Gateway](/knowledge/web-development/vercel/41-ai-gateway) を参照
 
-### Vercel Ship 2026（2026-10-15 / San Francisco, Palace of Fine Arts）
+### Vercel Ship 26（2026 年、複数都市で開催済み）
 
-時期は 2026 年秋（執筆時点では予告フェーズ）。基調メッセージは **「AI Cloud」**。Vercel というブランドの定義そのものが「Frontend Cloud」から「AI Cloud」へと書き換わるアナウンスがトップに来る構成。
+**2025 年までの「年 1 回・1 都市」から、複数都市を巡る形式に変わりました。**London（6/17）、Berlin、New York（6/30）、Sydney で開催済みで、San Francisco（10/15）が残っています。主要発表は 6 月末までに出揃っており、**「これから発表される」段階ではありません。**
 
-- **AI Gateway の本格展開**：OpenAI / Anthropic / xAI など数百モデルへの統一アクセス、ロングリスニング対応のストリーミング
-- **Sandbox**：エージェントが任意コードを安全に実行するための隔離環境。詳細は [MCP と Sandbox](/knowledge/web-development/vercel/42-mcp-and-sandbox) を参照
-- **Vercel Agent**：PR レビュー / 異常検知の運用エージェント。Pro 以上で全 PR 対象。詳細は [AI Agents と Claim Deployments](/knowledge/web-development/vercel/43-ai-agents-and-claim-deployments) を参照
-- **Security Suite の統合**：WAF・Bot 管理・BotID・Sandbox を「セキュリティ製品群」として再パッケージ
+発表を 3 つの塊で整理します。
 
-時期不詳の細部もあるため、確定版の詳細は [Ship 2026 公式ページ](https://vercel.com/ship) と当日の Opening Keynote で再確認する前提で読む。
+#### 1. Agent Stack — エージェントを作って動かす一式
+
+| 構成要素 | 役割 |
+|---|---|
+| **AI SDK 7** | `WorkflowAgent`、telemetry 刷新、timeout 制御（2026-06-25） |
+| **AI Gateway** | 数百モデルへの統一アクセス。markup ゼロ・プラットフォーム手数料ゼロ |
+| **Workflow SDK** | 長時間走るエージェント処理の記述 |
+| **Sandbox** | 生成コードを隔離実行する microVM |
+| **Chat SDK** | チャット UI の土台 |
+| **eve** | Vercel が公開した **OSS のエージェントフレームワーク**（2026-06-17） |
+
+#### 2. フルスタック化 — 「フロントエンドの置き場」から先へ
+
+- **Dockerfile 対応と Vercel Container Registry** — 任意のコンテナイメージを持ち込める
+- **バックエンドフレームワーク対応** — FastAPI / Flask / Express / Hono
+- **Vercel Services** — アプリを構成するサービス群を Vercel 上で扱う
+- **Vercel Connect**（2026-08-25 に **GA**）— プライベートネットワーク接続
+
+#### 3. エンタープライズ
+
+- **Vercel Passport** — Deployment Protection の新しい保護手段（Enterprise、GA）
+- **Security Dashboard**（2026-08-26 に **GA**）
+- **BYOC on AWS** — 顧客自身の AWS アカウント上で動かす
+
+出典: [Vercel Ship 2026 recap](https://vercel.com/blog/vercel-ship-2026-recap) / [Introducing eve](https://vercel.com/blog/introducing-eve) / [Vercel Ship](https://vercel.com/ship)
+
+> Berlin・Sydney の開催日は recap に記載がなく、一次資料で特定できませんでした。
 
 ## 戦略的トピック
 
