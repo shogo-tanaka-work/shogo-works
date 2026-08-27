@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Supabase", "Launch Week 直近ダイジェスト", "ドキュメント要約"]
 createdAt: 2026-05-08
+updatedAt: 2026-08-28
 author: "田中省伍"
 sortOrder: 40
 ---
@@ -17,9 +18,13 @@ sortOrder: 40
 
 ## Launch Week とは
 
-Supabase は年に複数回（概ね年 2〜3 回）**Launch Week** と呼ぶ発表イベントを開催する。1 週間（月〜金）の毎日午前 8 時 PT（太平洋時間）に新機能・新サービスを 1〜複数件ずつ公開し、公式ブログに詳細記事を掲載する形式をとる。期間中は並行して **Hackathon** も開催され、コミュニティのプロジェクトが集まる。全発表は週末に「Top 10 Launches」としてまとめ記事が公開される。
+Supabase は **Launch Week** と呼ぶ発表イベントを開催してきた。1 週間（月〜金）の毎日午前 8 時 PT（太平洋時間）に新機能・新サービスを 1〜複数件ずつ公開し、公式ブログに詳細記事を掲載する形式をとる。期間中は並行して **Hackathon** も開催され、コミュニティのプロジェクトが集まる。全発表は週末に「Top 10 Launches」としてまとめ記事が公開される。
 
-イベント番号は通し番号（LWX、LW12〜）で管理されているが、2024 年 4 月には **GA Week**（General Availability 宣言）として特別版が開催された。2025 年以降は Launch Week 14（2025 年 3〜4 月）・Launch Week 15（2025 年 7 月）・December Launch（2025 年 12 月）が確認されている。
+イベント番号は通し番号（LWX、LW12〜）で管理され、2024 年 4 月には **GA Week**（General Availability 宣言）として特別版が開催された。
+
+**ただし、番号付きの Launch Week は LW15（2025-07-14〜18）が最後です。**2026-08-28 時点で 13 か月にわたり新しい回は開催されておらず、`supabase.com/launch-week` は今も LW15 を表示し、`/launch-week/16` は 404 を返します。2025 年 12 月の「December Launch」も番号付き Launch Week ではなく単発リリースの束です。
+
+つまり **「年 2〜3 回の Launch Week を待つ」という情報収集モデルは現在成立していません。**Changelog とブログを継続的に追う前提に切り替えてください。
 
 ## 直近の Launch Week 一覧（時系列）
 
@@ -31,7 +36,7 @@ Supabase は年に複数回（概ね年 2〜3 回）**Launch Week** と呼ぶ発
 | **LW13** | 2024-12-02〜06 | Mega Launch Week（20 社以上同時開催） | Supabase Cron、Supabase Queues、AI Assistant v2、Edge Functions（WebSocket・Background Tasks・Ephemeral Storage）、CLI v2（Config as Code）、High Performance Disks（最大 60 TB・100x 耐久性）、Oriole Beta 7 |
 | **LW14** | 2025-03-31〜04-04 | AI Builder 連携強化 | Supabase MCP Server、Automatic Embeddings、Realtime Broadcast from Database、Declarative Schemas、Data API → Nearest Read Replica ルーティング、Edge Functions Dashboard デプロイ + Deno 2.1、Postgres Language Server、Dedicated Poolers、Clerk Third-party Auth |
 | **LW15** | 2025-07-14〜18 | | New API Keys + JWT Signing Keys（非対称暗号）、Analytics Buckets（Apache Iceberg）、OpenTelemetry サポート、Edge Functions 97% 高速化 + Persistent Storage、Storage 500 GB Upload・格安 Egress、Branching 2.0（GitHub 不要）、Supabase UI Platform Kit、Stripe-to-Postgres Sync Library |
-| **Dec 2025** | 2025-12 | | Supabase ETL、Vector Buckets、OAuth2 プロバイダー（Sign in with Your App）、Auth Templates、AWS Marketplace 対応、Metrics API |
+| Dec 2025（番号なし） | 2025-12 | 番号付き Launch Week ではない | Supabase ETL、Vector Buckets、OAuth2 プロバイダー（Sign in with Your App）、Auth Templates、AWS Marketplace 対応、Metrics API |
 
 > 注：LW11 は公式サイトで番号の記録が見当たらず（要追記）。GA Week は正式な LW 番号を持たない特別版として扱う。
 
@@ -117,10 +122,12 @@ Supabase は年に複数回（概ね年 2〜3 回）**Launch Week** と呼ぶ発
 | Index / Security / Performance Advisor | GA Week (2024-04) | Dashboard 内でインデックス・セキュリティ・クエリ最適化の推奨を提示 |
 | Log Drains | LW12 (2024-08) | Datadog・Grafana Loki・Sentry 等への外部ログ転送 |
 | Dedicated Poolers | LW14 (2025-04) | pgBouncer が DB と同じロケーションで稼働。有料プラン向け |
-| Branching 2.0 | LW15 (2025-07) | Git 連携なしで Dashboard・CLI・Management API からブランチ作成・マージ可能 |
+| Branching 2.0 | LW15 (2025-07) | Dashboard・CLI・Management API からブランチ作成・マージ可能に |
+| **Git なしブランチングが既定化** | **2026-05-04** | 全プロジェクトで既定。GitHub 連携は任意に。差分エンジンが migra → **pg-delta** |
 | Supabase UI Library / Platform Kit | LW14 / LW15 | shadcn/ui ベースの公式コンポーネント。Auth・Storage・Realtime 連携済み |
 | Multigres Operator（OSS） | 2026-04 | Kubernetes オペレーター。ゼロダウンタイムアップグレード・pgBackRest PITR・OTel トレース |
-| OpenAPI デフォルト非公開 | 2026-04 | 新規プロジェクトで public スキーマが Data API / GraphQL API に非公開（デフォルト変更） |
+| anon key での OpenAPI spec 取得を廃止 | 2026-03-11（新規）→ 2026-04-08（全体） | service role / secret key が必要に |
+| **新規テーブルを Data API / GraphQL へ自動公開しない** | 新規は 2026-05-30、**全プロジェクトへ 2026-10-30 に強制適用** | 「デフォルト公開」から「デフォルト非公開」へ |
 | AWS Marketplace 対応 | Dec 2025 (2025-12) | AWS Marketplace から Supabase を購入・利用可能 |
 
 ## 採用判断への影響
@@ -129,11 +136,14 @@ Supabase は年に複数回（概ね年 2〜3 回）**Launch Week** と呼ぶ発
 
 - **SOC 2 Type 2** は 2023 年 5 月 22 日付で取得済み（発表：2023-08-11）。年次監査を継続している。
 - **HIPAA** も同時に対応完了。有料 Add-on を有効化し BAA を締結することで PHI（保護医療情報）を扱える。以前は医療系 SaaS での採用が難しかったが、2023 年以降は選択肢に入れやすくなった。
-- ISO/IEC 27001:2022 は 2026 年に取得（May 2026 Developer Update で発表）。
+- **ISO/IEC 27001 認証を 2026-04-22 に取得**（出典: [Supabase is now ISO 27001 certified](https://supabase.com/blog/supabase-is-now-iso-27001-certified)）。
 
 **Branching が本番ワークフローで使えるレベルに**
 
-- LWX（2023-12）でプレビュー → GA Week（2024-04）でパブリックベータ → LW15（2025-07）で **Branching 2.0**（GitHub 不要）と段階的に進化。CI/CD 連携が必須だったフェーズを経て、現在はダッシュボード単体で「PR 的なレビュー→マージ」が完結する。
+- LWX（2023-12）でプレビュー → GA Week（2024-04）でパブリックベータ → LW15（2025-07）で **Branching 2.0** → **2026-05-04 に Git なしブランチングが既定**、と段階的に進化した。差分エンジンも migra から **pg-delta** に置き換わっている。
+- ただし公式ドキュメントには Dashboard 経由のブランチ操作について **beta の記述が残っている**ため、「既定になった＝完全に枯れた」とは読まないこと。
+- **料金は $0.01344 / branch / hour**（Pro・Team のみ。Free では使えない）。ブランチを消し忘れると課金が積み上がるので、使い終わったら削除する運用を先に決めておくこと。
+- 出典: [Branching Without Git Is Now The Default](https://supabase.com/blog/branching-without-git-is-now-the-default) / [Pricing](https://supabase.com/pricing)
 
 **AI ワークロードのバックエンドとして Supabase が選ばれやすくなった**
 
@@ -145,7 +155,7 @@ Supabase は年に複数回（概ね年 2〜3 回）**Launch Week** と呼ぶ発
 
 **スケール対応の強化**
 
-- Read Replicas（LWX）・High Performance Disks（LW13）・Dedicated Poolers（LW14）・Analytics Buckets（LW15）と、エンタープライズ規模のワークロードに対応する機能が毎回追加されている。2025 年 10 月に Series E で $5B 評価額（Accel・Peak XV 主導）を達成しており、資金面での継続的な開発基盤も確認できる。
+- Read Replicas（LWX）・High Performance Disks（LW13）・Dedicated Poolers（LW14）・Analytics Buckets（LW15）と、エンタープライズ規模のワークロードに対応する機能が毎回追加されている。資金面では **2026-06-04 に Series F で $500M を調達し、pre-money 評価額 $10B**（GIC 主導、Stripe・Georgian・Salesforce Ventures 参加）に達している（前回は 2025-10 の Series E $100M・pre-money $5B）。出典: [Supabase Series F](https://supabase.com/blog/supabase-series-f)
 
 ## 一次ソース（原文）
 

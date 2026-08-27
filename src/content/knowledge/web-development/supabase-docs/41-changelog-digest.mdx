@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Supabase", "Changelog ダイジェスト", "ドキュメント要約"]
 createdAt: 2026-05-08
+updatedAt: 2026-08-28
 author: "田中省伍"
 sortOrder: 41
 ---
@@ -15,8 +16,8 @@ sortOrder: 41
 
 - Supabase は Launch Week 以外にも週次〜月次ペースで継続的なアップデートを配信している
 - 公式 Changelog・GitHub Releases・月次 Developer Update の 3 系統を定点観測することで網羅できる
-- 直近 12 ヶ月（2025-05 〜 2026-05）の主要アップデートをカテゴリ別に整理する
-- 取得日: 2026-05-08
+- 直近 12 ヶ月（2025-05 〜 2026-05）の主要アップデートをカテゴリ別に整理する。2026-06 以降は末尾の追補で扱う
+- 取得日: 2026-05-08（追補は 2026-08-28）
 - 大型発表（Launch Week）は第 40 章で扱う。本章はその間を埋める継続アップデートを担当する
 
 ## Changelog の追い方
@@ -126,6 +127,98 @@ sortOrder: 41
 | 2026-04-30 | **CLI v2.97.0**：Claude Code プラグインヒントの出力を追加。AI エディタとの連携を強化 | [cli v2.97.0](https://github.com/supabase/cli/releases/tag/v2.97.0) |
 | 2026-01-08 | **CLI に Python 型生成を追加**：`supabase gen types python` コマンドで Python 用の型定義を生成できるようになった | [Developer Update Jan 2026](https://github.com/orgs/supabase/discussions/41796) |
 | 2025-10-22 | **supabase-js: 型推論の強化**：埋め込み関数・算出リレーションシップに対する型生成が改善 | [Changelog](https://supabase.com/changelog) |
+
+## 期限のある破壊的変更
+
+対応しないと壊れるものだけを抜き出します。**日付は公式 changelog の告知に基づきます。**
+
+### 対応期限が残っているもの
+
+| 期限 | 内容 | 影響 |
+|---|---|---|
+| **2026-09-23** | Management API の **`logs.all` エンドポイントを削除**。ClickHouse ベースの `logs` エンドポイント（ClickHouse SQL のみ受け付け）へ移行 | ログを API で取得しているスクリプト |
+| **2026-10-30** | **`public` スキーマの新規テーブルを Data API / GraphQL へ自動公開しない**変更を全プロジェクトへ強制適用（新規プロジェクトは 2026-05-30 から既定） | Data API 利用者全員 |
+| **2027-01-31** | `@supabase/supabase-js` が **TypeScript 5.0 以上を必須**に（4.7〜4.9 のサポート終了） | TypeScript 4.x のまま止まっているプロジェクト |
+
+### すでに期限を過ぎたもの（未対応なら要確認）
+
+| 期限 | 内容 |
+|---|---|
+| 2026-07-01 | **Postgres 14 のサポート終了**。残存プロジェクトは自動アップグレード。ただし `timescaledb` / `plv8` / `pgjwt` を使っているプロジェクトは **pause** される |
+| 2026-06-30 | クライアントライブラリ（supabase-js / auth-js / realtime-js / functions-js / storage-js / postgrest-js）が **Node.js 20 のサポートを終了**。Node 22 以降が必要 |
+| 2026-08-05 | `CREATE / ALTER EXTENSION ... VERSION` の**バージョン句が無視され**、既定バージョンが入るようになった。マイグレーションで拡張のバージョンを固定していた場合は挙動が変わる |
+| 2026-06-29 | pg_graphql 1.6.0。この日以降に作成した新規プロジェクトで **GraphQL introspection が既定無効**。スキーマへの comment で再有効化できる |
+| 2026-06-01 | `/v1/oauth/token` の応答が 201 → **200** に |
+| 2026-04-08 | **anon key での OpenAPI spec 取得を廃止**（新規は 2026-03-11 から）。service role / secret key が必要 |
+
+### セルフホストのみ
+
+**2026-08-09 の週に、セルフホストの既定 API ゲートウェイが Kong から Envoy へ切り替わりました。**Kong の HTTPS listener・独自 `kong.yml`・`kong` というサービス名に依存している構成は、オプトインで Kong に戻す必要があります。
+
+**この変更は Supabase Cloud には関係ありません。**告知の表題も `Self-hosted Supabase:` で始まります。混同しやすいので注意してください。
+
+そのほかセルフホストでは、2026-05-18 に Analytics / Vector の opt-in 化、Studio の接続ロールが `supabase_admin` → `postgres`、Postgres 15 → 17 へのアップグレードがあり、2026-06-18 に `API_EXTERNAL_URL` へ `/auth/v1` を含める変更が入っています。
+
+---
+
+## 追補：2026-06〜08 の主なアップデート
+
+本編のダイジェストは 2026-05 までを対象にしているため、以降を補います。
+
+### プラットフォーム・組織
+
+| 日付 | 内容 |
+|---|---|
+| 2026-06-04 | **Series F $500M 調達、pre-money 評価額 $10B**（GIC 主導） |
+| 2026-06-04 | **Multigres v0.1 Alpha**（Postgres 向けの水平スケーリング基盤、OSS） |
+| 2026-08-07 | Perplexity Computer のコネクタに |
+
+### Auth
+
+| 日付 | 内容 |
+|---|---|
+| 2026-05-28 | **Passkeys（WebAuthn）Beta** |
+| 2026-06-03 | **この日以降に作成した Free プロジェクトは、既定 SMTP 利用時に認証メールテンプレートを編集できない**（既存プロジェクトは対象外） |
+| 2026-07-29 | **Sign in with ChatGPT（Beta）** |
+
+### Realtime
+
+| 日付 | 内容 |
+|---|---|
+| 2026-06-11 | Broadcast が**バイナリペイロード**に対応 |
+| 2026-07-14 | **`realtime` スキーマへの作成・変更・削除を全面ブロック** |
+| 2026-08-05 | Postgres Changes で **AND フィルタ・演算子追加・カラム選択**に対応 |
+
+### 可観測性
+
+| 日付 | 内容 |
+|---|---|
+| 2026-07-16 | **Unified Logs（Open Beta）** |
+| 2026-07-23 | **Grafana Cloud 連携** |
+| 2026-08-18 | W3C Trace Context でクライアント側トレースとログを接続 |
+| 2026-08-21 | Read Replicas の設定が Project Settings → Infrastructure へ移動 |
+
+### 新プロダクト・SDK
+
+| 日付 | 内容 |
+|---|---|
+| 2026-05-06 | **`@supabase/server`** を公開 |
+| 2026-07-21 | **Supabase Pipelines（Public Alpha）** — Postgres → BigQuery の CDC。有料プラン全体で利用可 |
+
+### MCP
+
+リモート MCP サーバー `https://mcp.supabase.com/mcp` が提供され、OAuth の動的クライアント登録、read-only 指定、project scope、feature group 単位の制御に対応しています（**storage は既定 off**）。ローカルは CLI の `http://localhost:54321/mcp` です。2026-08-24 には **Okta によるエンタープライズ集中管理**が追加されました。
+
+### その他
+
+| 日付 | 内容 |
+|---|---|
+| 2026-03-11 | Edge Functions の再帰・入れ子呼び出しに、チェーンあたり最低 5,000 req/min のレートリミット |
+| 2026-04-14 | Stripe Sync Engine の管理が **Stripe へ移管** |
+| 2026-05-25 | PAT による一時的な DB アクセス付与（Feature Preview、最長 90 日） |
+| 2026-07-09 | `log_connections` が新規＋既存 Free / Pro で**既定 off** |
+
+---
 
 ## 注目すべきトレンド
 
