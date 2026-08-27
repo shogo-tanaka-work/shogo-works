@@ -53,7 +53,8 @@ AIニュースの調査・記事化は `skills/` の手順に従う。記事本�
 
 - `skills/daily-ai-update-monitor/` — 公式ソース巡回と `docs/research/` への記録
 - `skills/ai-news-publisher/` — `src/content/ai-news/` への記事化
-- `skills/daily-ai-news-pipeline/` — 調査からPR作成までのオーケストレーション
+- `skills/daily-ai-news-pipeline/` — 調査からPR作成までのオーケストレーション（日次・クラウド routine で毎日 9:00 JST）
+- `skills/weekly-ai-news-rollup/` — 週次確認ソースの巡回と、Claude Code / Codex のパッチをまとめる週次ロールアップ（毎週月曜 9:30 JST）
 
 ## 基本コマンド
 
