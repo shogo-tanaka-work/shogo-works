@@ -1,21 +1,21 @@
 ---
-title: "8-2 Claude Code に Notion・Google Drive をつなぐ"
+title: "9-2 Claude Code に Notion・Google Drive をつなぐ"
 description: "Notion・Google Drive の MCP 連携で議事録の取り込み・ドキュメント検索・ページ生成を自動化。接続の流れ、つないだ後の指示例、権限不足や認証切れなどのつまずき対策、社内データを扱う注意点を解説します。"
 category: "ai-tools"
 subcategory: "claude-code-curriculum"
 difficulty: "intermediate"
 contentType: "course"
 estimatedMinutes: 60
-prerequisites: ["08-1-what-is-mcp"]
+prerequisites: ["09-1-what-is-mcp"]
 tags: ["Claude Code", "カリキュラム", "MCP", "Notion", "Google Drive"]
-sortOrder: 81
+sortOrder: 92
 createdAt: 2026-06-11
 author: "田中省伍"
 ---
 
 ## このレッスンでわかること
 
-前のレッスン（8-1）で、MCP が「AI と外部ツールをつなぐ共通規格」であることを学びました。このレッスンでは、ビジネスパーソンにとってもっとも身近な連携先である **Notion と Google Drive** を題材に、実際につないで使うところまでを扱います。
+前のレッスン（9-1）で、MCP が「AI と外部ツールをつなぐ共通規格」であることを学びました。このレッスンでは、ビジネスパーソンにとってもっとも身近な連携先である **Notion と Google Drive** を題材に、実際につないで使うところまでを扱います。
 
 このレッスンで身につけるのは、次の3つです。
 
@@ -71,7 +71,7 @@ Notion の「議事録」データベースに新しいページを作成して�
 
 ### ステップ1：MCP サーバーを追加する
 
-8-1 で学んだとおり、`claude mcp add` コマンド、または `.mcp.json` への記述で追加します。Notion・Google Drive それぞれの公式ページに Claude Code 向けの追加手順が案内されているので、必ず最新の公式手順に従ってください。
+9-1 で学んだとおり、`claude mcp add` コマンド、または `.mcp.json` への記述で追加します。Notion・Google Drive それぞれの公式ページに Claude Code 向けの追加手順が案内されているので、必ず最新の公式手順に従ってください。
 
 ### ステップ2：認証する（アカウントとひもづける）
 
