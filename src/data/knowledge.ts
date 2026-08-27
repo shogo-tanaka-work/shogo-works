@@ -153,6 +153,12 @@ export const subcategories: Partial<
       description:
         "生成AIのリスク・法律・統制を、実装可能な仕組みへ落とすための連載。全体像から統制設計、導入戦略まで",
     },
+    {
+      slug: "safe-ai-usage",
+      label: "業務AI安全利用ガイド",
+      description:
+        "ルールを作る側ではなく、日々AIを使う側のための判断軸。入力してよいか、回答を信じてよいか、社外に出してよいかを、Microsoft 365 Copilot を題材に整理する",
+    },
   ],
 };
 
