@@ -1,0 +1,279 @@
+---
+title: "2 環境を用意する｜アカウントと Wrangler、ローカルで動かすまで"
+description: "Cloudflare アカウントを作り、create-cloudflare でプロジェクトを生成し、wrangler dev でローカルに問い合わせフォームを表示するまでを扱います。生成される wrangler.jsonc の各行が何を意味するのかも読み解きます。"
+category: "web-development"
+subcategory: "cloudflare-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 40
+prerequisites: ["cloudflare-01-what-we-build"]
+tags: ["Cloudflare", "カリキュラム", "Wrangler", "セットアップ"]
+sortOrder: 20
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第1章で決めた題材を、実際に動く形にしていきます。この章のゴールは**ローカルの `http://localhost:8787` で問い合わせフォームが表示されること**です。まだ公開もしませんし、データも保存しません。
+
+- Cloudflare アカウントを作り、Wrangler から使えるようにできる
+- `create-cloudflare` でプロジェクトを生成し、中身を説明できる
+- `wrangler dev` でローカルサーバーを立ち上げ、書き換えて反映できる
+
+**この章で作った雛形の上に、第7章まで積み上げます。**
+
+## 用意するもの
+
+| 必要なもの | 確認方法 | 補足 |
+|---|---|---|
+| Node.js | `node -v` | Wrangler 4 系は `node >= 20.3.0` を要求します（2026-08 時点の `wrangler@4.80.0` の `engines` フィールド） |
+| ターミナル | — | macOS / Linux / WSL2 のいずれでも進められます |
+| メールアドレス | — | Cloudflare アカウント用 |
+| クレジットカード | — | **この章では不要です。**無料プランのまま進みます |
+
+Node.js のバージョンが古い場合は、先に更新してください。バージョン管理ツール（nvm / fnm / Volta など）を使っている場合は、**このプロジェクトのディレクトリで有効になっているバージョン**を確認します。
+
+## Cloudflare アカウントを作る
+
+2026-08 時点の手順です。UI の文言は変わることがあります。
+
+1. `dash.cloudflare.com/sign-up` を開き、メールアドレスとパスワードを登録する
+2. 届いた確認メールのリンクを開き、メールアドレスを検証する
+3. プランを選ぶ画面が出た場合は **Free** を選ぶ
+
+ドメインの追加を促されますが、**この章ではスキップして構いません。**独自ドメインは第7章で扱います。
+
+> **メールアドレスの検証は先に済ませてください。**未検証のままだと、後の章でデプロイやリソース作成が弾かれることがあります。
+
+## プロジェクトを作る
+
+Cloudflare 公式のプロジェクト生成ツール（create-cloudflare、通称 C3）を使います。
+
+```bash
+npm create cloudflare@latest -- contact-desk
+```
+
+`--` の後ろがディレクトリ名です。`contact-desk` は「問い合わせ窓口」のつもりで付けた名前で、好きな名前に変えて構いません。ただし**この名前がそのまま Worker の名前になり、後で `contact-desk.<サブドメイン>.workers.dev` という URL の一部になります。**
+
+対話形式で質問されます。2026-08 時点（create-cloudflare v2.72.3）では次の順に聞かれました。
+
+| 質問 | このコースでの答え |
+|---|---|
+| In which directory do you want to create your application? | `./contact-desk`（そのまま） |
+| What would you like to start with? | **Hello World example** |
+| Which template would you like to use? | **Worker only** |
+| Which language do you want to use? | **TypeScript** |
+| Do you want to add an AGENTS.md file …? | どちらでも可 |
+| （git の初期化・デプロイの有無） | デプロイは **No**。第3章で行います |
+
+**「Worker only」を選ぶのが大事です。**フレームワーク入りのテンプレートを選ぶと、この先の説明とディレクトリ構成が合わなくなります。
+
+質問の文言は変わることがあります。迷ったら「いちばん小さい構成」を選ぶ、と覚えておいてください。
+
+## 生成されたものを読む
+
+```bash
+cd contact-desk
+ls
+```
+
+主要なファイルは4つです。
+
+```text
+contact-desk/
+├── src/
+│   └── index.ts        アプリ本体
+├── test/               vitest のテスト
+├── wrangler.jsonc      Worker の設定
+├── package.json        依存とコマンド
+└── tsconfig.json
+```
+
+### `src/index.ts`
+
+生成直後はこれだけです。
+
+```ts
+export default {
+  async fetch(request, env, ctx): Promise<Response> {
+    return new Response("Hello World!");
+  },
+} satisfies ExportedHandler<Env>;
+```
+
+**Workers のアプリはこの形がすべてです。**`fetch` は「リクエストを受け取って `Response` を返す関数」で、引数は3つあります。
+
+| 引数 | 中身 |
+|---|---|
+| `request` | 受け取ったリクエスト。標準の `Request` オブジェクト |
+| `env` | **バインディング**が入る。第4章の D1、第5章の R2、第7章のシークレットはここから取り出す |
+| `ctx` | 実行文脈。`ctx.waitUntil()` でレスポンスを返した後の処理を続けられる |
+
+`env` の型 `Env` は自動生成されます。**バインディングを追加したら `npm run cf-typegen` を実行する**、と覚えてください（中身は `wrangler types` です）。これを忘れると `env.DB` のような参照で型エラーが出ます。
+
+### `wrangler.jsonc`
+
+```jsonc
+{
+  "name": "contact-desk",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-25",
+  "observability": {
+    "enabled": true
+  }
+}
+```
+
+| キー | 意味 |
+|---|---|
+| `name` | Worker の名前。デプロイ時の URL とダッシュボード上の表示に使われる |
+| `main` | エントリーポイントのファイル |
+| `compatibility_date` | **Workers ランタイムの挙動を、この日付時点のものに固定する** |
+| `observability.enabled` | ログをダッシュボードに残すかどうか。テンプレートでは最初から `true` |
+
+`compatibility_date` が重要です。**Cloudflare はランタイムを更新し続けますが、この日付を境に「昔の挙動」を維持します。**日付を上げると新しい既定値が適用されます。
+
+そして第1章で触れたとおり、**この日付が `2026-08-04` 以降なら `nodejs_compat` と `nodejs_compat_v2` が既定で有効**です。生成直後は生成した日の日付が入るので、条件を満たしています。古い記事を見ながら `compatibility_flags` に `nodejs_compat` を足す必要はありません。
+
+## ローカルで動かす
+
+```bash
+npm run dev
+```
+
+`wrangler dev` が起動し、`http://localhost:8787` が案内されます。ブラウザで開くと `Hello World!` が返ります。
+
+**これはローカルで動く本物の Workers ランタイム（workerd）です。**Node.js でエミュレートしているのではないので、ローカルで動いた挙動は本番でもおおむね同じになります。
+
+つまずきやすい点を先に挙げます。
+
+| 症状 | 原因と対処 |
+|---|---|
+| ポート 8787 が使用中というエラー | 別の `wrangler dev` が生きています。そちらを終了するか `npx wrangler dev --port 8788` で逃がします |
+| `Unsupported engine` の警告 | Node.js が古いです。20.3.0 以上に上げます |
+| 保存しても反映されない | `wrangler dev` は起動したままにしてください。保存すると自動で再読み込みされます |
+
+## 問い合わせフォームを表示する
+
+`Hello World!` を、第1章で決めたフォームに差し替えます。`src/index.ts` を丸ごと置き換えてください。
+
+```ts
+/** フォーム画面の HTML。値は埋め込まないので、テンプレートリテラルの定数で持つ */
+const FORM_PAGE = `<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>お問い合わせ</title>
+  </head>
+  <body>
+    <h1>お問い合わせ</h1>
+    <form method="post" action="/inquiries" enctype="multipart/form-data">
+      <p><label>お名前 <input type="text" name="name" required maxlength="100" /></label></p>
+      <p><label>メールアドレス <input type="email" name="email" required maxlength="254" /></label></p>
+      <p><label>お問い合わせ内容<br /><textarea name="message" required maxlength="4000" rows="8"></textarea></label></p>
+      <p><label>添付ファイル（任意） <input type="file" name="attachment" /></label></p>
+      <p><button type="submit">送信する</button></p>
+    </form>
+  </body>
+</html>
+`;
+
+export default {
+  async fetch(request): Promise<Response> {
+    const url = new URL(request.url);
+
+    if (request.method === "GET" && url.pathname === "/") {
+      return new Response(FORM_PAGE, {
+        headers: { "content-type": "text/html; charset=utf-8" },
+      });
+    }
+
+    return new Response("Not Found", { status: 404 });
+  },
+} satisfies ExportedHandler<Env>;
+```
+
+**`enctype="multipart/form-data"` を忘れないでください。**これがないとファイルの中身が送られず、第5章で添付が届かない原因になります。
+
+保存してブラウザを再読み込みすると、フォームが出ます。送信ボタンを押すと `Not Found` が返りますが、**第4章までは正常な状態**です。受け口をまだ作っていません。
+
+### `maxlength` は入口の目安でしかない
+
+HTML の `required` と `maxlength` はブラウザ側のチェックです。**リクエストを直接投げれば簡単に迂回できます。**サーバー側の検証を第4章で必ず書きます。入力の検証は、送られてきた側で必ずやり直す、と覚えてください。
+
+## 実例：ルーティングを1本足してみる
+
+Workers のルーティングは、`URL` を作ってパスで分岐するだけです。動作確認用のパスを足してみます。
+
+```ts
+    if (request.method === "GET" && url.pathname === "/healthz") {
+      return Response.json({ ok: true });
+    }
+```
+
+`/healthz` を開くと `{"ok":true}` が返ります。**フレームワークの規約を覚える前に、素の分岐で組める**ことを確認しておくと、この先が読みやすくなります。
+
+規模が大きくなればルーターライブラリ（Hono など）を入れる価値が出ますが、この題材ではエンドポイントが5つ程度なので、標準のままで通します。
+
+## やってみよう
+
+1. **アカウントを作り、メールを検証する。**プランは Free のままにします
+2. **`npm create cloudflare@latest -- contact-desk` を実行する。**テンプレートは「Hello World example」→「Worker only」→「TypeScript」
+3. **`wrangler.jsonc` の `compatibility_date` を確認する。**`2026-08-04` 以降になっていることを目で確かめてください
+4. **`npm run dev` でフォームを表示する。**`http://localhost:8787` にフォームが出れば成功です
+5. **わざと壊してみる。**`FORM_PAGE` の `content-type` を `text/plain` に変えて再読み込みし、HTML がそのまま文字として出ることを確認したら戻します
+
+5番目をやると、**Workers が「ヘッダーごと自分で決める層」である**ことが体感できます。
+
+## まとめ
+
+- Wrangler 4 系は **Node.js 20.3.0 以上**が必要
+- プロジェクトは `npm create cloudflare@latest -- <名前>` で作る。テンプレートは **Hello World example → Worker only → TypeScript**
+- Workers のアプリは **`fetch(request, env, ctx)` が `Response` を返す**だけの形
+- `env` にバインディングが入る。**追加したら `npm run cf-typegen`**
+- `compatibility_date` はランタイムの挙動を固定する。**`2026-08-04` 以降なら Node.js 互換は既定で有効**
+- `wrangler dev` はローカルで本物の Workers ランタイムを動かす。`http://localhost:8787`
+- HTML 側の `required` / `maxlength` は迂回できる。**サーバー側の検証は別途必ず書く**
+
+## 理解度チェック
+
+**Q1. `compatibility_date` は何のための設定でしょう？**
+
+1. Worker の有効期限を決める
+2. Workers ランタイムの挙動を、その日付時点のものに固定する
+3. デプロイを予約する日時を指定する
+4. 無料枠のリセット日を指定する
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+Cloudflare はランタイムを更新し続けますが、`compatibility_date` を境に古い挙動を維持します。日付を上げると新しい既定値が適用されるため、**上げるときは変更点を確認してから**にします。この日付が `2026-08-04` 以降であれば `nodejs_compat` / `nodejs_compat_v2` が既定で有効になる、というのもこの仕組みの一例です。
+
+</details>
+
+**Q2. `wrangler dev` を止めずにフォームの HTML を書き換えました。ブラウザを再読み込みしても変わりません。まず疑うべきことはどれでしょう？**
+
+1. デプロイしていないから反映されない
+2. ファイルを保存していない、あるいは編集したファイルが `main` で指しているファイルではない
+3. `compatibility_date` が古い
+4. 無料枠を使い切っている
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+`wrangler dev` はローカルで動くので、デプロイは関係ありません。保存漏れか、`wrangler.jsonc` の `main` が指すファイル（既定では `src/index.ts`）と別のファイルを編集しているかを最初に確認します。ターミナルに再読み込みのログが出ているかどうかが手がかりになります。
+
+</details>
+
+## 参考リンク
+
+- [Workers の Get started ガイド](https://developers.cloudflare.com/workers/get-started/guide/)
+- [Wrangler の設定ファイル](https://developers.cloudflare.com/workers/wrangler/configuration/)
+- [Workers の互換性フラグ](https://developers.cloudflare.com/workers/configuration/compatibility-flags/)
+- [Wrangler のコマンド一覧](https://developers.cloudflare.com/workers/wrangler/commands/)

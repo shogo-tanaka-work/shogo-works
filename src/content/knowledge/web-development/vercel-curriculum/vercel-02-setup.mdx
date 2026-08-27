@@ -1,0 +1,253 @@
+---
+title: "2 環境を用意する｜Next.js プロジェクトと Vercel CLI"
+description: "Next.js の App Router プロジェクトを作り、Vercel CLI をインストールしてアカウントとリンクするまでを扱います。ローカル開発で npm run dev と vercel dev のどちらを使うべきか、公式の推奨とあわせて整理します。"
+category: "web-development"
+subcategory: "vercel-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 40
+prerequisites: ["vercel-01-what-we-build"]
+tags: ["Vercel", "カリキュラム", "Next.js"]
+sortOrder: 20
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+手を動かす最初の章です。**この章の終わりには、ローカルで問い合わせフォームの画面が表示されます。**
+
+- Next.js の App Router プロジェクトを作れる
+- Vercel CLI をインストールし、アカウントとプロジェクトをリンクできる
+- `npm run dev` と `vercel dev` の使い分けがわかる
+
+まだデプロイはしません。デプロイは第3章です。
+
+## Next.js プロジェクトを作る
+
+Vercel は多くのフレームワークに対応していますが、このコースは Next.js で進めます。Vercel を運営している会社が開発しているフレームワークで、機能の対応がいちばん早いためです。
+
+```bash
+npx create-next-app@latest vercel-inquiry
+```
+
+対話で聞かれます。**このコースの前提はこの通りです。**
+
+| 質問 | 選ぶもの | 理由 |
+|---|---|---|
+| TypeScript | **Yes** | 外部からの入力を型で扱いたいため |
+| ESLint | Yes | どちらでも進められます |
+| Tailwind CSS | どちらでも | 見た目は本コースの主題ではありません |
+| `src/` directory | **Yes** | 本文のパスは `src/app/...` で書きます |
+| App Router | **Yes** | Server Actions と Route Handlers を使うため必須です |
+| Turbopack | どちらでも | 起動が速くなりますが挙動は変わりません |
+
+> **App Router を選ぶことが、このコースでは必須条件です。**旧来の Pages Router では第4章で扱う Server Actions が使えません。
+
+作成できたらディレクトリへ移動して起動します。
+
+```bash
+cd vercel-inquiry
+npm run dev
+```
+
+`http://localhost:3000` に初期ページが表示されれば成功です。
+
+### Node.js のバージョンでつまずいたら
+
+`create-next-app` が「Node.js のバージョンが古い」という趣旨のエラーで止まることがあります。**必要なバージョンは Next.js のリリースごとに変わるため、エラーメッセージに書かれた要求バージョンを正としてください。**
+
+いま入っているバージョンは次で確認できます。
+
+```bash
+node -v
+```
+
+Vercel 側のビルドで使う Node.js のバージョンは、プロジェクトの Settings → Build and Deployment → Node.js Version で選びます。**ローカルとビルドで大きくずれているとローカルで通ってビルドで落ちる**ので、第3章のデプロイ前に揃えておくと安全です。
+
+## フォームの画面を置く
+
+デプロイする前に、見せるものを用意します。まだ送信処理は書きません。**送信先は第4章で作ります。**
+
+`src/app/page.tsx` を次の内容に置き換えます。
+
+```tsx
+export default function Home() {
+  return (
+    <main style={{ maxWidth: 640, margin: "4rem auto", padding: "0 1rem" }}>
+      <h1>お問い合わせ</h1>
+      <form>
+        <p>
+          <label htmlFor="name">お名前</label>
+          <input id="name" name="name" type="text" required />
+        </p>
+        <p>
+          <label htmlFor="email">メールアドレス</label>
+          <input id="email" name="email" type="email" required />
+        </p>
+        <p>
+          <label htmlFor="body">お問い合わせ内容</label>
+          <textarea id="body" name="body" rows={6} required />
+        </p>
+        <p>
+          <label htmlFor="attachment">添付ファイル（任意・1点）</label>
+          <input id="attachment" name="attachment" type="file" />
+        </p>
+        <button type="submit">送信する</button>
+      </form>
+    </main>
+  );
+}
+```
+
+**`name` 属性を必ず付けてください。**第4章でサーバー側が受け取るとき、この `name` がそのままキーになります。付け忘れると、送信しても値が届きません。
+
+管理画面の置き場所も先に作っておきます。第6章で保護する対象になります。
+
+```tsx
+// src/app/admin/page.tsx
+export default function AdminPage() {
+  return (
+    <main style={{ maxWidth: 800, margin: "4rem auto", padding: "0 1rem" }}>
+      <h1>受信一覧</h1>
+      <p>ここに問い合わせの一覧を表示します（第5章で実装します）。</p>
+    </main>
+  );
+}
+```
+
+`http://localhost:3000/admin` で表示されることを確認してください。**この時点では誰でも見られます。**保護は第6章です。
+
+## Vercel CLI を入れる
+
+ブラウザのダッシュボードだけでも運用できますが、環境変数の取り出しやデプロイの確認は CLI のほうが速いので入れておきます。
+
+```bash
+npm i -g vercel
+```
+
+> **公式ドキュメント内で表記が分かれています。**CLI のリファレンスページでは `npm i vercel`（グローバル指定なし）、環境ドキュメントの Local Development 節では `npm i -g vercel` と書かれています。どこからでも `vercel` コマンドを打ちたいなら `-g` を付けてください。プロジェクトの依存に閉じ込めたいなら `-g` なしで入れて `npx vercel` として呼びます。
+
+入ったことを確認します。
+
+```bash
+vercel --version
+```
+
+### ログインとリンク
+
+```bash
+vercel login
+```
+
+ブラウザが開いて認証されます。続いて、いまのディレクトリを Vercel のプロジェクトに結び付けます。
+
+```bash
+vercel link
+```
+
+対話でチーム（scope）とプロジェクト名を選びます。**まだ Vercel 側にプロジェクトが無ければ、ここで新規作成できます。**リンクすると `.vercel/` ディレクトリが作られ、プロジェクト設定と環境変数のローカルコピーが置かれます。
+
+> **`.vercel/` は Git にコミットしないでください。**`create-next-app` が生成する `.gitignore` には最初から `.vercel` が入っています。自分で `.gitignore` を書き換えた場合は残っているか確認してください。
+
+CI から使う場合はブラウザ認証ができないので、`VERCEL_TOKEN` 環境変数（または `--token`）を使います。**トークンをコードやリポジトリに置かないでください。**CI のシークレット機能に入れます。
+
+## `npm run dev` と `vercel dev` の違い
+
+紛らわしいので、先に整理しておきます。
+
+| コマンド | 何をするか | いつ使うか |
+|---|---|---|
+| `npm run dev` | Next.js の開発サーバーを起動する | **通常はこちら。**画面とロジックの開発 |
+| `vercel dev` | Vercel のデプロイ環境をローカルで再現する | Vercel 固有の挙動（Functions・Routing Middleware）を確かめたいとき |
+
+**公式は「フレームワークの dev コマンドで足りるなら `vercel dev` は推奨しない」と明記しています。**このコースでも、基本は `npm run dev` を使います。
+
+`vercel dev` を使う場合の注意点は3つです。
+
+1. **事前に `npm install` を済ませ、`vercel link` でリンクしておく必要があります。**リンクしていないと正しく動きません
+2. ポートの指定は `vercel dev --listen 5005` です（CLI 一覧ページには `--port` の例もあり、**公式内で表記が分かれています**）
+3. Development Command をプロジェクト設定で上書きしている場合、フレームワークへ `$PORT` を渡す必要があります（例: `next dev --port $PORT`）
+
+## 実例：環境変数をローカルへ持ってくる
+
+第5章以降で、データベースの接続情報などを Vercel 側に置くことになります。それをローカルの開発でも使えるようにする流れを、いま一度だけ通しておきます。
+
+まず Vercel 側へ値を登録します。
+
+```bash
+vercel env add DEMO_MESSAGE development
+```
+
+対話で値を聞かれるので、`hello-from-vercel` のような**明らかにダミーとわかる値**を入れてください。次にローカルへ取り出します。
+
+```bash
+vercel env pull
+```
+
+Development 環境の変数がローカルのファイルへ書き出されます。**書き出し先のファイル名は公式ドキュメント内で記述が揺れており（`.env` と `.env.local` の両方の記述があります）、実行結果のメッセージを確認するのが確実です。**どちらにせよ `.gitignore` の対象なので、コミットされません。
+
+**この方向（Vercel → ローカル）で運用するのが要点です。**逆に、ローカルの `.env` を正としてコピー&ペーストで Vercel に貼っていくと、どちらが最新かわからなくなります。
+
+> **`vercel env add` の既定は sensitive です。**production / preview / カスタム環境に追加した変数は、既定で「後から値を読み取れない」形で保存されます（Development は対象外）。読み取れる形にしたい場合は `--no-sensitive` を付けます。**シークレット類は既定のままにしてください。**
+
+## やってみよう
+
+1. **プロジェクトを作る**：`npx create-next-app@latest vercel-inquiry` を実行し、TypeScript と App Router を選びます
+2. **フォームを置く**：上のコードで `src/app/page.tsx` を置き換え、`npm run dev` で表示を確認します
+3. **管理画面の枠を作る**：`src/app/admin/page.tsx` を作り、`/admin` が表示されることを確認します
+4. **CLI を入れてリンクする**：`vercel login` → `vercel link` まで通し、`.vercel/` が作られたことを確認します
+5. **環境変数を往復させる**：`vercel env add DEMO_MESSAGE development` でダミー値を入れ、`vercel env pull` でローカルへ取り出します。取り出せたら値を削除して構いません
+
+演習5まで通しておくと、第5章でデータベースをつないだとき、接続情報の扱いで迷わなくなります。
+
+## まとめ
+
+- Next.js は **App Router を選ぶ**。第4章の Server Actions が使えなくなるため必須
+- フォームの `input` には **`name` 属性を必ず付ける**。サーバー側で受け取るキーになる
+- Vercel CLI のインストールは `npm i -g vercel`（**公式内で `-g` の有無の表記が分かれている**）
+- `vercel link` で `.vercel/` が作られる。**コミットしない**
+- **通常の開発は `npm run dev`。**公式もフレームワークの dev コマンドで足りるなら `vercel dev` は推奨していない
+- 環境変数は **Vercel を正として `vercel env pull` でローカルへ取り出す**。`vercel env add` は production / preview で既定 sensitive
+
+## 理解度チェック
+
+**Q1. `npm run dev` と `vercel dev` の使い分けとして、公式の推奨に沿うのはどれでしょう？**
+
+1. 常に `vercel dev` を使う。本番に近いため
+2. フレームワークの dev コマンドで足りるなら `npm run dev` を使い、Vercel 固有の挙動を確認したいときだけ `vercel dev` を使う
+3. `vercel dev` は本番専用で、開発には使えない
+4. どちらも同じ処理なので違いはない
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+公式ドキュメントは「フレームワークの dev コマンドで足りるなら `vercel dev` は推奨しない」と明記しています。`vercel dev` は Vercel のデプロイ環境をローカルで再現するもので、事前に `npm install` と `vercel link` が済んでいることが前提になります。
+
+</details>
+
+**Q2. `vercel env add` で production 環境に変数を追加しました。既定ではどうなるでしょう？**
+
+1. 誰でもダッシュボードで値を読める形で保存される
+2. sensitive として保存され、作成後は値を読み取れない
+3. Development 環境にも自動的にコピーされる
+4. 平文でリポジトリに保存される
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+production / preview / カスタム環境に追加する変数は既定で sensitive になり、作成後に値を読み取れません。読み取れる形にするには `--no-sensitive` を明示します。Development 環境は sensitive にできない仕様のため、この既定の対象外です。
+
+</details>
+
+## 参考リンク
+
+- [Vercel CLI](https://vercel.com/docs/cli) — コマンドのリファレンス
+- [vercel dev](https://vercel.com/docs/cli/dev) — ローカルでデプロイ環境を再現する
+- [vercel env](https://vercel.com/docs/cli/env) — 環境変数の追加と取り出し
+- [Configure a Build](https://vercel.com/docs/builds/configure-a-build) — Framework Preset と Node.js Version の設定
+- [Next.js — Installation](https://nextjs.org/docs/app/getting-started/installation) — App Router プロジェクトの作成

@@ -1,0 +1,445 @@
+---
+title: "4 データを保存する｜D1 にテーブルを作り、送信内容を残す"
+description: "D1 データベースを作成してバインドし、マイグレーションでテーブルを用意します。フォーム送信をサーバー側で検証して保存し、管理画面に一覧表示して対応済みフラグを更新するところまでを扱います。"
+category: "web-development"
+subcategory: "cloudflare-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 60
+prerequisites: ["cloudflare-03-first-deploy"]
+tags: ["Cloudflare", "カリキュラム", "D1", "データベース"]
+sortOrder: 40
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第3章までのフォームは、送信ボタンを押しても `Not Found` が返るだけでした。ここで**受け口とデータベース**を作ります。
+
+- D1 データベースを作り、Worker にバインドできる
+- マイグレーションでテーブルを作り、ローカルと本番の両方に適用できる
+- 送信内容をサーバー側で検証して保存できる
+- 管理画面に一覧を出し、対応済みフラグを更新できる
+
+**この章がいちばん長く、いちばん実りがあります。**ここまで来ると「アプリを作った」と言える形になります。
+
+## D1 とは
+
+Cloudflare が提供する **SQLite ベースのマネージドなデータベース**です。Workers から `env` 経由で直接呼び出せます。
+
+普通のデータベースと違うところを2点だけ押さえてください。
+
+**1. 接続文字列がありません。**ホスト名もポートもパスワードも出てきません。設定ファイルにバインディングを書くと、`env.DB` として使えるようになります。**接続情報が漏れるという事故の形そのものがなくなります。**
+
+**2. 課金と上限が「行数」で決まります。**2026-08 時点の Free プランは次のとおりです。
+
+| 項目 | Free | Paid |
+|---|---|---|
+| 読み取り行数 | 500万 / 日 | 月 250億まで込み、超過分は 100万行あたり $0.001 |
+| 書き込み行数 | 10万 / 日 | 月 5,000万まで込み、超過分は 100万行あたり $1.00 |
+| ストレージ（アカウント合計） | 5 GB | 1 TB |
+| データベース数 | 10 | 50,000 |
+| 1データベースの最大サイズ | 500 MB | 10 GB |
+| 1回の Worker 呼び出しあたりのクエリ数 | 50 | 1,000 |
+
+**「読み取った行数」で課金される**ため、インデックスを張らずに全件走査するクエリは、遅いだけでなく高くつきます。この章の最後でインデックスを1本張ります。
+
+## データベースを作る
+
+```bash
+npx wrangler d1 create contact-desk-db
+```
+
+作成に成功すると、`wrangler.jsonc` に貼るための設定ブロックが表示されます。Wrangler のバージョンによっては設定ファイルへ自動で追記されるので、**まず `wrangler.jsonc` を開いて、すでに入っていないかを確認してください。**
+
+入っていなければ追記します。
+
+```jsonc
+{
+  "name": "contact-desk",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-08-25",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "contact-desk-db",
+      "database_id": "コマンドが出力した UUID をここに貼る"
+    }
+  ]
+}
+```
+
+| フィールド | 意味 |
+|---|---|
+| `binding` | **Worker のコードから `env.DB` として参照する名前。**JavaScript の変数名として有効な文字列にします |
+| `database_name` | 作成したデータベースの名前 |
+| `database_id` | 作成時に払い出された UUID |
+
+`database_id` は秘密情報ではありません。**これだけでは誰もアクセスできません。**アクセスできるのは、このアカウントの Worker とアカウントの認証情報を持つ人だけです。
+
+続けて型を再生成します。
+
+```bash
+npm run cf-typegen
+```
+
+これで `Env` に `DB: D1Database` が入ります。**忘れると `env.DB` が型エラーになります。**バインディングを足したら必ず実行する、と覚えてください。
+
+## テーブルを作る
+
+SQL を直接叩くこともできますが、**マイグレーションファイルにしてください。**手で流した DDL は、次に環境を作るときに再現できません。
+
+```bash
+npx wrangler d1 migrations create contact-desk-db create_inquiries
+```
+
+`migrations/0001_create_inquiries.sql` が作られます。中身を書きます。
+
+```sql
+CREATE TABLE inquiries (
+  id              TEXT PRIMARY KEY,
+  name            TEXT NOT NULL,
+  email           TEXT NOT NULL,
+  message         TEXT NOT NULL,
+  attachment_key  TEXT,
+  attachment_name TEXT,
+  handled         INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX idx_inquiries_created_at ON inquiries (created_at DESC);
+```
+
+設計の意図を4点だけ書きます。
+
+- **`id` は UUID の文字列。**連番にすると、管理画面の URL から件数が読めてしまいます
+- **`attachment_key` と `attachment_name` は今は空のまま。**第5章で R2 のキーとファイル名を入れます。**先に列だけ用意しておくと、第5章でマイグレーションを足さずに済みます**
+- **`handled` は真偽値ではなく `INTEGER`。**SQLite に真偽値型はありません。0 と 1 で持ちます
+- **`created_at DESC` のインデックス。**管理画面は新しい順に並べるので、これがないと毎回全件を読みます。D1 は読んだ行数で課金されるため、ここが効きます
+
+適用します。まずローカルへ。
+
+```bash
+npx wrangler d1 migrations apply contact-desk-db --local
+```
+
+`--local` は `wrangler dev` が使うローカルのデータベースが対象です。本番には触れません。**先にローカルで試すのが基本です。**
+
+本番へは `--remote` を付けます。
+
+```bash
+npx wrangler d1 migrations apply contact-desk-db --remote
+```
+
+適用前に確認を求められます。適用後にバックアップが取られます。
+
+> **`--local` と `--remote` を付け忘れると、意図しないほうに当たることがあります。**このコースでは常にどちらかを明示してください。
+
+## 保存する処理を書く
+
+`src/index.ts` を書き換えます。全文を載せます。
+
+```ts
+/** サーバー側で受け付ける最大長。HTML の maxlength とは別に必ず持つ */
+const MAX_LENGTHS = { name: 100, email: 254, message: 4000 } as const;
+/** 管理画面に一度に出す件数。D1 は読んだ行数で課金されるため上限を必ず置く */
+const ADMIN_PAGE_SIZE = 50;
+/** 完全なメール検証は不可能なので、明らかな誤入力だけを弾く */
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const HTML_HEADERS = { "content-type": "text/html; charset=utf-8" } as const;
+
+interface InquiryRow {
+  id: string;
+  name: string;
+  email: string;
+  message: string;
+  handled: number;
+  created_at: string;
+}
+
+/** HTML へ差し込む前に必ず通す。ここを通さない値を埋め込まない */
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+
+/** 必須の文字列フィールドを取り出す。不正なら null を返す */
+function readRequiredText(form: FormData, key: string, max: number): string | null {
+  const value = form.get(key);
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed.length === 0 || trimmed.length > max) return null;
+  return trimmed;
+}
+
+async function createInquiry(request: Request, env: Env): Promise<Response> {
+  const form = await request.formData();
+  const name = readRequiredText(form, "name", MAX_LENGTHS.name);
+  const email = readRequiredText(form, "email", MAX_LENGTHS.email);
+  const message = readRequiredText(form, "message", MAX_LENGTHS.message);
+
+  if (name === null || email === null || message === null || !EMAIL_PATTERN.test(email)) {
+    // 何が悪かったかを細かく返すと、入力値の探索に使われる。粒度は粗くしておく
+    return new Response(renderPage("送信できませんでした", "入力内容をご確認ください。"), {
+      status: 400,
+      headers: HTML_HEADERS,
+    });
+  }
+
+  const id = crypto.randomUUID();
+  await env.DB.prepare(
+    "INSERT INTO inquiries (id, name, email, message) VALUES (?, ?, ?, ?)",
+  )
+    .bind(id, name, email, message)
+    .run();
+
+  return new Response(renderPage("送信しました", "お問い合わせを受け付けました。"), {
+    headers: HTML_HEADERS,
+  });
+}
+
+async function listInquiries(env: Env): Promise<Response> {
+  const { results } = await env.DB.prepare(
+    `SELECT id, name, email, message, handled, created_at
+       FROM inquiries
+      ORDER BY created_at DESC
+      LIMIT ?`,
+  )
+    .bind(ADMIN_PAGE_SIZE)
+    .all<InquiryRow>();
+
+  return new Response(renderAdminPage(results), { headers: HTML_HEADERS });
+}
+
+async function markHandled(id: string, request: Request, env: Env): Promise<Response> {
+  const result = await env.DB.prepare("UPDATE inquiries SET handled = 1 WHERE id = ?")
+    .bind(id)
+    .run();
+
+  if (result.meta.changes === 0) {
+    return new Response("Not Found", { status: 404 });
+  }
+
+  return Response.redirect(new URL("/admin", request.url).toString(), 303);
+}
+
+export default {
+  async fetch(request, env): Promise<Response> {
+    const url = new URL(request.url);
+
+    try {
+      if (request.method === "GET" && url.pathname === "/") {
+        return new Response(FORM_PAGE, { headers: HTML_HEADERS });
+      }
+
+      if (request.method === "POST" && url.pathname === "/inquiries") {
+        return await createInquiry(request, env);
+      }
+
+      if (request.method === "GET" && url.pathname === "/admin") {
+        return await listInquiries(env);
+      }
+
+      const handledMatch = url.pathname.match(
+        /^\/admin\/inquiries\/([0-9a-f-]{36})\/handled$/,
+      );
+      if (request.method === "POST" && handledMatch !== null) {
+        return await markHandled(handledMatch[1], request, env);
+      }
+
+      return new Response("Not Found", { status: 404 });
+    } catch (error) {
+      // 握りつぶさず、どの経路で落ちたかを残す。入力本文はログに出さない
+      console.error(
+        JSON.stringify({ event: "unhandled_error", method: request.method, path: url.pathname }),
+        error,
+      );
+      return new Response("Internal Server Error", { status: 500 });
+    }
+  },
+} satisfies ExportedHandler<Env>;
+```
+
+画面を組み立てる関数も足します。
+
+```ts
+function renderPage(title: string, body: string): string {
+  return `<!doctype html>
+<html lang="ja"><head><meta charset="utf-8" /><title>${escapeHtml(title)}</title></head>
+<body><h1>${escapeHtml(title)}</h1><p>${escapeHtml(body)}</p><p><a href="/">戻る</a></p></body></html>`;
+}
+
+function renderAdminPage(rows: InquiryRow[]): string {
+  const items = rows
+    .map(
+      (row) => `<tr>
+  <td>${escapeHtml(row.created_at)}</td>
+  <td>${escapeHtml(row.name)}</td>
+  <td>${escapeHtml(row.email)}</td>
+  <td>${escapeHtml(row.message)}</td>
+  <td>${row.handled === 1 ? "対応済み" : `<form method="post" action="/admin/inquiries/${encodeURIComponent(row.id)}/handled"><button type="submit">対応済みにする</button></form>`}</td>
+</tr>`,
+    )
+    .join("\n");
+
+  return `<!doctype html>
+<html lang="ja"><head><meta charset="utf-8" /><title>受信一覧</title></head>
+<body>
+  <h1>受信一覧</h1>
+  <table border="1">
+    <tr><th>受信日時</th><th>お名前</th><th>メール</th><th>内容</th><th>対応</th></tr>
+    ${items}
+  </table>
+</body></html>`;
+}
+```
+
+## コードの要点
+
+### プレースホルダを必ず使う
+
+```ts
+env.DB.prepare("INSERT INTO inquiries (id, name, email, message) VALUES (?, ?, ?, ?)")
+  .bind(id, name, email, message)
+  .run();
+```
+
+`?` に値を渡す形です。**SQL の文字列に値を連結してはいけません。**
+
+```ts
+// 絶対にやらない
+env.DB.prepare(`INSERT INTO inquiries (name) VALUES ('${name}')`).run();
+```
+
+送信フォームは誰でも叩けるので、ここは実際に狙われます。`prepare()` と `bind()` の組み合わせを崩さないでください。
+
+### HTML に埋める前にエスケープする
+
+問い合わせ本文はそのまま管理画面に出ます。**`<script>` を書いて送信するだけで管理画面上で動いてしまう**のが、エスケープしない場合の帰結です。この題材は「外部の誰かが書いた文字列を、認証済みの画面に表示する」という、まさに狙われる構造をしています。
+
+`escapeHtml()` を通していない値を HTML に埋め込まない、を徹底してください。
+
+### 使うメソッドの使い分け
+
+| メソッド | 返るもの | 用途 |
+|---|---|---|
+| `.run()` | `success` と `meta`（`changes` / `last_row_id` / `rows_read` / `rows_written` など） | INSERT / UPDATE / DELETE |
+| `.all<T>()` | `results` に行の配列 | 複数行の SELECT |
+| `.first<T>()` | 最初の1行、なければ `null` | 1行だけ欲しいとき |
+| `.batch([...])` | 各文の結果の配列（渡した順） | 複数文をまとめて送るとき |
+
+`markHandled()` で `result.meta.changes` を見ているのは、**存在しない ID を渡されたときに「更新した」と嘘をつかないため**です。UPDATE は該当行がなくてもエラーになりません。
+
+## 動かす
+
+ローカルで確認します。
+
+```bash
+npm run dev
+```
+
+`http://localhost:8787` でフォームを送信し、`http://localhost:8787/admin` を開くと一覧に出ます。
+
+**ローカルの `wrangler dev` は、既定でローカルのデータベースを見ます。**本番のデータは触りません。本番のデータベースに対して動かしたい場合は `npx wrangler dev --remote` を使いますが、この章では不要です。
+
+中身を SQL で直接見ることもできます。
+
+```bash
+npx wrangler d1 execute contact-desk-db --local --command "SELECT id, name, handled FROM inquiries"
+```
+
+問題なければ本番へ反映します。**マイグレーションの適用とデプロイは別です。両方必要です。**
+
+```bash
+npx wrangler d1 migrations apply contact-desk-db --remote
+npx wrangler deploy
+```
+
+| 症状 | 原因と対処 |
+|---|---|
+| `no such table: inquiries` | マイグレーションを当てていません。`--local` / `--remote` のどちら側かを確認します |
+| `env.DB` が型エラー | `npm run cf-typegen` を実行していません |
+| ローカルでは動くのに本番で 500 | 本番側にマイグレーションを当てていない可能性が高いです。`wrangler tail` でエラー内容を見ます |
+| 送信すると 400 が返る | サーバー側の検証で弾かれています。空白だけの入力、長すぎる本文、メール形式を確認します |
+
+## 実例：管理画面がまだ守られていない
+
+`https://<公開URL>/admin` を、**ログアウトした別のブラウザで開いてみてください。**開けます。
+
+問い合わせの内容が誰にでも見える状態です。**これは第6章で塞ぎます。**本番に実際の問い合わせを入れるのは、第6章を終えてからにしてください。
+
+この順番には意味があります。**「認証を後から足せる形で作る」ことを体験してもらうため**です。Cloudflare Access はアプリのコードを変えずに手前に立てられるので、ここまでのコードは1行も書き換えずに守れます。
+
+## やってみよう
+
+1. **`npx wrangler d1 create contact-desk-db` でデータベースを作る。**`wrangler.jsonc` にバインディングが入ったことを目で確認します
+2. **マイグレーションを作って `--local` に適用する。**`npx wrangler d1 execute ... --local --command "SELECT name FROM sqlite_master WHERE type='table'"` でテーブルができたことを確認できます
+3. **ローカルで送信してみる。**フォームから送り、`/admin` に出ることを確認します
+4. **わざと不正な値を送る。**本文を空にする、メールを `abc` にする。**400 が返れば検証が効いています**
+5. **エスケープを外して戻す。**`escapeHtml()` を一時的に素通しにして `<b>太字</b>` を送信し、管理画面で太字になることを確認したら**必ず戻してください。**なぜエスケープが要るかが一度で分かります
+6. **本番にマイグレーションを当ててデプロイする。**`--remote` を付けたことを確認してから実行します
+
+5番目は、安全な題材（`<b>`）で試してください。**攻撃の形を知らないままエスケープを書いても、外す判断ができるようになりません。**
+
+## まとめ
+
+- D1 は **SQLite ベース**。接続文字列がなく、`wrangler.jsonc` のバインディング経由で `env.DB` として使う
+- 課金と上限は**行数ベース**。Free は読み取り 500万行/日、書き込み 10万行/日、合計 5 GB
+- スキーマは**マイグレーションファイル**にする。`migrations create` → `migrations apply --local` → `--remote`
+- **`--local` と `--remote` を必ず明示する**
+- SQL には **`prepare()` + `bind()` のプレースホルダ**を使う。文字列連結をしない
+- **HTML に埋める値は必ずエスケープする。**外部から送られた本文を認証画面に表示する構造は狙われる
+- `.run()` の `meta.changes` を見て、更新できなかったことを検出する
+- バインディングを足したら **`npm run cf-typegen`**
+- **管理画面はまだ誰でも開ける。**本番に実データを入れるのは第6章のあと
+
+## 理解度チェック
+
+**Q1. 管理画面の一覧に `LIMIT` を必ず付けるべきなのはなぜでしょう？**
+
+1. D1 は一度に 50 行までしか返せないから
+2. 読み取った行数が課金と上限の対象なので、件数が増えるほど1回の表示が重く高くなるから
+3. `ORDER BY` は `LIMIT` とセットでしか使えないから
+4. Workers の CPU 時間が 10 ミリ秒だから
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+D1 の Free プランは読み取り 500万行/日です。1万件たまったテーブルを毎回全件読む画面を作ると、500 回の表示で枠に届きます。`ORDER BY created_at DESC` に効くインデックスと `LIMIT` の組み合わせで、**読む行数を必要な分だけに抑える**のが要点です。CPU 時間は待ち時間を含まないため、4は直接の理由になりません。
+
+</details>
+
+**Q2. `UPDATE inquiries SET handled = 1 WHERE id = ?` を実行しました。存在しない ID を渡した場合、どうなるでしょう？**
+
+1. エラーになるので try/catch で捕まえられる
+2. エラーにはならず、`meta.changes` が 0 になる
+3. 新しい行が作られる
+4. 直前の行が更新される
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+該当行がない UPDATE は SQL としては成功します。**「更新できたか」を知るには `meta.changes` を見る必要があります。**これを見ないと、存在しない ID に対して「対応済みにしました」と返してしまいます。エラーが出ないケースこそ、明示的に確認する必要があります。
+
+</details>
+
+## 参考リンク
+
+- [D1 の Get started](https://developers.cloudflare.com/d1/get-started/)
+- [Wrangler の D1 コマンド](https://developers.cloudflare.com/workers/wrangler/commands/d1/)
+- [D1 のマイグレーション](https://developers.cloudflare.com/d1/reference/migrations/)
+- [D1Database の Worker API](https://developers.cloudflare.com/d1/worker-api/d1-database/)
+- [D1 の料金](https://developers.cloudflare.com/d1/platform/pricing/)
+- [D1 の制限値](https://developers.cloudflare.com/d1/platform/limits/)

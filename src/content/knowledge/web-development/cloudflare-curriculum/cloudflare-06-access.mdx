@@ -1,0 +1,368 @@
+---
+title: "6 管理画面を守る｜Cloudflare Access と、その線引き"
+description: "Cloudflare Access で管理画面を自分たちだけの画面にします。あわせて、Access が一般公開アプリのユーザー認証には使えない理由を、セルフサインアップの不在・シート課金・想定用途の3点から整理し、必要になったときの代替の選び方まで扱います。"
+category: "web-development"
+subcategory: "cloudflare-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 50
+prerequisites: ["cloudflare-05-r2-uploads"]
+tags: ["Cloudflare", "カリキュラム", "Access", "認証"]
+sortOrder: 60
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第4章の終わりに書いたとおり、`/admin` はいま誰でも開けます。他人が送った問い合わせが公開されている状態です。ここを塞ぎます。
+
+- Cloudflare Access で管理画面を、許可したメールアドレスだけの画面にできる
+- 公開フォームと管理画面を、守る単位で分けて配置できる
+- **Access が一般公開アプリのユーザー認証には使えない理由**を説明できる
+- 一般ユーザー認証が必要になったとき、何を基準に選ぶかがわかる
+
+**この章の後半が、このコースでいちばん誤解の多い部分です。**ここを間違えると、作り直しになります。
+
+## Cloudflare Access とは
+
+**アプリケーションの手前に立つ認証の壁**です。リクエストは Cloudflare のネットワークを通ってから Worker に届くので、その通り道で「この人を通してよいか」を判定します。
+
+特徴は、**アプリのコードを1行も変えずに付けられる**ことです。第5章までに書いたコードには、ログインもセッションもクッキーも出てきません。それでも守れます。
+
+判定の材料は、管理者が書く**ポリシー**です。
+
+| 構成要素 | 内容 |
+|---|---|
+| **Action** | `Allow` / `Block` / `Bypass` / `Service Auth` |
+| **Rule type** | `Include`（どれかに当てはまれば対象。必須）/ `Require`（すべて満たすこと）/ `Exclude`（当てはまったら除外） |
+| **Selector** | `Emails`、`Emails ending in`、`Country`、`Service Token` など |
+
+**「誰が来てよいか」を管理者が定義する**という形をよく見ておいてください。この章の後半につながります。
+
+### この題材は Access の想定用途そのもの
+
+公式ドキュメントが self-hosted アプリケーションの例として挙げているのは "internal applications that you host in your own environment" です。**自分たちがホストしている、自分たちのための管理ツール**が想定です。
+
+このコースの管理画面は、まさにそれです。
+
+- 見るのは自分とチームだけ
+- 人数は最初から分かっていて、増えるとしても数人ずつ
+- ユーザーが自分で登録する必要はない
+
+**要件と機能がぴったり噛み合っているので、迷わず使えます。**
+
+## 守る面を分ける
+
+Access を有効にする前に、配置を整えます。
+
+**いまは1つの Worker が、公開フォームと管理画面の両方を持っています。**Worker 単位で Access を有効にすると、**公開フォームまでログインが必要になります。**これでは問い合わせを受け取れません。
+
+そこで、**管理画面を別の Worker に切り出します。**「誰でも来てよい面」と「関係者だけの面」を、守る単位ごとに分ける形です。
+
+### 管理用 Worker を作る
+
+`src/admin.ts` を新しく作り、第4章・第5章で書いた `listInquiries()` / `markHandled()` / `downloadAttachment()` と、それらが使うヘルパー（`escapeHtml()` / `renderAdminPage()` / `buildContentDisposition()`）を移します。
+
+```ts
+export default {
+  async fetch(request, env): Promise<Response> {
+    const url = new URL(request.url);
+
+    try {
+      if (request.method === "GET" && url.pathname === "/") {
+        return await listInquiries(env);
+      }
+
+      const handledMatch = url.pathname.match(/^\/inquiries\/([0-9a-f-]{36})\/handled$/);
+      if (request.method === "POST" && handledMatch !== null) {
+        return await markHandled(handledMatch[1], request, env);
+      }
+
+      const attachmentMatch = url.pathname.match(/^\/inquiries\/([0-9a-f-]{36})\/attachment$/);
+      if (request.method === "GET" && attachmentMatch !== null) {
+        return await downloadAttachment(attachmentMatch[1], env);
+      }
+
+      return new Response("Not Found", { status: 404 });
+    } catch (error) {
+      console.error(
+        JSON.stringify({ event: "unhandled_error", method: request.method, path: url.pathname }),
+        error,
+      );
+      return new Response("Internal Server Error", { status: 500 });
+    }
+  },
+} satisfies ExportedHandler<Env>;
+```
+
+`/admin` という接頭辞がなくなり、管理用 Worker のルートが一覧になります。**この Worker 全体が管理画面**なので、パスで分ける必要がなくなりました。
+
+設定ファイルを `wrangler.admin.jsonc` として作ります。
+
+```jsonc
+{
+  "name": "contact-desk-admin",
+  "main": "src/admin.ts",
+  "compatibility_date": "2026-08-25",
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "contact-desk-db",
+      "database_id": "第4章と同じ UUID"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "UPLOADS",
+      "bucket_name": "contact-desk-uploads"
+    }
+  ]
+}
+```
+
+**データベースとバケットは公開側と同じものを指します。**別の Worker が同じ D1・同じ R2 にバインドできます。
+
+デプロイと開発は `-c` で設定ファイルを指定します。
+
+```bash
+npx wrangler deploy -c wrangler.admin.jsonc
+npx wrangler dev -c wrangler.admin.jsonc --port 8788
+```
+
+**そして、公開側の `src/index.ts` から `/admin` 系のルートを必ず削除してください。**片方に残っていると、守っていない経路が残ります。
+
+> **独自ドメインを使う段階（第7章）では、管理画面を `admin.example.com` のような別のホスト名に置くのが素直です。**ホスト名で面が分かれていれば、Access の設定も1対1で対応します。
+
+## Access を有効にする
+
+2026-08 時点の手順です。ダッシュボードの文言は変わることがあります。
+
+1. `dash.cloudflare.com` を開く
+2. `Workers & Pages` → `contact-desk-admin` → **`Access`** タブ
+3. **`Protect this Worker behind Access`** を選ぶ
+4. 対象を選ぶ。**`All traffic`**（`Previews only` はプレビュー URL だけを守る設定）
+5. 認証ポリシーを選ぶ、または新規に作る
+6. セッション時間を確認する
+7. **`Apply Access`** を選ぶ
+
+Worker 単位で有効にすると、**その Worker に紐づく route・Custom Domain・`workers.dev` の URL・プレビュー URL がまとめて保護対象になります。**「独自ドメインは守ったが `workers.dev` が開いていた」という取りこぼしが起きません。
+
+> **これは 2026-08-14 に入った比較的新しい経路です。**それ以前は、ホスト名を指定して Access アプリケーションを作る方法が中心でした。ホスト名単位の設定は今も使えます（`Zero Trust` → `Access controls` → `Applications` → `Create new application` → `Self-hosted and private`）。ただしその場合、**対象のホスト名が Cloudflare のアクティブなゾーンに属している必要があります。**`workers.dev` のまま試すなら、Worker 単位の設定が確実です。
+
+### ポリシーを書く
+
+いちばん小さい形はこれです。
+
+| 項目 | 値 |
+|---|---|
+| Action | `Allow` |
+| Rule type | `Include` |
+| Selector | `Emails` |
+| Value | 第1章で列挙した管理者のメールアドレス |
+
+会社のドメイン全体を許可するなら `Emails ending in` に `@example.com` を入れます。**ただし、そのドメインのメールアドレスを持つ全員が入れる**ことを理解したうえで選んでください。
+
+## 効いていることを確かめる
+
+**設定しただけで安心するのが、いちばん危ない状態です。**必ず3つ確認してください。
+
+1. **自分は入れるか。**管理用 Worker の URL を開き、ログインを経て一覧が出ることを確認する
+2. **他人は入れないか。**シークレットウィンドウで開き、許可していないメールアドレスを入力する。**通らないことを確認する**
+3. **添付も守られているか。**ログインしていない状態で、添付のダウンロード URL を直接開く。**開けないことを確認する**
+
+3番目が重要です。第5章で添付を Worker 経由にしたのは、**この確認が1回で済むようにするため**でした。公開バケットに置いていたら、ここで別途塞ぐ作業が発生します。
+
+### 落とし穴
+
+| 設定 | 何が起きるか |
+|---|---|
+| `Include: Everyone` | **事実上の全公開。**ログイン画面は出ますが、誰でも通ります |
+| `Include: One-time PIN` を単独で | 上と同じ結果になります。「PIN を受け取れる人」＝「メールアドレスを持つ全員」です |
+| `Bypass` ポリシー | アクセス制御を完全に外します。**ログも残りません** |
+| 公開側に `/admin` を残したまま | 守っていない経路が生き続けます |
+
+**上2つは「ログイン画面が出たから守られている」と錯覚させるため、いちばん危険です。**ログイン画面が出ることと、通す相手を絞れていることは別です。
+
+## Worker の中で「誰が来たか」を知る
+
+「対応済みにした人を記録したい」といった要件が出たときは、Worker 側で身元を読めます。
+
+```ts
+    const identity = await ctx.access?.getIdentity();
+    // identity にはメールアドレスや名前、グループなどが入る
+```
+
+ローカル開発では `wrangler.admin.jsonc` に `dev` ブロックを置くと、認証済みの状態をシミュレートできます。
+
+```jsonc
+{
+  "access": {
+    "dev": {
+      "aud": "contact-desk-admin",
+      "identity": { "email": "admin@example.com" }
+    }
+  }
+}
+```
+
+`aud` は必須、`identity` は任意です。**ログイン済みの経路と未ログインの経路の両方を、デプロイせずに試せます。**
+
+2026-08 時点で公式に挙げられている制約は3つです。
+
+- **WebSocket は Worker 単位の Access に未対応。**アップグレード要求は 403 になります。必要ならホスト名単位の設定を使います
+- **Service Binding や RPC の呼び出しには `ctx.access` が伝播しません**
+- **静的アセットを経由する構成では、内部のルーターが `ctx.access` を Worker に渡しません**
+
+このコースの管理用 Worker は、いずれにも当たりません。**ただし `ctx.access` が取れないことを前提に、取れなかったときの分岐は書いておいてください。**アクセス制御そのものは Access が担っているので、`ctx.access` は「誰か」を知るための追加情報として扱うのが安全です。
+
+## ここからが本題：一般公開アプリのユーザー認証には使えない
+
+**Cloudflare Access は、不特定多数のユーザーがアカウントを作ってログインするアプリの認証基盤にはなりません。**「便利そうだから、そのままユーザー認証にも使おう」と考えて設計を進めると、後戻りできない位置で行き詰まります。
+
+理由は3つあり、いずれも仕組みそのものに由来します。
+
+### 1. セルフサインアップの仕組みがない
+
+Access に「新規登録」はありません。**誰が入れるかは、管理者が書いたポリシーで決まります。**
+
+One-time PIN（メールに送られる使い捨てのコード）を見て、「これなら誰でもメールアドレスで入れるのでは」と考える方がいます。**そうはなりません。**公式ドキュメントによれば、**PIN が送られるのは Access のポリシーで許可されたユーザーだけ**です。許可されていないアドレスにはメールが届きません。
+
+ログイン画面は、許可の有無にかかわらず「コードをメールしました」と同じ文言を出します。**これは「誰でも入れる」からではなく、そのアドレスが登録済みかどうかを外から推測させないための設計**です。
+
+つまり、**ユーザーが増えるたびに管理者がポリシーを書き換える**運用になります。10人なら回りますが、1,000人には向きません。
+
+### 2. 課金がシート制で、認証したユーザー数に比例する
+
+公式のシート管理ドキュメントには、こう書かれています。
+
+> A user consumes a seat when they perform an authentication event.
+
+**認証イベントが起きた時点で、そのユーザーが1シートを消費します。**アプリを何個使っても、何回ログインしても1シートですが、**人が増えれば増えた分だけシートが増えます。**
+
+不特定多数が対象のアプリでは、これは価格モデルとして噛み合いません。**利用者数が読めないサービスに、利用者数比例の固定費を載せることになります。**
+
+### 3. 想定されている読み手が違う
+
+公式ドキュメントが例示するのは "internal applications that you host in your own environment" です。社内アプリ、業務委託先や取引先に限定して開く画面、検証環境の関係者限定公開——**「あらかじめ名前が分かっている相手」**が対象です。
+
+**技術的に「できない」というより、「そのために作られていない」**というのが正確です。無理に寄せると、上の2点が必ず効いてきます。
+
+### 2026年の変更で解禁されたのではないか、という疑問
+
+2026年に Access 周辺で目立つ変更が3つありました。**いずれも、一般ユーザーのサインアップを解禁するものではありません。**
+
+| 変更 | 内容 | 一般ユーザー認証との関係 |
+|---|---|---|
+| **Cloudflare 自身が IdP に**（2026-05-19） | Access のログイン方法として「Cloudflare」を選べるようになり、既存の Cloudflare アカウントでサインインできる。`Restrict to account members` オプションが追加された | **対象は自分の Cloudflare アカウントのメンバー。**社内向けの選択肢が1つ増えたということ |
+| **新規組織の既定ログインが One-time PIN から Cloudflare IdP へ**（2026-06-18） | 新しく作られる Zero Trust 組織では、既定のログイン方法が変わった。既存の組織はそのまま | 公式の記述も「認証はアカウントのメンバーに限定される」旨。**むしろ範囲は狭い** |
+| **Managed OAuth**（2026-03-20） | Access で保護したアプリに、CLI・AI エージェント・SDK・MCP クライアントといった**非ブラウザのクライアント**が OAuth 2.0 でアクセスできるようにする | 公式の記述は "the OAuth layer is a new transport mechanism, not a separate authentication path"。**運び方が増えただけで、ポリシー判定は同じ** |
+
+**3つとも「社内向け」または「エージェント向け」の拡張です。**変更のニュースを見て「Access が一般向け認証に対応した」と読むのは誤りです。
+
+## 一般ユーザー認証が必要になったら
+
+このコースでは実装しません。**判断材料だけ置きます。**
+
+### 選択肢は2方向
+
+**A. 認証を専門にする外部サービスを使う。**サインアップ、メール確認、パスワードリセット、多要素認証、退会といった一連の流れがすでに揃っています。Worker からはトークンを検証して使います。
+
+**B. Workers の上に自分で建てる。**Cloudflare は `@cloudflare/workers-oauth-provider` という TypeScript のライブラリを公開しています。**Workers 上で OAuth 2.1 の認可サーバー側を実装するためのもの**で、Worker のコードをラップする形で使い、トークンの保管に KV バインディングを要求します。公式ドキュメントでは主に **MCP サーバーを保護する文脈**で案内されています。
+
+**A と B は「作らないか、作るか」の差**です。認証は、作ると決めた瞬間から、機能ではなく責任になります。
+
+### 選ぶときに見るところ
+
+| 観点 | 問い |
+|---|---|
+| 人数と伸び方 | 何人が使うか。増え方は読めるか |
+| ライフサイクル | パスワードリセット・退会・アカウント統合まで自分で持つか |
+| データとの距離 | 認可の判定を、データの近く（DB の行単位）で行いたいか |
+| 運用の担い手 | 障害時に一次対応するのは誰か。夜間はどうするか |
+| 移行のしやすさ | あとで別の方式へ移るとき、何が引き継げるか |
+
+3つ目に「はい」と答えるなら、**データベース側に認可を持たせる設計**が候補に入ります。同じ題材を Supabase で作る [Supabase 入門コース](/knowledge/web-development/supabase-curriculum)では、この方向で一般ユーザーのログインまで扱います。
+
+**具体的な外部サービスの実装手順と料金は、各社の公式ドキュメントを一次情報として確認してください。**この領域は価格も機能も動きが速く、記事に書いた時点の値は当てになりません。
+
+## 費用について
+
+管理者が数人という規模なら、**Cloudflare Zero Trust の無料枠に収まります。**
+
+ただし正確を期すと、**2026-08 時点で、Free プランに含まれるシート数を公式ドキュメント上で確認できませんでした。**第三者の記事では数字が挙がっていますが、一次情報での裏取りができていないため、この記事には書きません。**ダッシュボードのプラン画面で実際の値を確認してください。**
+
+確認できているのは、**シートが「認証イベントを行ったユーザー」の数で消費される**という点です。管理者を3人に絞れば、消費するのは3シートです。
+
+## やってみよう
+
+1. **管理画面を別の Worker に切り出す。**`src/admin.ts` と `wrangler.admin.jsonc` を作り、`npx wrangler deploy -c wrangler.admin.jsonc` でデプロイします
+2. **公開側から `/admin` を削除する。**削除したことを、公開 URL の `/admin` が 404 になることで確認します
+3. **管理用 Worker に Access を適用する。**`All traffic` を選び、`Allow` + `Include: Emails` に自分のアドレスを入れます
+4. **3方向から確認する。**自分は入れる / 許可外のアドレスは入れない / 未ログインで添付 URL を直接開けない
+5. **`Include: Everyone` を一瞬だけ試す。**シークレットウィンドウで誰でも通ってしまうことを確認したら、**必ず元に戻してください**
+6. **公開フォームが今も認証なしで送信できることを確認する。**ここが壊れていたら、面の分け方を間違えています
+
+5番目は、**「ログイン画面が出る」と「守れている」が別物である**ことを一度で理解するための演習です。
+
+## まとめ
+
+- Cloudflare Access は**アプリの手前に立つ壁**。**コードを変えずに**守れる
+- ポリシーは **Action × Rule type × Selector**。**誰が来てよいかを管理者が定義する**
+- **Worker 単位の Access は Worker 全体にかかる。**公開フォームと管理画面は面を分ける
+- 有効にすると route・Custom Domain・`workers.dev`・プレビュー URL が**まとめて保護対象**になる
+- `Include: Everyone` と `Include: One-time PIN` の単独指定は**事実上の全公開**
+- Worker 内では `ctx.access.getIdentity()` で身元を読める。ローカルは `access.dev` ブロックで再現できる
+- **Access は一般公開アプリのユーザー認証には使えない。**理由は (1) セルフサインアップがない (2) 認証したユーザー数に比例するシート課金 (3) 想定されている相手が社内・関係者
+- **One-time PIN も「ポリシーで許可されたアドレス」宛にしか送られない**
+- 2026年の変更（Cloudflare IdP・既定ログインの変更・Managed OAuth）は**いずれも社内向け／エージェント向け**。一般ユーザー認証の解禁ではない
+- 一般ユーザー認証が要るなら、**外部の認証サービス**か、**Workers 上で `@cloudflare/workers-oauth-provider` を使った自前実装**。人数・ライフサイクル・認可の位置・運用体制で選ぶ
+
+## 理解度チェック
+
+**Q1. 「One-time PIN があるのだから、メールアドレスさえあれば誰でもログインできる。これで一般ユーザー向けの認証に使える」という主張は、どこが誤りでしょう？**
+
+1. One-time PIN は有料プラン限定の機能だから
+2. PIN が送られるのは Access のポリシーで許可されたユーザーだけで、許可の追加は管理者の作業だから
+3. One-time PIN は日本のメールアドレスに対応していないから
+4. PIN は1日1回しか発行できないから
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+ログイン画面は誰に対しても同じ文言を出しますが、それはアドレスの登録有無を推測させないための設計です。**実際に PIN が届くのは、ポリシーで許可されたアドレスだけ**です。ユーザーが増えるたびに管理者がポリシーを書き換える必要があり、加えて認証したユーザーごとにシートを消費します。**セルフサインアップの不在と、シート課金という2つの理由から、不特定多数には向きません。**
+
+</details>
+
+**Q2. 管理画面に Access を適用しました。ところが問い合わせフォームまでログインを求められるようになりました。原因はどれでしょう？**
+
+1. ポリシーの `Include` が広すぎる
+2. Worker 単位の Access は Worker 全体にかかるため、公開フォームと管理画面が同じ Worker に同居している
+3. `workers_dev` が `true` になっている
+4. `compatibility_date` が古い
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+Worker 単位で Access を有効にすると、その Worker に紐づく経路すべてが保護対象になります。**守る単位と、守りたい面を一致させる必要があります。**このコースでは管理画面を別の Worker に切り出しました。独自ドメインを使う段階なら、管理画面を別のホスト名に置いて、そのホスト名に対して Access を設定する形も取れます。
+
+</details>
+
+## 参考リンク
+
+- [Workers で Cloudflare Access を使う](https://developers.cloudflare.com/workers/configuration/cloudflare-access/)
+- [Worker 単位で Access を有効にできるようになった（2026-08-14）](https://developers.cloudflare.com/changelog/post/2026-08-14-workers-access/)
+- [Access のポリシー](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/common-policies/)
+- [One-time PIN によるログイン](https://developers.cloudflare.com/cloudflare-one/identity/idp-integration/one-time-pin/)
+- [シート管理](https://developers.cloudflare.com/cloudflare-one/identity/users/seat-management/)
+- [Cloudflare を IdP として使えるようになった（2026-05-19）](https://developers.cloudflare.com/changelog/post/2026-05-19-cloudflare-as-identity-provider/)
+- [新規アカウントの既定 IdP 変更（2026-06-18）](https://developers.cloudflare.com/changelog/post/2026-06-18-cloudflare-idp-default/)
+- [Managed OAuth](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/managed-oauth/)
+- [cloudflare/workers-oauth-provider](https://github.com/cloudflare/workers-oauth-provider)

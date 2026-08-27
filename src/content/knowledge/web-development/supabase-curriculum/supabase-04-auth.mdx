@@ -1,0 +1,334 @@
+---
+title: "4 ログインを付ける｜Supabase Auth と一般ユーザーの認証"
+description: "サインアップとログインを実装し、第3章で書いた RLS のポリシーを実際に動かします。メール確認の設定、Free プランで認証メールのテンプレートが編集できなくなった変更、プロフィールテーブルの分け方を扱います。"
+category: "web-development"
+subcategory: "supabase-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 55
+prerequisites: ["supabase-03-rls"]
+tags: ["Supabase", "カリキュラム", "Auth", "セキュリティ"]
+sortOrder: 40
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第3章のポリシーには `auth.uid()` が出てきました。この章でログインを付けると、その値が実際に入るようになります。
+
+- サインアップとログインを実装できる
+- `getUser()` と `getSession()` の使い分けがわかる
+- **Free プランで認証メールのテンプレートが編集できない**という制限を知っておける
+- 既定のメール送信が本番で使えない理由がわかる
+- ユーザー情報をどこに持つかの設計ができる
+
+手順は 2026-08 時点のものです。
+
+## Supabase Auth の位置づけ
+
+サインアップしたユーザーは、Postgres の `auth.users` テーブルに1行として入ります。その行の主キーが、第3章で使った `auth.uid()` の値です。
+
+**認証の結果がデータベースの中にある**、というのがこの仕組みの要点です。だから RLS のポリシーから直接参照できます。
+
+第1章で触れたとおり、ここが Cloudflare Access や Vercel の Deployment Protection と決定的に違うところです。あちらは「この URL に入れる人を絞る」仕組みで、アプリのデータと結び付いていません。
+
+### `auth.users` を直接いじらない
+
+`auth.users` は Supabase が管理するテーブルです。公式ドキュメントは次の2点を明記しています。
+
+- **セキュリティのため、`auth` スキーマは自動生成 API に公開されない**
+- 主キーは変わらないことが保証されるが、**列・インデックス・制約は予告なく変わりうる**
+
+つまり「主キーを外部キーで参照するのはよいが、それ以外に依存するな」ということです。アプリ固有のユーザー情報は `public` スキーマに自分のテーブルを作って持ちます。
+
+## クライアントを用意する
+
+第2章で作ったクライアントをそのまま使います。
+
+```ts
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
+
+export const supabase = createClient<Database>(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+);
+```
+
+`@supabase/supabase-js` は **Node.js 22 以降**が必要です。Node.js 20 のサポートは 2026-06-30 に終了しています。
+
+## サインアップとログイン
+
+### サインアップ
+
+```ts
+const { data, error } = await supabase.auth.signUp({
+  email: "user@example.com",
+  password: "example-password",
+});
+```
+
+リダイレクト先を指定する場合は `options` に入れます。
+
+```ts
+const { data, error } = await supabase.auth.signUp({
+  email: "user@example.com",
+  password: "example-password",
+  options: {
+    emailRedirectTo: "https://example.com/welcome",
+  },
+});
+```
+
+### ログイン
+
+```ts
+const { data, error } = await supabase.auth.signInWithPassword({
+  email: "user@example.com",
+  password: "example-password",
+});
+```
+
+公式ドキュメントには、**アカウントが存在しない場合とパスワードが違う場合を区別しないエラーメッセージが返ることがある**と書かれています。これは意図的な挙動です。区別できると、メールアドレスが登録済みかどうかを外部から探れてしまいます。エラー文言をそのまま画面に出す実装で問題ありません。
+
+### ログアウト
+
+```ts
+const { error } = await supabase.auth.signOut();
+```
+
+**既定の `scope` は `'global'` です。**つまり、そのユーザーがログインしている**すべてのデバイス**からサインアウトします。「このブラウザだけログアウトしたい」なら明示します。
+
+```ts
+const { error } = await supabase.auth.signOut({ scope: "local" });
+```
+
+共用パソコンでのログアウトなら既定のままが安全ですし、スマートフォンとパソコンを併用する利用者にとっては `local` の方が自然です。**どちらが正解ということはないので、アプリの性格で決めてください。**
+
+## `getUser()` と `getSession()` の違い
+
+似た名前ですが、扱いが違います。
+
+| メソッド | 何をするか | 認可判断に使えるか |
+|---|---|---|
+| `getUser()` | **Auth サーバーへ問い合わせる** | 使える。公式は「返る値は authentic」と説明 |
+| `getSession()` | **クライアント側の保存領域から読む** | 使わない方がよい |
+
+公式は `getSession()` について、リクエストの cookie を含みうるクライアントストレージから値を取るため authentic とは限らず、そうした状況では「使用を強く推奨しない」と書いています。
+
+**画面の出し分けには `getSession()`、サーバー側での判断には `getUser()`** という整理が実務的です。ただしこのコースの構成では、そもそも重要な判断は RLS がデータベース側で行っています。**クライアント側の分岐は見た目の話であって、セキュリティ境界ではありません。**
+
+### ログイン状態の変化を拾う
+
+```ts
+const { data } = supabase.auth.onAuthStateChange((event, session) => {
+  if (event === "SIGNED_IN") {
+    // 画面をログイン後の状態にする
+  }
+});
+
+// 不要になったら
+data.subscription.unsubscribe();
+```
+
+イベントは `INITIAL_SESSION` / `SIGNED_IN` / `SIGNED_OUT` / `PASSWORD_RECOVERY` / `TOKEN_REFRESHED` / `USER_UPDATED` があります。
+
+## メール確認の設定
+
+ここからがつまずきポイントです。
+
+### 既定の挙動
+
+Supabase がホストするプロジェクトでは、**メールアドレスの確認が既定で必須**です。サインアップすると確認メールが飛び、リンクを踏むまでログインできません。ローカル開発とセルフホストでは、この設定が既定でオフになっています。
+
+ローカル環境（`supabase start`）にはメール確認用の受信箱が同梱されているので、実際にメールを送らずに確認リンクを開けます。**開発中はローカルで回すのが早いです。**
+
+### リダイレクト先を許可リストに入れる
+
+ダッシュボードの Authentication → URL Configuration で2つを設定します。
+
+| 設定 | 意味 |
+|---|---|
+| **Site URL** | `redirectTo` を指定しなかったときの既定のリダイレクト先。**既定値は `localhost:3000`** |
+| **Redirect URLs** | リダイレクトを許可する URL の一覧。**ここに無い URL へはリダイレクトされない** |
+
+ワイルドカードが使えます。`*` は区切り文字（`.` と `/`）以外にマッチし、`**` は任意の文字列にマッチします。開発中なら `http://localhost:3000/**` のような形です。
+
+> **「メールのリンクを踏んだのに `localhost:3000` に飛ばされる」**というのは、Site URL が初期値のままか、`emailRedirectTo` に指定した URL が許可リストに無いときに起きます。
+
+### Free プランのメールテンプレート制限
+
+**2026-06-03 に変更が入りました。**知らないと必ず引っかかるので、正確に押さえてください。
+
+> 2026年6月3日以降に作られた **Free プランのプロジェクト**が、Supabase の**既定のメール送信サービスを使う場合**、認証メールのテンプレートを変更できません。確認メール・パスワードリセット・マジックリンクなどは、既定のテンプレートがそのまま使われます。
+
+条件を分解するとこうです。
+
+| 条件 | 影響 |
+|---|---|
+| 2026-06-03 **より前**に作った Free プロジェクト | 影響なし。現在のテンプレートを維持できる |
+| 2026-06-03 **以降**に作った Free プロジェクト + 既定 SMTP | **テンプレートを編集できない** |
+| Free プロジェクト + **自分で SMTP を設定** | **編集できる** |
+| Pro 以上のプラン | 影響なし |
+
+**回避策は、自分のメール送信サービスを設定することです。**公式は Resend / Postmark / SendGrid / Amazon SES などを例に挙げています。
+
+### 既定のメール送信は本番で使えない
+
+テンプレートの話とは別に、そもそも既定の送信経路には厳しい制限があります。
+
+- **1時間あたり2通**（`/auth/v1/signup`、`/auth/v1/recover`、`/auth/v1/user` が対象）
+- 可用性は best-effort
+
+公式ドキュメントは、既定の送信サービスはチームメンバーでの検証用と位置づけ、**それ以外のすべての用途でカスタム SMTP の設定を強く勧めています。**
+
+**「開発中はテストできたのに、公開したら誰にもメールが届かない」**は、ほぼこれが原因です。カスタム SMTP を設定した直後は 30通/時から始まる制限がかかるので、こちらも本番前に確認してください。
+
+つまり、Free プランで進める場合でも**外部のメール送信サービスは早めに繋いでおく**のが結局は近道です。テンプレート編集の制限も同時に外れます。
+
+## ユーザー情報をどこに持つか
+
+`auth.users` には触らないので、プロフィール用のテーブルを別に作ります。公式が示している形をそのまま使います。
+
+```sql
+create table public.profiles (
+  id uuid not null references auth.users on delete cascade,
+  display_name text,
+
+  primary key (id)
+);
+
+grant select, insert, update on public.profiles to authenticated;
+
+alter table public.profiles enable row level security;
+
+create policy "自分のプロフィールを読める"
+on public.profiles for select to authenticated
+using ( (select auth.uid()) = id );
+
+create policy "自分のプロフィールを更新できる"
+on public.profiles for update to authenticated
+using ( (select auth.uid()) = id )
+with check ( (select auth.uid()) = id );
+```
+
+サインアップと同時に行を作るには、トリガーを使います。
+
+```sql
+create function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer set search_path = ''
+as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (new.id, new.raw_user_meta_data ->> 'display_name');
+  return new;
+end;
+$$;
+
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+```
+
+第3章の `is_admin()` と同じく、`security definer set search_path = ''` がセットで付きます。**強い権限で動く関数では、参照先スキーマを固定する**と覚えてください。
+
+> `raw_user_meta_data` は、サインアップ時に `options.data` へ渡した値が入るところです。**ユーザー自身が書き換えられる領域なので、権限の判定には使わないでください。**第3章で管理者フラグを別テーブルに置いたのはこのためです。
+
+## 管理者を登録する
+
+第3章で作った `admin_users` に、自分のユーザー ID を入れます。まず自分でサインアップしてから、SQL Editor で実行します。
+
+```sql
+insert into public.admin_users (user_id)
+select id from auth.users where email = 'admin@example.com';
+```
+
+**ダッシュボードの SQL Editor でしか実行できない操作にしてある**のが要点です。`admin_users` にはポリシーを1つも書いていないので、API 経由では誰も触れません。
+
+これで管理画面のログインが完成します。管理者としてログインすれば全件が読め、一般ユーザーとしてログインすれば自分の分だけが読めます。**画面のコードで分岐を書いていないのに、そうなります。**
+
+## Passkeys について
+
+パスワードを使わない認証として、Passkeys（WebAuthn）が **2026-05-28 に発表**されています。
+
+**ステータスは Beta / experimental です。**公式ドキュメントは「API は予告なく変更されうる」と明記し、クライアント作成時の明示的なオプトインを必須にしています。
+
+```ts
+const supabase = createClient(supabaseUrl, supabasePublishableKey, {
+  auth: {
+    experimental: { passkey: true },
+  },
+});
+```
+
+`@supabase/supabase-js` v2.105.0 以降が必要です。SSO ユーザーと匿名ユーザーは passkey を登録できない、といった制約もあります。
+
+**このコースでは扱いません。**本番で使うかどうかは、API が安定してから判断する方が安全です。
+
+## やってみよう
+
+1. **サインアップ画面を作る**：`signUp` を呼び、確認メールが飛ぶところまで確認します。ローカル環境なら同梱の受信箱で開けます
+2. **リダイレクト設定を直す**：Site URL と Redirect URLs を、自分の開発環境の URL に合わせます
+3. **ログインして自分の問い合わせを送る**：ログインした状態で `user_id` に自分の ID を入れて送信し、第3章の insert ポリシーが通ることを確認します
+4. **他人の分が見えないことを確認する**：別のアカウントでログインし直し、さっき送った問い合わせが**見えない**ことを確認します
+5. **管理者にする**：`admin_users` に自分の ID を登録し、同じ画面で**全件が見えるようになる**ことを確認します
+6. **プロフィールテーブルを作る**：トリガーを含めてマイグレーションに追加し、`supabase db reset` で再現できることを確認します
+
+**4番と5番を続けてやってください。**コードを1行も変えずに、見えるものが変わります。それが RLS で設計するということです。
+
+## まとめ
+
+- サインアップしたユーザーは `auth.users` の行になり、その ID が `auth.uid()` として RLS から参照できる
+- `auth.users` は直接いじらない。主キーの参照だけに依存し、アプリ固有の情報は `public` スキーマに持つ
+- `signOut()` の既定は全デバイスからのサインアウト。このブラウザだけなら `scope: "local"`
+- **`getSession()` は認可判断に使わない。**確実な情報が要るときは `getUser()`
+- **2026-06-03 以降に作った Free プロジェクトは、既定 SMTP のままだと認証メールのテンプレートを編集できない。**自分の SMTP を設定すれば外れる
+- 既定のメール送信は**1時間あたり2通**。本番ではカスタム SMTP が実質必須
+- `raw_user_meta_data` はユーザーが書き換えられる。権限判定に使わない
+- Passkeys は Beta / experimental。明示的なオプトインが必要で、API は変わりうる
+
+## 理解度チェック
+
+**Q1. 2026-06-03 以降に作った Free プランのプロジェクトで、確認メールの文面を自社の文言に変えたい場合、どうすればよいでしょう？**
+
+1. ダッシュボードのメールテンプレート画面から編集する
+2. 自分のメール送信サービス（カスタム SMTP）を設定する
+3. プロジェクトを作り直す
+4. `signUp` の `options` に文面を渡す
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+2026-06-03 以降に作成された Free プランのプロジェクトは、Supabase の既定のメール送信サービスを使っている間はテンプレートを変更できません。自分の SMTP プロバイダを設定すれば、これまでどおり自由に編集できます。既定の送信経路には1時間あたり2通という制限もあるため、本番運用ではどのみちカスタム SMTP が必要になります。
+
+</details>
+
+**Q2. ログイン後の画面で、管理者にだけ全件一覧を表示したいとします。安全な作りはどれでしょう？**
+
+1. `getSession()` の結果を見て、管理者なら一覧を取得する
+2. クライアント側で `is_admin` フラグを持ち、それで分岐する
+3. RLS のポリシーで管理者だけが読めるようにし、クライアントは同じクエリを投げる
+4. secret key をクライアントに置き、管理者だけが使えるようにする
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：3**
+
+クライアント側の分岐は見た目の制御であって、セキュリティ境界ではありません。API は直接叩けるので、画面に出さなくてもデータは取れてしまいます。RLS で「管理者だけが読める」を作っておけば、クライアントは同じクエリを投げるだけで、返ってくる行が権限に応じて変わります。選択肢4は secret key が RLS をバイパスするため、最も危険です。
+
+</details>
+
+## 参考リンク
+
+- [Password-based Auth（Supabase 公式）](https://supabase.com/docs/guides/auth/passwords) — メール確認の既定挙動とカスタム SMTP の必要性
+- [Redirect URLs（Supabase 公式）](https://supabase.com/docs/guides/auth/redirect-urls) — Site URL と許可リストの設定
+- [Changes to Email Template Customisation on Free Tier（Supabase Changelog）](https://supabase.com/changelog/46599-changes-to-email-template-customisation-on-free-tier) — 2026-06-03 の変更内容
+- [Auth Rate limits（Supabase 公式）](https://supabase.com/docs/guides/auth/rate-limits) — 既定メール送信の制限
+- [Managing User Data（Supabase 公式）](https://supabase.com/docs/guides/auth/managing-user-data) — プロフィールテーブルとトリガー
+- [Passkey authentication（Supabase 公式）](https://supabase.com/docs/guides/auth/passkeys) — Beta のステータスとオプトイン

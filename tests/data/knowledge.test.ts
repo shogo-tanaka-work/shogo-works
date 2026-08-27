@@ -72,11 +72,29 @@ describe("knowledge サブカテゴリデータ", () => {
     ]);
   });
 
-  it("web-development サブカテゴリに supabase / vercel / gas / cloudflare が含まれていること", () => {
+  it("web-development サブカテゴリに選定ガイド・入門コース・リファレンスが揃っていること", () => {
     const webDev = subcategories["web-development"];
     expect(webDev).toBeDefined();
     const slugs = webDev?.map((s) => s.slug).sort();
-    expect(slugs).toEqual(["cloudflare", "gas", "supabase", "vercel"]);
+    expect(slugs).toEqual([
+      "cloudflare",
+      "cloudflare-curriculum",
+      "gas",
+      "platform-choice",
+      "supabase",
+      "supabase-curriculum",
+      "vercel",
+      "vercel-curriculum",
+    ]);
+  });
+
+  it("入門コースがリファレンスより前に並んでいること", () => {
+    const slugs = subcategories["web-development"]?.map((s) => s.slug) ?? [];
+    for (const service of ["cloudflare", "vercel", "supabase"]) {
+      expect(slugs.indexOf(`${service}-curriculum`)).toBeLessThan(
+        slugs.indexOf(service),
+      );
+    }
   });
 
   it("すべてのサブカテゴリに slug / label / description が存在すること", () => {

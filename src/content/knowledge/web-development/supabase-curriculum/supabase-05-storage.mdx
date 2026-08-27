@@ -1,0 +1,325 @@
+---
+title: "5 ファイルを受け取る｜Storage のバケットとポリシー"
+description: "問い合わせフォームの添付ファイルを Supabase Storage で受け取ります。バケットの公開設定、storage.objects への RLS ポリシー、署名付き URL での取り出し方を、第3章と同じ考え方で設計します。"
+category: "web-development"
+subcategory: "supabase-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 50
+prerequisites: ["supabase-04-auth"]
+tags: ["Supabase", "カリキュラム", "Storage", "RLS"]
+sortOrder: 50
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+添付ファイルを1点受け取れるようにします。**第3章とまったく同じ考え方**で設計できることを確認するのが、この章の狙いです。
+
+- バケットの公開設定の意味と、選び方がわかる
+- **Storage のアクセス制御も RLS である**ことがわかる
+- 「誰でもアップロードできるが、管理者しか取り出せない」バケットを作れる
+- 署名付き URL で非公開ファイルを渡せる
+- ファイルサイズと容量の上限がわかる
+
+手順は 2026-08 時点のものです。
+
+## Storage の仕組み
+
+Supabase Storage にアップロードされたファイルは、**`storage.objects` テーブルの行として記録されます。**ファイルの実体は別の場所にありますが、メタデータは Postgres の中にあります。
+
+ここから直接つながります。**行があるということは、RLS が使えるということです。**
+
+公式ドキュメントもそう書いています。
+
+> Supabase Storage は Postgres の Row Level Security と完全に組み合わせて動くよう設計されている。特定の操作を許可するには、`storage.objects` テーブルに RLS ポリシーを作る
+
+第3章で `public.inquiries` に書いたのと同じことを、`storage.objects` に書きます。**新しい概念はありません。**
+
+もう1つ、公式の重要な記述があります。
+
+> 既定では、RLS ポリシーの無いバケットへのアップロードを Storage は一切許可しない
+
+テーブルの場合、RLS を有効にし忘れると開きっぱなしでした。**Storage は逆で、既定が閉じています。**ポリシーを書くまで何もアップロードできません。安全側に倒れているので、「気づかないうちに漏れる」ことは起きにくい代わりに、「なぜかアップロードできない」でつまずきます。
+
+## バケットを作る
+
+バケットはファイルの入れ物です。ダッシュボードの Storage 画面か、SQL、あるいはクライアントから作れます。
+
+```sql
+insert into storage.buckets
+  (id, name, public)
+values
+  ('inquiry-attachments', 'inquiry-attachments', false);
+```
+
+クライアントから作る場合は、制限も同時に指定できます。
+
+```ts
+const { data, error } = await supabase.storage.createBucket("inquiry-attachments", {
+  public: false,
+  allowedMimeTypes: ["image/*", "application/pdf"],
+  fileSizeLimit: "5MB",
+});
+```
+
+### `public` の意味
+
+`public` の既定値は `false` です。**この設定は「誰が読めるか」を大きく分けます。**
+
+| 設定 | 読み取り | 使いどころ |
+|---|---|---|
+| `public: false`（既定） | URL を知っていても読めない。**署名付き URL か、ポリシーを通した取得が必要** | 問い合わせの添付、身分証、請求書 |
+| `public: true` | **URL を知っていれば誰でも読める** | 商品画像、公開プロフィール画像 |
+
+**問い合わせの添付ファイルは `public: false` 一択です。**送信者が添付するものは、見積書や画面のスクリーンショットなど、公開されると困るものが混ざります。
+
+> `public: true` にすると、ファイルの URL は推測されにくい形になりますが、**URL が漏れた時点で誰でも読めます。**「URL を知らなければ大丈夫」は権限管理ではありません。
+
+`allowedMimeTypes` と `fileSizeLimit` は必ず設定してください。**公開フォームからのアップロードを許すということは、見知らぬ人がストレージに書き込めるということです。**種類とサイズを絞っておかないと、置き場として使われます。
+
+## ポリシーを書く
+
+第3章と同じ表を作るところから始めます。
+
+| 誰が | 何をできるべきか |
+|---|---|
+| 訪問者（`anon`） | **アップロードできる。しかし何も取り出せない** |
+| ログインユーザー（`authenticated`） | 自分のフォルダにアップロードでき、自分の分だけ取り出せる |
+| 管理者 | **すべて取り出せる** |
+
+`public.inquiries` の設計とまったく同じ構造です。
+
+### 1. 誰でもアップロードできる
+
+```sql
+create policy "誰でも問い合わせの添付をアップロードできる"
+on storage.objects
+for insert
+to anon
+with check (
+  bucket_id = 'inquiry-attachments'
+  and (storage.foldername(name))[1] = 'anonymous'
+);
+```
+
+`storage.foldername(name)` は、ファイルのパスをフォルダごとの配列に分解するヘルパー関数です。`anonymous/abc123.pdf` なら `[1]` が `'anonymous'` になります。
+
+**`bucket_id` の指定を忘れないでください。**忘れると「このプロジェクトのすべてのバケットに、誰でもアップロードできる」ポリシーになります。`storage.objects` はプロジェクト内の全バケットのファイルが入る1枚のテーブルなので、**バケットの絞り込みはポリシー側の責任です。**
+
+`select` のポリシーを書かないので、訪問者はアップロードしたファイルを自分で取り出すこともできません。第3章の「送れるが読めない」と同じ形です。
+
+### 2. ログインユーザーは自分のフォルダに置ける
+
+```sql
+create policy "ログインユーザーは自分のフォルダにアップロードできる"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'inquiry-attachments'
+  and (storage.foldername(name))[1] = (select auth.jwt() ->> 'sub')
+);
+
+create policy "ログインユーザーは自分のフォルダだけ取り出せる"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'inquiry-attachments'
+  and (storage.foldername(name))[1] = (select auth.jwt() ->> 'sub')
+);
+```
+
+**ユーザー ID をフォルダ名にする**のが、Storage での定番パターンです。パスの1階層目が自分の ID と一致するかを見れば、そのまま所有者チェックになります。
+
+`auth.jwt() ->> 'sub'` は JWT の subject、つまりユーザー ID です。`auth.uid()` と同じ値を指しますが、こちらは `text` 型で返ります。**現行の公式ドキュメントの Storage 向けポリシー例はこの書き方になっています。**`(select ...)` で包むのは第3章と同じ理由です。
+
+### 3. 管理者はすべて取り出せる
+
+```sql
+create policy "管理者はすべての添付を取り出せる"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id = 'inquiry-attachments'
+  and (select public.is_admin())
+);
+```
+
+第3章で作った `is_admin()` をそのまま使えます。**判定ロジックが1か所にまとまっているので、管理者の定義を変えたいときはテーブルの中身を変えるだけで済みます。**
+
+## アップロードする
+
+```ts
+const path = `anonymous/${crypto.randomUUID()}-${file.name}`;
+
+const { data, error } = await supabase.storage
+  .from("inquiry-attachments")
+  .upload(path, file);
+
+if (error) throw new Error(`添付ファイルのアップロードに失敗しました: ${error.message}`, { cause: error });
+```
+
+そのうえで、返ってきたパスを問い合わせの行に入れます。
+
+```ts
+const { error: insertError } = await supabase.from("inquiries").insert({
+  name,
+  email,
+  body,
+  attachment_path: data.path,
+});
+```
+
+**順番が大事です。**先にファイルを上げてパスを確定し、その後で行を作ります。逆にすると、行はあるのにファイルが無い状態が起きます。
+
+ファイル名に UUID を付けているのは、**同名ファイルの衝突を避ける**ためです。公式ドキュメントも「新しいパスへアップロードするのが推奨」と書いています。既存のパスへアップロードすると、既定では `400 Asset Already Exists` が返ります。上書きしたいなら明示します。
+
+```ts
+await supabase.storage.from("inquiry-attachments").upload(path, file, {
+  upsert: true,
+});
+```
+
+> 送信者が付けたファイル名をそのままパスに含めています。**パス区切りや制御文字が入ると想定外の階層に置かれる**可能性があるので、実運用ではファイル名を正規化するか、拡張子だけを取り出して残りは UUID にしてください。
+
+### サイズの上限
+
+| 項目 | 値 |
+|---|---|
+| 標準アップロードの推奨サイズ | **6MB 以下** |
+| 1ファイルの上限（Free プラン） | **50MB** |
+| 1ファイルの上限（Pro / Team） | 500GB |
+| 保存容量（Free プラン） | **1GB** |
+
+6MB を超えるファイルを扱う場合、公式は再開可能アップロード（TUS）を勧めています。**問い合わせの添付なら、バケット側の `fileSizeLimit` で 5MB 程度に絞ってしまう方が運用は楽です。**
+
+Free プランの 50MB は上限そのものなので、ダッシュボードの Storage Settings から引き上げることはできません。
+
+## 取り出す
+
+### 非公開バケットからの取り出し
+
+管理画面で添付を開けるようにします。**署名付き URL**を作ります。
+
+```ts
+const { data, error } = await supabase.storage
+  .from("inquiry-attachments")
+  .createSignedUrl(inquiry.attachment_path, 3600);
+
+if (error) throw new Error(`添付ファイルの URL を作れませんでした: ${error.message}`, { cause: error });
+
+// data.signedUrl を <a href> や <img src> に渡す
+```
+
+第2引数は有効期限（秒）です。上の例は1時間です。**期限を長くするほど、URL が漏れたときの影響が長引きます。**画面を開いた瞬間に発行して短めに切るのが基本です。
+
+`createSignedUrl` は非同期で、`error` を返します。
+
+### 公開バケットの場合
+
+`public: true` のバケットなら、URL を組み立てるだけです。
+
+```ts
+const { data } = supabase.storage.from("public-assets").getPublicUrl("logo.png");
+// data.publicUrl
+```
+
+**こちらは同期で、`error` を返しません。**URL を組み立てているだけで、権限の確認をしていないからです。この違いが、2つのバケット設定の違いをよく表しています。
+
+### 公開読み取りを非公開バケットで実現する場合
+
+「バケットは非公開だが、特定の条件で誰でも読めるようにしたい」というケースでは、`select` のポリシーを書くことになります。ここで注意点があります。
+
+公式ドキュメントは、公開読み取り用の例として次の形を示しています。
+
+```sql
+create policy "Avatar images are publicly accessible." on storage.objects
+  for select using (bucket_id = 'avatars' and storage.allow_any_operation(array['object.get_authenticated_info', 'object.get_authenticated']));
+```
+
+`storage.allow_any_operation(...)` を付けている理由を、公式はこう説明しています。
+
+> このフィルタが無いと、利用者がバケットの内容を一覧できてしまう
+
+**「ファイルを読めること」と「バケットに何が入っているかを一覧できること」は別**です。取得だけを許して一覧を許さない、という指定がこの関数の役割です。古い記事にある `for select using (bucket_id = 'avatars')` だけの例だと、一覧まで通ってしまいます。
+
+本コースの添付ファイルは管理者だけが読む設計なので、この形は使いません。**公開画像などを扱うときに思い出してください。**
+
+## 確かめる
+
+第3章と同じく、動くことを確認します。
+
+1. **訪問者としてアップロードできる**：ログインしていない状態でフォームから送信し、ダッシュボードの Storage 画面にファイルが現れることを確認します
+2. **訪問者として取り出せない**：同じ状態で `download` や `createSignedUrl` を呼び、**失敗する**ことを確認します
+3. **バケットを間違えられない**：パスの1階層目を `anonymous` 以外にしてアップロードしてみて、**拒否される**ことを確認します
+4. **管理者として取り出せる**：管理者アカウントで署名付き URL を作り、ファイルが開けることを確認します
+
+> **`new row violates row-level security policy` が出てアップロードできない**場合、`with check` の条件に合っていません。バケット ID とパスの1階層目を確認してください。**ポリシーを書く前は必ずこのエラーになります。**既定が閉じているからです。
+
+## やってみよう
+
+1. **バケットを作る**：`inquiry-attachments` を `public: false` で作り、`allowedMimeTypes` と `fileSizeLimit` を設定します
+2. **ポリシーを書く**：訪問者の insert、ログインユーザーの insert / select、管理者の select の4本をマイグレーションに追加します
+3. **フォームに添付欄を足す**：アップロード → パスを受け取る → 行を insert、の順で実装します
+4. **訪問者として取り出せないことを確認する**：ログアウトした状態で署名付き URL を作ろうとして、失敗することを確認します
+5. **管理画面で開く**：管理者としてログインし、添付が開けることを確認します
+6. **上限を試す**：`fileSizeLimit` を超えるファイルを選び、どんなエラーが返るかを見ておきます
+
+6番をやっておくと、利用者に見せるエラーメッセージを事前に考えられます。**「アップロードできません」だけの画面は、送信者にとって手詰まりです。**
+
+## まとめ
+
+- Storage のファイルは `storage.objects` の行として記録され、**アクセス制御は RLS で行う**。第3章と同じ考え方
+- **既定ではポリシーの無いバケットへのアップロードは一切許可されない。**テーブルとは逆で、閉じているのが初期状態
+- バケットの `public` の既定は `false`。問い合わせの添付は非公開にする
+- ポリシーには**必ず `bucket_id` の絞り込みを入れる**。`storage.objects` は全バケット共通のテーブル
+- ユーザー ID をフォルダ名にし、`(storage.foldername(name))[1]` で所有者を判定するのが定番
+- 非公開ファイルは `createSignedUrl` で期限を切って渡す。`getPublicUrl` は URL を組み立てるだけで権限を見ない
+- Free プランは**保存容量 1GB、1ファイル 50MB**。標準アップロードの推奨は 6MB 以下
+- 公開読み取りを許すときは、**取得と一覧が別物**であることに注意する
+
+## 理解度チェック
+
+**Q1. Storage のポリシーを書くとき、`bucket_id` の条件を入れ忘れるとどうなるでしょう？**
+
+1. ポリシーが構文エラーになる
+2. そのバケットにだけ適用され、特に問題はない
+3. プロジェクト内のすべてのバケットに対して同じ許可が適用される
+4. ポリシーが無視され、既定の拒否が続く
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：3**
+
+`storage.objects` はプロジェクト内のすべてのバケットのファイルを1枚のテーブルで保持しています。`bucket_id` で絞らないポリシーは全バケットが対象になるため、「問い合わせの添付だけ誰でもアップロードできる」つもりが「あらゆるバケットに誰でもアップロードできる」になります。
+
+</details>
+
+**Q2. 問い合わせの添付ファイルを管理画面で表示したい場合、適切な方法はどれでしょう？**
+
+1. バケットを `public: true` にして `getPublicUrl` を使う
+2. バケットは非公開のまま、`createSignedUrl` で期限付きの URL を作る
+3. secret key をクライアントに置いてダウンロードする
+4. `attachment_path` をそのまま `img` タグの `src` に渡す
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+`createSignedUrl` は期限付きの URL を発行するため、非公開バケットのままファイルを画面に表示できます。選択肢1はバケット全体が URL を知る誰にでも読める状態になり、送信者の添付には不適切です。選択肢3は RLS をバイパスするキーをブラウザに置くことになり、最も危険です。選択肢4はパスであって URL ではないので、そもそも表示されません。
+
+</details>
+
+## 参考リンク
+
+- [Storage Access Control（Supabase 公式）](https://supabase.com/docs/guides/storage/security/access-control) — `storage.objects` へのポリシー例、`storage.foldername`、一覧の制御
+- [Creating Buckets（Supabase 公式）](https://supabase.com/docs/guides/storage/buckets/creating-buckets) — `public` / `allowedMimeTypes` / `fileSizeLimit`
+- [Standard Uploads（Supabase 公式）](https://supabase.com/docs/guides/storage/uploads/standard-uploads) — アップロードの推奨サイズと upsert の挙動
+- [Storage File Limits（Supabase 公式）](https://supabase.com/docs/guides/storage/uploads/file-limits) — プラン別の1ファイル上限
+- [Serving assets（Supabase 公式）](https://supabase.com/docs/guides/storage/serving/downloads) — `createSignedUrl` と `getPublicUrl`

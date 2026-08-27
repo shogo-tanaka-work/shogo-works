@@ -128,16 +128,40 @@ export const subcategories: Partial<
   ],
   "web-development": [
     {
-      slug: "supabase",
-      label: "Supabase",
+      slug: "platform-choice",
+      label: "サービス選定ガイド",
       description:
-        "Postgres ベースのオープンソース BaaS。Database / Auth / Storage / Realtime / Edge Functions / RLS",
+        "最初に読む1本。Cloudflare / Vercel / Supabase のどれを選ぶか、どう組み合わせるかを、作るものの性質から判断するための基準",
+    },
+    {
+      slug: "cloudflare-curriculum",
+      label: "Cloudflare 入門コース",
+      description:
+        "はじめての方はこちら。問い合わせフォームと管理画面を Workers / D1 / R2 で作り、独自ドメインで公開するまでの全7章",
+    },
+    {
+      slug: "vercel-curriculum",
+      label: "Vercel 入門コース",
+      description:
+        "同じ題材を Next.js と Vercel で作る全7章。Preview 環境・Deployment Protection・外部データ層との組み合わせを扱う",
+    },
+    {
+      slug: "supabase-curriculum",
+      label: "Supabase 入門コース",
+      description:
+        "同じ題材を Supabase で作る全7章。RLS を軸に、一般ユーザーのログインまで含むアプリを組み立てる",
+    },
+    {
+      slug: "supabase",
+      label: "Supabase リファレンス",
+      description:
+        "入門コースを終えた方向け。Database / Auth / Storage / Realtime / Edge Functions / RLS を必要なときに引くための解説",
     },
     {
       slug: "vercel",
-      label: "Vercel",
+      label: "Vercel リファレンス",
       description:
-        "AI Cloud としてのデプロイプラットフォーム。Frameworks / Functions / Edge / WAF / AI Gateway / Sandbox",
+        "入門コースを終えた方向け。Frameworks / Functions / Routing Middleware / WAF / AI Gateway / Sandbox を必要なときに引くための解説",
     },
     {
       slug: "gas",
@@ -147,9 +171,9 @@ export const subcategories: Partial<
     },
     {
       slug: "cloudflare",
-      label: "Cloudflare",
+      label: "Cloudflare リファレンス",
       description:
-        "Connectivity Cloud 思想のエッジネットワーク。Workers / R2 / D1 / Durable Objects / Zero Trust / WAF / DNS をアーキテクト判断軸で整理",
+        "入門コースを終えた方向け。Workers / R2 / D1 / Durable Objects / Zero Trust / WAF / DNS をアーキテクト判断軸で整理",
     },
   ],
   "ai-governance": [

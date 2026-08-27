@@ -1,0 +1,284 @@
+---
+title: "2 テーブルを設計する｜プロジェクト作成とマイグレーション"
+description: "Supabase のプロジェクトを作り、問い合わせテーブルを設計します。ダッシュボードで書いた SQL をマイグレーションとして手元に残す方法と、2026年に変わったテーブル公開の既定を扱います。"
+category: "web-development"
+subcategory: "supabase-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 50
+prerequisites: ["supabase-01-what-we-build"]
+tags: ["Supabase", "カリキュラム", "Database", "Data API"]
+sortOrder: 20
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+第1章で決めた題材を、実際のテーブルに落とします。あわせて、**スキーマの変更を後から追えるように残す**やり方を最初に身につけます。
+
+- プロジェクトを作り、CLI から接続できる
+- 問い合わせテーブルを設計し、なぜその形かを説明できる
+- ダッシュボードで書いた SQL を**マイグレーションファイルとして手元に残せる**
+- 2026年に変わった「新しいテーブルを API に公開するかどうか」の既定がわかる
+
+手順は 2026-08 時点のものです。
+
+## プロジェクトを作る
+
+[supabase.com](https://supabase.com/) のダッシュボードから新しいプロジェクトを作ります。入力するのは主に3つです。
+
+| 項目 | 決め方 |
+|---|---|
+| **Name** | あとから変えられます。`inquiry-app` など |
+| **Database Password** | Postgres の `postgres` ユーザーのパスワード。**あとで CLI から使うので、パスワードマネージャに保存してください** |
+| **Region** | 利用者に近いリージョンを選びます。日本向けなら Tokyo |
+
+リージョンは**あとから変更できません**。ここだけは決め打ちしてください。
+
+### 「新しいテーブルを自動で公開する」の設定
+
+プロジェクト作成画面に、新しいテーブルを Data API へ自動的に公開するかどうかのトグルがあります（公式の表記は "Automatically expose new tables and functions"）。ここは仕様変更の途中にあるので、状況を整理します。
+
+| 時期 | 何が起きたか |
+|---|---|
+| 従来 | `public` スキーマに作ったテーブルは、`anon` / `authenticated` / `service_role` へ自動で権限が付き、API から到達できた |
+| 2026-04-28 | プロジェクト作成時に、この自動付与を切るトグルが選べるようになった |
+| 2026-05-30 | **新規プロジェクトでは自動公開しないのが既定**になった |
+| **2026-10-30** | **既存のすべてのプロジェクトにこの変更が適用される** |
+
+既存のテーブルは影響を受けません。公式は「既存テーブルは現在の権限を保ち、引き続き到達可能」と明記しています。変わるのは**これから作るテーブル**の扱いです。
+
+**このコースでは自動公開を切った状態を前提にします。**つまり、テーブルを作ったら権限を自分で書きます。手間は増えますが、「誰に何を許したか」がマイグレーションのファイルに残るので、第3章の RLS と話がつながります。
+
+すでに作ってしまったプロジェクトで同じ状態にしたいときは、SQL Editor で次を実行します。
+
+```sql
+alter default privileges for role postgres in schema public
+  revoke select, insert, update, delete on tables
+  from anon, authenticated, service_role;
+```
+
+## CLI をつなぐ
+
+ダッシュボードだけでも作業はできますが、**変更を手元に残すには CLI が要ります。**
+
+### インストール
+
+公式が案内しているのは、グローバルインストールではなく**プロジェクトの開発依存として入れる**方法です。
+
+```bash
+npm install supabase --save-dev
+```
+
+以降のコマンドは `npx supabase ...` で実行します。Homebrew を使っているなら `brew install supabase/tap/supabase` でも構いません。
+
+### 初期化とリンク
+
+```bash
+npx supabase init
+npx supabase login
+npx supabase link --project-ref <プロジェクトのID>
+```
+
+- `supabase init` は `supabase/config.toml` を作ります。ローカル実行時の設定ファイルです
+- `supabase login` はブラウザを開いてアクセストークンを取得します
+- `supabase link` は手元のディレクトリとクラウド上のプロジェクトを結び付けます。プロジェクト ID はダッシュボードの URL に含まれています
+
+`link` の途中でデータベースのパスワードを聞かれます。プロジェクト作成時に保存したものを入れてください。
+
+> **`supabase link` でパスワードが通らない場合**：ダッシュボードの Project Settings からデータベースパスワードをリセットできます。CI で実行する場合は `SUPABASE_DB_PASSWORD` 環境変数に入れておくと対話入力を飛ばせます。**リポジトリにコミットしてはいけません。**
+
+### ローカルで動かすかどうか
+
+`npx supabase start` を実行すると、Postgres・Auth・Storage・Studio などをコンテナで手元に立ち上げられます。**コンテナランタイムが必要です**（Docker Desktop のほか、Rancher Desktop / Podman / OrbStack / colima も公式に挙げられています）。全サービスを起動するには 7GB 以上の RAM が推奨されています。
+
+ローカル環境の利点は、**壊しても本番に影響しない**ことです。第3章で RLS を試すとき、これがかなり効きます。手元のマシンが厳しい場合はクラウドのプロジェクトだけで進められますが、その場合は本番用とは別に練習用プロジェクトを作ることをおすすめします。
+
+## テーブルを設計する
+
+問い合わせを1件ずつ行として持つテーブルを作ります。
+
+```sql
+create table public.inquiries (
+  id uuid primary key default gen_random_uuid(),
+  name text not null,
+  email text not null,
+  body text not null,
+  attachment_path text,
+  user_id uuid references auth.users on delete set null,
+  handled boolean not null default false,
+  created_at timestamptz not null default now()
+);
+```
+
+各列の意図を書いておきます。
+
+| 列 | なぜこうしたか |
+|---|---|
+| `id` | 連番ではなく UUID にしています。連番だと `/inquiries/1` のような URL から件数や他人の ID が推測できてしまいます |
+| `email` | 送信者の連絡先。フォームの入力値であって、ログインユーザーのメールとは限りません |
+| `attachment_path` | 添付ファイルの実体は Storage に置き、ここにはその場所だけを持ちます（第5章） |
+| `user_id` | **ログインした状態で送った場合だけ**入ります。ログイン不要のフォームなので `not null` にはできません |
+| `handled` | 対応済みフラグ。管理画面から更新します |
+| `created_at` | `timestamptz` にします。`timestamp` はタイムゾーン情報を持たないので、後で必ず困ります |
+
+`user_id` が nullable なのがこの設計の要点です。**同じテーブルに「匿名で送られた行」と「ログインユーザーが送った行」が混ざります。**第3章のポリシーは、この2種類を区別して書くことになります。
+
+### 権限を書く
+
+自動公開を切っているので、どのロールに何を許すかを明示します。
+
+```sql
+revoke all on table public.inquiries from anon, authenticated;
+
+grant insert on table public.inquiries to anon;
+grant select, insert, update on table public.inquiries to authenticated;
+```
+
+読み方はこうです。
+
+- **`anon`（ログインしていない訪問者）は insert だけ。**フォームから送信はできるが、読むことはできない
+- **`authenticated`（ログイン済みユーザー）は select / insert / update。**ただし「どの行を」は、この時点ではまだ決まっていない
+
+**ここが誤解しやすいところです。**`grant` は「この操作を使ってよい」という粗い許可で、「どの行に対して」は決めません。行の絞り込みは RLS の仕事です。だから `grant` を書いただけでは、`authenticated` なユーザーが**全員の問い合わせを読める状態**になります。
+
+第3章でそれを塞ぎます。
+
+## マイグレーションとして残す
+
+上の SQL を SQL Editor に貼って実行すれば、テーブル自体は作れます。**しかしそれだけだと、半年後に「なぜこの列があるのか」を追えません。**
+
+Supabase CLI は、スキーマ変更を**タイムスタンプ付きの SQL ファイル**として `supabase/migrations/` に残す仕組みを持っています。
+
+### 手で書く場合
+
+```bash
+npx supabase migration new create_inquiries
+```
+
+`supabase/migrations/20260828093000_create_inquiries.sql` のようなファイルが作られます（数字部分はタイムスタンプ）。ここに上の SQL を書きます。
+
+ローカル環境があるなら、作ったマイグレーションを最初から流し直して確認できます。
+
+```bash
+npx supabase db reset
+```
+
+これはローカルの Postgres を作り直し、`supabase/migrations/` を古い順に全部適用します。**「まっさらな状態から今のスキーマが再現できるか」を確かめるコマンド**だと考えてください。ここで失敗するなら、マイグレーションのどこかが壊れています。
+
+問題なければクラウド側へ反映します。
+
+```bash
+npx supabase db push
+```
+
+`--dry-run` を付けると、何が適用されるかだけを確認できます。**初めて実行するときは必ず付けてください。**
+
+### ダッシュボードで先に触ってしまった場合
+
+実際には、ダッシュボードの Table Editor で試行錯誤してから「これで確定」となることが多いはずです。その場合は、クラウド側の現状と手元のマイグレーションの差分を取り出せます。
+
+```bash
+npx supabase db diff --linked -f create_inquiries
+```
+
+`-f` を付けると、差分を新しいマイグレーションファイルとして書き出します。**ダッシュボードで作業した日は、帰る前にこれを実行する**、というのを習慣にすると履歴が途切れません。
+
+差分エンジンは複数から選べるようになっており、フラグとして `--use-migra` / `--use-pg-delta` / `--use-pg-schema` / `--use-pgadmin` が用意されています。
+
+### 適用状況を確認する
+
+```bash
+npx supabase migration list --linked
+```
+
+手元の `supabase/migrations` とリモートの適用済み一覧を突き合わせて表示します。「ローカルにあるのにリモートに無い」ものが、これから適用されるものです。
+
+## 型を生成する
+
+テーブルの定義から TypeScript の型を作れます。
+
+```bash
+npx supabase gen types typescript --linked > src/database.types.ts
+```
+
+ローカル環境を使っているなら `--local` に置き換えます。生成した型は、クライアントを作るときに渡します。
+
+```ts
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "./database.types";
+
+const supabase = createClient<Database>(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+);
+```
+
+これで `supabase.from("inquiries").select()` の戻り値に列の型が付きます。**列名を打ち間違えたらエディタが教えてくれる**状態になるので、早めに入れておく価値があります。
+
+キーの値はコードに直書きせず、環境変数から読みます。publishable key はクライアントに露出してよいキーですが、**プロジェクトごとに違う値なので、環境変数にしておかないと本番と開発を切り替えられません。**
+
+> `gen types` の書き方はドキュメント内で2通り見られます。コマンドリファレンスは `--lang=typescript` フラグ形式、ガイドは `gen types typescript` の位置引数形式です。どちらも公式に載っています。
+
+## やってみよう
+
+1. **プロジェクトを作る**：リージョンを選び、データベースパスワードを保存します。「新しいテーブルを自動で公開する」のトグルは**切って**ください
+2. **CLI をつなぐ**：`npm install supabase --save-dev` → `npx supabase init` → `npx supabase login` → `npx supabase link --project-ref ...`
+3. **マイグレーションを書く**：`npx supabase migration new create_inquiries` で作られたファイルに、テーブル定義と `grant` を書きます
+4. **適用する**：`npx supabase db push --dry-run` で内容を確認してから、`--dry-run` 無しで実行します
+5. **公開されていることを確かめる**：ダッシュボードの Table Editor に `inquiries` が現れるのを確認します
+6. **危険な状態を体験する**：SQL Editor で `insert into public.inquiries (name, email, body) values ('テスト', 'test@example.com', '本文');` を実行し、行を1件入れておきます。**この行が第3章の題材になります**
+
+6番は必ずやっておいてください。第3章の冒頭で、この行がブラウザから誰にでも読めることを確認します。
+
+## まとめ
+
+- リージョンは後から変えられない。データベースパスワードは CLI で使うので保存しておく
+- **2026-10-30 に、`public` スキーマの新しいテーブルを Data API へ自動公開しない変更が全プロジェクトへ適用される。**新規プロジェクトは 2026-05-30 から既定。既存テーブルは影響を受けない
+- 自動公開を切ると、`grant` を自分で書くことになる。「誰に何を許したか」がコードに残る
+- `grant` は**操作の許可**であって、**行の絞り込みではない**。行の制御は RLS の仕事
+- ダッシュボードで作った変更は `supabase db diff --linked -f 名前` でマイグレーションに落とす
+- `supabase db reset` は「まっさらから今のスキーマを再現できるか」の検査になる
+- `gen types` で列名のミスをエディタが検出できるようにしておく
+
+## 理解度チェック
+
+**Q1. `grant insert on table public.inquiries to anon;` を書きました。この時点で `anon` は何ができる状態でしょう？**
+
+1. どの行も読めないが、行を挿入できる
+2. 自分が挿入した行だけ読める
+3. 挿入も読み取りもできない
+4. すべての行を読み書きできる
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：1**
+
+`grant` は「その操作を使ってよい」という許可です。`insert` だけを許したので、挿入はできますが `select` は権限そのものがありません。ただし「自分が挿入した行だけ読める」といった**行単位の絞り込みは grant では表現できません**。それは RLS の役割で、第3章で扱います。
+
+</details>
+
+**Q2. ダッシュボードの Table Editor で列を追加しました。この変更を履歴に残す方法として適切なのはどれでしょう？**
+
+1. `supabase db push` を実行する
+2. `supabase db diff --linked -f 名前` で差分をマイグレーションファイルに書き出す
+3. `supabase db reset` を実行する
+4. `supabase migration list` を実行する
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+`db diff` はリモートの現状と手元のマイグレーションの差分を取り、`-f` を付けると新しいマイグレーションファイルとして保存します。`db push` は逆向き（手元 → リモート）、`db reset` はローカルを作り直すコマンド、`migration list` は適用状況の確認だけです。
+
+</details>
+
+## 参考リンク
+
+- [Getting started with the Supabase CLI（Supabase 公式）](https://supabase.com/docs/guides/local-development/cli/getting-started) — インストールとローカル環境の要件
+- [supabase db diff（CLI リファレンス）](https://supabase.com/docs/reference/cli/supabase-db-diff) — 差分エンジンのフラグ
+- [Breaking Change: Tables not exposed to Data and GraphQL API automatically（Supabase Changelog）](https://supabase.com/changelog/45329-breaking-change-tables-not-exposed-to-data-and-graphql-api-automatically) — 自動公開停止の日程と移行手順
+- [Generating TypeScript Types（Supabase 公式）](https://supabase.com/docs/guides/api/rest/generating-types) — 型生成の書き方

@@ -1,0 +1,399 @@
+---
+title: "3 RLS を理解する｜書かないと何が公開されるか"
+description: "本コースの中心となる章です。ポリシーを書かないテーブルが実質公開になる理由を実際に確かめ、誰でも送信できるが誰にも読めない問い合わせテーブルを設計します。ビューが RLS を迂回する問題も扱います。"
+category: "web-development"
+subcategory: "supabase-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 70
+prerequisites: ["supabase-02-schema-and-migrations"]
+tags: ["Supabase", "カリキュラム", "RLS", "セキュリティ"]
+sortOrder: 30
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+**本コースの中心はこの章です。**ここを理解しないまま公開すると、問い合わせの内容が誰にでも読める状態になります。
+
+- **ポリシーを書かないと何が起きるか**を、実際に確かめられる
+- `using` と `with check` の使い分けがわかる
+- 「誰でも insert できるが、select はできない」テーブルを作れる
+- 管理者だけが読める・更新できる設計ができる
+- **ビューが RLS を迂回する**問題と、その塞ぎ方がわかる
+
+手順は 2026-08 時点のものです。
+
+## まず、穴が開いた状態を見る
+
+安全装置の話は、危ない状態を見てからの方が早く入ります。**わざと穴を開けて、確かめて、塞ぎます。**
+
+第2章で `anon` には `insert` しか許していないので、そのままでは読めません。実験のため、一時的に読み取りを許可します。
+
+```sql
+-- 実験用。このあと必ず取り消します
+grant select on table public.inquiries to anon;
+```
+
+この状態で、ブラウザ側から使うのと同じ publishable key を持って、API を叩いてみます。
+
+```bash
+curl "https://<プロジェクトID>.supabase.co/rest/v1/inquiries?select=*" \
+  -H "apikey: <publishable key>"
+```
+
+第2章の演習で入れておいた行が、そのまま JSON で返ってきます。
+
+```json
+[{"id":"...","name":"テスト","email":"test@example.com","body":"本文","handled":false,"created_at":"..."}]
+```
+
+**この publishable key は、公式ドキュメントが「Web ページやソースコードに置いて安全」と説明しているキーです。**ブラウザの開発者ツールを開けば、サイトを訪れた誰でも読み取れます。つまりいまの状態は、問い合わせフォームに送られたメールアドレスと本文が、**全世界に公開されている**のと同じです。
+
+公式ドキュメントは、この状態をこう表現しています。
+
+> 公開されたスキーマにあって RLS の無いテーブルは、それに対する grant を持つあらゆるロールから読み書きできる
+
+「あらゆるロール」には `anon`、つまり**ログインしていない訪問者**が含まれます。
+
+### なぜ Supabase はこの設計なのか
+
+第1章で触れたとおり、Supabase の Data API はテーブルを作ると自動で生えます。サーバー側にアクセス制御を書く場所がありません。
+
+だから Supabase は、**制御をデータベースの中に置く**という設計を選んでいます。それが RLS（Row Level Security、行レベルセキュリティ）です。Supabase が発明したものではなく、Postgres が持っている標準機能です。
+
+**「サーバーコードを書かなくていい」の代償が「RLS を必ず書く」です。**ここは省略できません。
+
+実験は終わりなので、権限を戻します。
+
+```sql
+revoke select on table public.inquiries from anon;
+```
+
+## RLS を有効にする
+
+まずテーブルに対して RLS を有効化します。
+
+```sql
+alter table public.inquiries enable row level security;
+```
+
+**有効にした直後は、どの行にもアクセスできなくなります。**RLS は「ポリシーで明示的に許可された行だけを見せる」仕組みなので、ポリシーが1つも無い状態は「すべて拒否」を意味します。
+
+これは覚えやすい性質です。
+
+- **ポリシーが無い = 通らない**
+- **ポリシーがある = その条件に合う行だけ通る**
+- **ポリシーが複数ある = どれか1つでも合えば通る**（OR で結合される）
+
+3つ目に注意してください。ポリシーを足すのは**穴を開ける**行為であって、条件を厳しくする行為ではありません。
+
+> **例外があります。**secret key（旧 `service_role` key）は `bypassrls` 属性を持つ Postgres ロールで動くため、**RLS を完全に無視します。**公式ドキュメントも「ブラウザで使ってはいけない、顧客に露出させてはいけない」と明記しています。第6章で置き場所を扱います。
+
+## ポリシーの書き方
+
+ポリシーは SQL で書きます。構文の骨格はこうです。
+
+```sql
+create policy "ポリシーの名前"
+on テーブル名
+for select | insert | update | delete
+to ロール名
+using ( 条件 )
+with check ( 条件 );
+```
+
+### `using` と `with check` の違い
+
+ここが最初のつまずきどころです。公式の説明を要約すると、こうなります。
+
+| | 何を判定するか | 使う操作 |
+|---|---|---|
+| **`using`** | **すでにある行**が対象になるか（見えるか、更新・削除の対象になるか） | select / update / delete |
+| **`with check`** | **これから生まれる行**が許されるか | insert / update |
+
+`update` だけが両方を持ちます。「どの行を書き換えてよいか（`using`）」と「書き換えた結果がどんな行なら許されるか（`with check`）」を別々に指定できるからです。
+
+**`insert` に `using` は書けません。**まだ行が存在しないので、判定するものがないからです。ここを間違えるとエラーになります。
+
+## 題材に合わせて設計する
+
+作るのは、次の3つの面を持つテーブルでした。
+
+| 誰が | 何をできるべきか |
+|---|---|
+| 訪問者（`anon`） | **送信できる。しかし何も読めない** |
+| ログインユーザー（`authenticated`） | 送信できる。**自分が送った分だけ**読める |
+| 管理者 | **すべて読める。対応済みフラグを更新できる** |
+
+これを1つずつポリシーにします。
+
+### 1. 誰でも送信できるが、読めない
+
+```sql
+create policy "誰でも問い合わせを送信できる"
+on public.inquiries
+for insert
+to anon
+with check ( user_id is null );
+```
+
+**`select` のポリシーを書かないことが、そのまま「読めない」を意味します。**わざわざ「読めない」と書く必要はありません。ポリシーが無ければ通らないからです。
+
+`with check ( user_id is null )` を入れているのは、**ログインしていない送信者が `user_id` に他人の ID を書き込むのを防ぐ**ためです。API のリクエストボディは送信側が自由に組み立てられるので、「フォームにその入力欄が無い」ことは何の保証にもなりません。ここを `true` にしてしまうと、第三者が「この問い合わせは田中さんが送った」という行を作れてしまいます。
+
+> **API に送られてくる値を信用しない、というのは RLS でも同じです。**画面に入力欄が無くても、`curl` からは何でも送れます。
+
+### 2. ログインユーザーは自分の分だけ読める
+
+```sql
+create policy "ログインユーザーは自分の問い合わせを送信できる"
+on public.inquiries
+for insert
+to authenticated
+with check ( user_id = (select auth.uid()) );
+
+create policy "ログインユーザーは自分の問い合わせだけ読める"
+on public.inquiries
+for select
+to authenticated
+using ( user_id = (select auth.uid()) );
+```
+
+`auth.uid()` は、**リクエストしてきたユーザーの ID を返す関数**です。Supabase Auth が発行したトークンから取り出されます。第4章でログインを付けると、この値が入るようになります。
+
+**`(select auth.uid())` と `select` で包んでいるのには理由があります。**公式のパフォーマンス推奨で、こう書くと Postgres が関数の結果を1回だけ評価してキャッシュします。包まないと**行ごとに評価**されるため、行数が増えたときに効いてきます。行の内容に依存しない関数にだけ使える書き方です。
+
+### 3. 管理者だけがすべてを読み、更新できる
+
+管理者かどうかをどこに持つかを決めます。**ユーザー自身が変更できる場所に置いてはいけません。**
+
+```sql
+create table public.admin_users (
+  user_id uuid primary key references auth.users on delete cascade
+);
+
+alter table public.admin_users enable row level security;
+-- ポリシーを1つも書かない = API 経由では誰も読み書きできない
+```
+
+このテーブルには**ポリシーを書きません。**管理者の追加はダッシュボードの SQL Editor から行う運用にします。API から触れる必要が無いものは、触れないままにしておくのが安全です。
+
+判定用の関数を用意します。
+
+```sql
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.admin_users where user_id = auth.uid()
+  );
+$$;
+```
+
+**`security definer` が要る理由**を押さえてください。この関数は `admin_users` を読みますが、`admin_users` には RLS が有効でポリシーがありません。呼び出したユーザーの権限のまま実行すると、**何も読めないので常に false になります。**`security definer` を付けると関数の作成者の権限で動くので、判定ができます。
+
+`set search_path = ''` は公式が併記している書き方です。`security definer` の関数は強い権限で動くため、参照するスキーマを固定しておかないと、悪意のあるスキーマを差し込まれる余地が生まれます。**この2つはセットで書く**と覚えてください。
+
+そのうえでポリシーを書きます。
+
+```sql
+create policy "管理者はすべての問い合わせを読める"
+on public.inquiries
+for select
+to authenticated
+using ( (select public.is_admin()) );
+
+create policy "管理者は対応済みフラグを更新できる"
+on public.inquiries
+for update
+to authenticated
+using ( (select public.is_admin()) )
+with check ( (select public.is_admin()) );
+```
+
+`select` のポリシーが2つになりました。前節の「自分の分だけ」と、この「管理者はすべて」です。**複数のポリシーは OR で結合される**ので、「自分の行、または管理者ならすべて」という意味になります。狙いどおりです。
+
+`update` に `using` と `with check` の両方を書いているのは、**管理者が更新できる行の範囲**（`using`）と、**更新後の行として許される形**（`with check`）の両方を管理者に限定するためです。`with check` を省くと `using` が両方に使われますが、意図を明示しておく方が読みやすくなります。
+
+### `handled` 以外も更新できてしまう問題
+
+上のポリシーだと、管理者は `body` や `email` も書き換えられます。**RLS は「どの行か」を制御しますが、「どの列か」は制御しません。**列を絞りたい場合は、`grant update (handled) on public.inquiries to authenticated;` のように列を指定した `grant` を使うか、更新を第6章の Edge Functions に寄せます。
+
+## 塞げたことを確かめる
+
+**設定しただけで安心するのが、いちばん危ない状態です。**必ず確認してください。
+
+### 1. 訪問者として読めないこと
+
+```bash
+curl "https://<プロジェクトID>.supabase.co/rest/v1/inquiries?select=*" \
+  -H "apikey: <publishable key>"
+```
+
+**空の配列 `[]` が返れば成功です。**エラーではなく空配列が返るのが RLS の挙動です。「見えない」は「存在しない」と区別されません。
+
+### 2. 訪問者として送信できること
+
+```bash
+curl -X POST "https://<プロジェクトID>.supabase.co/rest/v1/inquiries" \
+  -H "apikey: <publishable key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"確認用","email":"check@example.com","body":"送信テスト"}'
+```
+
+これは成功します。**送れるが読めない、という状態が公開フォームの正解です。**
+
+### 3. `user_id` を偽装できないこと
+
+```bash
+curl -X POST "https://<プロジェクトID>.supabase.co/rest/v1/inquiries" \
+  -H "apikey: <publishable key>" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"偽装","email":"x@example.com","body":"本文","user_id":"00000000-0000-0000-0000-000000000000"}'
+```
+
+**拒否されれば成功です。**`with check ( user_id is null )` が効いています。
+
+> **`new row violates row-level security policy for table "inquiries"` というエラーが出たら**、`with check` の条件に合わなかったという意味です。insert が拒否されたときに出る典型的なメッセージなので、条件を見直してください。
+
+### 4. Security Advisor で見る
+
+ダッシュボードの Advisors には、RLS まわりの問題を検出するチェックが入っています。**テーブルを増やしたら毎回ここを見る**運用にすると、有効化し忘れを拾えます。
+
+## ビューは RLS を迂回する
+
+**ここは知らないと必ず踏みます。**
+
+管理画面用に、集計したビューを作りたくなったとします。
+
+```sql
+-- 危険な例
+create view public.inquiry_summary as
+  select created_at::date as day, count(*) as total
+  from public.inquiries
+  group by 1;
+```
+
+公式ドキュメントはこう書いています。
+
+> ビューは既定で RLS を迂回する。通常 `postgres` ユーザーで作られるためである。これは Postgres の仕様で、ビューは自動的に `security definer` として作られる
+
+つまり**このビュー経由なら、RLS で守ったはずのテーブルの中身が見えてしまいます。**上の例は件数だけですが、`select *` のビューを作れば全件が漏れます。
+
+塞ぎ方は、ビューを**呼び出したユーザーの権限で動かす**ことです（Postgres 15 以降）。
+
+```sql
+create view public.inquiry_summary
+with (security_invoker = true)
+as
+  select created_at::date as day, count(*) as total
+  from public.inquiries
+  group by 1;
+```
+
+これでベーステーブルの RLS が効くようになります。管理者としてログインしていれば全件が集計され、一般ユーザーなら自分の分だけが集計されます。
+
+記法は `security_invoker = true` と `security_invoker = on` の両方が公式ドキュメント内に出てきます。Postgres の真偽値なので同じ意味です。
+
+ダッシュボードの Advisors にも、この問題を指摘する項目（`security_definer_view`）があります。**ビューを作ったら Advisors を確認する**、というのを習慣にしてください。
+
+## つまずきやすいところ
+
+| 症状 | 原因 |
+|---|---|
+| RLS を有効にしたら**何も見えなくなった** | 正常です。ポリシーが無い状態は「すべて拒否」。必要なポリシーを足してください |
+| ダッシュボードでは見えるのに、アプリからは見えない | ダッシュボードの Table Editor は強い権限で動きます。**動作確認は必ずアプリ側か publishable key で行ってください** |
+| ポリシーを追加したら**逆に緩くなった** | ポリシーは OR で結合されます。絞り込みたい場合は既存のポリシーの条件を直します |
+| ログインしていないのに条件が通った | `auth.uid()` は未認証だと null を返します。null との比較は黙って偽になりますが、公式は `auth.uid() is not null and ...` の形で明示することを勧めています |
+| 行が増えたら急に遅くなった | ポリシーが参照する列にインデックスを張ってください。公式は大きいテーブルで 100 倍を超える改善例を挙げています。関数呼び出しを `(select ...)` で包むのも同じ理由です |
+| `to` を省いている | `to authenticated` のようにロールを明示すると、Postgres が処理に入る前に対象外のロールを外せます |
+
+もう1つ、権限判定に使ってはいけない場所があります。**JWT の `user_metadata` はユーザー自身が書き換えられます。**管理者フラグをここに置くと、誰でも管理者になれてしまいます。公式は認可には `app_metadata`（ユーザーが変更できない）を使うよう指示しています。本章では、そもそもデータベースのテーブルに持たせる形にしました。
+
+## やってみよう
+
+1. **穴を見る**：`grant select on table public.inquiries to anon;` を実行し、publishable key だけで全件が読めることを `curl` で確認します。**確認したら必ず `revoke` してください**
+2. **RLS を有効にする**：`alter table public.inquiries enable row level security;` を実行し、何も見えなくなることを確認します
+3. **公開フォームのポリシーを書く**：`anon` の insert ポリシーを作り、送信できて読めないことを確認します
+4. **偽装を試す**：`user_id` を勝手に指定した insert が拒否されることを確認します
+5. **管理者を作る**：`admin_users` テーブルと `is_admin()` 関数を作り、SQL Editor から自分のユーザー ID を登録します（ユーザーは第4章で作るので、ここは第4章のあとでも構いません）
+6. **ビューで試す**：`security_invoker` を付けないビューを作り、RLS を迂回することを確認してから付け直します
+7. **マイグレーションに残す**：ここまでの SQL を `supabase migration new add_inquiries_policies` で作ったファイルにまとめます
+
+**1番と6番を飛ばさないでください。**「危ない状態を自分の目で見る」ことが、この章の実質です。
+
+## まとめ
+
+- **RLS の無いテーブルは実質公開。**publishable key はクライアントに露出する前提のキーなので、鍵で守られているとは言えない
+- **RLS を有効にしただけの状態は「すべて拒否」。**ポリシーは穴を開ける行為で、複数書くと OR で結合される
+- `using` は既存の行、`with check` はこれから生まれる行。insert は `with check` だけ、update は両方
+- **「送れるが読めない」は select ポリシーを書かないことで実現する**
+- 入力値は信用しない。`user_id` を `with check` で縛らないと、送信者が他人になりすませる
+- 管理者判定はユーザーが変更できない場所に置く。`security definer` + `set search_path = ''` はセットで書く
+- **ビューは既定で RLS を迂回する。**`security_invoker = true` を付ける
+- 関数呼び出しは `(select ...)` で包み、ポリシーが参照する列にはインデックスを張る
+- secret key は RLS を無視する。ブラウザ側に置かない
+
+## 理解度チェック
+
+**Q1. 問い合わせテーブルに `for insert to anon with check (true)` のポリシーだけを書きました。`anon` はどうなるでしょう？**
+
+1. 送信も読み取りもできる
+2. 送信できるが、読み取りはできない
+3. 送信できず、読み取りだけできる
+4. 送信も読み取りもできない
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+RLS は「ポリシーで許可された操作だけを通す」仕組みなので、`select` のポリシーが無ければ読み取りは通りません。公開フォームで欲しいのはまさにこの状態です。ただし `with check (true)` だと `user_id` を含む任意の値を書き込めてしまうので、本文中では `with check (user_id is null)` にしています。
+
+</details>
+
+**Q2. RLS を有効にしたテーブルを参照するビューを作りました。何もしないと何が起きるでしょう？**
+
+1. ビューにも自動的に同じ RLS が適用される
+2. ビューは作成者の権限で動くため、ベーステーブルの RLS を迂回して中身が見える
+3. ビューの作成そのものが拒否される
+4. ビューは常に空を返す
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+Postgres のビューは既定で `security definer` として作られ、通常は `postgres` ユーザーが作成者になります。そのためベーステーブルの RLS が効かず、意図せず中身が露出します。Postgres 15 以降では `with (security_invoker = true)` を付けることで、呼び出したユーザーの権限で動くようになります。ダッシュボードの Advisors もこの問題を検出します。
+
+</details>
+
+**Q3. 「自分の行だけ読める」ポリシーがあるテーブルに、「管理者はすべて読める」ポリシーを追加しました。結果はどうなるでしょう？**
+
+1. 条件が AND で結合され、管理者かつ自分の行だけが読める
+2. 条件が OR で結合され、自分の行または管理者ならすべてが読める
+3. あとから書いたポリシーが前のものを上書きする
+4. ポリシーが競合するためエラーになる
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+同じ操作に対する複数のポリシーは OR で結合されます。つまりポリシーを足すことは、条件を厳しくするのではなく**許可を広げる**ことです。絞り込みたいときは新しいポリシーを足すのではなく、既存のポリシーの条件そのものを直します。
+
+</details>
+
+## 参考リンク
+
+- [Row Level Security（Supabase 公式）](https://supabase.com/docs/guides/database/postgres/row-level-security) — ポリシー構文、`using` と `with check`、ビューと `security_invoker`
+- [RLS Performance and Best Practices（Supabase 公式）](https://supabase.com/docs/guides/troubleshooting/rls-performance-and-best-practices-Z5Jjwv) — `(select ...)` で包む理由、インデックス、結合の向き
+- [Understanding API keys（Supabase 公式）](https://supabase.com/docs/guides/api/api-keys) — publishable key と secret key の扱い
+- [Custom Claims & Role-based Access Control（Supabase 公式）](https://supabase.com/docs/guides/api/custom-claims-and-role-based-access-control-rbac) — ロールが増えたときの本格的な設計
+- [Database Advisors: security_definer_view（Supabase 公式）](https://supabase.com/docs/guides/database/database-advisors?lint=0010_security_definer_view) — ビューの検出項目

@@ -1,0 +1,290 @@
+---
+title: "7 公開して運用する｜ドメイン・環境変数・Observability・費用"
+description: "独自ドメインの接続と SSL、環境ごとの環境変数の管理、Observability と Runtime Logs での監視、そして Hobby と Pro の費用構造までを扱う最終章。Cloudflare 入門コース・Supabase 入門コースとの使い分けも整理します。"
+category: "web-development"
+subcategory: "vercel-curriculum"
+difficulty: "beginner"
+contentType: "course"
+estimatedMinutes: 50
+prerequisites: ["vercel-06-protecting-admin"]
+tags: ["Vercel", "カリキュラム", "Domains", "Observability"]
+sortOrder: 70
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## このレッスンでわかること
+
+最終章です。**作ったものを、自分のドメインで公開して運用する状態にします。**
+
+- 独自ドメインを接続し、SSL が自動で付くところまで進められる
+- 環境ごとの環境変数を、事故を起こさない形で管理できる
+- 動かしたあとに見る場所（Observability・Runtime Logs）と、費用の構造がわかる
+
+最後に、3つの入門コースの使い分けを整理します。
+
+## 独自ドメインをつなぐ
+
+### 手順（2026-08 時点）
+
+1. プロジェクトの **Settings → Domains** を開きます
+2. **Add Domain** で持っているドメイン（例: `example.com`）を入力します
+3. 画面に表示された DNS レコードを、ドメインを管理しているサービス側に登録します
+4. 反映されると、Vercel の画面上で有効な状態に変わります
+
+登録するレコードは2種類です。
+
+| 対象 | レコード種別 |
+|---|---|
+| apex ドメイン（`example.com`） | **A レコード** |
+| サブドメイン（`www.example.com`） | **CNAME レコード** |
+
+DNS 側の設定は、次のような形になります（**値はダミーです。実際の値は Vercel の画面に表示されます**）。
+
+```text
+example.com.        A       <ドメインカードに表示された IP>
+www.example.com.    CNAME   <プロジェクト固有のホスト名>.vercel-dns-0NN.com
+```
+
+**具体的な値は必ず画面に表示されたものを使ってください。**
+
+- CNAME の値は**プロジェクトごとに固有**です（`<ハッシュ>.vercel-dns-0NN.com` の形）。古い記事に出てくる `cname.vercel-dns.com` という固定値は、現行のドキュメントには載っていません
+- A レコードの IP も、公式ドキュメント本体には固定値の記載がありません。サポート記事では一般的な値に触れつつ、**「必ずプロジェクトのドメインカードに表示された値を使うこと」**と案内されています
+
+ワイルドカード（`*.example.com`）を使う場合は、Vercel のネームサーバーを使う方式が必須です。
+
+### apex と www のどちらを主にするか
+
+**公式は「`www` を主（primary）にして、apex から `www` へリダイレクトする」構成を推奨しています。**理由は、CNAME で受けたほうが CDN 側でトラフィックを制御しやすく、信頼性・速度・セキュリティの面で有利だからです（DNS の仕様上、apex には CNAME を置けません）。
+
+逆向き（`www` → apex）も動作しますが、制御の余地は狭くなります。
+
+リダイレクトの設定は Settings → Domains で対象のドメインの **Edit** を開き、**Redirect to** で転送先を選びます。
+
+### SSL
+
+**ドメインをプロジェクトへ追加した時点で、Vercel が証明書の発行を自動で試みます。**認証局は Let's Encrypt です。ワイルドカード以外は HTTP-01、ワイルドカードは DNS-01 で検証されます。
+
+つまずくとしたらここです。
+
+> **CAA レコードが Let's Encrypt を許可していないと、証明書の発行がブロックされます。**「DNS は合っているのに証明書が出ない」ときは、既存の CAA レコードを確認してください。
+
+`/.well-known` は予約パスなので、リダイレクトや rewrite の対象にしないでください。証明書の検証に使われます。
+
+## 環境変数を運用に耐える形にする
+
+第2章と第5章で扱った環境変数を、運用の視点で整理します。
+
+### スコープ
+
+| スコープ | 適用先 |
+|---|---|
+| Production | production デプロイ |
+| Preview | 非 production のデプロイ。**全ブランチ共通か、特定ブランチかを選べる** |
+| Development | ローカル（`vercel env pull` が読むのはここ） |
+
+ブランチ固有の変数は、同名の Preview 変数を上書きします。どの環境に何が入っているかは CLI で一覧できます。
+
+```bash
+vercel env ls
+```
+
+
+
+**最も事故が多いのはここです。**
+
+> **環境変数の変更は、過去のデプロイには適用されません。**新しいデプロイからのみ有効になります。「値を直したのに直らない」ときは、**再デプロイしたかどうか**を先に確認してください。
+
+第3章で扱った Instant Rollback でも環境変数は戻りません。**「デプロイを戻せば全部戻る」と考えないでください。**
+
+### 秘密の値の扱い
+
+- **Sensitive Environment Variables** は、作成後に値を読み取れない環境変数です。**production と preview でのみ作成できます**（Development では作れません）
+- 既存の変数を sensitive にするには、削除して作り直します
+- ビルドログでは、**32文字以上**の sensitive な値が出力に現れると `[REDACTED]` に置換されます。`VERCEL_AUTOMATION_BYPASS_SECRET` と `VERCEL_OIDC_TOKEN` は長さに関係なく常に伏せられます
+- チーム設定で **Enforce Sensitive Environment Variables** を有効にすると、以後 Production / Preview で作る変数はすべて sensitive になります
+
+**第5章でつないだデータベースの接続情報は、この扱いにしておくのが安全です。**
+
+### クライアントへ出る変数
+
+Next.js では `NEXT_PUBLIC_` が付いた変数だけがブラウザ側のコードへ入ります。**この接頭辞を秘密の値に付けないでください。**付けた瞬間、ページのソースを見れば読めるようになります。
+
+Vercel のシステム環境変数（`VERCEL_ENV` など）については、**production と preview のビルドでは `NEXT_PUBLIC_` 付きの名前も自動で用意されますが、`vercel env pull` でローカルへ降ろすときは接頭辞が付きません。**ローカルでも同じ名前で使いたい場合は、プロジェクト側に接頭辞付きの名前で明示的に定義する必要があります。
+
+サイズの上限も知っておいてください。**1デプロイあたり合計 64KB** です。大きな JSON を環境変数へ入れる設計は、この壁に当たります。
+
+## 動かしたあとに見る場所
+
+### Observability
+
+プロジェクトの **Observability** タブで、Functions・CDN のリクエスト・データ転送・Blob などの利用状況が見られます。**追加費用なしで全プランが使えます**（見られる範囲には制限があります）。
+
+有料の **Observability Plus** は Pro（有料）と Enterprise 向けで、**100万イベントあたり $1.20** の従量課金です。データの保持期間が伸び、クエリやパス別の内訳が使えるようになります。
+
+### Runtime Logs
+
+実行時のログの保持期間は、プランで大きく違います。
+
+| プラン | 保持期間 |
+|---|---|
+| Hobby | **1時間** |
+| Pro | 1日 |
+| Enterprise | 3日 |
+| Pro / Enterprise + Observability Plus | 30日 |
+
+**Hobby の1時間は、実質「いま起きていることしか見られない」ということです。**夜間に起きた失敗を翌朝調べる、という使い方はできません。ログを長く残したいなら、Pro 以上と **Drains**（外部の収集先へ流す仕組み。Pro / Enterprise で利用可）を検討します。
+
+1リクエストあたりのログは 256 行、1行 256KB、合計 1MB が上限です。**ループの中で大量に出力すると欠けます。**
+
+> **ログに秘密の値や問い合わせ本文を出さないでください。**第4章のサンプルで `bodyLength`（文字数）だけを出していたのは、そのためです。
+
+### Speed Insights と Web Analytics
+
+**Speed Insights**（実ユーザーの表示速度の計測）には、**2026-08-25 に無料 tier が新設されました。**changelog によると、**全プラン・プロジェクト数無制限**で、**チームあたり30日ごとに 10,000 events** までが無料です。有料版は **Speed Insights Plus** に改称され、既存の有料利用者は機能・費用ともに変更なしとされています。
+
+> **料金表記については注意が必要です。**公式の料金ページには「Speed Insights Events は 10,000 events あたり $0.65」という従量レートが記載されている一方で、同じページの Pro の add-on 欄には改称前の「$10 / 月 / プロジェクト」という記述も残っています（2026-08-28 時点）。**changelog の内容とドキュメントの記述が一致していない状態なので、実際に課金を伴う判断をする前に、契約画面で現在の表示を確認してください。**なお $0.65 は「1件あたり」ではなく「10,000件あたり」です。
+
+**Web Analytics** は Hobby で月 50,000 events まで無料です。Pro は含有枠がなく、1,000 events あたり $0.03 の従量課金になります。
+
+### Firewall
+
+**DDoS 対策は全プランで無料・設定不要**です。攻撃を受けたときに使う **Attack Mode** も全プラン無料で、ブロックされたリクエストは利用量にカウントされません。
+
+WAF のカスタムルールと IP ブロックは、Hobby でも上限内（それぞれ最大3件）で使えます。Pro は 40 件・100 件です。マネージドルールセットは Enterprise 向けです。
+
+## 実例：費用の構造を読む
+
+数字を並べる前に、構造を押さえます。**Vercel の費用は「プラン料金 + 使った分」です。**
+
+### Hobby（無料）
+
+主な含有枠（月あたり、2026-08 時点）です。
+
+| 項目 | 枠 |
+|---|---|
+| Active CPU | 4 CPU 時間 |
+| Function の呼び出し | 100万回 |
+| Edge Requests | 100万回まで |
+| Speed Insights のイベント | 10,000 |
+| Web Analytics のイベント | 50,000 |
+| プロジェクト数 | 200 |
+| 1日あたりのデプロイ数 | 100 |
+
+**上限を超えると、原則として30日待つことになります。**追加購入はできません。
+
+そして、最も重要な制約です。
+
+> **Hobby は非商用の個人利用に限られます。**公式のフェアユース規約は、商用利用を「そのプロジェクトの制作に関わる誰かの金銭的利益を目的としたデプロイ」と定義しており、**コードを書いた人が報酬を受け取っているケースも含まれます。**広告の掲載や寄付の募集も商用利用に含まれます。**仕事として作るなら Pro が必要です。**
+
+### Pro
+
+- **プラットフォーム料金 $20/月。**デプロイ可能なシート1枚と、**$20 分の月次クレジット**が含まれます
+- 追加シートは1枚 $20/月。**Viewer（閲覧のみ）は無料・無制限**です
+- インフラの含有枠として **Fast Data Transfer 1TB** と **Edge Requests 1,000万回**が付きます
+- 超過分は、まず月次クレジットから引かれ、その先が従量課金です。クレジットと含有枠は月末で失効します
+
+有料 add-on の例を挙げます。第6章で出てきたものも含みます。
+
+| add-on | 価格 |
+|---|---|
+| Advanced Deployment Protection | $150/月 |
+| Observability Plus | $1.20 / 100万イベント |
+| Web Analytics Plus | $10/月 |
+| SAML SSO | $300/月 |
+
+### 請求画面の表記に注意
+
+課金メトリクスの名前が変わっている途中です。
+
+> **CDN のリクエスト数は現在 CDN Requests という名前ですが、請求ダッシュボードと利用量グラフには Edge Requests として表示されます。**公式ドキュメントにも明記されています。同じものを指しているので、両方の名前を見たら混乱しないでください。
+
+**Enterprise の価格は公開されていません。**ドキュメントにも記載がなく、営業への問い合わせ経由になります。
+
+## 3つのコースの使い分け
+
+同じ題材を3つのやり方で作るシリーズの最終章なので、選び方を整理します。
+
+| 選ぶ基準 | 向いているコース |
+|---|---|
+| **Next.js で作ると決まっている** | **このコース（Vercel）** |
+| フレームワークの機能をそのまま使いたい | このコース |
+| データ層も同じ会社でまとめたい | [Cloudflare 入門コース](/knowledge/web-development/cloudflare-curriculum) |
+| CLI 中心で構成を管理したい | Cloudflare |
+| **一般ユーザーの登録・ログインが要る** | [Supabase 入門コース](/knowledge/web-development/supabase-curriculum) |
+| データ単位でアクセス制御したい | Supabase |
+
+このサイトでは Cloudflare を主経路として案内しています。**このコースは副経路です。**とはいえ、Next.js を書く前提があるなら、Vercel から入るほうが素直に進みます。
+
+**3つは排他ではありません。**Vercel でホストしながらデータ層に Supabase を使う、といった組み合わせは Marketplace の Native Integration で自然に成立します。第5章で Neon を選んだのは題材に合っていたからで、**Supabase を選んでも同じ手順でつながります。**
+
+## やってみよう
+
+1. **ドメインをつなぐ**：手元にドメインがあれば Settings → Domains から追加し、**表示された値**で DNS を設定します。無ければ、画面で要求されるレコードの種類だけ確認してください
+2. **リダイレクトを設定する**：apex から `www` へのリダイレクトを設定し、両方の URL で開けることを確認します
+3. **秘密の値を sensitive にする**：第5章で入れたデータベースの接続情報が sensitive になっているか確認します。なっていなければ作り直します
+4. **再デプロイの必要性を体感する**：環境変数の値を変え、**再デプロイ前後で挙動が変わる**ことを確認します
+5. **ログを見る**：フォームを送信し、Observability の Runtime Logs に記録が出ることを確認します。**Hobby なら1時間で消えることも確認してください**
+6. **費用の枠を確認する**：Usage の画面を開き、いまの利用量が Hobby の枠のどのあたりかを見ます
+7. **次を決める**：上の表を見て、自分の要件がどのコースに近いかを判断します
+
+演習5で「1時間で消える」を体験しておくと、**本番運用でログをどう残すかを最初に決めるべき理由**が実感できます。
+
+## まとめ
+
+- ドメインは **apex に A レコード、サブドメインに CNAME**。**値は必ず画面の表示に従う**（CNAME はプロジェクトごとに固有）
+- **公式の推奨は `www` を主にして apex からリダイレクトする構成**
+- SSL は自動発行（Let's Encrypt）。**CAA レコードが発行を止めることがある**
+- **環境変数の変更は過去のデプロイに適用されない。**変えたら再デプロイする
+- **秘密の値は sensitive にする。**`NEXT_PUBLIC_` を付けない
+- Runtime Logs の保持は **Hobby で1時間**。長く残すなら Pro 以上と Drains
+- **Speed Insights は 2026-08-25 に無料 tier が新設され、有料版は Speed Insights Plus に改称。**料金表記は changelog とドキュメントで食い違いがあるため、契約画面で確認する
+- **Hobby は非商用の個人利用限定。**仕事で使うなら Pro（$20/月、$20 のクレジットと 1TB / 1,000万リクエストを含む）
+- **CDN Requests は請求画面では Edge Requests と表示される**
+
+## 理解度チェック
+
+**Q1. 本番の環境変数の値を修正しましたが、挙動が変わりません。最初に確認すべきはどれでしょう？**
+
+1. ブラウザのキャッシュ
+2. 変更後に再デプロイしたかどうか
+3. DNS の伝播が完了しているか
+4. Deployment Protection の設定
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+環境変数の変更は、変更後に作られたデプロイにのみ適用されます。既存のデプロイには反映されません。あわせて、Instant Rollback で以前のデプロイへ戻しても環境変数は戻らない点も覚えておいてください。「デプロイを戻せば設定も戻る」わけではありません。
+
+</details>
+
+**Q2. 受託した仕事のサイトを Vercel で公開します。プランの選び方として正しいのはどれでしょう？**
+
+1. 小規模なので Hobby で問題ない
+2. Hobby は非商用の個人利用に限られ、報酬を受け取って制作したものは商用利用に当たるため Pro 以上が必要
+3. 広告を載せなければ Hobby で構わない
+4. アクセス数が無料枠に収まるかどうかだけで判断すればよい
+
+<details>
+<summary>答えを見る</summary>
+
+**正解：2**
+
+公式のフェアユース規約は、商用利用を「プロジェクトの制作に関わる誰かの金銭的利益を目的としたデプロイ」と定義しており、コードを書いた人が報酬を受け取っている場合も含まれると明記しています。利用量が無料枠に収まるかどうかとは別の話です。
+
+</details>
+
+## 参考リンク
+
+- [Add a Domain](https://vercel.com/docs/domains/working-with-domains/add-a-domain) — DNS レコードの設定
+- [Deploying and redirecting domains](https://vercel.com/docs/domains/working-with-domains/deploying-and-redirecting) — apex と `www` の推奨構成
+- [Working with SSL](https://vercel.com/docs/domains/working-with-ssl) — 自動発行と CAA レコード
+- [Environment Variables](https://vercel.com/docs/environment-variables) — スコープとサイズ上限
+- [Sensitive Environment Variables](https://vercel.com/docs/environment-variables/sensitive-environment-variables) — 作成後に読めない変数
+- [Runtime Logs](https://vercel.com/docs/logs/runtime) — 保持期間とログの上限
+- [Speed Insights now has a free tier](https://vercel.com/changelog/speed-insights-free-tier) — 2026-08-25 の変更
+- [Fair Use Guidelines](https://vercel.com/docs/limits/fair-use-guidelines) — Hobby の商用利用に関する規定
+- [Pro plan](https://vercel.com/docs/plans/pro-plan) — 料金構造と含有枠
+- [Manage CDN usage](https://vercel.com/docs/manage-cdn-usage) — CDN Requests と請求表示の関係
