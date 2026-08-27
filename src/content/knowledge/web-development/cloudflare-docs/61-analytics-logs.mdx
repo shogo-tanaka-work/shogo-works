@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Analytics", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 61
 ---
@@ -38,7 +39,7 @@ CDN・WAF・Workersに業務トラフィックを通すと、ボトルネック�
 ### Logpush（連続バッチ転送）
 Cloudflare上で発生した各種ログを、5分単位前後のバッチで外部ストレージ・SIEMに転送するサービスである。Enterpriseが正規価格帯だが、HTTP requestsデータセットはBusinessでも条件付きで使えるなどデータセットごとに利用可否が異なる。
 
-- **対応データセット**（主なもの）：HTTP requests、Firewall events / WAF、Spectrum events、DNS firewall、Gateway DNS / HTTP / Network、Access requests、Audit logs、Workers Trace events、Workers Invocations、R2 access、Magic IDS / Magic Network Monitoring、CASB findings、Zaraz、DNS logs、Sinkhole、Device Posture results、Page Shield。
+- **対応データセット**（主なもの）：HTTP requests、Firewall events / WAF、Spectrum events、DNS firewall、Gateway DNS / HTTP / Network、Access requests、Audit logs、Workers Trace events、Workers Invocations、R2 access、Magic IDS / Network Flow、CASB findings、Zaraz、DNS logs、Sinkhole、Device Posture results、Page Shield。
 - **対応宛先**：R2、S3、GCS、Azure Blob、Datadog、Splunk（HEC）、Microsoft Sentinel、Sumo Logic、New Relic、汎用HTTPS endpoint、S3互換（MinIO等）。
 - **フィールド選択 / フィルタ**：データセットごとのフィールド一覧から必要なカラムだけ抽出でき、`filter`式でステータスコード・ホスト・WAFアクション等で絞り込み可能。これでR2・SIEM転送量を抑える。
 - **サンプリング**：HTTP requestsはデフォルト全件、`sample`パラメータで0.01〜1.0の比率を指定できる。

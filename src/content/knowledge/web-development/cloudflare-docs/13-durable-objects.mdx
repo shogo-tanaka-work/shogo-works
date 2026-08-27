@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Durable Objects", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 13
 ---
@@ -77,12 +78,9 @@ KVやD1では「強整合な単一書き手」「クライアント間のリア�
       { "name": "ROOM", "class_name": "ChatRoom" }
     ]
   },
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["ChatRoom"]
-    }
-  ],
+  "exports": {
+    "ChatRoom": { "storage": "sqlite" }
+  },
   "limits": {
     "cpu_ms": 30000
   }
@@ -142,6 +140,21 @@ export default {
 ```bash
 npx wrangler deploy
 ```
+
+## 設定方法の変更：`migrations` から `exports` へ
+
+2026-07-04 に、Durable Object クラスを宣言する方法が変わりました。
+
+| | 旧（`migrations`） | 新（`exports`） |
+|---|---|---|
+| 書き方 | `tag` を振って `new_sqlite_classes` を積み上げる | クラス名に対してストレージ種別を宣言する |
+| 状態 | 既存プロジェクトは動作する | **新規はこちら** |
+
+宣言的な `exports` フィールドが `migrations` を置き換えました。既存の設定はそのまま動きますが、**新しく書くなら `exports` を使ってください。**
+
+あわせて **2026-07-09 以降、新規ネームスペースは SQLite バックエンドが必須**になりました。KV バックエンドのネームスペースは新規作成できません。
+
+---
 
 ## 制限・注意点
 - **単一インスタンスのスループット**: ソフトリミット約1,000 req/秒。ホットキーが想定される場合は、ID設計でシャーディングする

@@ -7,6 +7,7 @@ difficulty: "advanced"
 contentType: "docs-digest"
 tags: ["Cloudflare", "Gateway", "ドキュメント要約"]
 createdAt: 2026-05-10
+updatedAt: 2026-08-27
 author: "田中省伍"
 sortOrder: 35
 ---
@@ -42,7 +43,7 @@ WARP経由でTLSを復号し、HTTP/HTTPSペイロード単位の制御を行う
 - Browser Isolation（RBI）と組合せると、未分類サイトを「読めるが貼り付け・ダウンロード不可」のRead-onlyモードで開く運用が可能。
 
 ### Network ポリシー（L3-L4）
-HTTPに収まらないトラフィック（SSH / RDP / SMTP / 任意のTCP・UDP）を制御する層である。Magic WAN / GRE / IPSec / WARPで集約したパケットをIP・ポート・プロトコル・SNI単位で評価する。
+HTTPに収まらないトラフィック（SSH / RDP / SMTP / 任意のTCP・UDP）を制御する層である。Cloudflare WAN / GRE / IPSec / WARPで集約したパケットをIP・ポート・プロトコル・SNI単位で評価する。
 
 - Action：Allow / Block / Network Override（宛先IP・ポートの書き換え）。Audit SSHはDeprecatedで、SSH監査はAccess for Infrastructureに移行している。
 - Selector：Source/Destination IP・Port、Protocol、SNI、Application、Content Categories、Virtual Network、User、Group、Device Posture。
@@ -80,7 +81,7 @@ Gatewayのフル機能（HTTP復号・Device Posture・User identity）を引き
 | 出自 | CDN / Anycastネットワーク | 純血SASE / SWG専業 | CASBから拡張したSSE | DNSフィルタ（旧OpenDNS）から拡張 |
 | DNSフィルタ | 標準（無料枠あり） | 別モジュール | 別モジュール | 本職 |
 | HTTPインスペクション | 標準・TLS復号対応 | 高機能・成熟 | 高機能・成熟 | SIG add-on |
-| L4 / Network | 統合（Magic WAN連携） | 専用ZPA / Cloud Connector | NewEdgeで対応 | SIG / Tunnel |
+| L4 / Network | 統合（Cloudflare WAN連携） | 専用ZPA / Cloud Connector | NewEdgeで対応 | SIG / Tunnel |
 | CASB / Advanced DLP | 追従途上 | 強力 | 最強クラス | 中位 |
 | Browser Isolation | 標準同梱（CloudflareのRBI） | 別ライセンス | 別ライセンス | 別ライセンス |
 | 価格 | 50ユーザー無料 / $7〜 | 高価（要見積もり） | 高価（要見積もり） | $2.20〜（DNS Essentials） |
@@ -93,7 +94,7 @@ CloudflareはAccess / Tunnel / Gateway / Browser Isolation / DLPを単一プレ�
 
 - **Free（Zero Trust Free）**：50ユーザーまで。DNSフィルタ・HTTPインスペクション・Network ポリシー・WARP・基本Browser Isolation（限定的）が含まれる。Activity Logのダッシュボード保持期間は短い。
 - **Standard（Pay-as-you-go）**：$7/ユーザー/月程度から、ユーザー数に応じた従量課金。51ユーザー目以降が課金対象、Free機能の上限拡張・SLA向上が中心。
-- **Enterprise**：年間契約。Logpush、Advanced DLP、CASB、SCIM強制再評価、User Risk Score、Magic WAN統合、専用PoP・専用IP、サポートSLAなど。SaaS全社展開や監査要件のある組織はここを前提に設計する。
+- **Enterprise**：年間契約。Logpush、Advanced DLP、CASB、SCIM強制再評価、User Risk Score、Cloudflare WAN統合、専用PoP・専用IP、サポートSLAなど。SaaS全社展開や監査要件のある組織はここを前提に設計する。
 
 Gateway / Access / Tunnelは同じZero Trustライセンスにバンドルされており、「Gatewayだけ」「Accessだけ」を別契約する形にはならない。50ユーザー無料枠を最大限活かし、必要になった機能（Logpush・DLP）でEnterpriseに上がる、という段階導入が現実的である。
 
