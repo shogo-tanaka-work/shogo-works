@@ -1,0 +1,183 @@
+---
+title: "Cloudflare・Vercel・Supabase のどれを選ぶか"
+description: "小規模なアプリを作って公開するとき、3つのサービスのどれを選ぶかを判断するための基準。3社は競合しきっておらず、担当する層が違います。認証の要否・データの持ち方・費用の伸び方という3つの軸で切り分けます。"
+category: "web-development"
+subcategory: "platform-choice"
+difficulty: "beginner"
+contentType: "reference"
+estimatedMinutes: 20
+tags: ["Cloudflare", "Vercel", "Supabase", "比較"]
+sortOrder: 10
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## この記事の役割
+
+小規模なアプリを作って公開したいとき、Cloudflare・Vercel・Supabase のどれを使えばよいかを決めるための記事です。
+
+当サイトにはこの3つの入門コースがあり、**いずれも「問い合わせフォームと管理画面を作って公開する」という同じ題材**を扱います。同じものを3通りの方法で作るので、読み比べれば違いがわかる構成です。ただし3本すべてを読むのは時間がかかるので、先にここで当たりを付けてください。
+
+- [Cloudflare 入門コース](/knowledge/web-development/cloudflare-curriculum) — 主経路
+- [Vercel 入門コース](/knowledge/web-development/vercel-curriculum)
+- [Supabase 入門コース](/knowledge/web-development/supabase-curriculum)
+
+## 前提：3社は競合しきっていない
+
+まずここを外すと選定を誤ります。**「3つから1つを選ぶ」という問題設定が、そもそも正確ではありません。**
+
+| | 主に担当する層 | 自前で持っていないもの |
+|---|---|---|
+| **Cloudflare** | ネットワークと計算。加えてストレージとDBも自社で持つ | 一般ユーザー向けの認証基盤 |
+| **Vercel** | フレームワークのビルドとホスティング、開発体験 | **汎用データベース**（外部サービスに委ねる設計） |
+| **Supabase** | データベースと、その周辺（認証・ストレージ・API） | CDN・エッジ実行環境 |
+
+そのため実際の構成は、次のような組み合わせになることが多くあります。
+
+- Cloudflare 単独（Workers + D1 + R2）
+- Vercel + Supabase（ホスティングは Vercel、データと認証は Supabase）
+- Vercel + Cloudflare（ホスティングは Vercel、DNS と WAF は Cloudflare）
+
+**Vercel と Supabase は、むしろ組み合わせて使うのが標準的な形です。**Vercel の Marketplace には Supabase の Native Integration があり、Vercel のダッシュボードからプロビジョニングと環境変数の注入まで完結します。
+
+## 判断軸1：一般ユーザーのログインが要るか
+
+**これが最も効く分岐です。**ここを間違えると、後から作り直しになります。
+
+### 「一般ユーザーのログイン」と「関係者だけの保護」は別物
+
+混同されやすいので、先に用語を分けます。
+
+| | 意味 | 例 |
+|---|---|---|
+| **一般ユーザー認証** | 不特定多数が自分でサインアップしてログインする | SaaS のログイン、会員機能 |
+| **関係者だけの保護** | 管理者が許可した人だけがアクセスできる | 社内ツール、自分だけの管理画面 |
+
+### 各サービスが提供するもの
+
+| | 一般ユーザー認証 | 関係者だけの保護 |
+|---|---|---|
+| **Cloudflare** | **自前では提供しない** | **Cloudflare Access**（得意分野） |
+| **Vercel** | 提供しない | **Deployment Protection** |
+| **Supabase** | **Supabase Auth**（本来の得意分野） | RLS で実現 |
+
+**Cloudflare Access を一般ユーザー認証に使うことはできません。**理由は3つあります。
+
+1. **セルフサインアップの仕組みがない。**アクセス可否は管理者が定義するポリシーで決まります。One-time PIN も「承認済みメールアドレス」宛に送られるもので、誰でも登録できる仕組みではありません
+2. **課金がシート制。**認証したアクティブユーザー数に比例するため、不特定多数と相性が悪い設計です
+3. **公式ドキュメントの想定読者が employees / contractors / third-party users。**そもそも社内・パートナー向けの製品（ZTNA）です
+
+2026年に「Cloudflare 自身が IdP になる」「新規 Zero Trust 組織の既定ログイン方法が変わる」「Managed OAuth」といった変更がありましたが、**いずれも社内向け・AIエージェント向けで、一般ユーザー認証を解禁するものではありません。**
+
+同様に、**Vercel の Deployment Protection は「デプロイ URL へのアクセスを絞る」仕組み**であって、アプリケーションのユーザー認証ではありません。
+
+### 結論
+
+- **一般ユーザーのログインが要る** → **Supabase**（または外部の認証サービス）
+- **自分やチームだけが使う** → **Cloudflare Access** か **Vercel Deployment Protection**。どちらも本来の用途に合致します
+
+Cloudflare や Vercel で一般ユーザー認証が必要になった場合は、外部の認証サービスを組み合わせるか、Workers 上で `@cloudflare/workers-oauth-provider` を使って自前で実装することになります。**「後から Access で何とかする」はできない**ので、最初に決めてください。
+
+## 判断軸2：データをどこに置くか
+
+### Cloudflare
+
+自社で **D1**（SQLite ベース）・**KV**・**R2**（オブジェクトストレージ）・**Durable Objects** を持ちます。Workers から直接バインディングで触れるため、接続情報の管理が要りません。
+
+一方で **D1 は SQLite ベース**なので、Postgres の機能（複雑な型、拡張、全文検索の高度な機能）を前提にした設計はそのまま持ち込めません。既存の Postgres に接続したい場合は Hyperdrive を使います（MySQL 対応は 2026-08-07 に GA）。
+
+### Vercel
+
+**汎用データベースを自社では持ちません。**自社で提供するのは Vercel Blob（オブジェクトストレージ）と Global Config（読み出し専用の設定ストア。2026-07-29 に Edge Config から改称）だけです。
+
+DB は Marketplace 経由で Neon・Upstash・Supabase などの外部サービスをつなぎます。Native Integration なら、Vercel のダッシュボードからプロビジョニング・課金・環境変数の注入まで一括で行えます。
+
+**これは弱点ではなく設計思想です。**ただし「Vercel を選べばデータ層も付いてくる」と思っていると、第一歩で止まります。
+
+### Supabase
+
+**Postgres そのもの**です。3つの中で唯一、汎用リレーショナルDBを中心に据えています。拡張（pgvector、pg_cron、pgmq など）もそのまま使えます。
+
+代わりに、**RLS（行レベルセキュリティ）を理解しないと安全に使えません。**Supabase の anon key はクライアントに露出する前提の鍵なので、RLS を設定していないテーブルは実質公開されます。ここが学習コストの中心です。
+
+### 結論
+
+| 状況 | 選択 |
+|---|---|
+| データ構造が単純で、まず動かしたい | **Cloudflare（D1）** |
+| Postgres の機能が要る、SQL に慣れている | **Supabase** |
+| ベクトル検索、全文検索、複雑なリレーション | **Supabase** |
+| 既存の Postgres / MySQL に接続したい | Cloudflare（Hyperdrive）または Vercel + 外部DB |
+
+## 判断軸3：費用がどう伸びるか
+
+小規模なうちは3つとも無料枠で足ります。**問題は伸び方です。**
+
+| | 無料枠で詰まりやすい箇所 | 有料化の起点 |
+|---|---|---|
+| **Cloudflare** | Workers の1日あたりリクエスト数 | Workers Paid（月 $5〜） |
+| **Vercel** | Fast Data Transfer、Function の実行時間 | Pro（$20/ユーザー/月＋$20 分のクレジット） |
+| **Supabase** | DB 500MB、Egress 5GB、MAU 50,000 | Pro（$25/月〜、compute credits $10/月込み） |
+
+注意すべき点をいくつか挙げます。
+
+- **Vercel の Pro はユーザー課金**です。チームで使うと人数分かかります。個人開発なら影響しませんが、チームでは効いてきます
+- **Supabase のブランチングは時間課金**（$0.01344 / branch / hour、Pro・Team のみ）。消し忘れると積み上がります
+- **Cloudflare は製品ごとに課金軸が分かれています。**たとえば Workflows は 2026-08-10 から step 数が独立した課金軸になりました。「Workers Paid に入れば全部込み」ではありません
+- **Vercel Sandbox は persistence が既定**になったため、放置したサンドボックスは CPU を使わなくても Snapshot Storage を消費し続けます
+
+いずれのサービスも、**利用量の上限設定（Spend Management 相当の機能）を最初に設定しておく**ことを勧めます。攻撃トラフィックや無限ループで課金が跳ねる事故は、無料枠の外に出た瞬間から起こりえます。
+
+## ケース別の推奨
+
+ここまでの3軸を、よくある状況に当てはめます。
+
+### 問い合わせフォームと管理画面（本コースの題材）
+
+**Cloudflare。**一般ユーザー認証が不要で、管理画面は Access の想定用途とぴったり一致します。少人数なら無料枠に収まります。
+
+### 会員登録があるサービス
+
+**Supabase（+ 好みのホスティング）。**Auth と RLS が最初から噛み合っているためです。ホスティングは Vercel でも Cloudflare でも構いません。
+
+### Next.js を使いたい、開発体験を優先したい
+
+**Vercel。**Next.js は Vercel が開発しているフレームワークで、Preview 環境やビルド周りの統合が最も滑らかです。データ層は Supabase か Neon を組み合わせます。
+
+### 静的サイト、または軽いAPI
+
+**Cloudflare。**無料枠が厚く、エッジ実行の恩恵を受けやすい領域です。
+
+### 社内ツール
+
+**Cloudflare。**Access で保護でき、SSO 連携もそのまま乗ります。ここは Cloudflare の本来の商圏です。
+
+### データ分析やベクトル検索が中心
+
+**Supabase。**Postgres の拡張がそのまま使えることの価値が最も出ます。
+
+## 選定でやりがちな失敗
+
+最後に、後から作り直しになりやすいパターンを挙げます。
+
+1. **Cloudflare Access で一般ユーザー認証をしようとする。**構造的にできません。判断軸1で書いたとおりです
+2. **Vercel を選んだのにデータ層を決めていない。**Vercel は汎用DBを持ちません。最初に外部サービスを決めてください
+3. **Supabase で RLS を後回しにする。**anon key はクライアントに露出します。「後で締める」つもりのテーブルは、その間ずっと公開されています
+4. **無料枠の数字だけで選ぶ。**課金軸の数と、上限設定ができるかを見てください
+5. **1社に全部載せようとする。**Vercel + Supabase のように組み合わせるのが標準的な形です
+
+## まとめ
+
+- **3社は競合しきっていません。**担当する層が違うため、組み合わせが前提になることも多くあります
+- **最も効く分岐は「一般ユーザーのログインが要るか」**です。要るなら Supabase、要らないなら Cloudflare か Vercel
+- **Vercel は汎用DBを持ちません。**外部サービスとの組み合わせが前提です
+- **Supabase は RLS の理解が必須**です。ここが学習コストの中心になります
+- 費用は無料枠の広さより、**課金軸の数と上限設定の可否**で見てください
+
+## 参考リンク
+
+- [Cloudflare Access のポリシー](https://developers.cloudflare.com/cloudflare-one/access-controls/policies/)
+- [Vercel の Deployment Protection](https://vercel.com/docs/deployment-protection)
+- [Supabase の Row Level Security](https://supabase.com/docs/guides/database/postgres/row-level-security)
+- [Vercel の料金](https://vercel.com/docs/pricing)
+- [Supabase の料金](https://supabase.com/pricing)
