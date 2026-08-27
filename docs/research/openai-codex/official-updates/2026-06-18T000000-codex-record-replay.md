@@ -2,7 +2,7 @@
 date: 2026-06-18
 title: "Codex macOS: Record & Replay — デモ録画からスキル自動生成"
 service: "OpenAI Codex"
-source: https://developers.openai.com/codex/record-and-replay
+source: https://learn.chatgpt.com/docs/extend/record-and-replay
 fetched_at: 2026-06-19T12:00:00+09:00
 published_at: 2026-06-18
 date_precision: date-only
@@ -36,6 +36,6 @@ macOS 向け Codex アプリに Record & Replay 機能が追加。ユーザー�
 ## 原文確認
 
 - 公式見出し: Record & Replay
-- 公式URL: https://developers.openai.com/codex/record-and-replay
-- Changelog: https://developers.openai.com/codex/changelog
+- 公式URL: https://learn.chatgpt.com/docs/extend/record-and-replay
+- Changelog: https://learn.chatgpt.com/docs/changelog
 - 原文全文は公式ページで確認してください。

@@ -28,7 +28,7 @@ export interface KnowledgeTier {
 export type KnowledgeTierRegistry = Record<string, KnowledgeTier[]>;
 
 /**
- * Codex の tier 構成は、公式ドキュメント（developers.openai.com/codex）の
+ * Codex の tier 構成は、公式ドキュメント（learn.chatgpt.com/docs、旧 developers.openai.com/codex）の
  * 左サイドバー構造に準拠している。
  *
  * 公式: Getting Started / Concepts / App / IDE / CLI / Web / Integrations / Security /
