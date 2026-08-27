@@ -8,6 +8,7 @@ contentType: "reference"
 tags: ["Claude Code", "Skills", "スラッシュコマンド", "SKILL.md", "自動化", "カスタムコマンド"]
 sortOrder: 13
 createdAt: 2026-04-15
+updatedAt: 2026-08-27
 author: "田中省伍"
 ---
 
@@ -18,9 +19,28 @@ Claude Code の Skills は、**Markdown ファイル 1 枚でカスタムスラ�
 Skills でできること：
 - `/skill-name` で即呼び出せるカスタムコマンドを定義
 - 使用するツール、実行モデルをスキル単位で制限
-- 引数（`$ARGUMENTS`）を受け取る動的なコマンド
+- 引数（`$ARGUMENTS` / `$0` から始まる位置引数 / 名前付き引数）を受け取る動的なコマンド
 - サブエージェントとして独立したコンテキストで実行（`context: fork`）
 - Claude が自動判断で呼び出す「バックグラウンド知識」として機能させる
+
+---
+
+## カスタムコマンドとの関係
+
+公式ドキュメントで、**カスタムスラッシュコマンドは Skills へ統合されました**。`slash-commands` の独立ページは廃止され、本ページへ統合されています。
+
+> Custom commands have been merged into skills. A file at `.claude/commands/deploy.md` and a skill at `.claude/skills/deploy/SKILL.md` both create `/deploy` and work the same way. Your existing `.claude/commands/` files keep working. Skills add optional features: a directory for supporting files, frontmatter to control whether you or Claude invokes them, and the ability for Claude to load them automatically when relevant.
+> — [Skills | Claude Code Docs](https://code.claude.com/docs/en/skills)
+
+押さえるべき差分は3点です。
+
+| | `.claude/skills/<name>/SKILL.md` | `.claude/commands/<name>.md` |
+|---|---|---|
+| 位置づけ | **推奨** | 動作するが互換パス |
+| `name` / `paths` | 有効 | **無視される** |
+| サポートファイル（`scripts/` `references/`） | 使える | 使えない |
+
+**同名の skill と command が両方ある場合、skill が優先されます。**移行途中に両方置くと command 側は無効になります。
 
 ---
 
@@ -84,16 +104,59 @@ GitHub Issue #$ARGUMENTS を修正してください。
 
 ## フロントマター一覧
 
+**すべて任意です。**推奨されるのは `description` だけで、これがないと Claude がいつ使うか判断できません。
+
+### 呼び出しと表示
+
 | フィールド | デフォルト | 説明 |
 |---|---|---|
-| `name` | ファイル名 | スラッシュコマンド名（`/name` で呼び出す） |
-| `description` | — | Claude がいつ使うかを判断するためのメタ説明 |
-| `disable-model-invocation` | `false` | `true` にするとユーザーのみ呼び出し可（副作用があるスキル向け） |
-| `user-invocable` | `true` | `false` にすると Claude のみ自動呼び出し可（ガイドラインとして機能） |
-| `context` | — | `fork` を指定するとサブエージェントとして独立したコンテキストで実行 |
-| `allowed-tools` | 全ツール | スキル実行中に使用を許可するツールをスペース区切りで指定 |
-| `model` | セッションのデフォルト | このスキル用のモデルを上書き指定 |
-| `paths` | — | 特定のファイルパターンにマッチした時のみ自動ロード |
+| `name` | ディレクトリ名 | **一覧に出す表示ラベル。**個人 / プロジェクト skill では**コマンド名を決めない**（コマンド名はディレクトリ名から決まる）。プラグイン skill でのみコマンドの最終セグメントを決める |
+| `description` | 本文の第1段落 | Claude がいつ使うかを判断するためのメタ説明。`when_to_use` との合計が 1,536 文字で切り詰められる |
+| `when_to_use` | — | いつ呼ぶべきかの追加文脈（トリガーフレーズや例）。`description` に連結される |
+| `argument-hint` | — | オートコンプリートで表示する引数ヒント。例 `[issue-number]` |
+| `disable-model-invocation` | `false` | `true` で Claude の自動ロードを禁止し、手動起動専用にする |
+| `user-invocable` | `true` | `false` で Claude だけが呼べる。`/` メニューから隠れる |
+
+### 実行の制御
+
+| フィールド | デフォルト | 説明 |
+|---|---|---|
+| `arguments` | — | `$name` 置換用の名前付き位置引数。宣言順に位置へ対応 |
+| `allowed-tools` | 全ツール | **起動したターンの間だけ**許可なしで使えるツール |
+| `disallowed-tools` | — | この skill がアクティブな間、利用可能プールから除去するツール |
+| `model` | セッションのモデル | この skill がアクティブな間のモデル。`inherit` も指定可 |
+| `effort` | セッションから継承 | `low` / `medium` / `high` / `xhigh` / `max` |
+| `context` | インライン | `fork` で独立コンテキストのサブエージェントとして実行 |
+| `agent` | `general-purpose` | `context: fork` 時のサブエージェント種別 |
+| `background` | `true` | `context: fork` 時のみ有効。`false` で起動ターン内に結果を待つ |
+| `hooks` | — | 起動時に登録され、以降そのセッション中ずっと有効な hooks |
+| `paths` | 無制限 | 一致するファイルを扱っているときだけ自動ロードする glob |
+| `shell` | `bash` | 本文中の `` !`command` `` を実行するシェル。`powershell` も指定可 |
+
+### メタデータ（Claude Code は動作に使わない）
+
+| フィールド | 説明 |
+|---|---|
+| `metadata` | 自由形式のキー・値。カタログ管理などに使う |
+| `license` | ライセンス。Agent Skills 仕様の一部 |
+| `compatibility` | 想定環境の要件（最大500文字） |
+
+> **`name` の扱いは誤解されやすい点です。**個人 / プロジェクト skill では、`name` を書いてもコマンド名は変わりません。`.claude/skills/deploy-staging/SKILL.md` は、`name` が何であれ `/deploy-staging` で呼び出します。
+
+### 呼び出し名の決まり方
+
+| 置き場所 | コマンド名の決まり方 | 例 |
+|---|---|---|
+| `.claude/skills/<dir>/SKILL.md` | **ディレクトリ名** | `/deploy-staging` |
+| 入れ子の `.claude/skills/`（名前が衝突する場合） | 作業ディレクトリからの相対パス + ディレクトリ名 | `/apps/web:deploy` |
+| `.claude/commands/<file>.md` | 拡張子を除いたファイル名 | `/deploy` |
+| プラグインの `skills/<dir>/` | `name` またはディレクトリ名に、プラグイン名の接頭辞 | `/my-plugin:review` |
+
+### claude.ai へアップロードする場合の制限
+
+claude.ai の skill アップロード、Skills API、`package_skill.py` によるパッケージングで使えるのは
+**`name` / `description` / `license` / `compatibility` / `metadata` / `allowed-tools` の6つだけ**です。
+`argument-hint` などを含めるとハードエラーになります。
 
 ---
 
@@ -101,25 +164,52 @@ GitHub Issue #$ARGUMENTS を修正してください。
 
 スキル本文中では以下の変数が使えます。
 
+> **インデックスは 0 始まりです。**`$0` が**第1引数**、`$1` が第2引数になります。公式ドキュメントの原文は次のとおりです。
+>
+> > `$N` — Shorthand for `$ARGUMENTS[N]`, such as `$0` for the first argument or `$1` for the second.
+> > — [Skills | Claude Code Docs](https://code.claude.com/docs/en/skills)
+>
+> **スキル名やコマンド名を参照する変数は存在しません。**
+
 | 変数 | 意味 |
 |---|---|
-| `$ARGUMENTS` | `/skill-name` の後に書いたテキスト全体 |
-| `$0` | スキル名 |
-| `$1`, `$2`, `$3`... | スペース区切りの引数（`$1` が最初の引数） |
+| `$ARGUMENTS` | 呼び出し時に渡された引数全体（入力されたままの文字列） |
+| `$ARGUMENTS[0]` | 第1引数（0 始まりのインデックス） |
+| `$0` `$1` `$2`... | `$ARGUMENTS[N]` の短縮形。**`$0` が第1引数** |
+| `$name` | `arguments` フロントマターで宣言した名前付き引数 |
+| `${CLAUDE_SESSION_ID}` | 現在のセッションID |
+| `${CLAUDE_EFFORT}` | 現在の effort（ultracode は `xhigh` として報告される） |
+| `${CLAUDE_SKILL_DIR}` | `SKILL.md` を含むディレクトリ |
+| `${CLAUDE_PROJECT_DIR}` | プロジェクトルート |
+| `${CLAUDE_PLUGIN_ROOT}` / `${CLAUDE_PLUGIN_DATA}` | プラグイン skill でのみ置換される |
 
 ```markdown
 ---
 name: pr-review
 description: PR を番号またはURLで指定してコードレビューする
+arguments: [pr]
 ---
 
-PR $1 をレビューしてください。
+PR $pr をレビューしてください。
 
 - セキュリティ上の問題がないか確認する
 - パフォーマンスへの影響を評価する
 - コーディング規約（CLAUDE.md を参照）への準拠を確認する
-- `gh pr view $1 --comments` で既存コメントも確認する
+- `gh pr view $pr --comments` で既存コメントも確認する
 ```
+
+位置番号は取り違えやすいので、**引数が複数あるなら `arguments` で名前を付ける**のが安全です。
+
+### 置換されなかったときの挙動
+
+| 記法 | 対応する引数が無いとき |
+|---|---|
+| `$0` `$1` などの位置指定 | **置換されず、そのまま残る** |
+| `arguments` で宣言した `$name` | **空文字列に展開される** |
+
+複数語をひとつの引数として渡すにはクォートで囲みます。`/my-skill "hello world" second` なら `$0` が `hello world`、`$1` が `second` です。
+
+リテラルの `$` を書きたい場合は `\$1.00` のようにバックスラッシュでエスケープします。
 
 ---
 
@@ -404,6 +494,66 @@ Skill を作ったのに Claude が呼んでくれない、というのは初期
 
 **`/` コマンドで一覧確認**
 利用可能な全スキルは `/` を入力すると一覧表示されます。設定が反映されているか確認するのに使えます。
+
+---
+
+## 組み込みの Skills（bundled skills）
+
+自分で作らなくても、Claude Code には最初からいくつかの Skill が入っています。**プロンプトベース**で、Claude に詳細な指示を与えてツールで作業させる仕組みです（固定ロジックを実行する組み込みコマンドとは別物）。
+
+主なものです。
+
+| Skill | 用途 |
+|---|---|
+| `/doctor`（別名 `/checkup`） | セットアップの総合点検 |
+| `/code-review`（別名 `/review`） | 差分や PR のレビュー。`ultra` で深度を上げる |
+| `/debug` | 不具合の切り分け |
+| `/batch` | 同じ指示を複数対象へ一括適用 |
+| `/loop`（別名 `/proactive`） | 一定間隔での繰り返し実行 |
+| `/run` | アプリを起動して変更の動作を確認する |
+| `/verify` | ビルドして実行し、変更が意図どおりか確認する |
+| `/run-skill-generator` | `/run` と `/verify` にプロジェクトの起動方法を教える |
+| `/fewer-permission-prompts` | 権限確認を減らす許可リストを提案 |
+| `/claude-api` | Claude API まわりの移行・監査 |
+| `/dataviz` | データ可視化 |
+
+一覧は `/help` で確認できます（上記が網羅とは限りません）。**自分で Skill を作る前に、既にあるか確認する**習慣をつけると無駄が減ります。
+
+### 無効化する
+
+組織のポリシーなどで組み込み Skill を止めたい場合は2通りあります。
+
+**まとめて無効化：**
+
+```json
+{ "disableBundledSkills": true }
+```
+
+ただし **`/doctor` だけは残ります**（セットアップ点検を潰さないため）。隠したい場合は環境変数 `DISABLE_DOCTOR_COMMAND` か、後述の `skillOverrides` で `"doctor": "off"` を指定します。
+
+**個別に制御：**
+
+```json
+{
+  "skillOverrides": {
+    "legacy-context": "name-only",
+    "deploy": "off"
+  }
+}
+```
+
+| 値 | Claude への提示 | `/` メニュー |
+|---|---|---|
+| `"on"`（既定） | 名前と説明 | 出る |
+| `"name-only"` | 名前のみ | 出る |
+| `"user-invocable-only"` | 隠す | 出る |
+| `"off"` | 隠す | 隠す |
+
+`/skills` メニューで Skill を選び `Space` で状態を巡回、`Enter` で `.claude/settings.local.json` に保存されます。
+
+**プラグイン由来の Skill は `skillOverrides` の対象外**です（`/plugin` で管理します）。
+
+権限ルールでも制御できます。`Skill(commit)` は完全一致、`Skill(review-pr *)` は引数付きの前方一致です。
 
 ---
 

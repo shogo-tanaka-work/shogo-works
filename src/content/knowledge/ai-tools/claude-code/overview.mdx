@@ -8,6 +8,7 @@ contentType: "reference"
 tags: ["Claude Code", "Anthropic", "AI エージェント", "CLI", "MCP", "Skills"]
 sortOrder: 0
 createdAt: 2026-04-13
+updatedAt: 2026-08-27
 author: "田中省伍"
 ---
 
@@ -172,6 +173,12 @@ npm install -g @anthropic-ai/claude-code
 - **2026年Q1**: Remote Control / Dispatch / Channels / Computer Use / Auto Modeが順次リリースされ、スマホやSlack、Discordからセッションを継続できるようになりました。
 - **2026年2月**: **Claude Managed Agents**が発表され、Console / Claude Code / 新CLI（`ant`）からエージェントをビルド・デプロイできるようになりました。
 - 一方で同じ時期にレート制限の枯渇報告やセキュリティCVE報告も増えており、運用面の成熟は2026年後半の課題として残っています。
+- **2026年Q3**: モデル世代が進み、既定モデルが入れ替わりました。あわせて **Auto mode が Pro / Max / Team の新規セッションで既定**になり、承認プロンプトの前提が変わっています。
+- **2026年Q3**: **カスタムスラッシュコマンドが Skills へ統合**されました。`.claude/commands/` は動作しますが、新規作成は `.claude/skills/` が推奨です。
+- **2026年Q3**: サブエージェントの **fork mode が対話セッションで既定 ON** になり、会話全体とプロンプトキャッシュを引き継ぐようになりました。1セッションあたり 200 体の上限も撤廃されています。
+- **2026年Q3**: **self-hosted environments**（Team / Enterprise）、**GitLab 対応**、**クロスセッションメッセージング**が追加されました。
+
+> **モデル名と価格は本文に固定していません。**世代交代が速いため、現在の既定は `/model`、価格は公式の料金ページで確認してください。
 
 ## はじめて Claude Code に触れる方へ
 

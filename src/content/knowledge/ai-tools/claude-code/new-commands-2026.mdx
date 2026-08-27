@@ -1,102 +1,118 @@
 ---
-title: "Claude Code 新コマンド2026ガイド：/ultrareview・/effort・/tui・/less-permission-prompts"
-description: "2026年4月に追加されたClaude Codeの新スラッシュコマンドを解説。並列マルチエージェントレビューの/ultrareview、推論強度制御の/effort（xhigh新設）、権限プロンプト削減の/less-permission-prompts、フルスクリーンの/tuiを網羅。"
+title: "Claude Code の実行制御コマンド：/code-review・/effort・/tui・権限プロンプト削減"
+description: "セッションの進め方を制御する組み込みコマンドを整理。並列マルチエージェントレビューの /code-review ultra、推論強度を切り替える /effort、フルスクリーン表示の /tui、権限確認を減らす /fewer-permission-prompts を、現行仕様と料金の注意点つきでまとめました。"
 category: "ai-tools"
 subcategory: "claude-code"
 difficulty: "beginner"
 contentType: "reference"
-tags: ["Claude Code", "スラッシュコマンド", "ultrareview", "effort", "自動化"]
+tags: ["Claude Code", "スラッシュコマンド", "code-review", "effort", "自動化"]
 sortOrder: 4
 createdAt: 2026-04-18
+updatedAt: 2026-08-27
 author: "田中省伍"
 ---
 
 ## TL;DR
 
-- **`/ultrareview`** — 並列マルチエージェントによる包括的コードレビュー
-- **`/effort`** — 推論強度をxhigh〜autoで切り替え（Opus 4.7で`xhigh`新設）
-- **`/less-permission-prompts`** — 権限確認ダイアログを自動で減らす設定支援
-- **`/tui`** — フルスクリーンTUIレンダリングで集中作業
+- **`/code-review ultra`** — 並列マルチエージェントによる包括的コードレビュー。`/ultrareview` は別名
+- **`/effort`** — 推論強度を `low`〜`xhigh` に加え `max` / `ultracode` / `auto` で切り替え
+- **`/tui`** — レンダリング方式の切り替え。v2.1.239 以降に初回起動した端末はフルスクリーンが既定
+- **`/fewer-permission-prompts`** — 権限確認を減らす許可リストを提案させる
+
+> **コマンド名と引数は変わります。**本記事は 2026-08-27 時点の公式ドキュメントに揃えています。実際の一覧は `/help` で確認するのが確実です。
 
 ---
 
-## `/ultrareview` — 並列コードレビュー
+## `/code-review` — 並列コードレビュー
 
-Claude Opus 4.7 の一般公開に合わせて追加されたコマンドです。クラウド上で複数の専門エージェントが並列にコードを検査し、単一エージェントでは見落としがちな問題を検出します。
+現在の変更、または指定した PR をレビューさせるコマンドです。
 
 ### 使い方
 
 ```bash
-# 現在のブランチの変更をレビュー
-/ultrareview
+# 現在の差分をレビュー
+/code-review
 
-# 指定したGitHub PRをフェッチしてレビュー
-/ultrareview 1234
+# 深度を上げて実行（クラウド上のマルチエージェントレビュー）
+/code-review ultra
+
+# GitHub の PR を指定
+/code-review ultra 1234
 ```
 
-### レビュー観点
+`/review` は `/code-review` の別名です。また、アカウントで ultrareview が利用可能な場合、**`/ultrareview` は `/code-review ultra` の別名**として使えます。公式ドキュメントの表記は `/code-review ultra` なので、記事や手順書に書き残すならこちらを使ってください。
 
-| エージェント | 担当観点 |
+### 通常レビューとの違い
+
+`/code-review` は単一エージェントがその場で差分を読みます。`ultra` を付けるとクラウド側で複数の観点を並列に走らせ、単一の読み込みでは見落としやすい問題を拾います。
+
+### 料金と制限
+
+ここは事故になりやすいので明示しておきます。
+
+| 項目 | 内容 |
 |---|---|
-| アーキテクチャ担当 | 設計パターン・依存関係・モジュール分離 |
-| セキュリティ担当 | インジェクション・認証・データ露出リスク |
-| パフォーマンス担当 | 計算量・メモリ・N+1クエリ |
-| 保守性担当 | 命名・テストカバレッジ・ドキュメント |
+| Pro / Max | **一度きりの3回**が無料。使い切っても更新されない |
+| Team / Enterprise | 無料枠なし |
+| それ以降 | 1回あたり概ね **$5〜$25** の usage credits を消費 |
+| 利用できない環境 | Bedrock / Google Cloud / Microsoft Foundry 経由、および ZDR 組織 |
 
-### 料金
-
-Pro/Max ユーザーは初回3セッションが無料。以降は従量課金です。
+**「無料枠が毎月戻る」わけではありません。**通常のレビューは `/code-review` で足りることが多いので、`ultra` は難所に絞って使ってください。
 
 ---
 
 ## `/effort` — 推論強度制御
 
-モデルが各タスクにかける推論リソースを対話的に調整できます。
+モデルが各タスクにかける推論リソースを切り替えます。
 
 ### 使い方
 
 ```bash
-# インタラクティブスライダーで選択（矢印キー→Enter）
+# インタラクティブに選択
 /effort
 
 # 直接レベル指定
-/effort xhigh    # 最大限の推論（Opus 4.7で新設）
-/effort high     # 高い推論強度
-/effort medium   # 標準（日常タスク向け）
-/effort auto     # モデルデフォルトに戻す
+/effort low
+/effort medium
+/effort high
+/effort xhigh
+/effort max        # セッション限り
+/effort ultracode  # セッション限り
+/effort auto       # モデルの既定に戻す
+/effort status     # 現在の設定を確認
 ```
 
-**2026年4月現在：Opus 4.7では全プランのデフォルトが `xhigh` に引き上げられています。**
+`max` と `ultracode` は**そのセッションの間だけ**有効です。設定として永続しません。
 
 ### 使い分け目安
 
 | レベル | 向いているタスク |
 |---|---|
-| xhigh | 複雑なアルゴリズム設計・難解なバグ調査・セキュリティ監査 |
-| high | 中規模の機能実装・パフォーマンス最適化 |
-| medium | 小さなバグ修正・定型的なコード生成・ドキュメント作成 |
-| auto | モデルに任せる（通常はこれで十分） |
+| `ultracode` / `max` | 難解なバグ調査、大規模な設計判断。コストと時間を許容できる場面に限る |
+| `xhigh` / `high` | 中規模の機能実装、パフォーマンス最適化、セキュリティ観点の確認 |
+| `medium` / `low` | 小さなバグ修正、定型的なコード生成、ドキュメント作成 |
+| `auto` | モデルに任せる。通常はこれで十分 |
 
-コスト観点では、`medium` の方が `xhigh` より大幅に安価です。難所以外は `auto` か `medium` 推奨です。
+低いレベルのほうが安価です。難所以外は `auto` か `medium` で足ります。
+
+既定のモデルとその推論強度はリリースごとに変わります。**現在の状態は `/effort status` で確認**してください。
 
 ---
 
-## `/less-permission-prompts` — 権限確認の自動設定
+## `/fewer-permission-prompts` — 権限確認の削減
 
-Claude Code の操作で頻繁に表示される権限確認ダイアログを減らすための設定支援コマンドです。
-
-### 仕組み
+権限確認ダイアログを減らすため、許可リストの候補を提案させるコマンドです。組み込み Skill として提供されています。
 
 ```bash
-/less-permission-prompts
+/fewer-permission-prompts
 ```
 
-1. 過去のトランスクリプトを走査
-2. 繰り返し実行されている読み取り専用の Bash コマンドと MCP ツールコールを分析
-3. 許可リストを優先度付きで提案
-4. 承認すると `.claude/settings.json` に自動追記
+1. 過去のトランスクリプトを走査する
+2. 繰り返し実行されている読み取り専用の Bash コマンドと MCP ツールコールを分析する
+3. 許可リストを優先度付きで提案する
+4. 承認すると `.claude/settings.json` へ追記される
 
-### 設定例（自動追記後）
+### 追記される設定の例
 
 ```json
 {
@@ -111,37 +127,46 @@ Claude Code の操作で頻繁に表示される権限確認ダイアログを�
 }
 ```
 
-`/less-permission-prompts` を定期的に実行することで、作業が進むにつれて自動化の範囲が広がっていきます。
+作業が進むほど繰り返しのパターンが増えるので、**定期的に実行すると自動化の範囲が広がります**。
+
+なお、以前は `/less-permission-prompts` という名前でした。現行のコマンドリファレンスに旧名の記載はありません（別名として残っているかは確認できていません）。うまく反応しない場合は `/help` で現在の名前を確認してください。
 
 ---
 
-## `/tui` — フルスクリーンTUI
+## `/tui` — レンダリング方式の切り替え
 
 ```bash
-/tui
+/tui              # 現在のレンダラを表示
+/tui fullscreen   # フルスクリーン表示に切り替え
+/tui default      # 通常表示に戻す
 ```
 
-ターミナルUIをフルスクリーン化して、チャットとツール出力に集中できるモードです。v2.1.110 で追加されました。画面のちらつきが解消され、長時間作業でも目が疲れにくくなります。
+フルスクリーン表示では画面のちらつきが減り、長い出力でも読みやすくなります。
 
-`q` で通常表示に戻ります。
+**v2.1.239 以降に初回起動した端末では、フルスクリーンが既定**です。通常表示に戻したい場合は `/tui default` を実行してください。
+
+`q` はフルスクリーンの解除キーではなく、transcript mode を抜けるキーです。混同しやすいので注意してください。
 
 ---
 
-## `/team-onboarding` — チーム導入支援
+## 権限まわりの関連コマンド
 
-```bash
-/team-onboarding
-```
+`/fewer-permission-prompts` と合わせて押さえておくと運用が楽になります。
 
-v2.1.101 で追加された対話型オンボーディングコマンドです。チームに Claude Code を導入する際の設定（CLAUDE.md の初期内容・許可リスト・MCPサーバー設定）を質問形式で組み立てます。
+| コマンド | 用途 |
+|---|---|
+| `/permissions` | 許可・拒否ルールの確認と編集。Auto mode の設定タブもここに統合された |
+| `/auto-mode-setup` | Auto mode 用の環境設定を生成する |
+| `/doctor`（別名 `/checkup`） | セットアップの総合点検。認証・権限・MCP・拡張の状態をまとめて確認 |
 
-新メンバーが参加するたびに実行することで、プロジェクトのコーディング規約・禁止操作・優先ツールを Claude Code に伝えることができます。
+`/doctor` は以前インストール診断に近い役割でしたが、**現在はセットアップ全体の点検コマンド**になっています。「なんだか動かない」ときの最初の一手として使えます。
 
 ---
 
 ## 参考リンク
 
-- [Claude Code Changelog | claudefa.st](https://claudefa.st/blog/guide/changelog)
-- [Claude Code Release Notes | Releasebot](https://releasebot.io/updates/anthropic/claude-code)
-- [Introducing Claude Opus 4.7 | Anthropic](https://www.anthropic.com/news/claude-opus-4-7)
-- [CHANGELOG.md | GitHub](https://raw.githubusercontent.com/anthropics/claude-code/refs/heads/main/CHANGELOG.md)
+- [Slash commands | Claude Code Docs](https://code.claude.com/docs/en/commands)
+- [Ultrareview | Claude Code Docs](https://code.claude.com/docs/en/ultrareview)
+- [Fullscreen rendering | Claude Code Docs](https://code.claude.com/docs/en/fullscreen)
+- [What's new | Claude Code Docs](https://code.claude.com/docs/en/whats-new/index)
+- [CHANGELOG.md | GitHub](https://github.com/anthropics/claude-code/blob/main/CHANGELOG.md)

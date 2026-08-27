@@ -8,6 +8,7 @@ contentType: "reference"
 tags: ["Claude Code", "基本コマンド", "セッション管理", "コンテキスト管理", "/rewind", "ultrathink"]
 sortOrder: 2
 createdAt: 2026-05-03
+updatedAt: 2026-08-27
 author: "田中省伍"
 ---
 
@@ -120,15 +121,17 @@ tail -200 app.log | claude -p "直近のエラーから根本原因をまとめ�
 /model
 ```
 
-矢印キーで Opus / Sonnet / Haiku から選択。`/status` で現在のモデルを確認できます。起動時に固定したい場合は次のいずれかで指定します。
+矢印キーで一覧から選択します（世代交代が速いため、選択肢は都度確認してください）。`/status` で現在のモデルを確認できます。起動時に固定したい場合は次のいずれかで指定します。
 
 ```bash
 # 起動オプション
-claude --model claude-haiku-4-5
+claude --model <モデル名>
 
 # 環境変数（永続）
-export ANTHROPIC_MODEL=claude-sonnet-4-6
+export ANTHROPIC_DEFAULT_MODEL=<モデル名>
 ```
+
+利用可能なモデル名は `/model` の一覧で確認できます。
 
 `settings.json` で `defaultModel` を指定すれば、プロジェクト単位で固定もできます。
 
@@ -204,6 +207,57 @@ UI バグ報告・デザインカンプの実装・エラー画面の解析、�
 
 ---
 
+## 変更に注意：タスク追跡ツールの提供終了
+
+以前は作業中の TODO リストが自動で表示され、進捗を追えました。**この機能（Task / Todo 系ツール）は新しい世代のモデルでは提供されていません。**
+
+復活させたい場合は環境変数で有効化できます。
+
+```bash
+export CLAUDE_CODE_ENABLE_TODO_TOOLS=1
+```
+
+「TODO リストが出なくなった」のは不具合ではなく仕様変更です。長い作業の進捗を追いたい場合は、`/goal` で目標を設定して定期的にチェックインさせる方法が代替になります。
+
+---
+
+## 応答のしかたを変える：Output styles
+
+Claude の**応答の仕方**（役割・トーン・出力形式）を切り替えられます。知識や能力ではなく、返し方だけが変わります。
+
+| スタイル | 特徴 |
+|---|---|
+| Default | 標準 |
+| **Concise** | 前置きと実況を省き、結果から先に述べる。説明を求めれば詳しく答える。**エラー報告・セキュリティ警告・破壊的操作の確認は省略しない** |
+| Proactive | 確認を待たずに実行し、判断を自分で埋める。ただし権限モードは変えない |
+| Explanatory | 作業の合間に解説を挟む |
+| Learning | `TODO(human)` を置いて、実装を学習者に任せる |
+
+設定は `/config` の Output style から行います。直接書くこともできます。
+
+```json
+{ "outputStyle": "Concise" }
+```
+
+自作もできます。`~/.claude/output-styles/` または `.claude/output-styles/` に Markdown を1枚置くだけです。
+
+```markdown
+---
+name: Diagrams first
+description: Lead every explanation with a diagram
+keep-coding-instructions: true
+---
+
+コードや構成を説明するときは、まず Mermaid の図で構造を示してから文章で説明してください。
+```
+
+注意点が2つあります。
+
+- **単独の `/output-style` コマンドは v2.1.91 で削除**されました。`/config` を使ってください
+- **セッション開始時に一度だけ読まれます。**変更を反映するには `/clear` するか新しいセッションを開始してください
+
+---
+
 ## 主要コマンド早見表
 
 | カテゴリ | コマンド | 用途 |
@@ -217,7 +271,10 @@ UI バグ報告・デザインカンプの実装・エラー画面の解析、�
 | セッション | `/clear` | コンテキスト完全リセット |
 | セッション | `/compact [topic]` | 要約して圧縮 |
 | セッション | `/context` | 使用量確認 |
-| セッション | `/rewind` | チェックポイントに戻る（`Esc` 2回でも可） |
+| セッション | `/rewind` | チェックポイントに戻る（`Esc` 2回でも可）。`/clear` より前まで遡れる |
+| セッション | `/cd <path>` | プロンプトキャッシュを壊さずに作業ディレクトリを移動 |
+| セッション | `/fork` | いまのセッションを分岐させて別案を試す |
+| セッション | `/btw` | 本筋を止めずに脇の質問をする（サイドチャット） |
 | 設定 | `/model` | モデル切替 |
 | 設定 | `/status` | 現在のモデル / モード確認 |
 | 設定 | `/config` | グローバル設定の編集 |
@@ -227,7 +284,8 @@ UI バグ報告・デザインカンプの実装・エラー画面の解析、�
 | 拡張機能 | `/mcp` | MCP サーバー状態確認 |
 | 拡張機能 | `/skills` | Skills 一覧 |
 | ヘルプ | `/help` | ヘルプ表示 |
-| ヘルプ | `claude doctor` | 環境診断 |
+| ヘルプ | `/doctor`（別名 `/checkup`） | セットアップの総合点検 |
+| ヘルプ | `claude doctor` | 環境診断（CLI から） |
 
 ---
 

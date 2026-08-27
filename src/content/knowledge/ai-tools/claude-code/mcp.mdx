@@ -8,6 +8,7 @@ contentType: "reference"
 tags: ["Claude Code", "MCP", "Model Context Protocol", "ツール連携", "GitHub", "外部API"]
 sortOrder: 17
 createdAt: 2026-04-15
+updatedAt: 2026-08-27
 author: "田中省伍"
 ---
 
@@ -354,6 +355,19 @@ Tool Search が有効な場合、Claude が「必要ない」と判断したツ�
 5. stdio 型は **stderr をリダイレクトしてログを取る**（`... 2>/tmp/mcp.log`）
 
 「いきなり削除→再追加」をやる前に、起動コマンド単独実行でエラーを見るのが最短ルートです。
+
+---
+
+## 認証：`claude mcp login` / `logout`
+
+認証が必要な MCP サーバーには、専用のサブコマンドでサインインできます。
+
+```bash
+claude mcp login <name>
+claude mcp logout <name>
+```
+
+以前は対話画面の `/mcp` から認証するのが主な導線でしたが、**ターミナルから直接ログイン・ログアウトできる**ようになりました。CI やセットアップスクリプトから扱いやすくなっています。
 
 ---
 

@@ -1,0 +1,354 @@
+---
+title: "Claude Code プラグイン完全ガイド：配布・マーケットプレイス・依存管理"
+description: "Skills / サブエージェント / Hooks / MCP サーバーをまとめて配布するプラグインの仕組みを解説。/plugin コマンドの操作、plugin.json と marketplace.json のスキーマ、依存バージョン制約、チーム配布と管理者による制限までを整理しました。"
+category: "ai-tools"
+subcategory: "claude-code"
+difficulty: "advanced"
+contentType: "reference"
+tags: ["Claude Code", "プラグイン", "マーケットプレイス", "Skills", "チーム開発"]
+sortOrder: 19
+createdAt: 2026-08-27
+author: "田中省伍"
+---
+
+## TL;DR
+
+- プラグインは **Skills / サブエージェント / Hooks / MCP サーバーなどをまとめて配布する単位**
+- 個人の `.claude/` 設定との違いは **共有・バージョン管理・名前空間**（`/plugin-name:skill` になる）
+- 導入は `/plugin marketplace add` → `/plugin install`。チームには `.claude/settings.json` で配れる
+- **任意のコードをユーザー権限で実行できる。**信頼できる提供元のものだけを使う
+
+---
+
+## 一行サマリ
+
+プラグインは、拡張機能を「配布可能なひとかたまり」にする仕組みです。単体の Skill やサブエージェントを個別に配るのではなく、関連するものをまとめてバージョン付きで届けられます。
+
+---
+
+## 解決する課題（Why）
+
+`.claude/` に置く設定は、そのプロジェクトかその個人に閉じます。チームで同じ拡張を使いたいとき、これまでは次のような手段しかありませんでした。
+
+- リポジトリに `.claude/` をコミットして共有する（プロジェクト単位でしか配れない）
+- 手順書を書いて各自にコピーさせる（更新が行き渡らない）
+
+プラグインは、この2つの問題を解決します。**バージョンを付けて配布でき、更新が自動で届き、複数プロジェクトで再利用できます。**
+
+### 単体配置との使い分け
+
+公式が示す比較です。
+
+| 方式 | Skill 名 | 向いている場面 |
+|---|---|---|
+| **単体**（`.claude/`） | `/hello` | 個人のワークフロー、プロジェクト固有のカスタマイズ、試作 |
+| **プラグイン** | `/plugin-name:hello` | チーム共有、コミュニティ配布、バージョン付きリリース、複数プロジェクトでの再利用 |
+
+プラグインの Skill は名前空間を持つため、個人やプロジェクトの Skill と名前が衝突しません。
+
+---
+
+## 主要機能（What）
+
+### 何をバンドルできるか
+
+プラグインのルート直下に、種類ごとのディレクトリを置きます。
+
+| ディレクトリ / ファイル | 内容 |
+|---|---|
+| `.claude-plugin/plugin.json` | マニフェスト（**任意**。省略時は既定の場所を自動検出し、ディレクトリ名をプラグイン名にする） |
+| `skills/` | `<name>/SKILL.md` 形式の Skill |
+| `commands/` | フラットな Markdown 形式の Skill（新規は `skills/` を使う） |
+| `agents/` | サブエージェント定義 |
+| `hooks/` | `hooks.json` によるイベントハンドラ |
+| `.mcp.json` | MCP サーバー設定 |
+| `.lsp.json` | LSP サーバー設定 |
+| `workflows/` | Dynamic Workflows のスクリプト |
+| `outputStyles/` | Output styles |
+| `monitors/` | バックグラウンドモニタ設定 |
+| `bin/` | 有効時に Bash ツールの `PATH` へ追加される実行ファイル |
+| `settings.json` | 有効化時に適用される既定設定 |
+
+> **よくある誤り。**`commands/` `agents/` `skills/` `hooks/` を `.claude-plugin/` の**中に置いてはいけません**。`.claude-plugin/` に入るのは `plugin.json` だけで、それ以外はすべてプラグインルート直下です。
+
+### インストールと管理
+
+マーケットプレイスを追加してから、そこにあるプラグインを入れます。
+
+```bash
+# マーケットプレイスの追加（GitHub / Git URL / ローカルパス / リモートURL）
+/plugin marketplace add anthropics/claude-plugins-official
+/plugin marketplace add https://gitlab.com/company/plugins.git
+/plugin marketplace add ./my-marketplace
+
+# プラグインの操作
+/plugin                                        # 対話パネル
+/plugin install <plugin>@<marketplace>
+/plugin list                                   # --enabled / --disabled
+/plugin enable  <plugin>@<marketplace>
+/plugin disable <plugin>@<marketplace>
+/plugin uninstall <plugin>@<marketplace>
+```
+
+`/plugin market` と `rm` の短縮形も使えます。
+
+シェルからも操作できます（対話パネルを開かないので、スクリプトやセットアップ手順に向きます）。
+
+```bash
+claude plugin install formatter@your-org --scope project
+claude plugin marketplace add anthropics/claude-plugins-official
+claude plugin validate ./your-plugin     # --strict で warning を error 扱い
+claude plugin init my-tool
+claude plugin prune                      # --dry-run で確認
+```
+
+### インストールスコープ
+
+| スコープ | 範囲 |
+|---|---|
+| user | 自分の全プロジェクト |
+| project | このリポジトリの全員（`.claude/settings.json` に記録される） |
+| local | このリポジトリの自分だけ（共有されない） |
+| managed | 管理者が配布。ユーザーは変更できない |
+
+### 反映のタイミング
+
+インストール結果に `Plugin is now active.` と出れば、そのまま使えます。`Run /reload-plugins to activate.` と出た場合だけ実行してください。
+
+```bash
+/reload-plugins
+/reload-plugins --force   # プロンプトキャッシュを無効化してでも再読込
+```
+
+シェル側の `claude plugin install` は**実行中のセッションには反映されません**。次回起動時か `/reload-plugins` が必要です。
+
+> **`/reload-plugins` にはトークンコストがあります。**特に MCP サーバーを提供するプラグインでは、次のリクエストで会話全体を読み直すことがあります。
+
+---
+
+## `plugin.json` のスキーマ
+
+マニフェストは任意です。置く場合、**必須フィールドは `name` だけ**です。
+
+```json
+{
+  "name": "plugin-name",
+  "displayName": "Plugin Name",
+  "version": "1.2.0",
+  "description": "Brief plugin description",
+  "author": { "name": "Author Name", "email": "author@example.com" },
+  "homepage": "https://docs.example.com/plugin",
+  "repository": "https://github.com/author/plugin",
+  "license": "MIT",
+  "keywords": ["keyword1", "keyword2"],
+  "skills": "./custom/skills/",
+  "agents": ["./custom/agents/reviewer.md"],
+  "hooks": "./config/hooks.json",
+  "mcpServers": "./mcp-config.json",
+  "dependencies": [
+    "helper-lib",
+    { "name": "secrets-vault", "version": "~2.1.0" }
+  ]
+}
+```
+
+### 押さえるべき挙動
+
+| フィールド | 注意点 |
+|---|---|
+| `name` | kebab-case。マーケットプレイス側が別名で載せている場合、`/plugin` が使うのは**マーケットプレイスのエントリ名** |
+| `displayName` | 表示専用。名前空間や参照には使われない |
+| `version` | 設定するとその値にピン留めされ、**bump するまで利用者に更新が届かない** |
+| `defaultEnabled` | `false` で「無効状態でインストール」 |
+
+### パスの上書きルール
+
+ここが分かりにくい点です。
+
+- **既定を置き換える**：`commands` `agents` `workflows` `outputStyles`
+- **既定に追加する**：`skills`
+- **独自のマージ規則**：`hooks` `mcpServers` `lspServers`
+
+`skills` だけが「追加」である点に注意してください。
+
+### 使える変数
+
+| 変数 | 解決先 |
+|---|---|
+| `${CLAUDE_PLUGIN_ROOT}` | プラグインのインストール先ディレクトリ |
+| `${CLAUDE_PLUGIN_DATA}` | **更新をまたいで残る**永続ディレクトリ。依存パッケージやキャッシュ用 |
+| `${CLAUDE_PROJECT_DIR}` | プロジェクトルート |
+
+`${CLAUDE_PLUGIN_DATA}` はアンインストール時に削除されます。残したい場合は `--keep-data` を付けます。
+
+### `userConfig` で利用者に設定を尋ねる
+
+有効化時に値を入力させ、Skill や MCP 設定から参照できます。
+
+```json
+{
+  "userConfig": {
+    "api_endpoint": { "type": "string", "title": "API endpoint", "required": true },
+    "api_token": { "type": "string", "sensitive": true }
+  }
+}
+```
+
+Skill や設定内では `${user_config.KEY}`、Hook の環境変数では `CLAUDE_PLUGIN_OPTION_<KEY>` として渡ります。
+
+---
+
+## マーケットプレイスを作る
+
+リポジトリの `.claude-plugin/marketplace.json` に置きます。
+
+```json
+{
+  "name": "company-tools",
+  "owner": { "name": "DevTools Team", "email": "devtools@example.com" },
+  "plugins": [
+    {
+      "name": "code-formatter",
+      "source": "./plugins/formatter",
+      "description": "Automatic code formatting on save",
+      "version": "2.1.0"
+    },
+    {
+      "name": "deployment-tools",
+      "source": { "source": "github", "repo": "company/deploy-plugin" }
+    }
+  ]
+}
+```
+
+必須は `name` / `owner` / `plugins` の3つ。各エントリの必須は `name` と `source` です。
+
+### source の種類
+
+| 種別 | 用途 |
+|---|---|
+| 相対パス文字列 | 同一リポジトリ内のプラグイン |
+| `github` | `repo` / `ref` / `sha` を指定 |
+| `url` | 任意の Git URL（GitLab・自ホスト含む） |
+| `git-subdir` | モノレポの一部ディレクトリ |
+| `npm` | npm パッケージ |
+| `archive` | zip。**HTTPS 必須・`sha256` で検証・最大 256 MiB** |
+| `command` | ローカルコマンドの標準出力をパスとして使う |
+
+### 名前の変更と削除
+
+`renames` で履歴を残します。削除済みは `null` にします。
+
+```json
+{ "renames": { "formatter": "code-formatter", "legacy-linter": null } }
+```
+
+### チームへ配る
+
+プロジェクトの `.claude/settings.json` に書けば、リポジトリを開いた全員に届きます。
+
+```json
+{
+  "extraKnownMarketplaces": {
+    "my-team-tools": { "source": { "source": "github", "repo": "your-org/claude-plugins" } }
+  },
+  "enabledPlugins": { "code-formatter@company-tools": true }
+}
+```
+
+**マーケットプレイスを追加しただけでは外部ソースのプラグインは入りません。**`claude plugin install` の実行が必要です。
+
+---
+
+## 依存関係のバージョン制約
+
+プラグインが他のプラグインに依存できます。
+
+```json
+{
+  "dependencies": [
+    "audit-logger",
+    { "name": "secrets-vault", "version": "~2.1.0" }
+  ]
+}
+```
+
+`version` には semver 範囲（`~2.1.0` `^2.0` `>=1.4` `=2.1.0`）を書けます。範囲を満たす最上位のタグが取得されます。
+
+リリースタグの命名規約は **`{plugin-name}--v{version}`** で、`claude plugin tag --push` で作成できます。
+
+### 制約が衝突したとき
+
+| A の要求 | B の要求 | 結果 |
+|---|---|---|
+| `^2.0` | `>=2.1` | `2.1.0` 以上の最上位 `2.x` を1つ入れる。両方ロードされる |
+| `~2.1` | `~3.0` | **B のインストールが `range-conflict` で失敗**。A と依存はそのまま |
+| `=2.1.0` | なし | `2.1.0` に固定。A がある限り自動更新はスキップ |
+
+依存だけを並べたマニフェストを作れば、**チーム標準のセットをまとめて配布**できます。
+
+---
+
+## セキュリティ上の注意
+
+ここは軽く扱わないでください。公式の警告です。
+
+> Plugins and marketplaces are highly trusted components that can execute arbitrary code on your machine with your user privileges. Only install plugins and add marketplaces from sources you trust.
+> — [Discover plugins | Claude Code Docs](https://code.claude.com/docs/en/discover-plugins)
+
+**プラグインはあなたのユーザー権限で任意のコードを実行できます。**Anthropic はプラグインに含まれる MCP サーバーやファイルを管理しておらず、意図どおり動作することを検証できないとも明記されています。
+
+### 実務上の防御
+
+- 提供元が明確なものだけを入れる。`/plugin` の Discover タブに出ることは安全性の保証ではない
+- **マーケットプレイスを削除すると、そこから入れたプラグインはアンインストールされます**
+- リポジトリにコミットされた Skill の `allowed-tools` は、Claude Code を動かす前にレビューする。**workspace trust の対象外**で、一度も信頼していないフォルダでの `-p` 実行でも適用されます
+- Node.js 依存の自動インストールでは `--ignore-scripts` が付き、**lifecycle script は実行されません**
+
+### 組織で制限する
+
+管理者は managed settings で制御できます。
+
+| 設定 | 用途 |
+|---|---|
+| `strictKnownMarketplaces` | 追加を許可するマーケットプレイスの許可リスト。空配列で全ブロック |
+| `blockedMarketplaces` | 個別のブロック |
+| `disableCommandPluginSources` | `command` ソースの禁止 |
+| `pluginSuggestionMarketplaces` | 提案を出してよいマーケットプレイス |
+
+---
+
+## いつ選ぶか
+
+### 適しているシーン
+
+- チームや組織へ同じ拡張を配り、更新を行き渡らせたい
+- 複数プロジェクトで同じ Skill / サブエージェント / Hooks を使い回したい
+- バージョンを付けてリリースし、利用側でピン留めさせたい
+- 関連する拡張（Skill + MCP + Hooks）をひとまとまりで扱いたい
+
+### 適していないシーン
+
+- 自分だけが使う、そのプロジェクト限りのカスタマイズ → `.claude/` に直接置く
+- 試作段階のもの → まず単体で作り、固まってからプラグイン化する
+
+なお、`~/.claude/skills/<name>/` に `.claude-plugin/plugin.json` を置くだけで `<name>@skills-dir` としてロードされる軽量な方法もあります。マーケットプレイスもインストール手順も不要なので、**プラグイン化の練習にちょうどよい入口**です。
+
+---
+
+## 関連ドキュメント
+
+- Skill 単体の作り方: [Claude Code Skills完全ガイド](./skills)
+- サブエージェントの定義: [サブエージェント活用ガイド](./subagents)
+- Hooks の設計: [Claude Code Hooks完全ガイド](./hooks)
+- MCP サーバーの接続: [Claude Code MCPガイド](./mcp)
+
+---
+
+## 参考リンク
+
+- [Create plugins | Claude Code Docs](https://code.claude.com/docs/en/plugins)
+- [Discover and install prebuilt plugins | Claude Code Docs](https://code.claude.com/docs/en/discover-plugins)
+- [Plugins reference | Claude Code Docs](https://code.claude.com/docs/en/plugins-reference)
+- [Create and distribute a plugin marketplace | Claude Code Docs](https://code.claude.com/docs/en/plugin-marketplaces)
+- [Constrain plugin dependency versions | Claude Code Docs](https://code.claude.com/docs/en/plugin-dependencies)
