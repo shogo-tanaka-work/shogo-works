@@ -17,6 +17,7 @@ const knowledge = defineCollection({
       "loop-engineering",
       "graph-engineering",
       "ai-governance",
+      "security",
     ]),
     subcategory: z.string().optional(),
     /** 想定読者のレベル。記事ページの見出し下に星で表示する */
