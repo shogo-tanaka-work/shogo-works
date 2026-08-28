@@ -347,7 +347,7 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 6,
       label: "第6章 仕組みにする",
-      description: "Skills でノウハウを預け、プラグインを入れ、定期実行させる",
+      description: "Skills でノウハウを預け、プラグインと MCP でつなぎ、定期実行させる",
       sortOrderStart: 60,
     },
     {
