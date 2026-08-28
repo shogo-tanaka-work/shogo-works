@@ -1,0 +1,78 @@
+---
+title: "AI開発セキュリティ実践：AIに書かせたものを、どう守るか"
+description: "AIで作る側のためのセキュリティ連載。エージェントに渡す権限の設計、Hooks でのガードレール、生成AIツール側の設定、生成コードのレビュー観点、デプロイ基盤の本番前チェックまでを全12回で扱う。"
+category: "security"
+subcategory: "secure-ai-development"
+difficulty: "intermediate"
+contentType: "reference"
+tags: ["情報セキュリティ", "Claude Code", "Codex", "リスク管理", "AIガバナンス"]
+sortOrder: 0
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+AIに書かせる量が増えると、人の目を通らないまま本番に出るコードが増えます。この連載は、その状態で何を守り、どこを設定し、何を確認するかを扱います。
+
+対象は、Claude Code や Codex を日常的に使い、Cloudflare / Vercel / Supabase でアプリを動かしている開発者です。「AIは危険だから使わない」でも「大手の製品だから安全」でもなく、**どこに何のリスクがあるかを分解して、自分で判断できる状態**を目指します。
+
+既存の [AI導入ガバナンス解説](/knowledge/ai-governance/guide/) がルールを **作る側**、[業務AI安全利用ガイド](/knowledge/ai-governance/safe-ai-usage/) がルールの中で日々AIを **使う側** の話であるのに対し、この連載は **AIに作らせる側** の話になります。
+
+## 攻撃面を3層に分ける
+
+守る対象を漠然と「セキュリティ」と呼ぶと、何から手を付けるか決まりません。層を分けると、壊れたときに何が起きるかで優先順位が付きます。
+
+| 層 | 守るもの | 壊れると何が起きるか | 扱う回 |
+|---|---|---|---|
+| **エージェント層** | 手元のエージェントが持つ権限。ファイル・シェル・ネットワーク・MCP経由の外部サービス | 開発者のマシンと認証情報が抜かれる | 第2〜6回 |
+| **生成物層** | AIが書いたコードそのもの | 本番のユーザーデータが漏れる・壊れる | 第7〜9回 |
+| **実行基盤層** | デプロイ先の設定と、依存パッケージ | 全部が同時に危なくなる | 第10〜12回 |
+
+## 全12回
+
+### 全体像
+
+- [第1回 AIで作る時代の攻撃面 — 何が新しく危険になり、どこからが自分の責任か](/knowledge/security/secure-ai-development/01-attack-surface/)
+
+### エージェントを制御する
+
+手元のエージェントに、何をどこまでやらせるかを決める層です。
+
+- [第2回 Claude Code の権限設計 — どこまで許可し、何を必ず拒否するか](/knowledge/security/secure-ai-development/02-claude-code-permissions/)
+- [第3回 Codex の権限設計 — 承認と隔離を2軸で決める](/knowledge/security/secure-ai-development/03-codex-approval-sandbox/)
+- [第4回 Hooks でガードレールを組む — 権限設定で塞ぎきれない穴を埋める](/knowledge/security/secure-ai-development/04-hooks-guardrails/)
+- [第5回 MCP と外部連携 — 非信頼な入力がツールを動かす経路を塞ぐ](/knowledge/security/secure-ai-development/05-mcp-and-prompt-injection/)
+- [第6回 生成AIツール側の設定で守る — 開発者と管理者が実際に触る項目](/knowledge/security/secure-ai-development/06-ai-tool-settings/)
+
+### 生成コードをレビューする
+
+出てきたコードを、どの観点で見るかの層です。
+
+- [第7回 AI生成コードのレビュー観点 — 何を見て、AIに何をレビューさせるか](/knowledge/security/secure-ai-development/07-code-review-checklist/)
+- [第8回 認証・認可のレビュー — AIに任せると最も壊れやすい場所](/knowledge/security/secure-ai-development/08-authn-authz-review/)
+- [第9回 入出力と外部連携のレビュー — 境界で止める、境界で守る](/knowledge/security/secure-ai-development/09-input-and-external-interfaces/)
+
+### 基盤と供給網を守る
+
+動かす場所と、持ち込むものの層です。
+
+- [第10回 デプロイ基盤の本番前チェック — Cloudflare / Vercel / Supabase 横断で見る](/knowledge/security/secure-ai-development/10-platform-preflight/)
+- [第11回 秘密情報とサプライチェーン — 漏らさない仕組みと、拾わない仕組み](/knowledge/security/secure-ai-development/11-secrets-and-supply-chain/)
+
+### 運用
+
+- [第12回 運用と初動 — 気づける状態を作り、起きたときに順番を間違えない](/knowledge/security/secure-ai-development/12-operations-and-incident/)
+
+## どこから読むか
+
+順に読む必要はありません。今の状況に近いところから入れます。
+
+| 今の状況 | 最初に読む回 |
+|---|---|
+| エージェントに何を許可すべきか決まっていない | 第2回（Claude Code）または第3回（Codex） |
+| MCP サーバーを増やしてきたが、棚卸ししていない | 第5回 |
+| 会社の情報をAIに入れてよいか、設定側で決めたい | 第6回 |
+| AIが書いたコードのレビューで何を見ればいいか分からない | 第7回 |
+| もうすぐ本番公開する | 第10回 |
+| すでに何か起きた | 第12回 |
+
+全体像から入りたい場合は第1回から読んでください。第1回は残り11回の地図になっています。
