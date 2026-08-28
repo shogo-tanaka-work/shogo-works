@@ -142,7 +142,8 @@ export type KnowledgeCategory =
   | "harness-engineering"
   | "loop-engineering"
   | "graph-engineering"
-  | "ai-governance";
+  | "ai-governance"
+  | "security";
 
 export interface CategoryMeta {
   slug: KnowledgeCategory;

@@ -77,6 +77,13 @@ export const categories: CategoryMeta[] = [
       "生成AI導入におけるリスク管理・法的論点・組織統制の設計手法",
     icon: "shield",
   },
+  {
+    slug: "security",
+    label: "Security",
+    description:
+      "AIで作ったものを守る。エージェントの権限設計、生成AIツールの設定、コードレビュー観点、デプロイ基盤の安全運用",
+    icon: "lock",
+  },
 ];
 
 export const subcategories: Partial<
@@ -188,6 +195,14 @@ export const subcategories: Partial<
       label: "業務AI安全利用ガイド",
       description:
         "ルールを作る側ではなく、日々AIを使う側のための判断軸。入力してよいか、回答を信じてよいか、社外に出してよいかを、Microsoft 365 Copilot を題材に整理する",
+    },
+  ],
+  security: [
+    {
+      slug: "secure-ai-development",
+      label: "AI開発セキュリティ実践",
+      description:
+        "AIに書かせる・作らせる側のための実装ガイド。エージェントへ渡す権限の設計、Hooks でのガードレール、生成AIツール側の設定、生成コードのレビュー観点、デプロイ基盤の本番前チェックまでを扱う",
     },
   ],
 };
