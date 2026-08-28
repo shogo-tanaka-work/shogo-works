@@ -1,6 +1,6 @@
 ---
 title: "Claude Files API完全解説：ファイルを事前アップロードしてAPIコストを削減する"
-description: "2025年5月22日betaリリースのClaude Files APIを解説。file_idによるファイル再利用、プロンプトキャッシュとの組み合わせによるコスト削減、Code Execution Toolとの連携パターンを網羅。"
+description: "Claude Files APIを解説。GA化に伴うbetaヘッダー廃止と有効期限・容量上限、file_idによるファイル再利用、プロンプトキャッシュとの組み合わせ、Code Execution Toolとの連携パターンを網羅。"
 category: "ai-tools"
 subcategory: "claude"
 difficulty: "intermediate"
@@ -8,6 +8,7 @@ contentType: "news"
 tags: ["Claude", "Files API", "API", "プロンプトキャッシュ", "コスト削減"]
 sortOrder: 6
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -16,6 +17,7 @@ author: "田中省伍"
 - ファイルを事前アップロード → `file_id` で参照 → 毎回base64エンコード不要
 - 同じPDF・コードベースを繰り返し使うワークフローでトークンコストを大幅削減
 - **Code Execution Tool**と組み合わせると「CSVをアップロードして分析」が1APIコールで完結
+- **GA済み。betaヘッダーは不要**になり、アップロード時に有効期限を指定できるようになりました
 
 ---
 
@@ -24,6 +26,8 @@ author: "田中省伍"
 **Claude Files API** は、2025年5月22日にbetaとして公開されたファイル管理APIです。PDFや画像・テキストファイルを事前にアップロードしておき、Messages APIから `file_id` で参照できます。
 
 従来は毎回ファイルをbase64エンコードしてリクエストペイロードに含める必要がありましたが、Files APIにより**ファイルの送信コストが初回アップロードの1回だけ**になります。
+
+2026年8月27日のSDK更新でFiles APIはGAとなり、`files-api-2025-04-14` betaヘッダーは不要になりました。`client.beta.files` は `client.files` と同じ形を返すようになっています。旧ヘッダーを送り続けているコードもそのまま動くため、移行は任意です。
 
 ---
 
@@ -38,8 +42,10 @@ client = anthropic.Anthropic()
 
 # PDFをアップロード
 with open("specification.pdf", "rb") as f:
-    response = client.beta.files.upload(
+    response = client.files.upload(
         file=("specification.pdf", f, "application/pdf"),
+        # 任意。3,600秒（1時間）〜7,776,000秒（90日）で指定できる
+        expires_in_seconds=7 * 24 * 60 * 60,
     )
 
 file_id = response.id
@@ -49,8 +55,8 @@ print(file_id)  # file_abc123...
 ### 2. file_id でメッセージに組み込む
 
 ```python
-message = client.beta.messages.create(
-    model="claude-opus-4-7",
+message = client.messages.create(
+    model="claude-opus-5",
     max_tokens=1024,
     messages=[
         {
@@ -70,7 +76,6 @@ message = client.beta.messages.create(
             ],
         }
     ],
-    betas=["files-api-2025-04-14"],
 )
 ```
 
@@ -81,15 +86,15 @@ message = client.beta.messages.create(
 ```python
 # CSVをアップロード
 with open("sales_data.csv", "rb") as f:
-    file = client.beta.files.upload(
+    file = client.files.upload(
         file=("sales_data.csv", f, "text/plain"),
     )
 
 # アップロードしたCSVをPythonで分析
 message = client.beta.messages.create(
-    model="claude-opus-4-7",
+    model="claude-opus-5",
     max_tokens=4096,
-    tools=[{"type": "code_execution_20250522", "name": "code_execution"}],
+    tools=[{"type": "code_execution_20260521", "name": "code_execution"}],
     messages=[
         {
             "role": "user",
@@ -105,7 +110,7 @@ message = client.beta.messages.create(
             ],
         }
     ],
-    betas=["files-api-2025-04-14"],
+    betas=["code-execution-2025-08-25"],
 )
 ```
 
@@ -123,7 +128,7 @@ messages=[
             {
                 "type": "document",
                 "source": {"type": "file", "file_id": file_id},
-                "cache_control": {"type": "ephemeral"}  # 1時間キャッシュ
+                "cache_control": {"type": "ephemeral", "ttl": "1h"}  # 1時間キャッシュ
             },
             {"type": "text", "text": "質問内容"}
         ],
@@ -137,14 +142,27 @@ messages=[
 
 ```python
 # アップロード済みファイル一覧
-files = client.beta.files.list()
+files = client.files.list()
 
 # ファイルのメタデータを取得
-file_info = client.beta.files.retrieve_metadata(file_id)
+file_info = client.files.retrieve_metadata(file_id)
 
 # ファイルを削除
-client.beta.files.delete(file_id)
+client.files.delete(file_id)
 ```
+
+### 有効期限と上限
+
+| 項目 | 値 |
+|---|---|
+| 有効期限の指定範囲 | 3,600秒（1時間）〜7,776,000秒（90日） |
+| 期限を指定しない場合 | 失効しない（`expires_at` は `null`） |
+| 失効後の挙動 | 本体は404。メタデータは最大30日間参照できる |
+| 1ファイルの最大サイズ | 500 MB |
+| 組織あたりの総容量 | 1 TB |
+| ファイル系APIのレート制限 | 約500リクエスト/分 |
+
+短期の分析用ファイルには `expires_in_seconds` を付けておくと、1TBの枠を手動整理せずに済みます。
 
 ---
 

@@ -1,0 +1,155 @@
+---
+title: "ChatGPT のモデル体系：GPT-5.6 Sol / Terra / Luna の使い分け"
+description: "ChatGPT と API の現行モデル GPT-5.6（Sol / Terra / Luna）の位置づけ・料金・コンテキスト長・プラン別アクセスを整理。GPT-5.4 / 5.5 世代からの移行先と、APIの廃止スケジュールもまとめました。"
+category: "ai-tools"
+subcategory: "chatgpt"
+difficulty: "intermediate"
+contentType: "reference"
+tags: ["ChatGPT", "OpenAI", "GPT-5", "API"]
+sortOrder: 1
+createdAt: 2026-04-16
+updatedAt: 2026-08-28
+author: "田中省伍"
+---
+
+## ツール概要
+
+GPT-5.6 は OpenAI が 2026年7月9日に一般提供を開始した現行モデルファミリーです。**Sol**（最上位）・**Terra**（バランス型）・**Luna**（軽量・低コスト）の3ティアで構成されます。数字が世代を、Sol / Terra / Luna が能力ティアを表す命名方式に変わりました。
+
+限定プレビューは2026年6月26日に少数のパートナー向けで始まり、7月9日に ChatGPT・ChatGPT Work・Codex・API のすべてへ展開されています（[GPT-5.6（OpenAI）](https://openai.com/index/gpt-5-6/)）。
+
+---
+
+## モデル体系と変更点
+
+### 2026年前半の世代交代
+
+半年で3世代が入れ替わりました。GPT-5.4 世代を前提に書かれた社内手順やモデル指定は、そのままでは動きません。
+
+| 時期 | 出来事 |
+|---|---|
+| 2026年3月5日 | GPT-5.4 リリース |
+| 2026年4月23日 | GPT-5.5 リリース（エージェント特化の訓練を受けたベースモデル） |
+| 2026年5月5日 | GPT-5.5 Instant が ChatGPT のデフォルトモデルに |
+| 2026年6月26日 | GPT-5.6 シリーズを限定プレビュー公開。同日 GPT-4.5 が ChatGPT から退役 |
+| 2026年7月9日 | GPT-5.6（Sol / Terra / Luna）が一般提供開始 |
+| 2026年8月6日 | GPT-5.6 Sol を更新。Free / Go の既定モデルが GPT-5.6 Luna に |
+
+### 現行ラインナップ（2026年8月時点）
+
+| モデル | 位置づけ | 備考 |
+|---|---|---|
+| GPT-5.6 Sol | フロンティア。長尺のエージェント作業・複雑な推論向け | Pro / Enterprise ではさらに上位の Sol Pro を選択可能 |
+| GPT-5.6 Terra | 本番運用向けのバランス型 | 一般提供時点で Free / Go が使えた唯一のティア |
+| GPT-5.6 Luna | 大量処理・低レイテンシ向け | 2026年8月6日から Free / Go の既定モデル |
+
+### 退役したモデル
+
+| モデル | 状況 |
+|---|---|
+| GPT-4o / GPT-4.1 / GPT-4.1 mini / o4-mini | 2026年2月13日に ChatGPT から退役（API では継続） |
+| GPT-5.1 系 | 2026年3月11日に ChatGPT から退役 |
+| GPT-4.5 | 2026年6月26日に ChatGPT から退役 |
+| GPT-5.4 / GPT-5.4 mini | 2026年8月31日に **Codex から**退役。移行先は Terra と Luna |
+
+GPT-5.3 と GPT-5.4 が ChatGPT 本体のモデル選択肢からいつ外れるかは、公式の退役告知を確認できていません。運用で依存している場合は[モデルのリリースノート](https://help.openai.com/en/articles/9624314-model-release-notes)で最新の状況を確認してください。
+
+---
+
+## ChatGPT での使い方
+
+### プラン別のアクセス
+
+一般提供時点の区分は、Free / Go が Terra のみ、Plus 以上が Sol / Terra / Luna を選択可能、Pro / Enterprise がさらに Sol Pro も利用可能というものでした。その後 2026年8月6日の更新で、Free / Go の既定モデルが Luna に変わっています。
+
+### 思考量スライダー
+
+2026年8月6日の更新で、ChatGPT がどれだけ考えるかを選べるスライダーが Plus / Pro 向けに追加されました。GPT-5.4 世代までの「Instant か Thinking か」という固定の二択に代わる操作系です。軽い質問では思考量を下げ、複雑な調査では上げる、という使い分けになります。
+
+同じ更新で Free / Go にはテキストチャットの無制限化と、難しい問いに使う **Think ボタン**が提供されました。ただし無制限の対象はテキストのやり取りだけで、ファイルアップロード・画像・その他ツールには引き続き上限があります。ChatGPT Work と Codex もこの更新の対象外です。
+
+---
+
+## API でのアクセス
+
+API では `gpt-5.6-sol` / `gpt-5.6-terra` / `gpt-5.6-luna` のモデル ID で直接呼び出せます。
+
+```python
+from openai import OpenAI
+
+client = OpenAI()
+
+response = client.chat.completions.create(
+    model="gpt-5.6-terra",
+    messages=[
+        {"role": "user", "content": "このコードレビューの指摘を重要度順に並べ替えてください。"}
+    ]
+)
+
+print(response.choices[0].message.content)
+```
+
+### 料金とコンテキスト長
+
+2026年8月時点の値です（[OpenAI API モデルドキュメント](https://developers.openai.com/api/docs/models/gpt-5.5)）。
+
+| モデル | コンテキスト | 最大出力 | 入力（$/1M） | 出力（$/1M） |
+|---|---|---|---|---|
+| GPT-5.6 Sol | 1,050,000 | 128,000 | $4 | $20 |
+| GPT-5.6 Terra | 1,050,000 | — | $2 | $12 |
+| GPT-5.6 Luna | 1,050,000 | 128,000 | $0.20 | $1.20 |
+| GPT-5.5 | 1,050,000 | 128,000 | $5 | $30 |
+
+Terra は入力が272,000トークンを超えると入力単価が2倍、出力単価が1.5倍になります。Luna のキャッシュ入力は $0.02 / 1M です。
+
+2026年7月30日に Luna が約80%、Terra が約20%値下げされました。一般提供から3週間での価格改定です。
+
+### 廃止スケジュール
+
+旧世代スナップショットの削除が **2026年12月11日**に予定されています（[Deprecations](https://developers.openai.com/api/docs/deprecations)）。
+
+| 削除されるモデル | 推奨移行先 |
+|---|---|
+| `gpt-5-2025-08-07` | `gpt-5.6-sol` |
+| `gpt-5-mini-2025-08-07` | `gpt-5.6-terra` |
+| `gpt-5-nano-2025-08-07` | `gpt-5.6-luna` |
+| `gpt-5-pro-2025-10-06` | `gpt-5.6-sol`（`reasoning.mode: pro`） |
+| `o3-2025-04-16` | `gpt-5.6-sol` |
+| `o3-pro-2025-06-10` | `gpt-5.6-sol`（`reasoning.mode: pro`） |
+
+---
+
+## 強み・特徴
+
+- **コンテキストが約105万トークン**: 3ティアとも同じコンテキスト長で、モデルを下位に落としても扱える入力量は変わりません。コストだけを段階的に下げられます。
+- **事実精度の改善**: 2026年8月6日更新の GPT-5.6 Sol は、GPT-5.5 Instant と比べて事実誤りが約60%減とされています（[Deployment Safety Hub](https://deploymentsafety.openai.com/gpt-5-6-august-update/introduction)）。
+- **下位ティアの価格**: Luna は入力 $0.20 / 出力 $1.20 で、大量処理を下位ティアへ切り出す設計が現実的な水準です。
+
+---
+
+## 弱み・限界
+
+- **世代交代が速い**: 2026年前半だけで GPT-5.4 → 5.5 → 5.6 と入れ替わりました。モデル ID をハードコードした運用は、退役告知の追跡が前提になります。
+- **Terra の長文課金**: 272,000トークンを超えると単価が上がるため、長いコンテキストを常用する用途では見積もりが崩れます。
+- **プラン別の差**: Sol Pro は Pro / Enterprise 限定です。同じ社内でもプランによって使えるティアが違う点は、業務手順を書くときに前提として明記が要ります。
+- **ハルシネーション**: 事実精度は改善していますが誤りはゼロではありません。重要な事実は一次情報での裏取りが必要です。
+
+---
+
+## まとめ
+
+- **現行は GPT-5.6 の3ティア構成**。Sol が最上位、Terra がバランス型、Luna が軽量です。
+- **ChatGPT の既定モデル**は Free / Go が Luna、Plus 以上が Sol です。
+- **Instant / Thinking の二択は思考量スライダーへ置き換わりました**。
+- **API の旧 GPT-5・o3 系スナップショットは2026年12月11日に削除**されます。移行先は GPT-5.6 系です。
+- **用途別の使い分け**: 複雑な推論と長尺のエージェント作業には Sol、本番の常用処理には Terra、大量処理とコスト最適化には Luna が適します。
+
+---
+
+## 参考リンク
+
+- [GPT-5.6: Frontier intelligence that scales with your ambition（OpenAI）](https://openai.com/index/gpt-5-6/)
+- [GPT-5.6 August Updates（OpenAI Deployment Safety Hub）](https://deploymentsafety.openai.com/gpt-5-6-august-update/introduction)
+- [Deprecations（OpenAI API）](https://developers.openai.com/api/docs/deprecations)
+- [Model Release Notes（OpenAI Help Center）](https://help.openai.com/en/articles/9624314-model-release-notes)
+- [ChatGPT Release Notes（OpenAI Help Center）](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)

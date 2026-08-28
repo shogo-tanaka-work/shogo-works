@@ -446,8 +446,8 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 2,
       label: "モデルと料金プラン",
-      description: "Opus 4.7・Claude Design・Max プラン",
-      sortOrderStart: 2,
+      description: "モデル体系・Opus 4.7・Claude Design・Max プラン",
+      sortOrderStart: 1,
     },
     {
       order: 3,
@@ -493,20 +493,20 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 2,
       label: "モデル",
-      description: "Gemini 3.1 Pro / Flash Live",
+      description: "モデル系譜と Gemini 3.1 Pro / Flash Live",
       sortOrderStart: 1,
     },
     {
       order: 3,
       label: "API とツール",
-      description: "API 料金・キャッシング・CLI Extensions・NotebookLM",
-      sortOrderStart: 3,
+      description: "API 料金・キャッシング・CLI Extensions・Gemini Notebook",
+      sortOrderStart: 4,
     },
     {
       order: 4,
       label: "アプリと Workspace",
       description: "Deep Research / Workspace 機能 / Gems",
-      sortOrderStart: 7,
+      sortOrderStart: 8,
     },
   ],
   /**
@@ -653,6 +653,44 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
       label: "その他",
       description: "DNS / Registrar / Email Routing / Containers / Radar / Pipelines / Secrets Store / Sandbox SDK / Workers for Platforms / Zaraz など",
       sortOrderStart: 60,
+    },
+  ],
+  /**
+   * AI開発セキュリティ実践は「守る対象の層」で tier を切る。
+   * エージェントへ渡す権限 → 生成物のレビュー → 動かす基盤 → 運用、の順に外側へ広がる。
+   */
+  "security/secure-ai-development": [
+    {
+      order: 1,
+      label: "全体像",
+      description: "AIで作る時代に何が攻撃面になったか、どこまでが自分の責任か",
+      sortOrderStart: 0,
+    },
+    {
+      order: 2,
+      label: "エージェントを制御する",
+      description:
+        "Claude Code / Codex の権限設計、Hooks でのガードレール、MCP・外部連携の攻撃面、生成AIツール側の設定",
+      sortOrderStart: 2,
+    },
+    {
+      order: 3,
+      label: "生成コードをレビューする",
+      description: "レビュー観点の全体像と、認証・認可／入出力・外部連携の各論",
+      sortOrderStart: 7,
+    },
+    {
+      order: 4,
+      label: "基盤と供給網を守る",
+      description:
+        "Cloudflare / Vercel / Supabase の本番前チェック、秘密情報とサプライチェーン",
+      sortOrderStart: 10,
+    },
+    {
+      order: 5,
+      label: "運用",
+      description: "ログ・監視と、事故が起きたときの初動",
+      sortOrderStart: 12,
     },
   ],
 };

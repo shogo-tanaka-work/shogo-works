@@ -1,6 +1,6 @@
 ---
 title: "Claude Memory Tool完全解説：会話をまたいで情報を保存する長期記憶API"
-description: "2025年9月29日betaリリースのClaude Memory Toolを解説。クライアントサイドメモリの仕組み、Context Editingとの組み合わせによる長期エージェント設計、実装パターンを網羅。"
+description: "Claude Memory Toolを解説。クライアントサイドメモリの仕組み、Context Editingとの組み合わせによる長期エージェント設計、Managed Agentsのメモリストアとの使い分けを網羅。"
 category: "ai-tools"
 subcategory: "claude"
 difficulty: "intermediate"
@@ -8,6 +8,7 @@ contentType: "news"
 tags: ["Claude", "Memory Tool", "API", "長期記憶", "エージェント"]
 sortOrder: 8
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -16,6 +17,7 @@ author: "田中省伍"
 - Claudeが会話をまたいで情報を**保存・参照・更新**できるツール
 - ストレージはクライアントサイド管理（開発者が保存先を自由に選択）
 - **Context Editing** と組み合わせると長期エージェントでのコンテキスト溢れを防止
+- 保存先を自分で持ちたくない場合は、Managed Agents 側の**メモリストア**という別の選択肢がある
 
 ---
 
@@ -27,15 +29,15 @@ author: "田中省伍"
 
 ---
 
-## ツールの種類
+## ツールの構成
 
-Memory Toolは3種類の操作をカバーします：
+Memory Tool は `{"type": "memory_20250818", "name": "memory"}` という Anthropic 定義のツールとして宣言します。`input_schema` は自分で書きません。実際の保存処理は開発者側のハンドラーで実装し、次の3種類の操作をカバーします。
 
-| ツール名 | 操作 | 用途 |
-|---|---|---|
-| `memory_create` | 新規保存 | 新しい情報を記録 |
-| `memory_read` | 読み取り | 過去の情報を参照 |
-| `memory_update` | 更新 | 既存情報を最新化 |
+| 操作 | 用途 |
+|---|---|
+| 保存 | 新しい情報を記録する |
+| 読み取り | 過去の情報を参照する |
+| 更新 | 既存情報を最新化する |
 
 ---
 
@@ -69,8 +71,8 @@ def handle_memory_tool(tool_name, tool_input):
         return f"更新しました: {key}"
 
 # Memory Tool を組み込んだエージェントループ
-response = client.beta.messages.create(
-    model="claude-opus-4-7",
+response = client.messages.create(
+    model="claude-opus-5",
     max_tokens=1024,
     tools=[{"type": "memory_20250818", "name": "memory"}],
     messages=[
@@ -79,7 +81,6 @@ response = client.beta.messages.create(
             "content": "私は田中省伍です。Webエンジニアとして働いています。覚えておいてください。"
         }
     ],
-    betas=["memory-tool-2025-09-12"],
 )
 ```
 
@@ -96,38 +97,52 @@ response = client.beta.messages.create(
 # 2. 古いtool_resultをContext Editingで削除
 # 3. 次のステップでMemory Toolから必要な情報を読み取る
 
-# SDKのtool_runner（自動コンパクション内蔵）を使う場合
-from anthropic import tool_runner
-
-result = tool_runner.run(
-    client=client,
-    model="claude-opus-4-7",
+# SDK の tool_runner にループを任せる場合
+runner = client.beta.messages.tool_runner(
+    model="claude-opus-5",
+    max_tokens=4096,
     tools=[{"type": "memory_20250818", "name": "memory"}],
     messages=[...],
-    betas=["memory-tool-2025-09-12"],
-    handle_tool_call=handle_memory_tool,
 )
+result = runner.until_done()
 ```
+
+Context Editing 自体は `client.beta.messages.*` に `context-management-2025-06-27` betaヘッダーを付け、`context_management` で方式を指定します。古いツール結果を消す `clear_tool_uses_20250919` と、思考ブロックを消す `clear_thinking_20251015` があります。
 
 ---
 
-## Claude.ai のメモリとの違い
+## Claude.ai のメモリ・Managed Agents のメモリストアとの違い
 
-| 項目 | Memory Tool（API） | Claude.ai メモリ |
-|---|---|---|
-| 管理者 | 開発者（クライアント側） | Anthropic（サーバー側） |
-| 保存先 | 自由（DB・ファイル等） | Anthropicのシステム |
-| ユーザー操作 | 開発者が設計 | claude.ai UIから管理 |
-| 対象 | API利用アプリ | claude.ai ユーザー |
-| カスタマイズ | 完全に自由 | 限定的 |
+2026年7月に Managed Agents 向けの**メモリストア**が加わり、選択肢は3つになりました。
+
+| 項目 | Memory Tool（API） | メモリストア（Managed Agents） | Claude.ai メモリ |
+|---|---|---|---|
+| 管理者 | 開発者（クライアント側） | Anthropic（サーバー側） | Anthropic（サーバー側） |
+| 保存先 | 自由（DB・ファイル等） | ワークスペース単位のストア | Anthropicのシステム |
+| ユーザー操作 | 開発者が設計 | APIから操作 | claude.ai UIから管理 |
+| カスタマイズ | 完全に自由 | ストア構成の範囲で自由 | 限定的 |
+
+### メモリストアの要点
+
+メモリストアはワークスペース単位のテキスト文書コレクションで、セッションのサンドボックスにディレクトリとしてマウントされます。バージョンは不変で、保持期間は30日です。コンプライアンス対応の redact エンドポイントも用意されています。
+
+| 制限 | 値 |
+|---|---|
+| 1セッションあたりのストア数 | 8 |
+| 1ストアあたりのメモリ数 | 2,000 |
+| 1メモリのサイズ | 100 kB |
+
+betaヘッダーは他の Managed Agents エンドポイントと異なり、メモリストア系だけ **`agent-memory-2026-07-22`** を使います。`managed-agents-2026-04-01` と同時に送ると400エラーになります。
+
+関連して「**Dreaming**」も追加されています。断片化したメモリを、元のストアを書き換えずに新しい出力ストアへ統合するセッションです。
 
 ---
 
 ## 対応モデル
 
-- Claude Opus 4.1 / Opus 4
-- Claude Sonnet 4.6 / Sonnet 4
-- Claude Haiku 4.5
+現行の Opus 5 / Sonnet 5 / Fable 5 / Haiku 4.5 で利用できます。
+
+なお `claude-opus-4-1` は2026年8月5日、`claude-opus-4` と `claude-sonnet-4` は2026年6月15日に**廃止済み**です。これらを指定している実装は動きません。
 
 ---
 
@@ -135,4 +150,5 @@ result = tool_runner.run(
 
 - [Memory Tool Documentation | Anthropic](https://platform.claude.com/docs/en/agents-and-tools/tool-use/memory-tool)
 - [Context Editing Documentation | Anthropic](https://platform.claude.com/docs/en/build-with-claude/context-editing)
+- [Using agent memory | Anthropic](https://platform.claude.com/docs/en/managed-agents/memory)
 - [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)

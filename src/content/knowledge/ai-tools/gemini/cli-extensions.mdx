@@ -6,8 +6,9 @@ subcategory: "gemini"
 difficulty: "intermediate"
 contentType: "news"
 tags: ["Gemini", "Gemini CLI", "Extensions", "BigQuery", "データ分析"]
-sortOrder: 6
+sortOrder: 7
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -16,6 +17,17 @@ author: "田中省伍"
 - Gemini CLIが**対話型シェル対応**（vim・git rebase -i・REPL等が使えるようになった）
 - **Extensions**でBigQuery・Cloud SQL・Lookerを自然言語で操作できる
 - `gemini extensions install <GitHub URL>` で1コマンドインストール
+- **Google I/O 2026 で Antigravity CLI への統合が発表**されており、新規に組むなら移行先を確認してから
+
+---
+
+## Antigravity CLI への統合（2026年5月発表）
+
+Google I/O 2026（2026年5月19日）の開発者向け基調講演で、**Gemini CLI を Antigravity CLI へ統合する方針**が発表されました。Antigravity 2.0 は複数のエージェントを並列実行して1画面で管理するデスクトップアプリで、CLIはその一部という位置づけになります。
+
+業務スクリプトやCIにGemini CLIを組み込んでいる場合は、移行の検討が必要です。本記事で扱うExtensionsの仕組み自体は現行のGemini CLIで引き続き使えますが、**長期運用を前提とした新規構築では移行先を先に確認してください。**
+
+Gemini CLI 自体の更新は続いており、2026年8月時点の安定版はv0.55.1です。個人向けプランでの提供終了時期など、移行の具体的な条件は公式の告知で最新の状態を確認してください。
 
 ---
 
@@ -145,3 +157,4 @@ my-extension/
 - [Google Developers Blog - Gemini CLI 対話型シェル](https://developers.googleblog.com/en/say-hello-to-a-new-level-of-interactivity-in-gemini-cli/)
 - [Google Cloud Blog - Gemini CLI Extensions for Data Cloud](https://cloud.google.com/blog/products/databases/gemini-cli-extensions-for-google-data-cloud)
 - [Gemini CLI Changelog | 公式](https://google-gemini.github.io/gemini-cli/docs/changelogs/)
+- [Google I/O 2026 developer highlights | blog.google](https://blog.google/innovation-and-ai/technology/developers-tools/google-io-2026-developer-highlights/)

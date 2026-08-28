@@ -1,0 +1,87 @@
+---
+title: "ChatGPTの三本立て構成：チャット・ChatGPT Work・Codexの使い分け"
+description: "2026年7月9日にChatGPTはチャット・ChatGPT Work・Codexの3つを1つのデスクトップアプリへ統合しました。それぞれが担う領域、プラン別の使える範囲、更新サイクルが別々である点を整理します。"
+category: "ai-tools"
+subcategory: "chatgpt"
+difficulty: "intermediate"
+contentType: "reference"
+tags: ["ChatGPT", "OpenAI", "AIエージェント", "Codex"]
+sortOrder: 4
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## 概要
+
+2026年7月9日、ChatGPT は製品としての形が変わりました。同じ日に3つの発表が重なっています。
+
+1. 目標を渡すと数時間かけて成果物を作る **ChatGPT Work** のローンチ
+2. チャット・ChatGPT Work・Codex を1つにまとめた**新しいデスクトップアプリ**の公開（旧アプリは「ChatGPT Classic」に改称）
+3. スタンドアロンブラウザ **ChatGPT Atlas** の終了予告（2026年8月9日に停止）
+
+結果として、ChatGPT は「1つのチャットボット」ではなく、**チャット・Work・Codex という3つの面を持つ製品**になりました。どれを使うかを選ぶところから業務設計が始まります。
+
+---
+
+## 3つの面が担う領域
+
+| 面 | 担当する仕事 | 実行時間の目安 |
+|---|---|---|
+| チャット | 質問・要約・翻訳・下書き。対話しながら詰める作業 | 秒〜分 |
+| ChatGPT Work | 目標を渡して放置する作業。スプレッドシート・スライド・Webページなどの成果物生成 | 数時間 |
+| Codex | コードの読み書き、コンピュータ操作、ブラウザ作業 | 分〜時間 |
+
+### チャット
+
+従来どおりの対話です。2026年8月6日以降、Free・Go ではテキストチャットが無制限になり、難しい問いには Think ボタンを使えます。Plus・Pro には思考量スライダーが追加されました。
+
+### ChatGPT Work
+
+達成したい目標を入力すると、ChatGPT がバックグラウンドで数時間かけて成果物を作ります。Slack・Teams・Google Drive などと連携して情報を取得し、成果物を共有できます。
+
+提供範囲は、Web とモバイルが Pro / Enterprise / Edu から始まり、数日以内に Plus / Business へ拡大、デスクトップアプリは全プラン対象という形で始まりました。2026年8月25日には、サインインが必要なサイトの内側でもタスクを実行できるようになり、Site tools（WebMCP）とブラウザ拡張が追加されています。
+
+### Codex
+
+2026年4月16日のアップデートで、Codex はコーディング専用ツールから汎用のエージェント端末へ広がりました。macOS のコンピュータ操作、アプリ内ブラウザ、画像生成、永続メモリ、スケジュール実行を扱います。詳細は[Codexの汎用エージェント化](/knowledge/ai-tools/chatgpt/codex-for-everything)と[Codex カテゴリ](/knowledge/ai-tools/codex/overview)にまとめています。
+
+---
+
+## 組織で使う場合：Workspace Agents
+
+Business / Enterprise / Edu プランには、2026年4月22日から **Workspace Agents** がリサーチプレビューとして提供されています。Codex を内蔵し、クラウド上に常駐して、組織内での共有と承認フローに載せられる点が個人向けの機能との違いです。
+
+同時に、従来の Custom GPTs は縮小方向にあります。2026年8月16日以降、個人プラン（Free / Go / Plus / Pro）では**新規の GPT 作成と GPT ストアへの申請ができなくなり**、Business / Enterprise / Edu ワークスペースが必要になりました。既存 GPT の利用・編集と GPT ストア自体は継続しています。法人プランでも Custom GPTs は非推奨の方向ですが、移行期限は公表されていません。
+
+API 側でも、ノーコードのエージェント構築ツールだった **Agent Builder が2026年11月30日に停止**予定です。移行先として Agents SDK と Workspace Agents が案内されています。
+
+---
+
+## 注意点
+
+- **更新サイクルが別々です。** 2026年8月6日にチャットのテキスト無制限化が入ったとき、公式は ChatGPT Work と Codex が対象外であると明記しました。「ChatGPT が◯◯できるようになった」というニュースが、3つの面すべてに当てはまるとは限りません。社内へ展開する際は、どの面の話なのかを確認してください。
+- **課金の前提が変わりました。** Excel / Sheets タスクの実行と Workspace Agents の実行は、2026年7月6日に無料提供が終了し、トークン課金クレジット方式へ移行しています。Enterprise / Edu の管理者はクレジット予算の設計が必要です。
+- **プランで使える範囲が違います。** ChatGPT Work は提供開始時点で上位プランから展開されました。社内手順書を書くときは、対象プランを明記しないと再現できない人が出ます。
+- **専用アプリの寿命は短いことがあります。** ChatGPT Atlas は2025年10月のローンチから1年足らずで終了しました。特定のアプリ形態に業務フローを固定しない設計が安全です。
+
+---
+
+## いつどれを使うか
+
+- 判断しながら詰めたい、途中で方向を変えたい → **チャット**
+- 完成形が説明でき、時間をかけて構わない → **ChatGPT Work**
+- リポジトリやローカル環境に手を入れる、画面を操作させる → **Codex**
+- 組織の全員に同じ手順を使わせたい → **Workspace Agents**
+
+判断の分かれ目は「途中で軌道修正が要るか」です。要るならチャット、要らないなら Work か Codex に任せる、という切り分けが実務では扱いやすくなります。
+
+---
+
+## 参考リンク
+
+- [ChatGPT for your most ambitious work（OpenAI）](https://openai.com/index/chatgpt-for-your-most-ambitious-work/)
+- [Moving to the new ChatGPT desktop app（OpenAI Help Center）](https://help.openai.com/en/articles/20001276-moving-to-the-new-chatgpt-desktop-app)
+- [Introducing workspace agents in ChatGPT（OpenAI）](https://openai.com/index/introducing-workspace-agents-in-chatgpt/)
+- [ChatGPT Workspace Agents for Enterprise and Business（OpenAI Help Center）](https://help.openai.com/en/articles/20001143-chatgpt-workspace-agents-for-enterprise-and-business)
+- [Creating and editing GPTs（OpenAI Help Center）](https://help.openai.com/en/articles/8554397-creating-and-editing-gpts)
+- [Deprecations（OpenAI API）](https://developers.openai.com/api/docs/deprecations)

@@ -1,0 +1,127 @@
+---
+title: "Claudeモデル体系2026：Opus 5 / Fable 5 / Sonnet 5 / Haiku 4.5 の4階層と選び分け"
+description: "2026年6〜7月の再編でClaudeは4階層になりました。Fable 5・Opus 5・Sonnet 5・Haiku 4.5のモデルID、100万トークンあたりの価格、コンテキスト長、effortの対応状況と、用途別の選び分けを整理します。"
+category: "ai-tools"
+subcategory: "claude"
+difficulty: "intermediate"
+contentType: "reference"
+tags: ["Claude", "Anthropic", "フロンティアモデル", "料金プラン", "AIコーディング"]
+sortOrder: 1
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## 概要
+
+2026年6月から7月にかけて、Claudeのモデル体系は Haiku / Sonnet / Opus の3階層から、最上位に **Fable** を加えた4階層へ再編されました。
+
+- **2026年5月28日**: Claude Opus 4.8
+- **2026年6月9日**: Claude Fable 5（および限定提供の Claude Mythos 5）
+- **2026年6月30日**: Claude Sonnet 5
+- **2026年7月24日**: Claude Opus 5
+
+現在の推奨は「まず Opus 5 から始める」です。Fable 5 は最高性能ですが価格が倍で、長時間動き続けるエージェント向けに位置付けられています。
+
+---
+
+## 4階層の一覧
+
+| モデル | モデルID | コンテキスト | 入力（$/MTok） | 出力（$/MTok） |
+|---|---|---|---|---|
+| Claude Fable 5 | `claude-fable-5` | 1M | $10.00 | $50.00 |
+| Claude Opus 5 | `claude-opus-5` | 1M | $5.00 | $25.00 |
+| Claude Sonnet 5 | `claude-sonnet-5` | 1M | $2.00 | $10.00 |
+| Claude Haiku 4.5 | `claude-haiku-4-5` | 200K | $1.00 | $5.00 |
+
+このほかに、招待制プログラム「Project Glasswing」向けの **Claude Mythos 5**（`claude-mythos-5`、Fable 5と同価格）があります。一般提供の4階層には含まれません。
+
+Sonnet 5 の $2 / $10 は当初「2026年8月31日までの導入価格」として発表され、9月1日から $3 / $15 へ引き上げる予定とされていましたが、**この値上げは実施されない**ことが公式の料金ページに明記されています。
+
+---
+
+## 階層ごとの位置付け
+
+### Claude Fable 5（最上位）
+
+公式ドキュメントでは「長時間動作するエージェント向けの次世代の知能」と説明され、最高性能が必要な場合の選択肢とされています。思考は常時オンで、`thinking` パラメータを明示的に無効化することはできません。知識のカットオフは2026年1月です。
+
+### Claude Opus 5（推奨の既定）
+
+「複雑なエージェント型のコーディングと企業業務向け」。Fable 5 に近い性能を半額で提供する日常利用向けモデルという位置付けで、公式も既定の選択肢として挙げています。知識のカットオフは2026年5月で、4階層のなかで最も新しい点も実務では効いてきます。
+
+### Claude Sonnet 5
+
+「速度と知能の最良の組み合わせ」。1Mコンテキストを備えつつ Opus 5 の40%の価格で、大量処理や対話系のワークロードに向きます。
+
+### Claude Haiku 4.5
+
+「フロンティアに近い知能を持つ最速のモデル」。4階層で唯一コンテキストが200Kにとどまり、後述の `effort` にも対応しません。分類・抽出など単純で大量のタスク向けです。
+
+---
+
+## 思考モードと effort の対応
+
+Opus 4.6世代以降、思考量の指定は `thinking.budget_tokens` から `output_config.effort` へ移行しました。
+
+| モデル | 思考モード | effort |
+|---|---|---|
+| Claude Fable 5 | Adaptive（常時オン） | `low` 〜 `max` |
+| Claude Opus 5 | Adaptive | `low` 〜 `max` |
+| Claude Sonnet 5 | Adaptive | `low` 〜 `max` |
+| Claude Haiku 4.5 | Extended（従来方式） | 非対応 |
+
+`effort` は `low` / `medium` / `high` / `xhigh` / `max` の5段階で、既定は `high` です。`budget_tokens` は Opus 4.6・Sonnet 4.6 では非推奨、**Opus 4.7以降のモデルでは400エラー**になります。
+
+```python
+import anthropic
+
+client = anthropic.Anthropic()
+
+response = client.messages.create(
+    model="claude-opus-5",
+    max_tokens=16000,
+    thinking={"type": "adaptive"},
+    output_config={"effort": "high"},
+    messages=[{"role": "user", "content": "この設計の問題点を洗い出してください"}],
+)
+```
+
+---
+
+## 選び分けの目安
+
+| 用途 | 推奨モデル | 理由 |
+|---|---|---|
+| 迷ったとき・日常の開発 | Opus 5 | 公式の既定推奨。カットオフが最も新しい |
+| 数十分〜数時間動く自律エージェント | Fable 5 | 長時間タスク向けに設計され、思考が常時オン |
+| 大量のリクエストを捌く対話・要約 | Sonnet 5 | 1Mコンテキストを Opus 5 の40%の価格で使える |
+| 分類・抽出などの単純な大量処理 | Haiku 4.5 | 最安・最速。200Kで足りるなら十分 |
+
+コスト最適化では、モデルを下げる前に **同じモデルで `effort` を下げる**ほうを先に試してください。キャッシュはモデル単位で分かれるため、複数モデルを使い分けるとプロンプトキャッシュの再利用が効かなくなります。
+
+---
+
+## 旧世代モデルの扱い
+
+2026年8月28日時点で、Opus 4.x / Sonnet 4.x 系はいずれも「Active」であり、廃止日が確定した「Deprecated」のモデルはありません。公表されているのは「これより早くは廃止しない」という下限日です。
+
+| モデル | 廃止しない下限日 |
+|---|---|
+| `claude-opus-4-8` | 2027年5月28日 |
+| `claude-opus-4-7` | 2027年4月16日 |
+| `claude-opus-4-6` | 2027年2月5日 |
+| `claude-sonnet-4-6` | 2027年2月17日 |
+| `claude-haiku-4-5` | 2026年10月15日 |
+
+一方で、`claude-opus-4-1` は2026年8月5日に、`claude-opus-4` と `claude-sonnet-4` は2026年6月15日に**すでに廃止済み**です。これらを指定しているコードは動きません。
+
+---
+
+## 参考リンク
+
+- [Models overview | Anthropic](https://platform.claude.com/docs/en/about-claude/models/overview)
+- [Pricing | Anthropic](https://platform.claude.com/docs/en/about-claude/pricing)
+- [Model deprecations | Anthropic](https://platform.claude.com/docs/en/about-claude/model-deprecations)
+- [Effort | Anthropic](https://platform.claude.com/docs/en/build-with-claude/effort)
+- [Introducing Claude Opus 5 | Anthropic](https://www.anthropic.com/news/claude-opus-5)
+- [Claude Opus 4.7 完全解説](/knowledge/ai-tools/claude/opus-4-7/)

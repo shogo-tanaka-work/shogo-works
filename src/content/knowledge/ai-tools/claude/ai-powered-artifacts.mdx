@@ -1,6 +1,6 @@
 ---
 title: "AI-Powered Artifacts完全解説：Claude APIを組み込んだAIアプリを共有リンクで配布する"
-description: "2025年7月25日追加のAI-Powered Artifacts機能を解説。ArtifactsからClaude APIを呼び出してインタラクティブなAIアプリを作成・共有する方法、制約、実践的な活用法を網羅。"
+description: "2025年7月25日追加のAI-Powered Artifacts機能を解説。ArtifactsからClaude APIを呼び出してAIアプリを作成・共有する方法、制約、2026年6月に加わったClaude Code側のArtifactsとの違いを網羅。"
 category: "ai-tools"
 subcategory: "claude"
 difficulty: "intermediate"
@@ -8,6 +8,7 @@ contentType: "news"
 tags: ["Claude", "Artifacts", "AIアプリ", "共有", "ノーコード"]
 sortOrder: 5
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -16,6 +17,7 @@ author: "田中省伍"
 - Artifacts内からClaude APIを呼び出せる → **AIが動くアプリ**を作れる
 - APIキー不要で共有リンクを渡すだけ → 受け取った人が自分のClaudeアカウントで実行
 - 永続ストレージ・外部API呼び出しは非対応（2026年4月時点）
+- 2026年6月にはClaude Code側にも別系統のArtifactsが加わった（ベータ / Team・Enterprise向け）
 
 ---
 
@@ -87,7 +89,25 @@ Claudeが自動的にAI-Powered Artifactのコードを生成し、プレビュ�
 
 ---
 
+## Claude Code の Artifacts との違い
+
+2026年6月18日、Claude Codeにも Artifacts が追加されました。名前は同じですが別の機能です。
+
+こちらは**コーディングセッションそのものを共有可能なWebページにする**もので、PRのウォークスルー、ダッシュボード、チェックリストなどを生成し、セッションが進むとページ側も更新されます。ベータ提供で、対象は Claude Team / Enterprise、Claude Code のCLIとデスクトップアプリから利用します。生成されたページはブラウザで閲覧できます。
+
+| 項目 | AI-Powered Artifacts（claude.ai） | Artifacts（Claude Code） |
+|---|---|---|
+| 作るもの | Claude APIを呼ぶAIアプリ | セッションの成果を映すWebページ |
+| 起点 | claude.ai の会話 | Claude Code のセッション |
+| 対象プラン | Pro以上を推奨 | Team / Enterprise（ベータ） |
+| 更新 | 実行のたびに生成 | セッションの進行に追従 |
+
+「非エンジニアにAIツールを配りたい」なら前者、「開発作業の中身をレビュアーや非エンジニアに見せたい」なら後者を選びます。
+
+---
+
 ## 参考リンク
 
 - [Build AI-powered apps with Claude | Anthropic](https://claude.com/blog/claude-powered-artifacts)
+- [Claude Code now supports artifacts | Anthropic](https://claude.com/blog/artifacts-in-claude-code)
 - [Claude.ai Artifacts | support.claude.com](https://support.claude.com)

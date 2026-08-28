@@ -6,14 +6,17 @@ subcategory: "gemini"
 difficulty: "intermediate"
 contentType: "news"
 tags: ["Gemini", "Google", "Gemini 3.1 Pro", "推論モデル", "マルチモーダル"]
-sortOrder: 1
+sortOrder: 2
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
 ## 概要
 
 **Gemini 3.1 Pro** は、Google DeepMindが2026年2月19日にプレビューリリースしたGeminiシリーズの最上位推論モデルです。前世代のGemini 3 Proと比較してARC-AGI-2スコアが**2倍以上に向上**し、2026年3月末には旧Previewモデル（`gemini-3-pro-preview`）が廃止され、`gemini-3.1-pro-preview` への移行が必須化されたことで本格運用フェーズに入りました。
+
+2026年8月末時点でも、本モデルがGemini唯一のPro系列モデルです。後継として予告されたGemini 3.5 Proが公開されないまま、Flash系列だけが3.5・3.6・3.7と世代を重ねているため、Pro級の推論が必要な用途では引き続き3.1 Proを選ぶことになります。詳細は[Geminiモデル系譜2026](/knowledge/ai-tools/gemini/model-lineup-2026)を参照してください。
 
 ---
 
@@ -53,25 +56,33 @@ Google Workspaceとの連携も深く、Docs・Sheets・Slides・DriveへのAI�
 
 ## 料金（API）
 
+2026年8月時点の公式料金ページの単価です。公開当初（入力 $1.25 / 出力 $10.00）から引き上げられている点に注意してください。
+
 | モデル | 入力（$/1M tokens） | 出力（$/1M tokens） |
 |---|---|---|
-| Gemini 3.1 Pro（〜200k） | $1.25 | $10.00 |
-| Gemini 3.1 Pro（200k超） | $2.50 | $15.00 |
+| Gemini 3.1 Pro（〜200k） | $2.00 | $12.00 |
+| Gemini 3.1 Pro（200k超） | $4.00 | $18.00 |
 
-バッチAPI利用で50%コスト削減が適用されます。
+バッチAPI利用で50%コスト削減が適用されます。なお、Pro系モデルはAPIの無料枠の対象外で、利用には課金設定が必要です。
 
 ---
 
 ## Gemini 3系モデルの全体像
 
+2026年8月末時点の現行構成です。
+
 | モデル | 位置づけ |
 |---|---|
-| Gemini 3.1 Pro | 複雑な推論・エージェント |
+| Gemini 3.1 Pro | 複雑な推論・エージェント。Pro系列の現行モデル |
 | Gemini 3.1 Deep Think | 科学・研究向け超高度推論（AI Ultra限定） |
-| Gemini 3 Flash | フロンティア級知能を高速で |
-| Gemini 3.1 Flash-Lite | 大量処理・コスト効率重視 |
+| Gemini 3.7 Flash | コーディング・エージェント向けの主力 |
+| Gemini 3.6 Flash | 汎用の実務モデル |
+| Gemini 3.5 Flash | Computer Use を内蔵 |
+| Gemini 3.5 Flash-Lite | 大量処理・コスト効率重視 |
 | Gemini 3.1 Flash Live | リアルタイム音声会話 |
-| Gemini 3.1 Flash TTS | テキスト読み上げ特化 |
+| Gemini Omni | 動画中心の生成 |
+
+`gemini-3.1-flash-lite-preview` は2026年5月25日に廃止済みで、後継は `gemini-3.5-flash-lite` です。
 
 ---
 
