@@ -1,0 +1,449 @@
+---
+title: "第4回 Hooks でガードレールを組む — 権限設定で塞ぎきれない穴を埋める"
+description: "permissions や承認モードは静的なパターン一致でしか判断できません。ファイルの中身や実行文脈を見て決定論的に止めるための Hooks を、秘密ファイル保護・破壊的コマンド遮断・監査ログ・コミット前検証の4種のスクリプトとして示します。"
+category: "security"
+subcategory: "secure-ai-development"
+difficulty: "intermediate"
+contentType: "course"
+tags: ["情報セキュリティ", "Claude Code", "Codex", "Hooks"]
+sortOrder: 4
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## この回のキーメッセージ
+
+> **permissions は「何を許すか」を静的に宣言する仕組み、Hooks は「いま起きようとしている操作を、モデルの判断を介さず止める」仕組みです。守りたいものが文脈依存なら、Hooks でしか書けません。**
+
+第2回では Claude Code の permissions、第3回では Codex の承認モードとサンドボックスを扱いました。どちらも「ツール名とパターンの静的な一致」で判断します。読み取り禁止にしたいパスを deny に並べれば、そのパスへのアクセスは止まります。
+
+止まらないのは、判断に文脈が要るケースです。「このファイルの中身にクレデンシャルらしき文字列が含まれているか」「いま `main` ブランチにいるか」「ステージされた差分に秘密が混ざっていないか」といった条件は、設定ファイルの1行では表現できません。
+
+この回は、その隙間を埋めるガードレールを4種類、そのまま貼って動く形で示します。Hooks そのものの仕様（イベント一覧、ハンドラ種別、入出力プロトコル）は既存記事に整理済みなので、[Claude Code Hooks完全ガイド](/knowledge/ai-tools/claude-code/hooks)と[Codex Hooks ガイド](/knowledge/ai-tools/codex/hooks)へ渡します。品質ゲートとしての使い方は[Hooks & フィードバックループ](/knowledge/harness-engineering/hooks-feedback-loops)にあります。ここではセキュリティ目的に限定します。
+
+なお本記事のスクリプトは、公式ドキュメントに記載された入出力プロトコルから組み立てた設定例です。公式が同じ形のサンプルを配布しているわけではないため、導入前に自分の環境で動作を確認してください。
+
+## 1. permissions だけでは足りない理由
+
+permissions と Hooks は、判断に使える材料が違います。
+
+| 判断したいこと | permissions | Hooks |
+|---|---|---|
+| ツール名・パスのパターン一致 | できる | できる |
+| ファイルの内容を見て決める | できない | できる |
+| 現在のブランチ・時刻・CI 環境かで分岐 | できない | できる |
+| ステージされた差分を検査する | できない | できる |
+| 複数条件の組み合わせ（AND / OR / 例外） | 表現力に限界がある | できる |
+| 拒否した理由をエージェントへ返す | 定型メッセージのみ | 任意の文言を返せる |
+
+もう一点、Hooks の本質的な価値は**決定論的であること**です。「危険なコマンドは実行しないでください」と `CLAUDE.md` や `AGENTS.md` に書くのは、モデルの判断に委ねる指示です。多くの場合は守られますが、守られなかったときに気づく仕組みがありません。Hooks はモデルの外側で動くプロセスなので、モデルが何を考えていても結果は同じです。
+
+ルールをどこに書くかの判断基準は単純です。**守られなかったときに事故になるものは Hooks へ、守られなくても手戻りで済むものは指示文へ**書きます。
+
+## 2. ブロックの仕組み
+
+セキュリティ用途で使うイベントは実質4つです。`PreToolUse`（ツール実行の直前）、`PermissionRequest`（承認を求める直前）、`PostToolUse`（ツール実行の直後）、それに `UserPromptSubmit`（プロンプト送信の直前）。ブロックできるのは前の2つで、`PostToolUse` は副作用が出た後なので記録とフィードバックに使います。
+
+ブロックの返し方は2通りあります。
+
+**JSON で返す。** stdout に判断を書きます。理由の文言をエージェントへ返せるので、こちらが基本形です。
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PreToolUse",
+    "permissionDecision": "deny",
+    "permissionDecisionReason": "リポジトリのポリシーによりブロックしました"
+  }
+}
+```
+
+`permissionDecision` は `allow` / `deny` / `ask` の3値です。`ask` は判断を人間へ戻します。危険とまでは言えないが目視したい操作に使います。
+
+**exit code で返す。** `0` が成功、`2` がブロッキングエラー、それ以外は非ブロッキングエラー（Hook 側の失敗として扱われ、ツールは実行されます）。
+
+```bash
+echo "本番向けデプロイは CI から実行してください" >&2
+exit 2
+```
+
+重要なのは、**exit code 2 は stdout の JSON より優先してブロックする**という点です。スクリプトが途中でクラッシュして中途半端な JSON を吐いても、終了コードが 2 なら止まります。逆に言えば、`set -e` を書いたスクリプトが想定外の箇所で終了コード 2 を返すと意図しないブロックになります。ブロック判定は明示的な `exit 2` に集約し、それ以外の異常終了と混ざらないようにします。
+
+以降のスクリプトは、ツール入力を `$CLAUDE_TOOL_INPUT`（JSON 文字列）から受け取り、`jq` で必要なフィールドだけを取り出す形で統一します。
+
+## 3. ガードレール1: 秘密ファイルの読み取りを止める
+
+**守るもの**: 環境変数ファイル、秘密鍵、クラウド認証情報。これらが一度エージェントのコンテキストへ入ると、以降の応答・ログ・要約のどこに出てくるか追跡できなくなります。
+
+**仕掛ける場所**: `PreToolUse` の `matcher: "Read"`。
+
+`.claude/hooks/deny-secret-read.sh` を作ります。
+
+```bash
+#!/usr/bin/env bash
+# .claude/hooks/deny-secret-read.sh
+# 秘密情報を含みうるパスの読み取りを PreToolUse で拒否する
+set -uo pipefail
+
+FILE_PATH=$(printf '%s' "${CLAUDE_TOOL_INPUT:-}" | jq -r '.file_path // empty')
+[ -n "$FILE_PATH" ] || exit 0
+
+# 例外を先に評価する。テンプレート類が読めないと開発が止まる
+case "$FILE_PATH" in
+  *.example|*.sample|*.template) exit 0 ;;
+esac
+
+DENY_PATTERNS=(
+  '(^|/)\.env($|\.)'
+  '(^|/)\.npmrc$'
+  '(^|/)\.netrc$'
+  '(^|/)id_(rsa|dsa|ecdsa|ed25519)$'
+  '\.(pem|key|p12|pfx|jks|keystore)$'
+  '(^|/)\.aws/credentials$'
+  '(^|/)\.config/gcloud/'
+  '(^|/)\.kube/config$'
+  '(^|/)\.ssh/'
+  '(^|/)secrets?/'
+  'service-account.*\.json$'
+)
+
+for pattern in "${DENY_PATTERNS[@]}"; do
+  if printf '%s' "$FILE_PATH" | grep -qE "$pattern"; then
+    jq -n --arg path "$FILE_PATH" '{
+      hookSpecificOutput: {
+        hookEventName: "PreToolUse",
+        permissionDecision: "deny",
+        permissionDecisionReason:
+          ("秘密情報を含む可能性があるため読み取りを拒否しました: " + $path
+           + " / 設定名だけが必要な場合はテンプレートか schema を参照してください")
+      }
+    }'
+    exit 0
+  fi
+done
+
+exit 0
+```
+
+登録します。
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/deny-secret-read.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+**動作確認の仕方**: `chmod +x` を忘れずに付け、リポジトリ直下に置いたダミーの環境変数ファイルを読ませてみます。拒否理由がそのまま応答に現れれば動いています。同時に、テンプレート側（`*.example`）は読めることも確認します。例外が壊れていると、エージェントが設定名を確認できず遠回りな試行を始めます。
+
+**限界**: この Hook が見ているのは `Read` ツールだけです。シェル経由でファイルを表示する経路は `matcher: "Bash"` 側でカバーする必要があります。次のガードレールと組で運用してください。また、拒否できるのはパス名で判断できるものだけです。ソースコード中にハードコードされた鍵は、このやり方では止まりません。
+
+## 4. ガードレール2: 破壊的コマンドを止める
+
+**守るもの**: 復旧に時間がかかる操作。再帰削除、履歴を壊す Git 操作、本番環境へ直接届くデプロイコマンド。
+
+**仕掛ける場所**: `PreToolUse` の `matcher: "Bash"`。
+
+```bash
+#!/usr/bin/env bash
+# .claude/hooks/deny-destructive-bash.sh
+# 破壊的な Bash コマンドを PreToolUse で遮断する
+set -uo pipefail
+
+CMD=$(printf '%s' "${CLAUDE_TOOL_INPUT:-}" | jq -r '.command // empty')
+[ -n "$CMD" ] || exit 0
+
+# "正規表現::拒否理由" の形で並べる
+RULES=(
+  '(^|[;&|`(])[[:space:]]*rm[[:space:]]+-[a-zA-Z]*[rR]::再帰削除はエージェントに実行させません。対象を確認して手動で実行してください'
+  'git[[:space:]]+push[[:space:]].*(--force|-f)([[:space:]]|$)::force push は禁止です。必要なら人間が実行してください'
+  'git[[:space:]]+reset[[:space:]]+--hard::作業ツリーの破棄は手動で行ってください'
+  'git[[:space:]]+(clean[[:space:]]+-[a-zA-Z]*f|branch[[:space:]]+-D)::未追跡ファイル・ブランチの強制削除は手動で行ってください'
+  'wrangler[[:space:]]+(deploy|publish|delete)::本番デプロイは CI から実行してください'
+  'vercel[[:space:]]+(deploy[[:space:]]+--prod|--prod|promote)::本番デプロイは CI から実行してください'
+  'supabase[[:space:]]+db[[:space:]]+(reset|push)::共有 DB へのスキーマ操作はレビュー後に人間が実行してください'
+  '(psql|mysql).*(DROP|TRUNCATE)[[:space:]]::DDL による破壊操作はマイグレーションとして書いてください'
+  'curl[[:space:]].*\|[[:space:]]*(sh|bash)::取得したスクリプトの直接実行は禁止です。内容を確認してから実行してください'
+)
+
+for rule in "${RULES[@]}"; do
+  pattern="${rule%%::*}"
+  reason="${rule##*::}"
+  if printf '%s' "$CMD" | grep -qE "$pattern"; then
+    echo "ブロック: ${reason}" >&2
+    exit 2
+  fi
+done
+
+# 秘密ファイルをシェル経由で表示する経路も塞ぐ
+if printf '%s' "$CMD" | grep -qE '(cat|less|head|tail|strings|xxd|base64)[[:space:]][^|]*(\.env($|[[:space:].])|\.pem|/credentials)'; then
+  echo "ブロック: 秘密情報を含みうるファイルの内容表示は禁止です" >&2
+  exit 2
+fi
+
+exit 0
+```
+
+登録は `matcher: "Bash"` です。特定パターンだけに絞るなら `matcher: "Bash(rm *)"` のようにツール入力まで含めて書けますが、上のように1本のスクリプトへ集約したほうが、ルールの一覧性とテストのしやすさで有利です。
+
+**動作確認の仕方**: スクリプト単体をシェルから叩けます。
+
+```bash
+CLAUDE_TOOL_INPUT='{"command":"rm -rf ./build"}' \
+  ./.claude/hooks/deny-destructive-bash.sh; echo "exit=$?"
+# → ブロック: 再帰削除は…  /  exit=2
+
+CLAUDE_TOOL_INPUT='{"command":"npm run build"}' \
+  ./.claude/hooks/deny-destructive-bash.sh; echo "exit=$?"
+# → exit=0
+```
+
+ルールを追加したら、この形で両方向を確認します。**通ってほしいコマンドが通ること**の確認を省くと、エージェントが日常操作で詰まり、結果として Hook ごと外される運用になります。
+
+**限界**: 文字列検査は完全ではありません。同じ効果を別の書き方で達成できるコマンドは無数にあり、パターンで列挙しきることは原理的にできません。このガードレールは「事故として起きがちな操作」を止めるものであって、意図的な迂回を防ぐものではありません。書き込み範囲そのものを制限するのはサンドボックスの仕事です（第3回参照）。
+
+## 5. ガードレール3: 監査ログを残す
+
+**守るもの**: 事後の説明可能性。何かが壊れたとき、あるいは秘密が漏れた疑いが出たときに、「エージェントに何をやらせたか」を時系列で追えることが復旧の起点になります。
+
+**仕掛ける場所**: `PostToolUse`（matcher なし＝全ツール）。
+
+ここで最も重要な要件は、**ログ自体が秘密の保管場所にならないこと**です。ツール入力には接続文字列やトークンがそのまま含まれることがあります。全文をそのまま追記するログは、それ自体が新しい漏えい経路になります。
+
+```bash
+#!/usr/bin/env bash
+# .claude/hooks/audit-log.sh
+# ツール実行を JSONL で記録する。秘密値はマスクし、長さも制限する
+set -uo pipefail
+
+LOG_DIR="${CLAUDE_PROJECT_DIR:-$PWD}/.claude/logs"
+mkdir -p "$LOG_DIR"
+chmod 700 "$LOG_DIR"
+LOG_FILE="${LOG_DIR}/tool-audit-$(date -u +%Y%m%d).jsonl"
+
+# 記録するのは「何を対象に何をしたか」だけ。本文・差分・実行結果は残さない
+SUMMARY=$(printf '%s' "${CLAUDE_TOOL_INPUT:-}" | jq -c '{
+  command:   (if .command then (.command | tostring | .[0:300]) else null end),
+  file_path: (.file_path // null),
+  url:       (.url // null)
+}' 2>/dev/null || echo '{}')
+
+# トークン形式の文字列はログへ書く前に落とす
+SUMMARY=$(printf '%s' "$SUMMARY" | sed -E \
+  -e 's/(sk-|ghp_|gho_|github_pat_|xox[abprs]-|AKIA)[A-Za-z0-9_-]{8,}/[REDACTED]/g' \
+  -e 's/-----BEGIN [A-Z ]*PRIVATE KEY-----/[REDACTED]/g' \
+  -e 's/([Aa]uthorization: *)[^"]+/\1[REDACTED]/g')
+
+jq -n -c \
+  --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+  --arg session "${CLAUDE_SESSION_ID:-unknown}" \
+  --arg tool "${CLAUDE_TOOL_NAME:-unknown}" \
+  --argjson input "$SUMMARY" \
+  '{ts: $ts, session: $session, tool: $tool, input: $input}' >> "$LOG_FILE"
+
+chmod 600 "$LOG_FILE"
+exit 0
+```
+
+```json
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/audit-log.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+`.gitignore` へ `.claude/logs/` を追加します。ログをリポジトリへコミットしてしまうと、マスク漏れが1件あった時点で公開範囲がリポジトリ全体まで広がります。
+
+**動作確認の仕方**: 適当な作業を1ターン回してから `tail -1 .claude/logs/tool-audit-*.jsonl | jq .` を実行し、意図した項目だけが入っているかを目で見ます。ここで「思ったより多くの情報が入っている」と感じたら、`jq` の抽出対象を減らします。ログは増やすより減らすほうが後から難しくなります。
+
+**限界**: `PostToolUse` は実行後に動くため、これは予防ではなく記録です。複数の Hook が同時に発火する構成では書き込みが競合しうるので、行単位の追記（JSONL）に留め、集計はログを読む側で行います。長期保管が必要なら、ローカルファイルではなく HTTP ハンドラで社内の収集基盤へ送る構成に切り替えます。その場合も、送る前にマスクするという順序は変わりません。
+
+## 6. ガードレール4: コミット前に検証を強制する
+
+**守るもの**: 秘密のコミットと、壊れたコードの共有。とくに前者は、push 済みなら履歴の書き換えとクレデンシャルのローテーションまで必要になり、コストの桁が変わります。
+
+**仕掛ける場所**: `PreToolUse` の `matcher: "Bash"`。スクリプト側でコミット操作かどうかを判定します。
+
+```bash
+#!/usr/bin/env bash
+# .claude/hooks/pre-commit-gate.sh
+# git commit の直前に lint / テスト / シークレットスキャンを強制する
+set -uo pipefail
+
+CMD=$(printf '%s' "${CLAUDE_TOOL_INPUT:-}" | jq -r '.command // empty')
+printf '%s' "$CMD" | grep -qE '(^|[;&|])[[:space:]]*git[[:space:]]+commit' || exit 0
+
+cd "${CLAUDE_PROJECT_DIR:-$PWD}" || exit 0
+
+fail() {
+  echo "コミット前チェックに失敗しました: $1" >&2
+  echo "修正してから再度コミットしてください。" >&2
+  exit 2
+}
+
+# 1. 保護ブランチへの直接コミットを止める
+BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+case "$BRANCH" in
+  main|master|production) fail "保護ブランチ ${BRANCH} への直接コミット" ;;
+esac
+
+# 2. ステージされたファイルに、パスとして危険なものが混ざっていないか
+STAGED=$(git diff --cached --name-only)
+[ -n "$STAGED" ] || fail "ステージされた変更がありません"
+if printf '%s\n' "$STAGED" \
+     | grep -vE '\.(example|sample|template)$' \
+     | grep -qE '(^|/)\.env($|\.)|\.(pem|key|p12|pfx)$|(^|/)credentials$'; then
+  fail "秘密情報を含みうるファイルがステージされています"
+fi
+
+# 3. シークレットスキャン（サブコマンド名はバージョンで異なるため手元で確認する）
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --no-banner || fail "gitleaks がシークレットを検出しました"
+fi
+
+# 4. lint とテスト。定義されていないスクリプトは飛ばす
+if [ -f package.json ]; then
+  if jq -e '.scripts.lint' package.json >/dev/null 2>&1; then
+    npm run lint --silent || fail "lint"
+  fi
+  if jq -e '.scripts.test' package.json >/dev/null 2>&1; then
+    npm test --silent || fail "テスト"
+  fi
+fi
+
+exit 0
+```
+
+**動作確認の仕方**: ダミーの秘密を含むファイルをステージし、エージェントにコミットを依頼します。exit 2 で止まり、標準エラーへ書いた理由がエージェントへ返ることを確認します。理由の文言はエージェントが次に何をするかを決める材料になるので、「何が失敗したか」に加えて「どうすればよいか」まで書きます。
+
+**限界**: テストが遅いリポジトリでは、この Hook がターンごとに数十秒の待ちを生みます。その場合は変更されたファイルに関係するテストだけを走らせるか、重い検証は CI 側へ寄せ、Hook では秒で終わるチェック（保護ブランチ・ステージ内容・シークレットスキャン）に絞ります。**Hook が遅いと外される**という力学は、セキュリティ設計上の実質的な制約です。
+
+そして、これはコミットコマンドの文字列を見ているに過ぎません。確実に効かせたい検証は、リポジトリ側の `pre-commit` フックと CI にも同じものを置き、三重にします。
+
+## 7. Codex で同じ4種を組む
+
+Codex Hooks も同じ考え方で組めます。イベント名と JSON プロトコルが近いため判定スクリプト本体はほぼ流用でき、変わるのは設定の書き方と入力の受け取り方です。
+
+| ガードレール | Codex のイベント | matcher |
+|---|---|---|
+| 秘密ファイルの読み取り遮断 | `PreToolUse` | `^Read$` / `^apply_patch$` |
+| 破壊的コマンドの遮断 | `PreToolUse` | `^Bash$` |
+| 承認要求の一律拒否 | `PermissionRequest` | 対象 tool 名 |
+| 監査ログ | `PostToolUse` | 省略（全 tool） |
+| コミット前検証 | `PreToolUse` | `^Bash$` |
+
+Codex の Hooks は既定で有効です（無効化する場合のみ `[features].hooks = false` を書きます）。定義は `config.toml` に `[[hooks.EventName]]` 形式で書くか、`.codex/hooks.json` に JSON で書きます。
+
+```toml
+# .codex/config.toml
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = '/bin/bash "$(git rev-parse --show-toplevel)/.codex/hooks/deny-destructive-bash.sh"'
+timeout = 30
+statusMessage = "Checking command"
+
+[[hooks.PostToolUse]]
+
+[[hooks.PostToolUse.hooks]]
+type = "command"
+command = '/bin/bash "$(git rev-parse --show-toplevel)/.codex/hooks/audit-log.sh"'
+timeout = 30
+```
+
+リポジトリローカルの hooks はサブディレクトリから起動されることがあるため、相対パスではなく `git rev-parse --show-toplevel` 経由の絶対パスで書きます。
+
+Claude Code との差分で押さえるべき点は3つです。
+
+**入力は標準入力の JSON から取る。** Codex の command hook は stdin に1つの JSON オブジェクトを受け取ります。スクリプト冒頭を `INPUT=$(cat)` に変え、`printf '%s' "$INPUT" | jq -r '.tool_input.command // empty'` のように読み替えます。
+
+**拒否の出力形式はイベントごとに違う。** `PreToolUse` は `hookSpecificOutput.permissionDecision` に `deny` を返します（exit code 2 と標準エラーに理由を書く方式も使えます）。`PermissionRequest` は `decision: { behavior: "deny", message: ... }` という形になるので、両方に同じスクリプトを刺す場合は出力を分岐させます。
+
+**複数の Hook は並行実行され、判断が衝突したら deny が優先される。** ある Hook が別の Hook の開始を止めることはできません。この性質は多層防御と相性がよく、1本の巨大なスクリプトより、目的ごとに分けた小さなスクリプトを並べるほうが安全に働きます。
+
+なお Codex 公式は、`PreToolUse` がすべてのシェル呼び出しを捕捉するわけではないと明記しています。境界としての強制力はサンドボックスと承認ポリシー側にあり、Hooks はその上に足す層です。
+
+## 8. 組織で強制する
+
+ここまでの設定はすべて、開発者が自分のリポジトリと自分のホームディレクトリに置くものです。つまり、外そうと思えば外せます。個人の環境としてはそれで正しいのですが、組織として一定の水準を担保したい場合には足りません。
+
+Codex には、管理者が Hooks を配布し、それ以外の Hooks を実行させない仕組みがあります。`requirements.toml` の `[hooks]` セクションで managed hooks を定義します。
+
+```toml
+# 管理者が配布する requirements.toml
+[hooks]
+managed_dir = "/enterprise/hooks"
+windows_managed_dir = 'C:\enterprise\hooks'
+allow_managed_hooks_only = true
+
+[[hooks.PreToolUse]]
+matcher = "^Bash$"
+
+[[hooks.PreToolUse.hooks]]
+type = "command"
+command = "python3 /enterprise/hooks/pre_tool_use_policy.py"
+timeout = 30
+statusMessage = "Checking managed command"
+```
+
+要点は3つです。`managed_dir` / `windows_managed_dir` は管理者配布スクリプトの置き場を指します。Codex 自体はスクリプトを配らないため、配置と更新は MDM など別の仕組みの仕事になります。`allow_managed_hooks_only = true` を立てると、管理者が定義したもの以外の Hooks が実行されなくなります。これが「個人の善意に頼らない」層です。逆に `[features].hooks = false` とすれば Hooks 機能そのものを止められます。
+
+この層を入れると、開発者が自分用のガードレールを追加できなくなる点は理解しておく必要があります。運用としては、管理側で「必ず効かせる最小セット」（秘密ファイル、破壊的コマンド、監査ログ）を持ち、プロジェクト固有の検証は Hooks ではなく CI 側に置く、という分担が現実的です。
+
+Claude Code 側にも組織単位で settings を配布する経路がありますが、設定の解決順序については公式の一覧を本稿では確認できていません。導入時に公式ドキュメントで最新の優先順位を確認してください。
+
+## 9. Hooks の限界
+
+正直に書きます。Hooks はセキュリティ境界ではありません。
+
+**Hooks スクリプトはホスト権限で動きます。** エージェントの実行がサンドボックスの中に閉じていても、Hook のプロセスはその外側で、通常のユーザー権限で動きます。したがって Hook スクリプト自体が書き換えられれば、それは任意コード実行の経路になります。`.claude/hooks/` や `.codex/hooks/` 配下は、エージェントが書き込めないよう deny 側に入れ、変更は必ずレビューを通す対象として扱ってください。信頼していないリポジトリを開くとき、そこに同梱された hooks 定義がどう扱われるかも確認が要ります（Codex ではプロジェクトローカルの hooks は信頼済みプロジェクトでのみ読み込まれます）。
+
+**文字列検査は完全ではありません。** 第4節で書いたとおり、同じ効果を持つコマンドの書き方は列挙しきれません。パターンマッチによる拒否は、意図的な迂回に対して有効性を主張できません。
+
+**Hook が落ちても作業は続きます。** exit code 2 以外の異常終了は非ブロッキングエラーとして扱われます。`jq` が入っていない端末では、上のスクリプトはすべて静かに無力化されます。導入時に依存コマンドの存在チェックを入れ、依存が欠けているときは「通す」ではなく「止める」側に倒すかどうかを、ガードレールごとに決めてください。
+
+**タイムアウトがあります。** 重い検証は途中で打ち切られ、その結果としてブロックが効かないことがあります。
+
+これらを踏まえると、Hooks の位置づけははっきりします。**最後の砦ではなく、多層防御の一枚**です。書き込み範囲を物理的に制限するのはサンドボックス、権限の静的な宣言は permissions と承認ポリシー、共有される前の最終検証は CI。Hooks はその隙間にある「文脈依存の判断」を決定論的に埋めるためのものです。1枚で守ろうとしなければ、有効に働きます。
+
+## まとめ
+
+- permissions と承認ポリシーは静的なパターン一致でしか判断できません。ファイルの中身・ブランチ・ステージ内容といった文脈依存の条件は Hooks でしか書けません。
+- ブロックは `PreToolUse` / `PermissionRequest` で `permissionDecision: "deny"` を返すか、exit code 2 を返します。exit code 2 は JSON の内容に優先します。
+- セキュリティ目的の最小セットは4種類です。秘密ファイルの読み取り遮断、破壊的コマンドの遮断、監査ログ、コミット前検証。監査ログは、それ自体が秘密の保管場所にならないよう、マスクと権限設定を先に決めます。
+- Codex でも同じ4種を `config.toml` の `[[hooks.EventName]]` または `.codex/hooks.json` で組めます。組織として外させたくない層は managed hooks と `allow_managed_hooks_only = true` で作ります。
+- Hooks はホスト権限で動き、文字列検査は完全ではありません。サンドボックス・permissions・CI と重ねて初めて意味を持ちます。
+
+次回は、Hooks でも permissions でも塞ぎにくい経路として、MCP と外部連携、そしてプロンプトインジェクションを扱います。
+
+## 参考リンク
+
+- [Claude Code Hooks（公式ドキュメント）](https://code.claude.com/docs/en/hooks) — イベント一覧、ハンドラ種別、exit code と JSON プロトコルの一次情報
+- [Codex Hooks（公式ドキュメント）](https://learn.chatgpt.com/docs/hooks) — イベント、設定ファイルの配置、managed hooks
+- [Codex Sandboxing（公式ドキュメント）](https://learn.chatgpt.com/docs/sandboxing) — Hooks の下層にあたるサンドボックスと承認ポリシー
+- [Claude Code Hooks完全ガイド（本サイト）](/knowledge/ai-tools/claude-code/hooks) — Hooks 仕様のリファレンス
+- [Codex Hooks ガイド（本サイト）](/knowledge/ai-tools/codex/hooks) — Codex 側の仕様と入出力
+- [Hooks & フィードバックループ（本サイト）](/knowledge/harness-engineering/hooks-feedback-loops) — 品質ゲートとしての Hooks 設計

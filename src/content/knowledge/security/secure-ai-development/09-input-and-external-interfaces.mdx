@@ -1,0 +1,370 @@
+---
+title: "第9回 入出力と外部連携のレビュー — 境界で止める、境界で守る"
+description: "AI開発セキュリティ実践の第9回。外部入力・APIレスポンス・ファイル・AIの出力を「境界で検証すべきもの」として一本化し、入力側（検証位置・SQL識別子・パス・アップロード）、出力側（HTML・リダイレクト・返却フィールド・エラー）、外部連携の4点セットまでをレビュー観点として整理します。"
+category: "security"
+subcategory: "secure-ai-development"
+difficulty: "intermediate"
+contentType: "course"
+tags: ["情報セキュリティ", "リスク管理", "プロンプトインジェクション", "TypeScript"]
+sortOrder: 9
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## この回のキーメッセージ
+
+> **型が付いていることは検証したことではありません。データがシステムに入る場所と出る場所を「境界」として数え上げ、そこに検証を1回だけ置くことが、入出力まわりのレビューの実体です。**
+
+第8回では、リクエストの主体が誰であるか（認証）と、その主体がその操作をしてよいか（認可）を扱いました。第9回は同じ生成物層の各論で、**データがシステムに入る場所と出る場所**を扱います。認可が「誰が」を守るのに対し、こちらは「何が」を守ります。
+
+この領域がAI生成コードのレビューで重要になるのは、脆弱性が新種だからではありません。むしろ古典的です。OWASP Top 10 の 2025年版でも Injection は A05 として残り続けています。問題は、AIが書くコードでは**検証が「あるように見えて、ない」**状態が生まれやすいことです。型定義が整い、変数名が `validatedInput` になっていて、それでも実行時には何も検証されていない、という差分は目視レビューで最も見落としやすい部類に入ります。
+
+この回の観点は、このリポジトリの `.agents/rules/security.md` と `.agents/rules/error-handling.md` に書かれている規約とそのまま重なります。「外部入力、URL parameter、API response、ファイル内容は境界で検証する」「外部通信には timeout、サイズ上限、許可先、再試行方針を設ける」「エラーを握りつぶさない」——これらはレビュー時にそのまま質問文へ変換できます。
+
+## 1. 境界という考え方
+
+境界とは、**自分が制御していないデータが、自分の制御下へ入ってくる線**です。この線の上でだけ検証すると決めておくと、コードのどこを読むべきかが決まります。
+
+境界として数えるべきものは、思っているより多くあります。
+
+| 境界 | 具体例 | 見落とされやすい理由 |
+|---|---|---|
+| HTTP リクエスト | body、クエリ、パスパラメータ、ヘッダ、Cookie | body は検証してもクエリを素通しすることがある |
+| 外部 API のレスポンス | 決済、SaaS、社内の別サービス | 「自社のAPIだから」で検証を省く |
+| ファイル | アップロード、バッチが読む CSV、設定ファイル | 中身の形式を暗黙に信じる |
+| データベースから読んだ値 | 過去に検証を通っていない古いレコード | 保存時に検証されている前提を置く |
+| **AI・LLM の出力** | 自分のアプリがモデルへ問い合わせて受け取った文字列 | 「自分が呼んだAPIの結果」に見える |
+
+最後の行がこの連載固有の追加です。モデルの出力は、プロンプトに非信頼な入力が混ざりうる以上、外部入力と同じ扱いにするのが安全側の判断です。この点は第5回で扱ったプロンプトインジェクションと直接つながります。
+
+### AIが書きがちな形 — 型と検証の取り違え
+
+TypeScript を使っていると、次のようなコードが自然に見えます。
+
+```ts
+type CreateOrderInput = {
+  productId: string;
+  quantity: number;
+};
+
+export async function POST({ request }: { request: Request }) {
+  const input = (await request.json()) as CreateOrderInput;
+  return createOrder(input.productId, input.quantity);
+}
+```
+
+`as CreateOrderInput` は「そう扱え」とコンパイラへ指示しているだけで、実行時には何も起きません。`quantity` に `-1` や `"1e9"` やオブジェクトが入ってきても、そのまま `createOrder` へ渡ります。型は消えますが、データは残ります。
+
+境界では `unknown` から始めて、スキーマで検証します。
+
+```ts
+import { z } from "zod";
+
+const createOrderSchema = z.object({
+  productId: z.string().uuid(),
+  quantity: z.number().int().min(1).max(99),
+});
+
+export async function POST({ request }: { request: Request }) {
+  const raw: unknown = await request.json();
+  const parsed = createOrderSchema.safeParse(raw);
+  if (!parsed.success) {
+    // 失敗理由は返さずログへ。利用者には形式不正であることだけ伝える
+    return new Response(JSON.stringify({ error: "invalid_request" }), { status: 400 });
+  }
+  return createOrder(parsed.data.productId, parsed.data.quantity);
+}
+```
+
+レビューで見るのは、`as` によるキャストが境界に現れていないか、そして検証結果を使わずに元の変数を使い続けていないか（`parsed.data` ではなく `raw` を後段へ渡していないか）の2点です。
+
+## 2. 入力側のレビュー観点
+
+### 検証の位置 — 1回か、場当たりか
+
+同じ値を関数のあちこちで `if (!id) throw` している実装は、一見して防御的ですが、実際には「どこかが漏れている」状態です。検証は入口に1回置き、その先は検証済みの型だけが流れるようにします。
+
+| 確認すること | 危ない形 | 望ましい形 |
+|---|---|---|
+| 検証はどこにあるか | ハンドラ・サービス・リポジトリの各所に散在 | 境界（APIルート）でスキーマ検証、以降は検証済み型 |
+| 検証を通らない経路があるか | 管理画面用の別ハンドラだけ素通し | すべての入口が同じスキーマを通る |
+| 検証後の値を使っているか | `parsed.data` を作った後に `raw` を参照 | 検証結果だけを後段へ渡す |
+| 未知のキーの扱い | そのまま DB の更新オブジェクトへ展開 | スキーマで許可したキーだけを取り出す |
+
+最後の行は実害が出やすい箇所です。リクエスト body をそのまま更新処理へ展開すると、`role` や `isAdmin` のような本来更新させたくない列まで書き換えられます。第8回の認可の話が、入力検証の側から破られる典型例です。
+
+### SQL — 値は bind、識別子は組み立てない
+
+値のプレースホルダ利用はAIも比較的よく守ります。踏み抜きやすいのは**識別子**、つまりテーブル名・カラム名・ソート列・並び順です。「ソート可能な一覧」を頼むと、次のような実装が返ってくることがあります。
+
+```ts
+// 危ない: ソート列と方向を外部入力からそのまま埋め込んでいる
+const rows = await db.query(
+  `SELECT id, title FROM articles ORDER BY ${sortKey} ${order} LIMIT $1`,
+  [limit],
+);
+```
+
+識別子はプレースホルダで渡せません。だからこそ、外部入力から組み立てず、**許可リストで受け取った文字列を、こちら側が持つ定数へ写像**します。
+
+```ts
+const SORT_COLUMNS = {
+  createdAt: "created_at",
+  title: "title",
+} as const;
+const SORT_ORDERS = { asc: "ASC", desc: "DESC" } as const;
+
+type SortKey = keyof typeof SORT_COLUMNS;
+type SortOrder = keyof typeof SORT_ORDERS;
+
+const isSortKey = (v: unknown): v is SortKey =>
+  typeof v === "string" && v in SORT_COLUMNS;
+const isSortOrder = (v: unknown): v is SortOrder =>
+  typeof v === "string" && v in SORT_ORDERS;
+
+const column = isSortKey(sortKey) ? SORT_COLUMNS[sortKey] : SORT_COLUMNS.createdAt;
+const direction = isSortOrder(order) ? SORT_ORDERS[order] : SORT_ORDERS.desc;
+
+const rows = await db.query(
+  `SELECT id, title FROM articles ORDER BY ${column} ${direction} LIMIT $1`,
+  [limit],
+);
+```
+
+ポイントは、SQL へ入るのが利用者の文字列ではなく**こちらが定義した定数だけ**になっていることです。「エスケープしているから大丈夫」ではなく「外部の文字列がそもそも SQL に到達しない」形にします。ORM やクエリビルダを使っている場合も、`orderBy(raw(sortKey))` のような抜け道が生えていないかを見ます。
+
+### コマンド実行とパス操作
+
+外部入力からパスを組み立てると、`..` の連続でディレクトリを遡られます。
+
+```ts
+// 危ない: fileName に "../../.dev.vars" が来ると外へ出る
+const filePath = path.join(UPLOAD_DIR, fileName);
+```
+
+対策は2段構えです。ファイル名を利用者由来のまま使わない（保存名はサーバー側で採番する）ことが第一で、どうしても利用者由来の値でパスを解決するなら、解決後のパスが基準ディレクトリ配下にあることを確認します。
+
+```ts
+const resolved = path.resolve(UPLOAD_DIR, fileName);
+const base = path.resolve(UPLOAD_DIR) + path.sep;
+if (!resolved.startsWith(base)) {
+  throw new Error(`upload path escaped the base directory: ${fileName}`);
+}
+```
+
+シェル実行も同様です。文字列連結でコマンドを組み立てず、引数配列を取る API を使います。レビューでは、`exec` に文字列テンプレートが渡っている箇所と、`shell: true` が付いている箇所を機械的に探すのが早い方法です。
+
+### ファイルアップロード
+
+確認するのは次の5点です。
+
+- **実体で判定しているか** — 拡張子や `Content-Type` は利用者が申告する値です。先頭バイト（マジックナンバー）で判定し、許可した形式以外は受け付けない
+- **サイズ上限があるか** — リクエスト全体と1ファイルの両方。上限がないと、保存先の容量とメモリの両方が攻撃面になります
+- **保存先はどこか** — 公開バケットへ直接置いていないか。アプリが配信するディレクトリ配下へ実行可能な拡張子で保存していないか
+- **URL は推測できないか** — 連番の ID を URL に使うと、他人のファイルが総当たりで拾えます。ランダムなキーにするか、署名付き URL で配信する
+- **配信時のヘッダ** — 利用者由来のファイルを `Content-Disposition: inline` で返すと、ブラウザ上でそのまま解釈されます
+
+### 数値・日付・列挙
+
+地味ですが、事故につながる頻度が高い部分です。数量に上限がない、金額が負数を受け入れる、ページサイズが無制限で1回のリクエストで全件返る、といった欠落はAI生成コードで頻繁に見ます。スキーマの段階で `min` / `max` を必ず入れます。
+
+日付はタイムゾーンを確認します。このリポジトリの規約でも、月別集計など時刻に依存する処理は JST 基準で切ると決めています。UTC のまま扱うと月初・月末が1日ずれ、集計や締め切り判定が静かに壊れます。列挙値は文字列比較ではなく、スキーマの `enum` で縛ります。
+
+## 3. 出力側のレビュー観点
+
+入ってくるものを絞ったら、次は出ていくものです。
+
+### HTML — 出所を追えない raw HTML を描画しない
+
+`dangerouslySetInnerHTML`（React）や `set:html`（Astro）は、名前のとおり意図的な抜け道です。使っていること自体が悪いのではなく、**そこへ入る文字列の出所が追えないこと**が問題になります。
+
+レビューでは、該当箇所を全文検索し、1件ずつ「この文字列はどこから来たか」を遡ります。行き着く先が次のいずれかなら止めます。
+
+- 利用者の入力（プロフィール、コメント、フォームの自由記述）
+- 外部 API のレスポンス
+- **LLM の出力**（Markdown をそのまま HTML 化して埋めている実装が該当します）
+
+いずれかに該当する場合は、サニタイズを挟むか、そもそも HTML として描画せずテキストとして表示します。Markdown を描画したいだけなら、HTML の通過を許さない設定のレンダラを選ぶほうが安全です。
+
+### URL とリダイレクト
+
+スキーム検証とオープンリダイレクトは、対で確認します。
+
+```ts
+// 危ない: 利用者が指定した戻り先へそのまま飛ばす
+return Response.redirect(url.searchParams.get("next") ?? "/");
+```
+
+外部入力の URL をそのままリダイレクト先やリンクの `href` にすると、`javascript:` などのスキームや、外部サイトへの誘導に使われます。リダイレクト先は**相対パスの許可リスト**で扱うのが最も単純です。
+
+```ts
+const SAFE_REDIRECTS = new Set(["/", "/dashboard", "/settings"]);
+const next = url.searchParams.get("next");
+const destination = next !== null && SAFE_REDIRECTS.has(next) ? next : "/";
+return Response.redirect(new URL(destination, url.origin), 302);
+```
+
+外部ドメインへの遷移を許す必要がある場合も、ホスト名の許可リストで判定します。「`https://` で始まるか」だけの検証は、`https://example.com.attacker.example` のような形を通します。
+
+### 返しすぎない
+
+レスポンスが DB の行オブジェクトをそのまま返している実装は、追加した列が自動的に外へ出ます。ハッシュ化パスワード、内部メモ、他人のメールアドレス、論理削除フラグ。第8回で扱った認可が正しくても、返却フィールドが広ければ情報は漏れます。
+
+境界で入力をスキーマ検証するのと同じように、**出力もスキーマで組み立てる**のが確実です。必要なフィールドだけを持つ関数を1つ用意し、ハンドラはそれを通してから返します。
+
+### エラーメッセージとログ
+
+OWASP Top 10 の 2025年版では Mishandling of Exceptional Conditions（A10）が新設されました。ここで見るのは2方向です。
+
+| 向き | 危ない形 | 望ましい形 |
+|---|---|---|
+| 利用者へ | 例外オブジェクトや `error.stack` をそのまま JSON で返す | 一般化したメッセージ＋相関ID。詳細はログ側に置く |
+| ログへ | リクエスト body 全体、`Authorization` ヘッダ、トークンを出力 | 識別子と操作名だけ。秘密値・個人情報・入力本文は出さない |
+
+`catch` で握りつぶして既定値へ落とす実装も同じ場所に現れます。想定内のフォールバックであれば、なぜ握りつぶしてよいのかがコードから読める形にします。再 throw するときは操作名などの文脈を足し、`cause` で元エラーを保持します。
+
+```ts
+try {
+  await saveOrder(order);
+} catch (error) {
+  // 保存の失敗は継続不能。文脈を足して上位へ渡す
+  throw new Error(`failed to save order: ${order.id}`, { cause: error });
+}
+```
+
+## 4. 外部連携 — 自分が外部を呼ぶ側
+
+AIが書く `fetch` は、たいてい1行です。
+
+```ts
+const res = await fetch(endpoint);
+const data = await res.json();
+```
+
+この1行に足りていないものが4つあります。**timeout・サイズ上限・許可先・再試行方針**の4点セットです。これは規約にそのまま書かれている項目でもあります。
+
+| 項目 | ない場合に起きること | 実装 |
+|---|---|---|
+| timeout | 相手が応答しないと、こちらのリクエストが滞留し枯渇する | `AbortSignal.timeout(ms)` |
+| サイズ上限 | 巨大なレスポンスでメモリを使い切る | `Content-Length` の確認とストリームでの打ち切り |
+| 許可先 | 意図しない宛先へリクエストが飛ぶ（SSRF） | ホスト名の許可リスト |
+| 再試行方針 | 相手の障害時に一斉再試行で負荷を掛ける／二重登録が起きる | 冪等な操作のみ、指数バックオフ、回数上限 |
+
+```ts
+const ALLOWED_HOSTS = new Set(["api.example.com"]);
+
+export async function fetchExternal(endpoint: string): Promise<unknown> {
+  const url = new URL(endpoint);
+  if (url.protocol !== "https:" || !ALLOWED_HOSTS.has(url.hostname)) {
+    throw new Error(`disallowed endpoint host: ${url.hostname}`);
+  }
+
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(5_000),
+    redirect: "manual", // リダイレクトで許可リストの外へ出させない
+  });
+  if (!res.ok) {
+    throw new Error(`external api returned ${res.status} for ${url.pathname}`);
+  }
+
+  const length = Number(res.headers.get("content-length") ?? "0");
+  if (length > 1_000_000) {
+    throw new Error(`external api response too large: ${length} bytes`);
+  }
+  return res.json() as Promise<unknown>;
+}
+```
+
+`redirect: "manual"` にしているのは、許可したホストが外部へリダイレクトを返した場合に、追跡が許可リストを迂回してしまうためです。そして戻り値を `unknown` にしている点も意図的です。外部 API のレスポンスは境界であり、第1節と同じくスキーマ検証を通してから使います。
+
+### SSRF — 宛先を外部入力に決めさせない
+
+OWASP Top 10 の 2025年版では、SSRF が独立カテゴリから Broken Access Control（A01）へ吸収されました。「宛先を決める権限の問題」として整理されたと読むと分かりやすくなります。
+
+危険なのは、Webhook 登録・画像取り込み・URL プレビューのように、**利用者が指定した URL へサーバーがアクセスする**機能です。サーバーは内部ネットワークに居るため、外からは届かない管理画面や、クラウドのメタデータエンドポイント（`169.254.169.254`）へ到達できてしまいます。
+
+- 宛先はホスト名の許可リストで判定する。ブロックリスト方式は表記の揺れで抜けます
+- プライベート IP レンジ（`10.0.0.0/8`、`172.16.0.0/12`、`192.168.0.0/16`）、ループバック、リンクローカル（`169.254.0.0/16`）への到達を禁じる
+- 名前解決の結果でも判定する。ホスト名は外部でも、解決先が内部アドレスという構成があり得ます
+- リダイレクトを自動追跡しない
+- 可能なら、外向き通信を別の実行環境やプロキシへ分離し、そこで宛先を制限する
+
+### 失敗したときに何が起きるか
+
+外部連携のレビューで最後に見るのは、失敗時の挙動です。規約では、保存・認証・整合性のような**継続不能な失敗**と、通知のような**縮退可能な失敗**を区別すると決めています。
+
+AI生成コードでは、この2つがどちらも `try { ... } catch { /* ignore */ }` に落ちていることがあります。決済の確定が失敗しても処理が進んでしまう実装は、ここから生まれます。逆に、通知メールの送信失敗で注文処理全体をロールバックするのも設計として過剰です。1つずつ、失敗したら止めるのか進めるのかを明示させます。
+
+## 5. 自分のアプリが LLM を呼ぶ場合
+
+ここまでは一般的なWebアプリの話でした。アプリ自身が LLM を呼ぶ場合、境界がもう1本増えます。OWASP Top 10 for LLM Applications 2025 の分類に沿うと、入出力まわりで効いてくるのは次の3つです。
+
+| 項目 | 見るところ |
+|---|---|
+| **LLM05 Improper Output Handling** | モデルの出力を、検証せずにコード実行・SQL・シェル・HTML へ流していないか |
+| **LLM06 Excessive Agency** | モデルに渡したツールの権限が広すぎないか。読み取りで足りる用途に書き込み権限を渡していないか |
+| **LLM10 Unbounded Consumption** | 入力長・呼び出し回数・同時実行・コストに上限があるか |
+
+LLM05 は第3節の HTML の話と同じ構造です。モデルが返した Markdown をそのまま HTML 化して埋める、返ってきたクエリ断片をそのまま実行する、といった実装は、プロンプトに非信頼な入力が混ざった瞬間に成立します。モデルの出力も、**境界を越えてきたデータとして同じ検証を通す**のが原則です。
+
+LLM06 は第8回の最小権限と同じ話をツールに適用したものです。エージェントに渡す関数の1つずつについて、それが失敗ではなく成功したときに何が起きるかを見ます。
+
+LLM10 は可用性とコストの問題です。上限がないと、1リクエストで長大なテキストを送りつけられるだけで請求が伸びます。入力トークン長の上限、ユーザーあたりのレート制限、1操作あたりの最大呼び出し回数を、コード側に持たせます。
+
+非信頼な入力がプロンプトへ入る経路そのものについては、第5回の[MCP・外部連携とプロンプトインジェクション](/knowledge/security/secure-ai-development/05-mcp-and-prompt-injection/)で扱っています。この回で扱ったのは、その出力を受け取ったあとの処理です。
+
+## 6. AIにこの観点でレビューさせる
+
+第7回で用意したレビュープロンプトへ、この回の観点を差し込む形で使います。対象を差分に絞り、指摘には根拠となる行を必ず添えさせるのが要点です。
+
+```text
+以下の差分について、入出力と外部連携の観点だけでレビューしてください。
+認証・認可は別のレビューで扱うため、ここでは扱いません。
+
+■ 入力側
+1. 外部入力（body / query / path / header / cookie / ファイル / 外部APIレスポンス）が
+   境界でスキーマ検証されているか。`as` によるキャストで検証を代替していないか。
+2. 検証結果ではなく検証前の値を後段へ渡している箇所がないか。
+3. SQL: 値が parameter binding になっているか。テーブル名・カラム名・ソート列・並び順を
+   外部入力から組み立てていないか（許可リストからの写像になっているか）。
+4. 外部入力からパスやシェルコマンドを組み立てていないか。
+5. アップロード: 実体での形式判定、サイズ上限、保存先、URL の推測可能性。
+6. 数値・日付・列挙に範囲と候補の制約があるか。日付のタイムゾーンが JST 基準か。
+
+■ 出力側
+7. dangerouslySetInnerHTML / set:html を使っている箇所の入力の出所を明示すること。
+8. リダイレクト先とリンク URL のスキーム・ホストが検証されているか。
+9. レスポンスが DB 行をそのまま返していないか。返却フィールドを列挙すること。
+10. エラー応答に内部情報が含まれていないか。ログに秘密値・個人情報・入力本文が出ていないか。
+11. catch で握りつぶしている箇所と、その失敗が継続不能か縮退可能かの判断。
+
+■ 外部連携
+12. すべての fetch / HTTP クライアント呼び出しについて、timeout・サイズ上限・
+    許可先・再試行方針の4点が揃っているかを表で示すこと。
+13. 外部入力由来の URL へリクエストする箇所（SSRF）の有無。
+14. LLM を呼んでいる場合、その出力をコード実行・SQL・HTML へ流していないか。
+    入力長・呼び出し回数の上限があるか。
+
+出力形式: 指摘ごとに「ファイル:行 / 該当する観点番号 / 何が起きうるか / 修正案」。
+該当なしの観点は「該当なし」と明記し、確認できなかった観点は推測で埋めず
+「差分外のため未確認」と書いてください。
+```
+
+最後の2行を入れておくと、指摘の網羅性を装った出力を減らせます。差分の外にある実装まで断定させないことが目的です。
+
+## まとめ
+
+- 型は実行時に消えます。境界では `unknown` から始めてスキーマ検証を通し、その先は検証済みの値だけを流します
+- SQL は値の bind だけでは足りません。テーブル名・カラム名・ソート列などの識別子は、外部入力から組み立てず許可リストから写像します
+- 出力側で見るのは、raw HTML の出所、リダイレクト先の検証、返却フィールドの絞り込み、エラーとログに載る情報の4点です
+- 自分が外部を呼ぶコードには、timeout・サイズ上限・許可先・再試行方針の4点セットを必ず揃えます。宛先を外部入力に決めさせないことが SSRF 対策の本体です
+- アプリが LLM を呼ぶ場合、モデルの出力は外部入力と同じ境界として扱います。ツール権限とコストの上限も、この回の観点に含まれます
+
+## 参考リンク
+
+- [OWASP Top 10:2025](https://owasp.org/Top10/2025/0x00_2025-Introduction/) — Injection（A05）、Mishandling of Exceptional Conditions（A10）の位置づけと、SSRF の Broken Access Control への統合
+- [OWASP Top 10 for LLM Applications 2025](https://genai.owasp.org/resource/owasp-top-10-for-llm-applications-2025/) — LLM05 / LLM06 / LLM10 の定義
+- [OWASP Application Security Verification Standard](https://owasp.org/www-project-application-security-verification-standard/) — 入力検証・出力エンコードの検証項目を体系的に引くための標準
+- [OWASP Server Side Request Forgery Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Server_Side_Request_Forgery_Prevention_Cheat_Sheet.html) — 宛先の許可リストと内部レンジ遮断の実装指針
+- [OWASP Cross Site Scripting Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html) — 出力先ごとのエスケープ方針
+- [第5回 MCP・外部連携とプロンプトインジェクション](/knowledge/security/secure-ai-development/05-mcp-and-prompt-injection/) — 非信頼な入力がプロンプトへ入る経路
