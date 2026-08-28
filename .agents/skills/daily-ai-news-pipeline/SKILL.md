@@ -82,7 +82,7 @@ description: |
 
 - AIニュース化するもの: `src/content/ai-news/<tool>/<slug>.mdx` と `src/content/ai-news-notes/<tool>/<slug>.mdx` を対で作成
 - **記事は1回あたり最大4本**。候補が5件以上あるときは `selection-rubric.md` のスコア順に上位4件を選び、残りは日次サマリーの「公開記事化結果」に `見送り（本数上限）` として理由つきで残す
-- **Claude Code / Codex の通常パッチは記事化しない**。破壊的変更・権限・セキュリティ・料金・操作フローの変更に当たるものだけを候補にし、両ツール合わせて1回2本まで。該当しないものは `見送り（週次ロールアップへ）` として日次サマリーに残す（条件は `selection-rubric.md` の「日次リリース型ツールの扱い」）
+- **Claude Code / Codex のバージョンリリースは内容にかかわらず記事化しない**。`見送り（週次ロールアップへ）` として日次サマリーに残す。例外はバージョンリリースではない独立発表と、期限が明記された告知の2つだけで、その場合も両ツール合わせて1回2本まで（条件は `selection-rubric.md` の「日次リリース型ツールの扱い」）
 - `tool` は `src/content.config.ts` の enum に限定（enum 外なら記事化禁止）
 - ユーザー認識ギャップ該当: ニュース化せず、`daily-ai-update-monitor/references/perception-gaps.md` 追記＋日次サマリー末尾「補足メモ」へ転記
 - Knowledge への追記は既定スキップ
