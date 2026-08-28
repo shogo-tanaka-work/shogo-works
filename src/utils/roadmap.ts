@@ -1,4 +1,4 @@
-import type { RoadmapPath, RoadmapStep } from "@/data/roadmap";
+import type { RoadmapLevel, RoadmapPath, RoadmapStep } from "@/data/roadmap";
 import { estimateReadingMinutes } from "@/utils/readingTime";
 
 /** ロードマップ解決時に最低限必要となる Content Entry の形 */
@@ -26,6 +26,8 @@ export interface ResolvedRoadmapStep extends RoadmapStep {
 
 export interface ResolvedRoadmapPath {
   id: string;
+  group: string;
+  level: RoadmapLevel;
   title: string;
   description: string;
   steps: ResolvedRoadmapStep[];
@@ -75,6 +77,8 @@ export function resolveRoadmap(
 
   return {
     id: path.id,
+    group: path.group,
+    level: path.level,
     title: path.title,
     description: path.description,
     steps,
