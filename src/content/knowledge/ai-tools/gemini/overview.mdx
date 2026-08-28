@@ -1,6 +1,6 @@
 ---
 title: "Google Gemini徹底解説：長コンテキストとGoogleエコシステム統合"
-description: "Google DeepMindのAIアシスタント「Gemini」のGemini 3系モデル、Deep Research、Gems、Code Assist、Gemini CLI、Workspace連携を2026年4月時点でまとめた詳細解説。"
+description: "Google DeepMindのAIアシスタント「Gemini」のGemini 3系モデル、Spark、Deep Research、Gems、Gemini CLI、Workspace連携を2026年8月時点でまとめた詳細解説。"
 category: "ai-tools"
 subcategory: "gemini"
 difficulty: "intermediate"
@@ -8,6 +8,7 @@ contentType: "reference"
 tags: ["Gemini", "Google", "AI アシスタント", "Code Assist", "マルチモーダル"]
 sortOrder: 0
 createdAt: 2026-04-13
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -15,19 +16,23 @@ author: "田中省伍"
 
 Google GeminiはGoogle DeepMindが開発するマルチモーダルAIアシスタント・モデルファミリーです。2023年3月に限定公開されたBardを起源とし、2024年2月8日にBardが「Gemini」へリブランドされました。同時期にWorkspace向けの企業AI「Duet AI」も「Gemini for Workspace」へ統合されています。
 
-個人向けチャット（gemini.google.com）、開発者向けAPI（ai.google.dev）、IDE拡張（Gemini Code Assist）、エージェント型ターミナルツール（Gemini CLI）など多面的に展開し、Googleエコシステムとの深い統合が最大の差別化要因です。2025年11月以降、Gemini 3系モデルが順次リリースされ、2026年4月時点でも高頻度のアップデートが続いています。
+個人向けチャット（gemini.google.com）、開発者向けAPI（ai.google.dev）、IDE拡張（Gemini Code Assist）、エージェント型ターミナルツール（Gemini CLI）など多面的に展開し、Googleエコシステムとの深い統合が最大の差別化要因です。2025年11月以降、Gemini 3系モデルが順次リリースされ、2026年8月時点でも高頻度のアップデートが続いています。
+
+2026年5月のGoogle I/O 2026では「エージェント時代」への転換が打ち出され、ユーザーの代わりに常時稼働する **Gemini Spark** が中心に据えられました。モデル面ではFlash系列が3.5・3.6・3.7と短期間で世代交代する一方、Pro系列は2026年2月の3.1 Proから更新が止まっています。個別のモデルの整理は[Geminiモデル系譜2026](/knowledge/ai-tools/gemini/model-lineup-2026)にまとめています。
 
 ## 主要機能
 
 - **Gemini チャット**: テキスト・画像・音声・動画を横断するマルチモーダル対話。
 - **Deep Research**: 複雑なリサーチタスクをWeb横断で自律実行し、レポート化。Canvas上でクイズやAudio Overviewにも変換できます。
 - **Canvas**: ドキュメントやコードをリアルタイム編集できるインタラクティブワークスペース。Webアプリ・Pythonスクリプト・ゲームのプロトタイピングにも対応。
-- **Gems / Super Gems**: カスタムAIアシスタント作成機能。2026年にはボタンやフォームを持つ「Super Gems」が登場し、アプリ的なUIを構築できます。
+- **Gemini Spark**: 24時間稼働するパーソナルエージェント。Gmail・Docs・Slidesなどでタスクを自動実行し、端末を閉じていても処理を進めます。2026年7月に日本を含む多くの地域へ展開されました（EEA・英国・スイス・ナイジェリアは対象外）。
+- **Gems / Super Gems**: カスタムAIアシスタント作成機能。2026年にはボタンやフォームを持つ「Super Gems」が登場し、アプリ的なUIを構築できます。Workspace Studioのフロー内からも呼び出せます。
 - **Workspace連携**: Gmail、Docs、Sheets、Slides、Drive、MeetでのAI支援。Google AI Pro以上のプランに含まれます。
 - **Gemini Code Assist**: VS Code / JetBrains向けコーディング支援。コード補完・チャット・スマートアクションに加え、複数ファイルにまたがる複雑なタスクを計画→承認→実行する**エージェントモード**が一般公開されています。MCP経由の外部サービス連携にも対応。
-- **Gemini CLI**: ターミナルで動作するオープンソースAIエージェント。2026年4月時点でv0.37.1。動的サンドボックス・ブラウザエージェント・メモリ管理機能を搭載し、Gemini 3 FlashがCLIのデフォルトモデルとして統合されています。
+- **Gemini CLI**: ターミナルで動作するオープンソースAIエージェント。2026年8月時点でv0.55.1。Google I/O 2026でAntigravity CLIへの統合方針が示されており、業務組み込みでは移行先の確認が必要です。
 - **Project Astra**: リアルタイム動画・音声理解を行うユニバーサルAIアシスタント研究プロジェクト。Google Searchの「Search Live」機能としてカメラ経由のリアルタイム解析が全ユーザーに展開されつつあります。
-- **Imagen / Veo / Lyria**: 画像生成（Imagen）、ネイティブオーディオ付き動画生成（Veo 3）、最大3分の音楽生成（Lyria 3 Pro）を提供。
+- **Imagen / Veo / Lyria**: 画像生成（Imagen）、ネイティブオーディオ付き動画生成（Veo 3）、最大3分の音楽生成（Lyria 3 Pro）を提供。2026年5月には動画中心の生成モデル **Gemini Omni** が加わりました。
+- **Gemini Notebook**: 資料をもとに質問応答・要約・教材生成を行うリサーチツール。2026年7月にNotebookLMから改称されました。
 
 ## 強み・特徴
 
@@ -40,7 +45,8 @@ Google GeminiはGoogle DeepMindが開発するマルチモーダルAIアシス�
 
 - **回答の一貫性**: 同じ質問に対して異なる回答を返すケースが報告されており、予測可能性ではClaudeに劣ります。
 - **複雑な論理推論**: トリッキーな論理問題ではClaudeに遅れを取る評価が散見されます。
-- **2Mコンテキストの後退**: 最新世代（Gemini 2.5 Pro以降）では1Mトークンに縮小されており、2M対応は旧世代モデルに限定されています。
+- **2Mコンテキストの後退**: 最新世代では1Mトークンに縮小されており、2M対応は旧世代モデルに限定されています。
+- **Pro系列の停滞**: 2026年5月に予告されたGemini 3.5 Proが8月末時点でも公開されず、Pro級の選択肢は2026年2月の3.1 Proのままです。深い推論を要する用途では選択肢が限られます。
 - **エコシステム依存**: Googleサービスを使わないユーザーには統合メリットが薄く、AI性能だけで選ぶなら他の選択肢が合うケースもあります。
 
 ## 料金体系
@@ -49,10 +55,10 @@ Google GeminiはGoogle DeepMindが開発するマルチモーダルAIアシス�
 
 | プラン | 月額 | 主な内容 |
 |---|---|---|
-| 無料 | $0 | Gemini 2.5 Flash + 限定的な2.5 Pro、Deep Research、Live、Canvas、Gems |
-| Google AI Plus | $7.99 | Gemini 2.5 Pro拡張アクセス、Veo 3.1動画生成、200GBストレージ |
-| Google AI Pro | $19.99 | 上位モデルアクセス、5TBストレージ（2026年4月から）、Workspace連携 |
-| Google AI Ultra | $249.99 | Gemini 3 Deep Thinkなど最上位機能、30TBストレージ |
+| 無料 | $0 | Flash系モデル、Deep Research、Live、Canvas、Gems |
+| Google AI Plus | $7.99 | 拡張アクセス、Omni Flashの動画生成、200GBストレージ |
+| Google AI Pro | $19.99 | 上位モデルアクセス、Gemini Spark、5TBストレージ、Workspace連携 |
+| Google AI Ultra | $249.99 | Deep Thinkなど最上位機能、Gemini Notebookのクラウドコンピュータ、30TBストレージ |
 
 **Workspace向け**
 
@@ -68,14 +74,17 @@ Google GeminiはGoogle DeepMindが開発するマルチモーダルAIアシス�
 
 **Gemini Developer API**
 
+2026年8月時点の主なモデルの単価です。いずれも2026年12月31日までの導入価格で、2027年1月1日から原則2倍へ引き上げが予定されています。
+
 | モデル | 入力 / 1Mtok | 出力 / 1Mtok |
 |---|---|---|
-| Gemini 2.5 Pro（〜200K） | $1.25 | $10.00 |
-| Gemini 2.5 Pro（200K超） | $2.50 | $15.00 |
-| Gemini 2.5 Flash | $0.30 | $2.50 |
-| Gemini 2.5 Flash-Lite | $0.10 | $0.40 |
+| Gemini 3.1 Pro（〜200K） | $2.00 | $12.00 |
+| Gemini 3.1 Pro（200K超） | $4.00 | $18.00 |
+| Gemini 3.7 Flash | $0.75 | $3.75 |
+| Gemini 3.6 Flash | $0.75 | $3.75 |
+| Gemini 3.5 Flash-Lite | $0.30 | $2.50 |
 
-無料ティアもあり、開発者の試用障壁は低めです。
+無料ティアはFlash系・Flash-Lite系に限られ、**Pro系モデルは有料のみ**です。詳細は[Gemini API料金](/knowledge/ai-tools/gemini/api-pricing-2026)を参照してください。
 
 ## 主なユースケース
 
@@ -112,8 +121,14 @@ Google GeminiはGoogle DeepMindが開発するマルチモーダルAIアシス�
 - **2026年2月19日**: Gemini 3.1 Proリリース。
 - **2026年3月3日**: Gemini 3.1 Flash LiteのAPI公開。
 - **2026年4月1日**: Google AI Proに5TBストレージが追加（価格据え置き）。
-- **2026年4月9日**: Gemini CLI v0.37.1リリース。動的サンドボックス・ブラウザエージェント機能などを搭載。
-- Code Assistのエージェントモード一般公開、Veo 3 / Lyria 3 Proなど新世代モデルも順次提供されています。
+- **2026年4月21日**: Deep Research Maxリリース。MCP対応と最大160回のWeb検索に対応。
+- **2026年5月19日**: Google I/O 2026。Gemini 3.5 Flash GA、Gemini Omni、Gemini Spark、Antigravity 2.0を発表。Gemini 3.5 Proは「翌月提供」と予告。
+- **2026年6月1日**: Gemini 2.0 Flashシャットダウン。
+- **2026年6月24日**: Gemini 3.5 FlashにComputer Useを統合。
+- **2026年7月16日**: NotebookLMがGemini Notebookへ改称。コード実行環境を追加。
+- **2026年7月21日**: Gemini 3.6 Flash / 3.5 Flash-Lite / 3.5 Flash Cyberをリリース。Gemini 3.5 Proは含まれず。
+- **2026年7月31日**: Gemini Sparkが日本を含む地域へ展開。
+- **2026年8月13日**: Gemini 3.7 Flashリリース。導入価格は入力$0.75 / 出力$3.75。
 
 ## 参考リンク
 

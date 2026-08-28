@@ -1,6 +1,6 @@
 ---
 title: "Claude徹底解説：Anthropicの汎用AIアシスタント（claude.ai）"
-description: "Anthropicの汎用AIアシスタント「Claude」（claude.ai）のClaude 4.6系モデル、Artifacts、Skills、Projects、Memory、料金プランを2026年4月時点でまとめた詳細解説。"
+description: "Anthropicの汎用AIアシスタント「Claude」（claude.ai）の現行モデル体系、Artifacts、Skills、Projects、Memory、料金プランを2026年8月時点でまとめた詳細解説。"
 category: "ai-tools"
 subcategory: "claude"
 difficulty: "intermediate"
@@ -8,14 +8,15 @@ contentType: "reference"
 tags: ["Claude", "Anthropic", "Artifacts", "Skills", "AI アシスタント"]
 sortOrder: 0
 createdAt: 2026-04-13
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
 ## ツール概要
 
-ClaudeはAnthropicが提供する汎用AIアシスタントです。Web（claude.ai）・iOS・Android・デスクトップアプリ（macOS / Windows）で利用でき、Constitutional AIと呼ばれる安全設計手法を基盤にしています。長文処理・自然な文章生成・コーディングを強みとし、2026年4月時点のフラッグシップはClaude Opus 4.6（1Mトークンコンテキスト対応）です。
+ClaudeはAnthropicが提供する汎用AIアシスタントです。Web（claude.ai）・iOS・Android・デスクトップアプリ（macOS / Windows）で利用でき、Constitutional AIと呼ばれる安全設計手法を基盤にしています。長文処理・自然な文章生成・コーディングを強みとし、2026年8月時点の主力はClaude Opus 5（1Mトークンコンテキスト対応）です。最上位にはさらにClaude Fable 5があります。
 
-開発元のAnthropicは2021年にOpenAI出身のDario AmodeiとDaniela Amodei兄妹らが設立。2023年3月のClaude 1から始まり、2024年3月のClaude 3、2025年5月のClaude 4を経て、2026年2月にClaude 4.6世代へと進化してきました。
+開発元のAnthropicは2021年にOpenAI出身のDario AmodeiとDaniela Amodei兄妹らが設立。2023年3月のClaude 1から始まり、2024年3月のClaude 3、2025年5月のClaude 4、2026年2月のClaude 4.6世代を経て、2026年6〜7月に Fable / Opus / Sonnet / Haiku の4階層体制へ再編されました。詳細は[Claudeモデル体系2026](/knowledge/ai-tools/claude/model-lineup-2026/)にまとめています。
 
 > Claude Code（CLI）と本記事のClaude（claude.ai）は同じAnthropic製ですが製品が別です。CLI版は[Claude Code徹底解説](/knowledge/ai-tools/claude-code/overview/)を参照してください。
 
@@ -25,11 +26,11 @@ ClaudeはAnthropicが提供する汎用AIアシスタントです。Web（claude
 - **Projects**: 会話・ファイル・指示をトピック別に整理する機能。クライアントや案件ごとにナレッジベースを独立管理できます。
 - **Memory**: 過去の会話から「役職・進行中プロジェクト・個人設定」などを自動要約して記憶。2025年9月にTeam / Enterprise向けに開始され、2026年3月2日に無料プランを含む全ユーザーに開放されました。デフォルトはオフで、内容の確認・削除も可能です。
 - **Research（Deep Research）**: Pro以上で利用できるマルチエージェント調査モード。複数のサブエージェントが並列で数百ソースを検索し、最大45分かけて構造化レポートを生成します。
-- **Skills / Plugins / MCPコネクタ**: SkillsはClaudeが呼び出せるMCP統合の単位、PluginsはSkills + コネクタ + スラッシュコマンドのパッケージ。Anthropic公式が15本以上のPluginsをオープンソース提供しています（セールス・法務・マーケ・財務・サポートなど）。
-- **Computer Use**: 画面の内容を解釈してキーボード・マウス操作をシミュレートし、PC上のアプリを自律操作できる機能。Claude Sonnet 4.6がOSWorldベンチマークで72.5%を記録しています。
+- **Skills / Plugins / MCPコネクタ**: Skillsは指示書（SKILL.md）・スクリプト・参照リソースをまとめたフォルダで、必要になった時点で段階的に読み込まれます。PluginsはSkills + コネクタ + スラッシュコマンドのパッケージ。Anthropic公式が15本以上のPluginsをオープンソース提供しています（セールス・法務・マーケ・財務・サポートなど）。
+- **Computer Use**: 画面の内容を解釈してキーボード・マウス操作をシミュレートし、PC上のアプリを自律操作できる機能。
 - **ファイルアップロード**: CSV・PDF・画像をアップロードしてデータ分析・可視化が可能。
 - **Web検索**: 無料プランを含む全プランで利用可能。
-- **Extended Thinking（拡張思考）**: 有料プラン限定。プロンプトの複雑さを自己評価し、思考時間と推論過程を表示します。
+- **拡張思考**: 有料プラン限定。プロンプトの複雑さを自己評価し、思考時間と推論過程を表示します。現行世代では思考量が自動調整されるAdaptive方式になり、APIでは `effort` で深さを指定します。
 - **Styles**: Normal / Concise / Explanatoryなどのプリセット文体を選択可能。
 - **デスクトップ / モバイルアプリ**: macOS・Windows・iOS・Androidに対応。モバイルではハンズフリー音声モード、書類スキャン、ヘルスデータ連携（米国Pro/Max）なども提供。
 
@@ -39,7 +40,7 @@ ClaudeはAnthropicが提供する汎用AIアシスタントです。Web（claude
 - **文章品質**: ライター・編集者の評価で最高水準とされ、スタイル指示への忠実さと「AIっぽさの薄さ」が特徴です。
 - **安全性・誠実性**: Constitutional AIにより不確実性を明示する傾向が強く、エンタープライズ・医療・法律分野で信頼性が評価されています。
 - **Artifactsによるコード/UIプレビュー**: コード生成と同時にインタラクティブUIを別パネルでレンダリングできるため、プロトタイピング体験が滑らかです。
-- **コーディング**: SWE-benchで80.8%。Claude Codeとの組み合わせで開発者体験が一段と強化されます。
+- **コーディング**: Claude Codeとの組み合わせで開発者体験が一段と強化されます。Opus 5は「複雑なエージェント型のコーディングと企業業務向け」と位置付けられています。
 
 ## 弱み・限界
 
@@ -50,18 +51,20 @@ ClaudeはAnthropicが提供する汎用AIアシスタントです。Web（claude
 
 ## 料金体系
 
-2026年4月時点の主なプランは次のとおりです（最新は[claude.com/pricing](https://claude.com/pricing)）。
+2026年8月時点の主なプランは次のとおりです（最新は[claude.com/pricing](https://claude.com/pricing)）。
 
 | プラン | 月額 | 主な内容 |
 |---|---|---|
-| Free | $0 | Sonnet 4.6 / Haiku 4.5、Web検索、Artifacts、Projects、Memory、MCPコネクタ。日次利用上限あり |
-| Pro | $20 | Freeの5倍の利用量、Opus 4.6含む全モデル、Research、Extended Thinking |
-| Max 5x | $100 | Proの5倍。最大優先度、Claude Codeフルアクセス、1Mコンテキスト |
-| Max 20x | $200 | Proの20倍。ゼロレイテンシ優先、Claude Codeフルアクセス |
+| Free | $0 | Sonnet 系 / Haiku 4.5、Web検索、Artifacts、Projects、Memory、MCPコネクタ。利用上限あり |
+| Pro | $20（年払いなら$17） | Freeより多い利用量、Opusクラスを含む全モデル、Research、拡張思考 |
+| Max 5x | $100〜 | Proの5倍の利用量 |
+| Max 20x | $200〜 | Proの20倍の利用量 |
 | Team | $25/ユーザー | Memoryのチーム共有、管理コンソール、最低5名から |
 | Enterprise | カスタム | SSO、監査ログ、コンプライアンスAPI、RBAC、OpenTelemetry対応 |
 
-1MコンテキストはMax / Team / Enterpriseで追加料金なしで利用可能（2026年3月13日にGA）。
+Claude Codeはすべての有料プランに含まれ、チャットと同じ利用枠を共有します。1MコンテキストはMax / Team / Enterpriseで追加料金なしで利用可能（2026年3月13日にGA）。
+
+APIの従量課金はプランと別建てです。100万トークンあたりの単価は[Claudeモデル体系2026](/knowledge/ai-tools/claude/model-lineup-2026/)にまとめています。
 
 ## 主なユースケース
 
@@ -99,6 +102,13 @@ ClaudeはAnthropicが提供する汎用AIアシスタントです。Web（claude
 - **2026年3月13日**: 1MコンテキストがMax / Team / Enterpriseに対し追加料金なしでGA。
 - **Claude Cowork GA**: デスクトップアプリでのタスクスケジューリング・反復タスク自動化が一般公開。
 - **2026年4月7日**: 次世代モデル「Claude Mythos Preview」を限定研究公開。サイバーセキュリティ分野で全OS・主要ブラウザの脆弱性を発見できる水準とされ、当面は一般公開しない方針が示されました。同時にProject Glasswing（Amazon、Apple、Microsoft、Linux Foundationなど12社との防衛的セキュリティ連携）も発表。
+- **2026年4月17日**: Claude Designをリサーチプレビューとして公開。Pro / Max / Team / Enterprise が対象。
+- **2026年5月28日**: Claude Opus 4.8リリース。
+- **2026年6月9日**: Claude Fable 5と、Project Glasswing向けの限定提供モデル Claude Mythos 5 をリリース。Opusの上に新しい階層が加わりました。
+- **2026年6月18日**: Claude CodeのセッションをそのままインタラクティブなWebページとして共有できるArtifacts機能をベータ公開（Team / Enterprise 向け）。
+- **2026年6月30日**: Claude Sonnet 5リリース。1Mコンテキストを $2 / $10（100万トークンあたり）で提供。
+- **2026年7月24日**: Claude Opus 5リリース。Fable 5に近い性能を半額で提供する日常利用向けの主力モデルとして位置付けられています。
+- **2026年8月27日**: Files APIとAgent SkillsがGA化し、betaヘッダーが不要になりました。
 
 ## 参考リンク
 

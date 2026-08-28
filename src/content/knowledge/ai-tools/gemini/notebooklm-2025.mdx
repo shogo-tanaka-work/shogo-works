@@ -1,18 +1,21 @@
 ---
-title: "NotebookLM 2025年大型アップデート完全解説：Audio Overview4形式・Flashcards・Mind Map"
-description: "2025年9〜12月のNotebookLMアップデートを解説。Audio Overview新4フォーマット（Brief・Critique・Debate・Lecture）、Flashcards・Quiz・インタラクティブMind Mapの使い方と学習・情報整理への活用法を網羅。"
+title: "Gemini Notebook（旧NotebookLM）解説：Audio Overview4形式・Flashcards・Mind Map・コード実行"
+description: "2026年7月にNotebookLMから改称されたGemini Notebookを解説。Audio Overviewの4フォーマット、Flashcards・Quiz・Mind Mapに加え、隔離サンドボックスでコードを実行する新機能までを整理。"
 category: "ai-tools"
 subcategory: "gemini"
 difficulty: "intermediate"
 contentType: "news"
 tags: ["Gemini", "NotebookLM", "Audio Overview", "学習", "情報整理"]
-sortOrder: 4
+sortOrder: 5
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
 ## TL;DR
 
+- **2026年7月にNotebookLMから「Gemini Notebook」へ改称**。移行作業は不要
+- **セキュアなクラウドコンピュータ**で、自然言語の指示からPythonコードを書いて実行できる
 - Audio Overviewが**4フォーマット**に拡張（Brief・Critique・Debate・Lecture追加）
 - **80言語以上**に対応（日本語含む）
 - **Flashcards・Quiz**で資料から学習教材を自動生成
@@ -22,9 +25,23 @@ author: "田中省伍"
 
 ## 概要
 
-**NotebookLM** は、アップロードした資料（PDF・Webページ・Google Docs・YouTube動画等）をもとにAIが質問応答・要約・教材生成を行うGoogleのリサーチツールです。
+**Gemini Notebook** は、アップロードした資料（PDF・Webページ・Google Docs・YouTube動画等）をもとにAIが質問応答・要約・教材生成を行うGoogleのリサーチツールです。**2026年7月16日から「NotebookLM」より改称**され、段階的にロールアウトされました。本記事でも以降は新名称で記載します。
 
-2025年9月〜12月にかけて大型アップデートが実施され、音声・視覚・インタラクティブの3方向で機能が大幅に拡張されました。
+改称にあたって利用者側の作業はありません。既存のノートブックはそのまま使え、移行や再作成は不要です。共有済みのリンクも自動でリダイレクトされます。
+
+2025年9月〜12月にかけて音声・視覚・インタラクティブの3方向で機能が拡張され、2026年7月の改称時にはコード実行環境が加わりました。
+
+---
+
+## セキュアなクラウドコンピュータ
+
+改称と同時に追加された機能です。Google Cloudのインフラ上で動く**隔離されたサンドボックス実行環境**を持ち、自然言語で指示するとGemini NotebookがPythonコードを書いて実行し、結果を返します。
+
+- 出力形式はチャート・スプレッドシート・スライドなど
+- ノートブックに登録したソースと連動したデータ分析ができる
+- コードを書ける必要はなく、やりたいことを日本語で伝えれば済む
+
+提供範囲は限定的です。**Google AI Ultra ユーザー**と、AI Ultra Access / AI Expanded Access を持つWorkspaceビジネス顧客に先行提供され、一般のProユーザーへは順次展開とされています。無料プランへの展開時期は公表されていません。
 
 ---
 
@@ -48,7 +65,7 @@ author: "田中省伍"
 
 ## Audio Overview の使い方
 
-1. NotebookLMにPDF・URLなど資料をアップロード
+1. Gemini NotebookにPDF・URLなど資料をアップロード
 2. 「Audio Overview」タブを開く
 3. フォーマットを選択（Deep Dive / Brief / Critique / Debate / Lecture）
 4. 言語を選択（日本語対応）
@@ -74,7 +91,7 @@ author: "田中省伍"
 
 ## Interactive Mind Map
 
-資料をアップロードするとNotebookLMが**概念の関係性を自動でマップ化**します。
+資料をアップロードするとGemini Notebookが**概念の関係性を自動でマップ化**します。
 
 - ノードをクリックすると詳細説明が展開
 - 関連ノード間のつながりを可視化
@@ -93,7 +110,7 @@ author: "田中省伍"
 1. Deep Research でテーマを調査
    → 100以上のソースを自動分析
    
-2. 生成されたレポートをNotebookLMにインポート
+2. 生成されたレポートをGemini Notebookにインポート
    → Google DriveリンクかPDFで追加
    
 3. Audio Overview（Brief）で要点を音声で確認
@@ -107,9 +124,9 @@ author: "田中省伍"
 
 ## 利用方法
 
-- **URL**: [notebooklm.google.com](https://notebooklm.google.com)
+- **URL**: [notebooklm.google.com](https://notebooklm.google.com)（改称後もアクセス可能）
 - **対象**: Google アカウントがあれば無料で利用可能
-- **Gemini Advanced**加入でより高性能なモデルを使用
+- **クラウドコンピュータ**を使うには Google AI Ultra 相当の契約が必要
 
 ---
 
@@ -117,4 +134,5 @@ author: "田中省伍"
 
 - [NotebookLM Audio Formats | Google Workspace Updates](https://workspaceupdates.googleblog.com/2025/04/language-expansion-audio-overviews-notebooklm.html)
 - [NotebookLM Flashcards & Quizzes | Google Workspace Updates](https://workspaceupdates.googleblog.com/2025/09/flashcards-quizzes-reports-notebook-lm-google-education.html)
-- [NotebookLM | Google](https://notebooklm.google.com)
+- [NotebookLM is now Gemini Notebook | Google Workspace Updates](https://workspaceupdates.googleblog.com/2026/07/notebooklm-now-gemini-notebook.html)
+- [NotebookLM is now Gemini Notebook | blog.google](https://blog.google/innovation-and-ai/products/gemini-notebook/notebooklm-gemini-notebook/)
