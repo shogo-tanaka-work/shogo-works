@@ -1,6 +1,6 @@
 ---
 title: "Claude プロンプトキャッシング実践ガイド：5分 vs 1時間・コスト計算・Extended Thinkingとの組み合わせ"
-description: "Claude APIのプロンプトキャッシング（1時間TTL GA）を実践的に解説。5分と1時間の使い分け、コスト計算式、キャッシュヒット率を上げる設計パターン、Extended Thinkingとの組み合わせを網羅。"
+description: "Claude APIのプロンプトキャッシングを実践的に解説。デフォルト5分と1時間TTLの使い分け、コスト計算式、モデル別の最小キャッシュトークン数、キャッシュヒット率を上げる設計パターンを網羅。"
 category: "ai-tools"
 subcategory: "claude"
 difficulty: "intermediate"
@@ -8,15 +8,16 @@ contentType: "news"
 tags: ["Claude", "プロンプトキャッシング", "API", "コスト削減", "最適化"]
 sortOrder: 12
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
 ## TL;DR
 
-- **1時間キャッシュ** は2025年8月13日にGA（betaヘッダー不要）
-- キャッシュ書き込みはベース価格の **2倍**、読み取りは **0.1倍**（90%割引）
-- **Extended Thinkingの思考ブロックもキャッシュ対象**
-- 2025年1月15日から「最長一致プレフィックスの自動読み取り」に変更（手動管理不要）
+- **デフォルトのTTLは5分**です。1時間キャッシュを使うには `cache_control` に `"ttl": "1h"` を明示します
+- 書き込みコストはTTLで変わります。5分は **1.25倍**、1時間は **2.0倍**。読み取りはどちらも **0.1倍**（90%割引）
+- モデルごとに**最小キャッシュ可能トークン数**があり、これを下回るとエラーなく無視されます
+- ブレークポイントは1リクエストあたり**最大4個**
 
 ---
 
@@ -24,21 +25,39 @@ author: "田中省伍"
 
 Claudeのプロンプトキャッシングは、システムプロンプト・ツール定義・固定ドキュメントなどの「変わらない部分」をキャッシュし、繰り返し送信するコストを削減する機能です。
 
-2025年8月13日に**1時間TTLキャッシュがGA**となり、長時間エージェントセッションでの活用が本格化しました。
+キャッシュは**プレフィックス一致**で動きます。`tools` → `system` → `messages` の順にレンダリングされた先頭部分が前回と1バイトでも違えば、それ以降のキャッシュはすべて無効になります。
 
 ---
 
 ## 5分 vs 1時間の使い分け
 
-| TTL | コスト（書き込み） | コスト（読み取り） | 向いているケース |
-|---|---|---|---|
-| **5分** | 基本価格 × 1.25 | 基本価格 × 0.1 | 短時間の繰り返しリクエスト・チャットアプリ |
-| **1時間** | 基本価格 × **2.0** | 基本価格 × 0.1 | 長時間エージェント・夜間バッチ・Routines |
+TTLを指定しない場合は5分です。1時間キャッシュは書き込みコストが1.6倍になるため、「5分では足りない」と分かっている場合にだけ使います。
+
+| TTL | 指定方法 | コスト（書き込み） | コスト（読み取り） | 向いているケース |
+|---|---|---|---|---|
+| **5分**（既定） | `{"type": "ephemeral"}` | 基本価格 × 1.25 | 基本価格 × 0.1 | 短時間の繰り返しリクエスト・チャットアプリ |
+| **1時間** | `{"type": "ephemeral", "ttl": "1h"}` | 基本価格 × **2.0** | 基本価格 × 0.1 | 長時間エージェント・夜間バッチ・Routines |
 
 **1時間キャッシュが有利な条件：**
+
 - エージェントのサブタスクが5分以上かかる
 - ユーザー応答に5分以上かかりうる長い会話
-- Extended Thinkingセッションが5分を超える
+- 拡張思考を伴うセッションが5分を超える
+
+1時間TTLはClaude API・Amazon Bedrock・Google Cloud・Microsoft Foundryで利用できます。betaヘッダーは不要です。
+
+---
+
+## モデル別の最小キャッシュ可能トークン数
+
+キャッシュには下限があります。**下限を下回るプレフィックスは `cache_control` を付けてもキャッシュされず、エラーも返りません。** 「効いているつもりで効いていない」典型パターンなので、短いシステムプロンプトを扱うときは先に確認してください。
+
+| 最小トークン数 | 対象モデル |
+|---|---|
+| 512 | Claude Opus 5 / Fable 5 |
+| 1,024 | Claude Opus 4.8 / Sonnet 5 / Sonnet 4.6 |
+| 2,048 | Claude Opus 4.7 |
+| 4,096 | Claude Opus 4.6 / Haiku 4.5 |
 
 ---
 
@@ -46,9 +65,18 @@ Claudeのプロンプトキャッシングは、システムプロンプト・�
 
 ### 例：100万トークンのシステムプロンプトを100回リクエスト
 
-**キャッシュなし（Opus 4.7の場合）:**
+Claude Opus 5（入力 $5.00/MTok）の場合です。
+
+**キャッシュなし:**
 ```
 100万トークン × $5.00/MTok × 100回 = $500
+```
+
+**5分キャッシュあり（既定）:**
+```
+書き込み: 100万トークン × $5.00 × 1.25 = $6.25（初回のみ）
+読み取り: 100万トークン × $5.00 × 0.1 × 99回 = $49.5
+合計: $55.75（89%削減）
 ```
 
 **1時間キャッシュあり:**
@@ -57,6 +85,8 @@ Claudeのプロンプトキャッシングは、システムプロンプト・�
 読み取り: 100万トークン × $5.00 × 0.1 × 99回 = $49.5
 合計: $59.5（88%削減）
 ```
+
+5分キャッシュで足りるなら、書き込み差額のぶんだけ5分のほうが安くなります。1時間TTLは「5分でキャッシュが切れて書き直しが発生する」場合にだけ元が取れます。
 
 ---
 
@@ -67,9 +97,8 @@ import anthropic
 
 client = anthropic.Anthropic()
 
-# システムプロンプトに1時間キャッシュを適用
 response = client.messages.create(
-    model="claude-opus-4-7",
+    model="claude-opus-5",
     max_tokens=1024,
     system=[
         {
@@ -77,7 +106,8 @@ response = client.messages.create(
             "text": "あなたは優秀なソフトウェアエンジニアアシスタントです。"
                     "以下のコードベース全体を参照して質問に答えてください：\n\n"
                     + large_codebase_content,
-            "cache_control": {"type": "ephemeral"}  # 1時間キャッシュ
+            # ttl を省略するとデフォルトの5分キャッシュになる
+            "cache_control": {"type": "ephemeral"},
         }
     ],
     messages=[{"role": "user", "content": "このバグを修正する方法を教えてください"}]
@@ -86,6 +116,26 @@ response = client.messages.create(
 # キャッシュヒット状況を確認
 print(response.usage.cache_creation_input_tokens)  # 初回: キャッシュ書き込みトークン数
 print(response.usage.cache_read_input_tokens)       # 2回目以降: キャッシュ読み取りトークン数
+```
+
+1時間キャッシュにする場合は `ttl` を明示します。
+
+```python
+"cache_control": {"type": "ephemeral", "ttl": "1h"}
+```
+
+### トップレベル指定による自動キャッシュ
+
+ブレークポイントの位置を細かく制御する必要がなければ、リクエストのトップレベルに `cache_control` を置くだけで、キャッシュ可能な最後のブロックに自動で適用されます。会話が伸びるとブレークポイントも自動で前進します。
+
+```python
+response = client.messages.create(
+    model="claude-opus-5",
+    max_tokens=1024,
+    cache_control={"type": "ephemeral"},  # 最後のキャッシュ可能ブロックに自動適用
+    system=large_document_text,
+    messages=[{"role": "user", "content": "要点をまとめてください"}],
+)
 ```
 
 ---
@@ -124,40 +174,48 @@ tools = [
 tools[-1]["cache_control"] = {"type": "ephemeral"}
 ```
 
+ブレークポイントは1リクエストあたり最大4個までです。
+
+### キャッシュが効かないときの確認点
+
+`cache_read_input_tokens` が何度リクエストしても0のままなら、プレフィックスを壊している箇所があります。よくある原因は次のとおりです。
+
+- システムプロンプトに現在時刻やリクエストIDを埋め込んでいる
+- ツール定義のJSONキー順序がリクエストごとに変わる
+- 呼び出しごとにツールの数や並びが変わる
+- プレフィックスがモデルの最小トークン数に届いていない
+
 ---
 
-## Extended Thinking との組み合わせ
+## 拡張思考との組み合わせ
 
 思考ブロック（thinkingブロック）もキャッシュの対象になります。長時間エージェントセッションで同じコンテキストを継続して使う場合に効果的です。
 
+Opus 4.6世代以降では思考量の指定方法が変わり、`budget_tokens` ではなく `output_config.effort` で制御します（Opus 5 / Sonnet 5 / Fable 5 では `budget_tokens` は400エラーになります）。
+
 ```python
 response = client.messages.create(
-    model="claude-opus-4-7",
+    model="claude-opus-5",
     max_tokens=16000,
-    thinking={"type": "enabled", "budget_tokens": 10000},
+    thinking={"type": "adaptive"},
+    output_config={"effort": "high"},  # low / medium / high / xhigh / max
     system=[
         {
             "type": "text",
             "text": large_system_prompt,
-            "cache_control": {"type": "ephemeral"}  # 1時間キャッシュ
+            "cache_control": {"type": "ephemeral", "ttl": "1h"},
         }
     ],
     messages=conversation_history,  # 思考ブロックを含む会話履歴もキャッシュされる
 )
 ```
 
----
-
-## 自動最長一致プレフィックス（2025年1月15日〜）
-
-従来は「どのトークンをキャッシュするか」を手動で管理する必要がありましたが、2025年1月15日の更新で**自動的に最長一致プレフィックスからキャッシュを読み取る**仕組みに変更されました。
-
-プロンプトの先頭が前回のリクエストと一致していれば、`cache_control` を書かなくてもキャッシュが機能します（ただし明示指定推奨）。
+会話の途中で `effort` を変えるとメッセージ側のキャッシュは無効になります。キャッシュはモデル単位で分かれるため、途中でモデルを切り替えた場合も同様です。
 
 ---
 
 ## 参考リンク
 
 - [Prompt Caching Documentation | Anthropic](https://platform.claude.com/docs/en/build-with-claude/prompt-caching)
-- [Claude Platform Release Notes | Anthropic](https://platform.claude.com/docs/en/release-notes/overview)
+- [Pricing | Anthropic](https://platform.claude.com/docs/en/about-claude/pricing)
 - [Claude Code のトークン節約術](/knowledge/ai-tools/claude-code-curriculum/10-2-token-saving/)

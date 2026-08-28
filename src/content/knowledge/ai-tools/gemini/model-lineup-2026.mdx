@@ -1,0 +1,100 @@
+---
+title: "Gemini モデル系譜2026：3.1から3.7へ進むFlashと、出てこないPro"
+description: "2026年2月から8月までに公開されたGeminiモデルを時系列で整理し、3.5 / 3.6 / 3.7 Flashの違い、Gemini 3.5 Proが未リリースである現状、Pro系が必要な用途で3.1 Proを使い続ける判断基準をまとめたリファレンス。"
+category: "ai-tools"
+subcategory: "gemini"
+difficulty: "intermediate"
+contentType: "reference"
+tags: ["Gemini", "Google", "推論モデル", "API", "料金"]
+sortOrder: 1
+createdAt: 2026-08-28
+author: "田中省伍"
+---
+
+## 概要
+
+2026年のGeminiは、Flash系列だけが世代を重ね、Pro系列が止まっているという偏った進み方をしています。2月に公開された Gemini 3.1 Pro が2026年8月末時点でもPro系列の現行モデルであり続ける一方、Flash系列は5月に3.5、7月に3.6、8月に3.7と、4か月弱で3世代進みました。
+
+モデル選定で迷いやすいのはこの非対称性が理由です。本記事では公開順にモデルを整理し、どれを選ぶかの判断材料をまとめます。
+
+---
+
+## 2026年のリリース時系列
+
+| 時期 | モデル | 状態 |
+|---|---|---|
+| 2026年2月19日 | Gemini 3.1 Pro | Preview。Pro系列の現行モデル |
+| 2026年3月11日 | Gemini 3.1 Flash Live | Preview。リアルタイム音声対話 |
+| 2026年5月 | Gemini 3.5 Flash | GA |
+| 2026年5月 | Gemini Omni | Preview。動画中心の生成モデル |
+| 2026年6月24日 | Gemini 3.5 Flash に Computer Use を統合 | — |
+| 2026年7月21日 | Gemini 3.6 Flash / 3.5 Flash-Lite | Stable |
+| 2026年7月21日 | Gemini 3.5 Flash Cyber | 限定パイロット |
+| 2026年8月13日 | Gemini 3.7 Flash | Stable |
+
+Gemini 3.5 Pro は2026年5月のGemini 3.5 Flash発表時に「社内では既に使っており翌月ロールアウトする」と予告されましたが、2026年8月28日時点で公開されていません。Google DeepMindのモデルページはGemini 3.1 Proを現行のProモデルとして掲載したままです。
+
+---
+
+## 現行モデルの比較
+
+公式料金ページ（2026年8月時点）の単価は次のとおりです。
+
+| モデル | モデルID | 入力（$/1M） | 出力（$/1M） | 位置づけ |
+|---|---|---|---|---|
+| Gemini 3.1 Pro | `gemini-3.1-pro-preview` | $2.00 / $4.00 | $12.00 / $18.00 | 複雑な推論。200kトークン超で上段の価格 |
+| Gemini 3.7 Flash | `gemini-3.7-flash` | $0.75 | $3.75 | コーディング・エージェント向けの主力 |
+| Gemini 3.6 Flash | `gemini-3.6-flash` | $0.75 | $3.75 | 汎用の実務モデル |
+| Gemini 3.5 Flash | `gemini-3.5-flash` | $1.50 | $9.00 | Computer Use を内蔵 |
+| Gemini 3.5 Flash-Lite | `gemini-3.5-flash-lite` | $0.30 | $2.50 | 大量処理・低遅延（約350トークン/秒） |
+| Gemini 3.1 Flash Live | `gemini-3.1-flash-live-preview` | — | — | リアルタイム音声対話 |
+
+この表の単価は**2026年12月31日までの導入価格**です。2027年1月1日以降は原則として2倍に引き上げられる予定で、Gemini 3.7 Flash であれば入力 $1.50 / 出力 $7.50 になります。この価格を前提に採算を組む場合、切り替え日を運用カレンダーに載せておく必要があります。
+
+バッチAPIを使うと標準料金の50%引きになります。
+
+---
+
+## Flash 3世代の違い
+
+### Gemini 3.5 Flash（5月）
+
+フロンティア級の性能を大幅な低価格で提供するとして一般提供されました。6月24日にはComputer Use（ブラウザ・モバイル・デスクトップの自律操作）が統合され、別モデルを立てずにPC操作までこなせるようになっています。
+
+### Gemini 3.6 Flash（7月21日）
+
+「ワークホースモデル」として位置づけられ、同じタスクでの出力トークンを3.5 Flash比で17%削減しています。公開時の単価は入力 $1.50 / 出力 $7.50 でしたが、2026年8月時点の料金ページでは 3.7 Flash と同じ $0.75 / $3.75 に下がっています。
+
+### Gemini 3.7 Flash（8月13日）
+
+3.6 Flashのわずか3週間後に登場し、コーディングとエージェント用途に重点を置いています。導入価格は3.6 Flashの当初価格の半額です。多段の計画立案とツール呼び出しにより多くの処理を割く設計で、手動での介入を減らす方向に振られています。
+
+---
+
+## 選び分けの目安
+
+- **深い推論・長い文脈の分析** — Gemini 3.1 Pro。Flash系が3世代進んだ今も、Pro級の推論が必要な用途では3.1 Proが唯一の選択肢です
+- **コーディング、エージェント実行** — Gemini 3.7 Flash。導入価格の期間中はコスト面でも有利です
+- **大量のバッチ処理、分類・抽出** — Gemini 3.5 Flash-Lite
+- **リアルタイム音声対話** — Gemini 3.1 Flash Live
+- **動画生成を含むワークフロー** — Gemini Omni
+
+---
+
+## 運用上の注意点
+
+**モデルIDを直書きしない。** Flash系列が3週間から2か月の間隔で世代交代する状況では、モデル名をコードに埋め込む実装は改修コストになります。設定値として外に出し、環境変数で差し替えられる構造にしておくのが現実的です。
+
+**Preview版の扱いに注意する。** Gemini 3.1 Pro と Gemini 3.1 Flash Live はいずれも `-preview` サフィックスのままです。公式のdeprecationsページでは2026年8月末時点で**両者とも廃止日が発表されていません**が、Preview版である以上は将来的な移行を前提に組む必要があります。同じ3.1系でも `gemini-3.1-flash-lite-preview` は2026年5月25日に廃止済みです。
+
+**Gemini 3.5 Pro を待つ設計にしない。** 予告から3か月以上が経過しても公開されていません。Pro級の処理が必要なら3.1 Proで組み、公開後に評価する順序が安全です。
+
+---
+
+## 参考リンク
+
+- [Gemini 3.5: frontier intelligence with action | blog.google](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-5/)
+- [Introducing Gemini 3.6 Flash, 3.5 Flash-Lite, and 3.5 Flash Cyber | blog.google](https://blog.google/innovation-and-ai/models-and-research/gemini-models/gemini-3-6-flash-3-5-flash-lite-3-5-flash-cyber/)
+- [Gemini 3.7 Flash | blog.google](https://blog.google/innovation-and-ai/models-and-research/gemini-models/introducing-gemini-3-7-flash/)
+- [Models | Gemini API](https://ai.google.dev/gemini-api/docs/models)
+- [Gemini deprecations | Gemini API](https://ai.google.dev/gemini-api/docs/deprecations)

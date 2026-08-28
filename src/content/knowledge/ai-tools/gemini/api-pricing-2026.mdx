@@ -1,13 +1,14 @@
 ---
 title: "Gemini API 2026年料金改定完全解説：無料枠縮小・強制上限・プリペイド制の全容"
-description: "2026年3〜4月のGemini API料金体系の大幅改定を解説。無料枠の段階的縮小、プリペイド課金の強制、支出上限の適用、Gemini 2.0 Flash廃止予定など、API利用者が知るべき変更点を網羅。"
+description: "2026年のGemini API料金体系の変更を解説。無料枠のFlash系限定化、プリペイド課金、強制支出上限に加え、2026年8月時点のモデル別単価と、2027年1月に予定される値上げまでを網羅。"
 category: "ai-tools"
 subcategory: "gemini"
 difficulty: "intermediate"
 contentType: "news"
 tags: ["Gemini", "Google", "API", "料金", "プリペイド"]
-sortOrder: 3
+sortOrder: 4
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -24,7 +25,8 @@ author: "田中省伍"
 | 2025年12月 | 無料枠を50〜80%削減 |
 | 2026年3月23日 | 新規サインアップユーザーにプリペイド課金を強制 |
 | **2026年4月1日** | **全課金アカウントに強制支出上限を適用** |
-| 2026年6月1日（予定） | Gemini 2.0 Flash シャットダウン |
+| 2026年6月1日 | Gemini 2.0 Flash シャットダウン |
+| **2027年1月1日（予定）** | **導入価格が終了し、標準料金は原則2倍へ** |
 
 ---
 
@@ -32,9 +34,11 @@ author: "田中省伍"
 
 ### 1. 無料枠の縮小（2025/12〜2026/4）
 
-- Proモデルが**無料枠から完全除外**（2026年4月時点）
+- Proモデルが**無料枠から完全除外**。2026年8月時点の公式料金ページでも、Gemini 3.1 Pro Preview の無料枠は「Not available」と表記されています
+- 無料枠が使えるのは**Flash系とFlash-Lite系**（3.5 / 3.6 / 3.7 Flash、3.5 Flash-Lite）に限られます
 - 実験・プロトタイピング用途は引き続きFlash系モデルの無料枠で対応可能
-- Google AI Studioでの個人開発者向け無料利用には制限が残る
+
+なお、Pro系除外が始まった具体的な日付は公式ドキュメント上で確認できていません。現行の料金ページで「Pro系は有料のみ、Flash系は無料枠あり」という構造になっている点だけが確かな情報です。
 
 ### 2. プリペイド課金制（2026/3/23〜）
 
@@ -54,26 +58,43 @@ author: "田中省伍"
 
 ---
 
-## 2026年4月時点のモデル別料金
+## 2026年8月時点のモデル別料金
 
 | モデル | 入力（$/1M） | 出力（$/1M） |
 |---|---|---|
-| Gemini 3.1 Pro（〜200k tokens） | $1.25 | $10.00 |
-| Gemini 3.1 Pro（200k超） | $2.50 | $15.00 |
-| Gemini 3 Flash | $0.10〜 | $0.40〜 |
-| Gemini 3.1 Flash-Lite | 無料枠あり | 無料枠あり |
+| Gemini 3.1 Pro（〜200k tokens） | $2.00 | $12.00 |
+| Gemini 3.1 Pro（200k超） | $4.00 | $18.00 |
+| Gemini 3.7 Flash | $0.75 | $3.75 |
+| Gemini 3.6 Flash | $0.75 | $3.75 |
+| Gemini 3.5 Flash | $1.50 | $9.00 |
+| Gemini 3.5 Flash-Lite | $0.30 | $2.50 |
 
-バッチAPI利用で最大50%コスト削減が適用されます。
+**この単価は2026年12月31日までの導入価格です。**2027年1月1日以降、標準料金は原則として2倍に引き上げられる予定です。Gemini 3.7 Flash であれば入力 $1.50 / 出力 $7.50 になります。
+
+Gemini 3.1 Pro は公開当初の $1.25 / $10.00 から引き上げられています。4月時点の単価で試算した資料が残っている場合は作り直してください。
+
+バッチAPI利用で50%コスト削減が適用されます（例: Gemini 3.7 Flash は入力 $0.375 / 出力 $1.875）。
+
+### コンテキストキャッシュ
+
+| 項目 | 単価 |
+|---|---|
+| キャッシュ読み取り（Flash系） | $0.075 / 1Mトークン |
+| キャッシュ保持 | $0.50 / 1Mトークン / 時間 |
+
+キャッシュ保持料も2027年1月1日から $1.00 / 1Mトークン / 時間 へ引き上げ予定です。
 
 ---
 
-## Gemini 2.0 Flash 廃止への対応
+## 廃止済みモデルへの対応
 
-**2026年6月1日にGemini 2.0 Flashがシャットダウン**予定です。該当APIを使用しているプロジェクトは以下の移行を推奨します：
+**Gemini 2.0 Flash は2026年6月1日にシャットダウン済み**です。あわせて `gemini-3.1-flash-lite-preview` も2026年5月25日に廃止されています。該当APIを使っているプロジェクトは以下へ移行してください。
 
-- **品質重視** → Gemini 3.1 Flash
-- **コスト重視** → Gemini 3.1 Flash-Lite
+- **品質重視** → Gemini 3.7 Flash
+- **コスト重視** → Gemini 3.5 Flash-Lite
 - **リアルタイム音声** → Gemini 3.1 Flash Live
+
+Gemini 3.1 Pro と Gemini 3.1 Flash Live は2026年8月末時点で廃止日が発表されていません。
 
 ---
 
@@ -82,7 +103,8 @@ author: "田中省伍"
 1. **Google AI Studioでの支出モニタリング**を設定する（3月12日追加機能）
 2. **プリペイドクレジット**を余裕を持って確保する
 3. **Tier昇格申請**を早めに実施し、上限リスクを回避する
-4. **Gemini 2.0 Flash依存コード**を6月1日前に移行する
+4. **2027年1月1日の値上げ**を前提に、年内のうちに再試算の予定を入れる
+5. **モデルIDを設定値として外出しする。**Flash系は数週間から2か月で世代交代しており、コードに直書きすると乗り換えのたびに改修が発生します
 
 ---
 
@@ -90,4 +112,5 @@ author: "田中省伍"
 
 - [Gemini API Pricing | ai.google.dev](https://ai.google.dev/gemini-api/docs/pricing)
 - [Gemini API Changelog | ai.google.dev](https://ai.google.dev/gemini-api/docs/changelog)
-- [Google Introduces Prepay Billing for Gemini API | ai-daily.news](https://www.ai-daily.news/articles/google-introduces-prepay-billing-for-gemini-api-in-ai-studio)
+- [Gemini deprecations | ai.google.dev](https://ai.google.dev/gemini-api/docs/deprecations)
+- [Geminiモデル系譜2026](/knowledge/ai-tools/gemini/model-lineup-2026)

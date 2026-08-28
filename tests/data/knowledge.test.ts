@@ -9,8 +9,8 @@ import {
 } from "@/data/knowledge";
 
 describe("knowledge カテゴリデータ", () => {
-  it("10個のカテゴリが定義されていること", () => {
-    expect(categories).toHaveLength(10);
+  it("11個のカテゴリが定義されていること", () => {
+    expect(categories).toHaveLength(11);
   });
 
   it("すべてのカテゴリにslug, label, description, iconが存在すること", () => {
@@ -54,6 +54,14 @@ describe("knowledge カテゴリデータ", () => {
     expect(loopEngineering?.label).toBe("Loop Engineering");
   });
 
+  it("securityカテゴリが含まれていること", () => {
+    const security = categories.find(
+      (category) => category.slug === "security",
+    );
+    expect(security).toBeDefined();
+    expect(security?.label).toBe("Security");
+  });
+
   it("graph-engineeringカテゴリが含まれていること", () => {
     const graphEngineering = categories.find(
       (category) => category.slug === "graph-engineering",
@@ -68,6 +76,7 @@ describe("knowledge サブカテゴリデータ", () => {
     expect(Object.keys(subcategories).sort()).toEqual([
       "ai-governance",
       "ai-tools",
+      "security",
       "web-development",
     ]);
   });
