@@ -165,7 +165,7 @@ export const roadmapPaths: RoadmapPath[] = [
     id: "codex-zero-to-master",
     title: "Codex をゼロから業務で使いこなす（カリキュラム）",
     description:
-      "OpenAI Codex を業務で使えるようにする全7章・21レッスンの学習コースです。承認モードとサンドボックスの2層構造、GUI での並行作業、ブラウザ操作など Codex ならではの部分に絞っています。指示の出し方など各ツール共通の基礎は Claude Code 入門コース側で扱います。",
+      "OpenAI Codex を業務で使えるようにする全7章・22レッスンの学習コースです。承認モードとサンドボックスの2層構造、GUI での並行作業、ブラウザ操作など Codex ならではの部分に絞っています。指示の出し方など各ツール共通の基礎は Claude Code 入門コース側で扱います。",
     steps: [
       {
         ref: "ai-tools/codex-curriculum/01-1-what-is-codex",
