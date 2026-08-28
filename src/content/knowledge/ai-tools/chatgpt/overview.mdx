@@ -1,6 +1,6 @@
 ---
 title: "ChatGPT徹底解説：GPT-5世代の汎用AIアシスタント"
-description: "OpenAIの汎用AIアシスタント「ChatGPT」のGPT-5系モデル、Custom GPTs、Code Interpreter、Canvas、ChatGPT Agent、Connectorsなどの機能と料金プランを2026年4月時点でまとめた詳細解説。"
+description: "OpenAIの汎用AIアシスタント「ChatGPT」のGPT-5.6系モデル、Workspace Agents、Code Interpreter、ChatGPT Work、Connectorsなどの機能と料金プランを2026年8月時点でまとめた詳細解説。"
 category: "ai-tools"
 subcategory: "chatgpt"
 difficulty: "intermediate"
@@ -8,6 +8,7 @@ contentType: "reference"
 tags: ["ChatGPT", "OpenAI", "GPT-5", "Custom GPTs", "AI アシスタント"]
 sortOrder: 0
 createdAt: 2026-04-13
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -15,59 +16,68 @@ author: "田中省伍"
 
 ChatGPTはOpenAIが2022年11月に公開した汎用AIアシスタントです。Web・iOS・Android・macOS・Windowsアプリで利用でき、2026年時点で生成AIチャットボット市場の8割を占める実質的な業界標準として位置付けられています。週間アクティブユーザーは9億人超、1日2.5億プロンプトを処理する規模に達しました。
 
-現在のフロンティアはGPT-5.4 Thinking。2026年2月にはGPT-4o系・o4-mini系がChatGPTから退役し、GPT-5ファミリーへの移行が完了しました。
+現在のフロンティアはGPT-5.6 Sol。2026年2月にGPT-4o系・o4-mini系が退役してGPT-5ファミリーへの移行が完了した後も世代交代は続き、2026年5月にGPT-5.5 Instant、7月9日にGPT-5.6（Sol / Terra / Luna）が一般提供されました。8月6日以降、Free・GoプランのデフォルトはGPT-5.6 Luna、Plus・Pro以上のデフォルトはGPT-5.6 Solです。
+
+製品としてのChatGPTも、この期間に**チャット・ChatGPT Work・Codexの三本立て**へ再編されました。詳細は[ChatGPTの三本立て構成](/knowledge/ai-tools/chatgpt/chat-work-codex)を参照してください。
 
 ## 主要機能
 
-- **GPT-5系モデル群**: GPT-5.4 Thinking（最高性能の推論モデル）、GPT-5.4 Instant（高速版）、GPT-5.3 Instant、GPT-5.3 Codex（コーディング特化）が現行ラインナップ。
-- **Custom GPTs / GPTsストア**: コードなしで専用GPTを構築・公開可能。2026年1月にはCustom GPTs全体がGPT-5.2ベースに移行。
+- **GPT-5.6系モデル群**: GPT-5.6 Sol（最上位。Pro / Enterpriseではさらに上位のSol Pro）、GPT-5.6 Terra（バランス型）、GPT-5.6 Luna（軽量・低コスト）の3ティア構成。数字が世代、Sol / Terra / Lunaが能力ティアを表します。
+- **思考量スライダー**: 2026年8月6日の更新で、ChatGPTがどれだけ考えるかを連続的に選べるスライダーが追加されました。従来のInstant / Thinkingという固定の区分に代わる操作系です。
+- **ChatGPT Work**: 目標を渡すと数時間かけて自律的にスプレッドシート・スライド・Webページなどの成果物を作るエージェント機能。Slack・Teams・Google Driveなどと連携します。
+- **Workspace Agents**: Business / Enterprise / Edu向けの組織用エージェント。Codexを内蔵し、クラウド上に常駐して組織内で共有・承認フローに載せられます。
+- **Custom GPTs / GPTストア**: コードなしで専用GPTを構築・公開する仕組み。2026年8月16日以降、個人プラン（Free / Go / Plus / Pro）では**新規作成とストアへの申請ができなくなり**、Business / Enterprise / Eduワークスペースが必要になりました。既存GPTの利用・編集とGPTストア自体は継続しています。
+- **プラグイン**: 外部サービスをChatGPTとCodexから呼び出す拡張。2026年8月21日に推薦順の基準が「インストール数」から「インストール後も使われ続けているか」へ変更されました。
 - **Code Interpreter（Advanced Data Analysis）**: チャット内でPythonを実行し、データ分析・可視化・ファイル変換ができます。
-- **Canvas**: 文章とコードを並列で編集できる専用ワークスペース。Web・デスクトップで利用可能（モバイル対応は未提供）。
+- **Canvas**: 文章とコードを並列で編集できる専用ワークスペース。
 - **Web検索**: クリッカブルな引用元リンク付きでリアルタイム情報を取得。
-- **画像生成**: DALL·E 3とGPT-4o系のネイティブ画像機能をチャットから直接呼び出せます。
-- **Advanced Voice Mode**: 自然な会話品質の音声モード。Plus以上で制限なし、Freeでも時間制限付きで利用可能。
+- **画像生成**: 画像生成モデルをチャットから直接呼び出せます。
+- **音声モード（ChatGPT Voice）**: 2026年7月のGPT-Live対応で全二重会話に移行し、デスクトップアプリでは音声によるコンピュータ操作やCodexへのマルチエージェント指示もできます。
 - **Memory**: 会話をまたいでユーザーの好みや進行中プロジェクトを記憶。設定から確認・削除可能。
-- **ChatGPT Agent**: 旧Operatorを統合した自律エージェント。リモートビジュアルブラウザ・ターミナルツール・外部アプリコネクタを組み合わせて複雑タスクを実行します。Enterprise / Eduで利用可能。
 - **Connectors**: Google Drive・Microsoft SharePoint/OneDrive・Slackなど60以上のアプリ統合。
-- **Deep Research**: 複数ソースを横断した多段階リサーチ。Plusは月10回、Proは月250回。
-- **File Library / Projects**: 会話をまたいでファイルを永続管理。Projectsは最大40ファイルまで。
+- **Deep Research**: 複数ソースを横断した多段階リサーチ。
+- **File Library / Projects**: 会話をまたいでファイルを永続管理。
 
 ## 強み・特徴
 
-- **エコシステムの広さ**: Custom GPTsストア、60以上のコネクタ、API、SDKと、外部連携の選択肢が他の汎用アシスタントより豊富です。
+- **エコシステムの広さ**: プラグイン、60以上のコネクタ、API、SDKと、外部連携の選択肢が他の汎用アシスタントより豊富です。
 - **マルチモーダルの完成度**: テキスト・音声・画像入出力をネイティブ対応。動画生成は同社のSoraと連携できます。
 - **市場浸透**: 認知度・コミュニティ情報量が最も豊富で、社内導入時の学習コストが低い点も実務上の強みです。
-- **エージェント能力**: ChatGPT Agentによりフォーム入力・スプレッドシート編集・ウェブ調査を連続実行でき、非エンジニアの業務自動化に向いています。
+- **エージェント能力**: ChatGPT Workにより、目標を渡して数時間放置し成果物を受け取る使い方ができます。非エンジニアの業務自動化にも向いています。
+- **無料層の厚さ**: 2026年8月以降、Free・Goでもテキストチャットが無制限になり、難しい問いにはThinkボタンを使えます。社内展開時に無料アカウントで試せる範囲が広がりました。
 
 ## 弱み・限界
 
-- **ハルシネーション**: GPT-5.2で改善されたとはいえ、独立ベンチマークでは8%前後のハルシネーション率が観測されています。微妙な誤りは見つけづらいので、重要な事実は常に裏取りが必要です。
-- **コーディング精度**: SWE-bench VerifiedではClaude Opus 4.6（80.8%）に対しGPT-5.2世代（当時）で約70%と差がありました。コーディングメインで使うならClaudeやCodexの方が有利な場面があります。
-- **Thinking系の遅さ**: 推論モデルは応答までの待ち時間が長く、軽い質問ではInstant系を使い分ける必要があります。
-- **Canvasのモバイル非対応**: モバイルアプリのCanvasは2026年4月時点で未提供です。
-- **Free広告**: 米国Freeプランでは2026年2月から広告表示が始まりました。
+- **ハルシネーション**: 世代交代のたびに事実精度は改善しており、GPT-5.6 Solでは事実誤りがGPT-5.5 Instant比で約60%減とされています。それでも誤りはゼロではないため、重要な事実は常に裏取りが必要です。
+- **コーディング用途の窓口が別**: 本格的なコーディングは同社のCodex側に導線が寄せられており、チャットだけで完結させようとすると機能面で不利になります。
+- **推論を深めたときの遅さ**: 思考量を上げると応答までの待ち時間が伸びます。軽い質問ではスライダーを下げる使い分けが必要です。
+- **無制限の範囲が限定的**: Free・Goの無制限はテキストのやり取りだけで、ファイルアップロード・画像・その他ツールには引き続き上限があります。ChatGPT WorkとCodexも対象外です。
+- **Free・Goの広告**: 広告はFreeとGoにのみ表示されます。2026年2月の米国での開始後、8月18日に欧州31か国へ拡大しました。Plus以上は広告なしです。
+- **拡張機構の移行途上**: 個人プランでのCustom GPTs新規作成は停止され、法人プランではWorkspace Agentsへの移行が案内されています。GPTを軸に社内展開している場合は移行先の検討が要ります。
 
 ## 料金体系
 
-2026年4月時点の主なプランは次のとおりです（最新は[chatgpt.com/pricing](https://chatgpt.com/pricing/)を参照）。
+2026年8月時点の主なプランは次のとおりです（最新は[ChatGPT 料金ページ](https://openai.com/chatgpt/pricing)を参照）。
 
 | プラン | 月額 | 主な内容 |
 |---|---|---|
-| Free | $0 | GPT-5.3アクセス（制限あり）。米国は広告表示あり |
-| Go | $8 | メッセージ量増加、広告あり、170カ国以上で提供 |
-| Plus | $20 | フルモデル、Deep Research月10回、Sora、Codex、Agent Mode、広告なし |
-| Pro（$100、2026年4月新設） | $100 | PlusのCodex利用枠の5倍。GPT-5.4 Proアクセス |
-| Pro（$200、上位） | $200 | GPT-5.4 Pro、Deep Research月250回、コンテキスト2倍 |
-| Business | $25/ユーザー（年払い） | チーム管理、SOC2、SAML SSO、60以上のアプリ統合。月払いは$30 |
+| Free | $0 | GPT-5.6 Lunaが既定。テキストチャット無制限、Thinkボタン。広告あり |
+| Go | $8 | Freeよりツール利用枠が広い。世界展開済み。広告あり |
+| Plus | $20 | GPT-5.6 Sol / Terra / Lunaを選択可。広告なし |
+| Pro（$100） | $100 | PlusのCodex利用枠の5倍 |
+| Pro（$200） | $200 | PlusのCodex利用枠の20倍。Sol Proが利用可能 |
+| Business | $20/ユーザー（年払い） | チーム管理、SOC2、SAML SSO。月払いは$25 |
 | Enterprise | 要問合せ | 席数・契約期間で個別見積もり |
+
+Businessは2026年4月に値下げされ、月払いが$30から$25、年払いが$25から$20になりました。Excel / Sheetsタスクの実行とWorkspace Agentsの実行は、2026年7月6日に無料提供が終了してトークン課金クレジット方式へ移行しています。
 
 ## 主なユースケース
 
 - 日常業務の汎用アシスタント（要約、翻訳、メール下書き、リサーチ）
 - データ分析（Code Interpreterによるスプレッドシート集計・可視化）
 - 文書とコードの共同編集（Canvas）
-- 専用GPTによる業務テンプレート化と社内共有
-- ChatGPT Agentによるブラウザ操作・フォーム自動化
+- ChatGPT Workに目標を渡して資料・レポートのたたき台を作らせる
+- Workspace Agentsによる組織共通の定型業務の自動化
 - 画像生成・音声会話を含むマルチモーダル制作
 
 ## 始め方
@@ -79,27 +89,31 @@ ChatGPTはOpenAIが2022年11月に公開した汎用AIアシスタントです�
 
 ## 他ツールとの比較
 
-| 観点 | ChatGPT (GPT-5.4) | Claude (Opus 4.6) | Gemini (3.1 Pro) |
+| 観点 | ChatGPT (GPT-5.6 Sol) | Claude (Opus 4.6) | Gemini (3.1 Pro) |
 |---|---|---|---|
-| エコシステム | GPTsストア・60+コネクタで最大 | Claude Code・Skills中心 | Google Workspace統合が強い |
-| コーディング | 汎用的 | SWE-benchでリード | 高速・大コンテキスト |
+| エコシステム | プラグイン・60+コネクタで最大 | Claude Code・Skills中心 | Google Workspace統合が強い |
+| コーディング | 汎用的（本格用途はCodex） | SWE-benchでリード | 高速・大コンテキスト |
 | 長文ライティング | 標準的 | 文体が最も自然と評価 | 標準的 |
-| コンテキストウィンドウ | 約40万トークン（GPT-5.2実績値） | 1Mトークン | 1Mトークン |
+| コンテキストウィンドウ | 約105万トークン | 1Mトークン | 1Mトークン |
 | マルチモーダル | テキスト・音声・画像・動画 | 主に画像 | 動画含む全方位 |
 | ハルシネーション抑制 | 中程度 | 最も保守的 | 中程度 |
 
 ## 2026年最新動向
 
 - **2026年2月**: GPT-5ファミリーへの完全移行（GPT-4o・o4-mini系がChatGPTから退役）。Free米国プランで広告表示開始、Goプランが170カ国以上に展開。
-- **2026年3月**: GPT-5.4リリース。現時点のフロンティアモデルとしてThinking / Instantの2系統で提供。
-- **2026年4月**: 新Proプラン（$100）が発表。Codex週間ユーザー300万人到達直後のタイミングでClaude Maxへの対抗策として投入されました。同月にはショッピング機能も強化（会話型ブラウジング、画像での類似商品検索など）。
-- ChatGPT Agent / Operator統合、Connectors拡充、Memory機能の自動更新など、エージェント方向の進化が続いています。
+- **2026年3月**: GPT-5.4リリース。当時のフロンティアモデルとしてThinking / Instantの2系統で提供されました。
+- **2026年4月**: 新Proプラン（$100）が発表。4月16日にCodexが汎用エージェント端末へ拡張され、4月22日にはBusiness / Enterprise / Edu向けの**Workspace Agents**がリサーチプレビューとして登場しました。Businessプランの値下げもこの月です。
+- **2026年5月**: GPT-5.5 Instantが新しいデフォルトモデルとして展開。$100 ProのCodex 10倍キャンペーンは5月31日で終了しました。
+- **2026年6月**: GPT-5.6（Sol / Terra / Luna）を限定プレビュー公開。同時にGPT-4.5がChatGPTから退役しました。
+- **2026年7月**: 7月9日にGPT-5.6が一般提供開始。同日、**ChatGPT Work**のローンチと、Chat / Work / Codexを1つにまとめた新デスクトップアプリの公開が重なりました。旧アプリは「ChatGPT Classic」に改称。スタンドアロンブラウザのChatGPT Atlasは8月9日で終了しています。
+- **2026年8月**: 8月6日にFree・Goの既定モデルがGPT-5.6 Lunaになり、テキストチャットが無制限化。Plus・Proには思考量スライダーが追加されました。8月16日から個人プランでのCustom GPTs新規作成が停止されています。
+- APIでは旧GPT-5系・o3系スナップショットの削除が2026年12月11日に予定されており、移行先としてGPT-5.6系が案内されています。
 
 ## 参考リンク
 
 - [ChatGPT 公式](https://chatgpt.com)
-- [Introducing GPT-5（OpenAI公式）](https://openai.com/index/introducing-gpt-5/)
-- [GPT-5.3 and GPT-5.4 in ChatGPT（Help Center）](https://help.openai.com/en/articles/11909943-gpt-53-and-gpt-54-in-chatgpt)
-- [ChatGPT Pricing](https://chatgpt.com/pricing/)
-- [Introducing ChatGPT agent](https://openai.com/index/introducing-chatgpt-agent/)
+- [GPT-5.6: Frontier intelligence that scales with your ambition（OpenAI公式）](https://openai.com/index/gpt-5-6/)
+- [Introducing workspace agents in ChatGPT（OpenAI公式）](https://openai.com/index/introducing-workspace-agents-in-chatgpt/)
+- [ChatGPT 料金ページ](https://openai.com/chatgpt/pricing)
+- [Deprecations（OpenAI API）](https://developers.openai.com/api/docs/deprecations)
 - [ChatGPT Release Notes](https://help.openai.com/en/articles/6825453-chatgpt-release-notes)

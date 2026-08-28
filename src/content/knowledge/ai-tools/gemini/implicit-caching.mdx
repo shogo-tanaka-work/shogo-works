@@ -1,21 +1,21 @@
 ---
 title: "Gemini Implicit Caching完全解説：コード変更ゼロで最大90%のAPIコストを自動削減する"
-description: "2025年5月8日追加のGemini Implicit Cachingを解説。Gemini 2.5 Flash/Proでのキャッシュヒット率を上げるプロンプト設計、明示的キャッシングとの使い分け、usage_metadataでの節約量確認方法を網羅。"
+description: "Gemini Implicit Cachingを解説。キャッシュヒット率を上げるプロンプト設計、明示的キャッシングとの使い分け、usage_metadataでの節約量確認方法に加え、2026年8月時点のキャッシュ料金を掲載。"
 category: "ai-tools"
 subcategory: "gemini"
 difficulty: "intermediate"
 contentType: "news"
 tags: ["Gemini", "Google", "Implicit Caching", "コスト削減", "API"]
-sortOrder: 5
+sortOrder: 6
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
 ## TL;DR
 
 - **コードの変更ゼロ**でキャッシュが自動適用される（Gemini 2.5以降でデフォルト有効）
-- Gemini 2.5 Flash：キャッシュヒット時に **90%割引**
-- Gemini 2.0系：キャッシュヒット時に **75%割引**
+- キャッシュ読み取りはFlash系で **$0.075 / 1Mトークン**（2026年8月時点）
 - プロンプトの「固定部分を先頭・可変部分を末尾」に置くだけでヒット率が上がる
 
 ---
@@ -26,7 +26,22 @@ author: "田中省伍"
 
 ---
 
-## 割引率
+## 現在のキャッシュ料金
+
+2026年8月時点の公式料金ページの単価です。
+
+| 項目 | 単価 |
+|---|---|
+| キャッシュ読み取り（Flash系） | $0.075 / 1Mトークン |
+| キャッシュ保持 | $0.50 / 1Mトークン / 時間 |
+
+いずれも2026年12月31日までの導入価格で、保持料は2027年1月1日から $1.00 / 1Mトークン / 時間 へ引き上げが予定されています。
+
+---
+
+## 割引率（導入当初の実績値）
+
+以下は本機能が導入された当時のモデルの数値です。**表中のモデルはいずれも提供終了しています**（Gemini 2.0 Flashは2026年6月1日にシャットダウン済み）。仕組みの理解のために残しますが、現行モデルの割引率は上の料金表で判断してください。
 
 | モデル | キャッシュヒット時の割引 | 最小キャッシュサイズ |
 |---|---|---|
@@ -34,7 +49,7 @@ author: "田中省伍"
 | Gemini 2.5 Flash | **90%** | **1,024トークン** |
 | Gemini 2.0 Flash | 75% | 2,048トークン |
 
-Gemini 2.5 Flashが最もキャッシュ効率が高く、大量処理ワークフローで特に有利です。
+当時はGemini 2.5 Flashが最もキャッシュ効率が高く、大量処理ワークフローで有利という位置づけでした。最小キャッシュサイズはモデルごとに異なるため、現行モデルで使う場合は公式ドキュメントで確認してください。
 
 ---
 
@@ -44,7 +59,7 @@ Gemini 2.5 Flashが最もキャッシュ効率が高く、大量処理ワーク�
 import google.generativeai as genai
 
 genai.configure(api_key="YOUR_API_KEY")
-model = genai.GenerativeModel("gemini-2.5-flash")
+model = genai.GenerativeModel("gemini-3.7-flash")
 
 # この呼び出しだけで暗黙的キャッシングが適用される
 # 特別な設定は不要
@@ -132,7 +147,7 @@ import datetime
 
 # 明示的にキャッシュを作成
 cache = caching.CachedContent.create(
-    model="gemini-2.5-flash",
+    model="gemini-3.7-flash",
     system_instruction="あなたは専門的なアシスタントです。",
     contents=[large_document_content],
     ttl=datetime.timedelta(hours=1),  # 1時間保持
@@ -148,5 +163,6 @@ response = model.generate_content("質問内容")
 ## 参考リンク
 
 - [Gemini 2.5 Models with Implicit Caching | Google Developers Blog](https://developers.googleblog.com/en/gemini-2-5-models-now-support-implicit-caching/)
+- [Gemini Developer API pricing | ai.google.dev](https://ai.google.dev/gemini-api/docs/pricing)
 - [Context Caching Documentation | ai.google.dev](https://ai.google.dev/gemini-api/docs/caching)
 - [Gemini API Pricing | ai.google.dev](https://ai.google.dev/gemini-api/docs/pricing)

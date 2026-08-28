@@ -6,8 +6,9 @@ subcategory: "gemini"
 difficulty: "intermediate"
 contentType: "news"
 tags: ["Gemini", "Deep Research", "リサーチ", "Canvas", "PDF"]
-sortOrder: 7
+sortOrder: 8
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
@@ -25,6 +26,29 @@ author: "田中省伍"
 **Gemini Deep Research** は、テーマを入力するとGeminiが自律的に複数の情報源を検索・分析し、包括的なリサーチレポートを生成する機能です。
 
 Google I/O 2025（2025年5月）で大幅機能拡張が発表され、以降**ファイルアップロード**と**Canvas統合**が追加されました。公開情報だけでなく**社内資料と組み合わせた**リサーチが可能になった点が最大の変化です。
+
+2026年4月21日には上位版の **Deep Research Max** が公開され、通常版とは用途で使い分ける構成になりました。
+
+---
+
+## Deep Research Max（2026年4月21日）
+
+Gemini 3.1 Pro 上に構築された上位版です。通常版が対話UIでの速度を重視するのに対し、Maxは時間をかけて反復的に推論・検索し、レポートの精度を上げる非同期・バックグラウンド向けの設計になっています。
+
+| 項目 | Deep Research | Deep Research Max |
+|---|---|---|
+| 重視する軸 | 速度・低遅延 | 精度・網羅性 |
+| 実行形態 | インタラクティブ | 非同期・バックグラウンド |
+| Web検索回数 | — | 最大160回 |
+| 所要時間 | 数分 | 20分以内 |
+
+Maxの主な追加点は次のとおりです。
+
+- **MCP（Model Context Protocol）対応**により、社内の独自データや金融・市場データなど専門的なデータソースへ安全に接続できます
+- **ネイティブのチャート生成**に対応し、レポート内に図表を直接出力します
+- プライベートファイルの解析に対応します
+
+Google DriveとGmailを検索対象にする機能は、公式では「今後提供予定」とされている段階です。2026年8月末時点で提供済みとは確認できていません。
 
 ---
 
@@ -100,23 +124,27 @@ Canvas（Gemini内のドキュメントエディタ）で
 
 ## 利用条件
 
-| プラン | 利用可否 | モデル |
-|---|---|---|
-| Gemini 無料 | △（制限あり） | Gemini 2.5 Flash |
-| Gemini Advanced | ✅ | Gemini 2.5 Pro |
-| Google One AI Premium | ✅ | Gemini 2.5 Pro |
-| Workspace Gemini アドオン | ✅ | Gemini 2.5 Pro |
+| プラン | 利用可否 |
+|---|---|
+| Gemini 無料 | △（制限あり） |
+| Google AI Pro | ✅ |
+| Google AI Ultra | ✅ |
+| Workspace Gemini アドオン | ✅ |
+
+バックエンドのモデルはGoogle側で随時切り替わります。Deep Research Max は Gemini 3.1 Pro 上に構築されていますが、通常版が使うモデルは公表されていません。
 
 ---
 
-## NotebookLMとの使い分け
+## Gemini Notebookとの使い分け
 
-| 項目 | Deep Research | NotebookLM |
+NotebookLMは2026年7月に **Gemini Notebook** へ改称されています。
+
+| 項目 | Deep Research | Gemini Notebook |
 |---|---|---|
 | 情報収集 | Webを自律的に検索 | アップロードした資料のみ |
 | 出力 | 包括的なレポート | Q&A・要約・音声 |
 | 向いているケース | 未知テーマの調査・競合分析 | 既存資料の深掘り・学習 |
-| 組み合わせ方 | Deep ResearchレポートをNotebookLMにインポート | ← |
+| 組み合わせ方 | Deep ResearchレポートをGemini Notebookにインポート | ← |
 
 ---
 
@@ -124,4 +152,5 @@ Canvas（Gemini内のドキュメントエディタ）で
 
 - [Deep Research Updates at Google I/O 2025 | Google Workspace](https://workspaceupdates.googleblog.com/2025/05/deep-research-updates-gemini-io-2025.html)
 - [Gemini API Deep Research Documentation | ai.google.dev](https://ai.google.dev/gemini-api/docs/deep-research)
+- [Deep Research Max | blog.google](https://blog.google/innovation-and-ai/models-and-research/gemini-models/next-generation-gemini-deep-research/)
 - [Gemini Deep Research | gemini.google.com](https://gemini.google.com)

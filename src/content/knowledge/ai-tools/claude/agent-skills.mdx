@@ -1,6 +1,6 @@
 ---
 title: "Claude Agent Skills完全解説：OfficeファイルをAIで操作するプリビルトスキル活用法"
-description: "2025年10月16日betaリリースのClaude Agent Skillsを解説。PowerPoint・Excel・Word・PDF操作のプリビルトスキル、カスタムスキルの作成方法、Code Execution Toolとの連携を網羅。"
+description: "Claude Agent Skillsを解説。GA化とSkills API、段階的読み込みの仕組み、PowerPoint・Excel・Word・PDF操作のプリビルトスキル、カスタムスキルの作成とバージョン管理を網羅。"
 category: "ai-tools"
 subcategory: "claude"
 difficulty: "intermediate"
@@ -8,15 +8,17 @@ contentType: "news"
 tags: ["Claude", "Agent Skills", "API", "PowerPoint", "Excel", "自動化"]
 sortOrder: 7
 createdAt: 2026-04-18
+updatedAt: 2026-08-28
 author: "田中省伍"
 ---
 
 ## TL;DR
 
 - Anthropicが**PowerPoint・Excel・Word・PDF操作**のプリビルトスキルを提供
-- スキル = 指示書 + スクリプト + リソースをまとめたフォルダ。動的にロードして専門知識を与える
+- スキル = 指示書（`SKILL.md`）+ スクリプト + リソースをまとめたフォルダ。必要になった時点で段階的に読み込まれる
 - **Code Execution Tool の有効化が必須**
-- カスタムスキルを `POST /v1/skills` でアップロードすれば独自業務フローを定義できる
+- カスタムスキルを `POST /v1/skills` でアップロードすれば独自業務フローを定義できる。バージョン管理にも対応
+- 2026年8月27日にGA化し、管理系のSDK（`client.skills`）から betaヘッダーが不要になった
 
 ---
 
@@ -25,6 +27,27 @@ author: "田中省伍"
 **Claude Agent Skills** は、2025年10月16日にbetaとして公開されたスキル管理APIです。instructions・スクリプト・リソースをまとめた「スキル」フォルダをClaudeに動的にロードして、特定のドメイン知識や操作能力を与えます。
 
 従来は「Officeファイルを操作して」とプロンプトするとClaudeが自分でコードを書いていましたが、プリビルトスキルを使うと**検証済みの操作手順**でファイルを処理できます。
+
+2026年8月27日のSDK更新でSkillsはGAとなり、`client.beta.skills` は `client.skills` と同じ形を返すようになりました（`skills-2025-10-02` betaヘッダーは管理系エンドポイントでは不要）。同時に `client.beta.skills.delete()` はスキルを全バージョンまとめて削除する挙動になり、Messages API側の型 `BetaSkill` は `BetaContainerSkill` へ改名されています。
+
+### 段階的読み込み（progressive disclosure）
+
+スキルは3段階で読み込まれ、使わないスキルがコンテキストを圧迫しない設計になっています。
+
+1. `SKILL.md` のフロントマター（`name` と `description`）は常時ロードされる
+2. スキルが必要と判断された時点で、本文の手順がロードされる
+3. スクリプトや参照リソースは、実際に使う段になって初めてロードされる
+
+`description` は「いつこのスキルを使うか」を判断する唯一の材料になるため、ここを具体的に書くかどうかで発火精度が決まります。
+
+### 使える場所
+
+| 環境 | 提供方法 |
+|---|---|
+| claude.ai | プリビルト + カスタム。設定の Features からアップロード |
+| Claude Code | ファイルベース。`~/.claude/skills/` または `.claude/skills/` に置く（APIアップロード不要） |
+| Claude API | `container` パラメータに `skill_id` を指定 + Code Execution Tool |
+| Claude Platform on AWS / Microsoft Foundry | 対応 |
 
 ---
 
@@ -52,10 +75,10 @@ client = anthropic.Anthropic()
 
 # PowerPoint スキルを使って新規スライドを作成
 message = client.beta.messages.create(
-    model="claude-opus-4-7",
+    model="claude-opus-5",
     max_tokens=4096,
     tools=[
-        {"type": "code_execution_20250522", "name": "code_execution"},
+        {"type": "code_execution_20260521", "name": "code_execution"},
     ],
     system="あなたはPowerPointの操作を担当するアシスタントです。",
     messages=[
@@ -66,7 +89,7 @@ message = client.beta.messages.create(
                        "会社カラー（青 #003087）で統一してください。"
         }
     ],
-    betas=["skills-2025-10-02"],
+    betas=["code-execution-2025-08-25", "skills-2025-10-02"],
 )
 ```
 
@@ -75,15 +98,15 @@ message = client.beta.messages.create(
 ```python
 # Files APIでExcelファイルをアップロード
 with open("sales.xlsx", "rb") as f:
-    uploaded = client.beta.files.upload(
+    uploaded = client.files.upload(
         file=("sales.xlsx", f, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
     )
 
 # Excelスキルで分析・編集
 message = client.beta.messages.create(
-    model="claude-opus-4-7",
+    model="claude-opus-5",
     max_tokens=4096,
-    tools=[{"type": "code_execution_20250522", "name": "code_execution"}],
+    tools=[{"type": "code_execution_20260521", "name": "code_execution"}],
     messages=[
         {
             "role": "user",
@@ -100,7 +123,7 @@ message = client.beta.messages.create(
             ]
         }
     ],
-    betas=["skills-2025-10-02", "files-api-2025-04-14"],
+    betas=["code-execution-2025-08-25", "skills-2025-10-02"],
 )
 ```
 
@@ -114,7 +137,7 @@ message = client.beta.messages.create(
 
 ```
 my-custom-skill/
-├── SKILL.md          # スキルの説明・使い方
+├── SKILL.md          # name と description のフロントマター + 手順
 ├── scripts/
 │   ├── process.py    # メインスクリプト
 │   └── helpers.py    # ヘルパー関数
@@ -126,21 +149,27 @@ my-custom-skill/
 
 ```python
 # カスタムスキルをアップロード
-skill = client.beta.skills.upload(skill_dir="./my-custom-skill/")
+skill = client.skills.upload(skill_dir="./my-custom-skill/")
 print(skill.id)  # skill_abc123...
 
-# アップロードしたスキルを指定
+# アップロードしたスキルを container で指定する
 message = client.beta.messages.create(
-    model="claude-opus-4-7",
+    model="claude-opus-5",
     max_tokens=4096,
     tools=[
-        {"type": "code_execution_20250522", "name": "code_execution"},
+        {"type": "code_execution_20260521", "name": "code_execution"},
     ],
-    skill_ids=[skill.id],
+    container={
+        "skills": [
+            {"skill_id": skill.id, "version": "latest"},
+        ]
+    },
     messages=[{"role": "user", "content": "スキルを使って処理してください。"}],
-    betas=["skills-2025-10-02"],
+    betas=["code-execution-2025-08-25", "skills-2025-10-02"],
 )
 ```
+
+アップロードのたびにバージョンID（`skver_` 始まり）が採番されます。`"latest"` を指定すると常に最新版が使われ、特定のバージョンIDを指定すれば挙動を固定できます。本番の自動処理ではバージョンを固定しておくほうが安全です。
 
 ---
 

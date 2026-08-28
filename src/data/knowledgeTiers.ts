@@ -446,8 +446,8 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 2,
       label: "モデルと料金プラン",
-      description: "Opus 4.7・Claude Design・Max プラン",
-      sortOrderStart: 2,
+      description: "モデル体系・Opus 4.7・Claude Design・Max プラン",
+      sortOrderStart: 1,
     },
     {
       order: 3,
@@ -493,20 +493,20 @@ export const knowledgeTiers: KnowledgeTierRegistry = {
     {
       order: 2,
       label: "モデル",
-      description: "Gemini 3.1 Pro / Flash Live",
+      description: "モデル系譜と Gemini 3.1 Pro / Flash Live",
       sortOrderStart: 1,
     },
     {
       order: 3,
       label: "API とツール",
-      description: "API 料金・キャッシング・CLI Extensions・NotebookLM",
-      sortOrderStart: 3,
+      description: "API 料金・キャッシング・CLI Extensions・Gemini Notebook",
+      sortOrderStart: 4,
     },
     {
       order: 4,
       label: "アプリと Workspace",
       description: "Deep Research / Workspace 機能 / Gems",
-      sortOrderStart: 7,
+      sortOrderStart: 8,
     },
   ],
   /**
