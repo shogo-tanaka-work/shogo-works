@@ -1,44 +1,42 @@
 ---
 date: 2026-08-28
-title: "ChatGPT に複数の Google アカウントを接続できるようになった"
+title: "ChatGPT で Gmail / Google カレンダー / Google 連絡先の複数アカウント接続に対応"
 service: "ChatGPT / OpenAI"
 source: https://help.openai.com/en/articles/6825453-chatgpt-release-notes
-official_url: https://help.openai.com/en/articles/6825453-chatgpt-release-notes
-fetched_at: 2026-08-29T09:05:00+09:00
-published_date: 2026-08-28
+fetched_at: 2026-08-30T09:10:00+09:00
+published_at: 2026-08-28
 date_precision: date-only
 category: release
 ---
 
-# 2026-08-28 ChatGPT に複数 Google アカウント接続
+# 2026-08-28 ChatGPT が複数の Google アカウント接続に対応
 
 ## 公式内容の日本語要約
 
-2026-08-28 の ChatGPT リリースノートに **Connect multiple Google accounts to ChatGPT** が掲載された。Gmail / Google カレンダー / Google 連絡先の各プラグインについて、**複数のアカウントを同時に接続**できるようになった。
+2026-08-28 の ChatGPT リリースノートで、**Gmail / Google カレンダー / Google 連絡先プラグインについて、複数のアカウントを同時に接続できる**ようになったと発表された。
 
-これまでは各プラグインにつき1アカウントしか接続できず、私用アカウントと業務アカウントを併用している利用者は、切り替えるか片方を諦めるかしかなかった。今回の変更で、**同じ会話の中に個人と業務の両方を持ち込める**。
+これまでは各プラグインにつき1アカウントしか接続できず、**個人用と仕事用の Google アカウントを併用している利用者は、どちらか一方を選ぶか、都度つなぎ替える**必要があった。今回の変更で、両方を同じ会話へ持ち込めるようになる。
 
-公式が挙げている使い方は2つ。**複数のカレンダーをまとめて確認して1日の予定を立てる**こと、**接続した複数の受信箱を横断してメールを探す**こと。いずれも「アカウントをまたいで1回の指示で済ませる」形になる。
+公式が挙げているユースケースは2つ。**複数のカレンダーをまとめて見て1日の予定を組む**ことと、**接続済みの複数の受信箱をまたいでメールを探す**ことである。
 
-提供範囲は **Plus / Pro / Business / Enterprise の対象プラン**で、**グローバル提供**。web・デスクトップ・iOS・Android のすべてに対応する。
-
-なお、プラグイン自体の提供可否はプラン・地域・ワークスペース設定に依存する旨が同ページに記載されており、今回の複数アカウント接続もその条件の上に乗る。
+提供範囲は明確に書かれている。**グローバル提供**で、対象は **Plus / Pro / Business / Enterprise の対応プラン**。プラットフォームは **web / デスクトップ / iOS / Android** である。
 
 ## できるようになったこと
 
-- Gmail / Google カレンダー / Google 連絡先の各プラグインに **複数の Google アカウントを接続**できる
-- 1つの会話の中で、**接続した複数アカウントのカレンダー・メールを横断**して扱える
-- 対象は **Plus / Pro / Business / Enterprise**、web / デスクトップ / iOS / Android、グローバル提供
+- Gmail・Google カレンダー・Google 連絡先の各プラグインで、**複数の Google アカウントを同時接続**できる
+- 1つの会話の中で、**個人用と業務用のカレンダー／受信箱を横断**して照会できる
 
 ## 影響範囲
 
-- 対象ユーザー: Google Workspace / Gmail をプラグイン経由で ChatGPT に接続している利用者
-- 対象プラン: Plus / Pro / Business / Enterprise（プラグイン自体はプラン・地域・ワークスペース設定に依存）
-- API / UI / 管理者機能: UI（プラグイン接続設定）。管理者はワークスペース設定でプラグイン可否を制御
+- 対象ユーザー: Google プラグインを使う ChatGPT 利用者
+- 対象プラン: Plus / Pro / Business / Enterprise（対応プランのみ）
+- API / UI / 管理者機能: UI 側のプラグイン接続設定。Business / Enterprise では、どの Google アカウントの接続を許すかが管理者の統制対象になりうる
+
+教材化メモ: src/content/ai-news-notes/chatgpt-openai/chatgpt-multiple-google-accounts.mdx
 
 ## 原文確認
 
-- 公式見出し: Connect multiple Google accounts to ChatGPT（August 28, 2026）
+- 公式見出し: August 28, 2026 — Connect multiple Google accounts to ChatGPT
 - 公式URL: https://help.openai.com/en/articles/6825453-chatgpt-release-notes
-- 教材化メモ: src/content/ai-news-notes/chatgpt-openai/multiple-google-accounts-plugins.mdx
+- 補足: `help.openai.com` は WebFetch が不安定なため Exa 経由で本文を取得した。
 - 原文全文は公式ページで確認してください。
