@@ -89,6 +89,7 @@ export default defineConfig({
     "/ai-news/claude-code/v2-1-239-data-residency-cost-and-windows-messaging": "/ai-news/claude-code/claude-code-weekly-2026-08-23",
     "/ai-news/claude-code/v2-1-243-model-picker-pricing-and-console-signin": "/ai-news/claude-code/claude-code-weekly-2026-08-25",
     "/ai-news/claude-code/v2-1-246-bash-wildcard-warning-and-auto-mode-permissions": "/ai-news/claude-code/claude-code-weekly-2026-08-25",
+    "/ai-news/claude-code/claude-code-v2-1-248-restricted-mode": "/ai-news/claude-code/claude-code-weekly-2026-08-31",
     "/ai-news/codex/codex-rust-v0-131-0": "/ai-news/codex/codex-weekly-2026-05-24",
     "/ai-news/codex/codex-rust-v0-132-0": "/ai-news/codex/codex-weekly-2026-05-24",
     "/ai-news/codex/codex-rust-v0-133-0": "/ai-news/codex/codex-weekly-2026-05-24",
