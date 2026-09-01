@@ -165,3 +165,11 @@
 - **検知**: 2026-08-16 の巡回で、Exa の `web_fetch` が `blog.cloudflare.com` の個別ポスト2件に対して `CRAWL_INFRASTRUCTURE_ERROR` を返した。WebFetch では正常に取得できた。
 - **対処**: Cloudflare blog は WebFetch を優先する。個別ポストの URL が不明な場合は、WebSearch（`allowed_domains: ["blog.cloudflare.com"]`）でスラッグを特定してから WebFetch で踏む。
 - **カタログ取り込み**: 不要（取得手段の運用メモ。source-catalog 本体の変更は伴わない）。
+
+### 学び10: 開発者向け changelog とヘルプセンター Release Notes で掲載日がずれ、後日「既出」の重複候補が上がる
+
+- **検知**: 2026-09-01 の巡回で、ChatGPT Release Notes の `# August 31, 2026` 配下に「Use website tools in the desktop browser」（Site tools / WebMCP）と「Use the browser extension in more browsers」（Edge / Brave / Opera / Vivaldi）を発見し、記事化候補として2本を起草した。実装直前に既存記事を確認したところ、**両項目とも公開済み記事 `src/content/ai-news/chatgpt-openai/chatgpt-work-signed-in-websites-and-site-tools.mdx`（2026-08-25、マージ済み）で既に扱われていた**。既存記事の方が詳しく（Site tools は GPT-5.6 Sol / Terra が必要で Luna 非対応、Enterprise / Edu ワークスペースでは利用不可、拡張の設定は `Settings > Computer Use`）、重複記事を作る利益が無かったため見送りに切り替えた。
+- **原因**: 既存記事は **開発者向け changelog** を根拠に 2026-08-25 付で書かれていた（本文に「同日、開発者向けの changelog では関連する2点が告知されています」とある）。一方、**ヘルプセンターの Release Notes に正式掲載されたのは 08-31** で、`# August 25, 2026` 配下には当該2項目は無い（08-25 配下は「Scheduled tasks can respond to app updates and be shared」と「ChatGPT Work can now complete tasks on signed-in websites」の2項目のみ）。**同じ更新が、ソースによって6日ずれて出現する。**
+- **対処**: **記事を書く前に `src/content/ai-news/<tool>/` の既存ファイルを必ず確認する。** 「open な未マージ PR の確認」はパイプラインに組み込まれているが、**マージ済みの公開記事との重複チェックは手順に無かった**。未マージ PR だけでなく、直近2週間ぶんの既存記事の title / summary を突き合わせる。特に **OpenAI は先行ソース（開発者向け changelog）と Release Notes の二重掲載があるベンダー**として意識する。
+- **副次的な注意**: 既存記事側の日付が実態とずれている（08-25 付だが公式 Release Notes 上は 08-31）。**過去記事の日付を遡って修正するかは運用判断**のため、本日は変更していない。修正する場合は `date` と本文の「同日」表現の両方を直す必要がある。
+- **カタログ取り込み**: 未（次月レビューで、`ai-news-publisher/SKILL.md` の「実装完了前チェック」へ「既存記事との重複確認」を追加するか検討）。
