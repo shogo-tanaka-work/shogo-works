@@ -18,7 +18,7 @@ description: |
 | 工程 | 委譲先 | 責務 |
 |---|---|---|
 | 公式ソース巡回・日次サマリー・詳細メモ作成 | `.agents/skills/daily-ai-update-monitor/` | `docs/research/daily-ai-updates/YYYY-MM-DD.md` と `docs/research/<tool>/official-updates/*.md` を生成 |
-| 仕分け・速報記事・教材化メモ作成 | `.agents/skills/ai-news-publisher/` | `src/content/ai-news/<tool>/*.mdx` と `src/content/ai-news-notes/<tool>/*.mdx` を生成 |
+| 仕分け・速報記事・教材化メモ作成 | `.agents/skills/ai-news-publisher/` | `src/content/ai-news/<tool>/*.md` と `src/content/ai-news-notes/<tool>/*.mdx` を生成 |
 
 本スキル自身は内部実装を持たない。中身のルール変更が必要なら委譲先 SKILL.md を編集する。
 
@@ -80,7 +80,7 @@ description: |
 
 委譲先 SKILL.md と参照ファイル（`publishing-map.md` / `selection-rubric.md` / `output-format.md`）を読み込んだうえで、Phase B の成果物を入力に **仕分け → 実装まで一気通貫** で進める（中間承認は挟まない。レビューは PR で行う）。
 
-- AIニュース化するもの: `src/content/ai-news/<tool>/<slug>.mdx` と `src/content/ai-news-notes/<tool>/<slug>.mdx` を対で作成
+- AIニュース化するもの: `src/content/ai-news/<tool>/<slug>.md` と `src/content/ai-news-notes/<tool>/<slug>.mdx` を対で作成
 - **記事は1回あたり最大4本**。候補が5件以上あるときは `selection-rubric.md` のスコア順に上位4件を選び、残りは日次サマリーの「公開記事化結果」に `見送り（本数上限）` として理由つきで残す
 - **Claude Code / Codex のバージョンリリースは内容にかかわらず記事化しない**。`見送り（週次ロールアップへ）` として日次サマリーに残す。例外はバージョンリリースではない独立発表と、期限が明記された告知の2つだけで、その場合も両ツール合わせて1回2本まで（条件は `selection-rubric.md` の「日次リリース型ツールの扱い」）
 - `tool` は `src/content.config.ts` の enum に限定（enum 外なら記事化禁止）

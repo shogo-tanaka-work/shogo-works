@@ -43,7 +43,7 @@
 ## AIニュース記事案
 
 ```markdown
-### `src/content/ai-news/<tool>/<slug>.mdx`
+### `src/content/ai-news/<tool>/<slug>.md`
 
 - 目的:
 - 対象読者:
@@ -81,7 +81,9 @@ AIニュースへ反映しました。
 - 検証: frontmatter / リンク / TODO残りを確認
 ```
 
-## MDX作成時の基本構成
+## 記事作成時の基本構成
+
+AIニュース記事は Markdown（`.md`）で作成します。JSXコンポーネントは使いません。
 
 既存のAIニュース記事のスタイルを優先します。新規記事で迷う場合は次を基本にします。
 
