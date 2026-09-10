@@ -20,7 +20,7 @@ AIニュース調査・公開作業を依頼するときのコピペ用プロン
 2. `.claude/skills/ai-news-publisher/`
    - 日次ログと公式更新詳細をもとに、公開すべきニュースだけを選別する
    - `references/selection-rubric.md` と `references/publishing-map.md` に従う
-   - 公開対象は `src/content/ai-news/<tool>/<slug>.mdx` に記事化する
+   - 公開対象は `src/content/ai-news/<tool>/<slug>.md` に記事化する
    - 教材化メモを `src/content/ai-news-notes/<tool>/<slug>.mdx` に分離する
    - Knowledge更新は、既存教材の前提が古くなる場合だけ最小差分にする
 
