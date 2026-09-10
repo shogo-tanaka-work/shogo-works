@@ -49,28 +49,28 @@
 
 ChatGPT / OpenAI:
 
-- AIニュース: `src/content/ai-news/chatgpt-openai/<slug>.mdx`
+- AIニュース: `src/content/ai-news/chatgpt-openai/<slug>.md`
 - Knowledge最小反映: `chatgpt/overview.mdx`、モデル一覧、料金・トークン解説がある場合は該当記事
 - Codex関連: `codex/` に分ける
 - 企業向け・広告: AIニュース候補。教材カテゴリに入れる前に方針確認
 
 Gemini:
 
-- AIニュース: `src/content/ai-news/gemini/<slug>.mdx`
+- AIニュース: `src/content/ai-news/gemini/<slug>.md`
 - Knowledge最小反映: `gemini/workspace-features.mdx`、管理者向け教材が既にある場合は該当記事
 - モデル更新: 既存モデル一覧や料金記事が古くなる場合だけ反映
 - NotebookLM / CLI: 既存記事に恒久差分だけ反映
 
 Claude:
 
-- AIニュース: `src/content/ai-news/claude/<slug>.mdx`
+- AIニュース: `src/content/ai-news/claude/<slug>.md`
 - Knowledge最小反映: `claude/overview.mdx`、`claude/agent-skills.mdx` など既存記事へ短く
 - Office連携: AIニュース化し、Knowledgeでは概念や使い分けだけ残す
 - 業界別agent: 原則AIニュース。Knowledgeには設計思想や利用パターンだけ最小反映
 
 Claude Code:
 
-- AIニュース: `src/content/ai-news/claude-code/<slug>.mdx`
+- AIニュース: `src/content/ai-news/claude-code/<slug>.md`
 - CLI機能: 該当既存記事へ必要最小限だけ追記
 - 大型機能: AIニュース化し、Knowledgeへ恒久差分を反映
 - 小規模release: 原則researchメモに留める

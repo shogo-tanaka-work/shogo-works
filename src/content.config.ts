@@ -48,7 +48,8 @@ const knowledge = defineCollection({
 });
 
 const aiNews = defineCollection({
-  loader: glob({ pattern: "**/*.mdx", base: "./src/content/ai-news" }),
+  // AIニュース記事はJSXを使わないため Markdown で扱う。MDXコンパイルはビルドのメモリを大きく消費する
+  loader: glob({ pattern: "**/*.md", base: "./src/content/ai-news" }),
   schema: z.object({
     title: z.string(),
     tool: z.enum([
@@ -80,14 +81,9 @@ const aiNews = defineCollection({
   }),
 });
 
-const aiNewsNotes = defineCollection({
-  loader: glob({ pattern: "**/*.mdx", base: "./src/content/ai-news-notes" }),
-  schema: z.object({
-    title: z.string(),
-    noteFor: z.string(),
-    date: z.coerce.date(),
-    tags: z.array(z.string()).default([]),
-  }),
-});
-
-export const collections = { knowledge, aiNews, aiNewsNotes };
+/**
+ * `src/content/ai-news-notes/` の教材化メモはページを持たない社内資料のため、
+ * コレクションとして読み込まない（読み込むだけでビルドのメモリを消費するため）。
+ * frontmatter の検証は tests/content/aiNewsNotes.test.ts で行う。
+ */
+export const collections = { knowledge, aiNews };

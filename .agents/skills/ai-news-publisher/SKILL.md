@@ -19,7 +19,7 @@ user-invocable: false
 
 主な出力先は次です。
 
-- `src/content/ai-news/<tool>/*.mdx`
+- `src/content/ai-news/<tool>/*.md`
 - `src/content/ai-news-notes/<tool>/*.mdx`
 - 必要最小限の追記のみ: `src/content/knowledge/ai-tools/<tool>/*.mdx`
 
@@ -99,7 +99,7 @@ PR 本文には、記事化した速報の一覧とスコア、見送りとそ�
 
 AIニュース記事を作ったら、完了前に次を確認します。
 
-- `src/content/ai-news/<tool>/<slug>.mdx` がある。
+- `src/content/ai-news/<tool>/<slug>.md` がある。
 - `src/content/ai-news-notes/<tool>/<slug>.mdx` がある、または作らない理由を最終報告に書く。
 - Webリサーチまたは日次調査を行った場合、`docs/research/daily-ai-updates/YYYY-MM-DD.md` に記録がある。
 - 日次サマリーから公開記事と教材化メモへのリンク、またはパスが追える。
