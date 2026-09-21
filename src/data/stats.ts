@@ -2,9 +2,9 @@ import type { StatItem } from "@/types";
 
 export const stats: StatItem[] = [
   {
-    value: "5年+",
-    label: "開発の実務経験",
-    description: "設計・実装から運用保守まで",
+    value: "全工程",
+    label: "開発の担当範囲",
+    description: "要件定義・設計・実装・テスト・運用保守",
   },
   {
     value: "100名+",
@@ -12,9 +12,9 @@ export const stats: StatItem[] = [
     description: "研修・講座・マンツーマン伴走",
   },
   {
-    value: "1年",
-    label: "AIベンチャーでのPoC経験",
-    description: "実証実験の推進を担当",
+    value: "PoC伴走",
+    label: "AIベンチャーでの実務",
+    description: "ユースケース選定から本格導入の判断まで",
   },
   {
     value: "10種+",
@@ -28,7 +28,7 @@ export const stats: StatItem[] = [
   },
   {
     value: "★5.0",
-    label: "MENTA レビュー",
-    description: "受講者からの評価は全件が満点",
+    label: "MENTA の評価",
+    description: "累計16件を支援し、いただいた評価5件はすべて満点",
   },
 ];

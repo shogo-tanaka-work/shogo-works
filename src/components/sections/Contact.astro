@@ -1,7 +1,6 @@
 ---
 import { socialLinks } from "@/data";
-import Icon from "@/components/icons/Icon.astro";
-import type { IconName } from "@/components/icons/paths";
+import SocialIcon from "@/components/icons/SocialIcon.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 
 const activeSocialLinks = socialLinks.filter((l) => !l.comingSoon);
@@ -47,7 +46,7 @@ const activeSocialLinks = socialLinks.filter((l) => !l.comingSoon);
                 class="w-10 h-10 rounded-[4px] bg-gray-100 hover:bg-primary/10 flex items-center justify-center text-muted-foreground hover:text-primary transition-colors"
                 aria-label={link.name}
               >
-                <Icon name={link.icon as IconName} class="w-4 h-4" />
+                <SocialIcon name={link.icon} class="w-4 h-4" />
               </a>
             ))}
           </div>

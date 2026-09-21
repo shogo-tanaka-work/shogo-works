@@ -1,14 +1,24 @@
 ---
 import BaseLayout from "@/layouts/BaseLayout.astro";
 import AboutSection from "@/components/sections/About.astro";
+import Stats from "@/components/sections/Stats.astro";
+import Builds from "@/components/sections/Builds.astro";
+import Approach from "@/components/sections/Approach.astro";
 import Career from "@/components/sections/Career.astro";
 import Education from "@/components/sections/Education.astro";
 import Teaching from "@/components/sections/Teaching.astro";
 import Seminars from "@/components/sections/Seminars.astro";
 ---
 
-<BaseLayout title="About | shogoworks" description="田中省伍について - Web開発とAI技術指導の専門家">
+{/* 指名検索で来た人が上から順に 肩書き → 数字 → 作ったもの → 進め方 を辿れる並びにする */}
+<BaseLayout
+  title="田中省伍 | shogoworks"
+  description="田中省伍（shogoworks）のプロフィール。現役エンジニアとして業務委託・受託でのアプリ開発とAI業務自動化を手がけ、あわせてAI活用の指導・講師登壇を行っています。"
+>
   <AboutSection />
+  <Stats />
+  <Builds />
+  <Approach />
   <Career />
   <Education />
   <Teaching />
