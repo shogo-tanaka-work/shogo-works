@@ -1,9 +1,6 @@
 ---
 import { socialLinks } from "@/data";
-import Icon from "@/components/icons/Icon.astro";
-import type { IconName } from "@/components/icons/paths";
-import NoteIcon from "@/components/icons/NoteIcon.astro";
-import TiktokIcon from "@/components/icons/TiktokIcon.astro";
+import SocialIcon from "@/components/icons/SocialIcon.astro";
 
 ---
 
@@ -15,9 +12,7 @@ import TiktokIcon from "@/components/icons/TiktokIcon.astro";
           class="w-9 h-9 rounded-[4px] bg-gray-100 flex items-center justify-center text-muted-foreground/40 cursor-default relative group"
           aria-label={`${link.name} (Coming Soon)`}
         >
-          {link.icon === "note" && <NoteIcon class="w-4 h-4" />}
-          {link.icon === "youtube" && <Icon name="youtube" class="w-4 h-4" />}
-          {link.icon === "tiktok" && <TiktokIcon class="w-4 h-4" />}
+          <SocialIcon name={link.icon} class="w-4 h-4" />
           <span class="absolute -bottom-5 text-[8px] text-muted-foreground/50 whitespace-nowrap">Soon</span>
         </div>
       );
@@ -30,7 +25,7 @@ import TiktokIcon from "@/components/icons/TiktokIcon.astro";
         class="w-9 h-9 rounded-[4px] bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
         aria-label={link.name}
       >
-        <Icon name={link.icon as IconName} class="w-4 h-4" />
+        <SocialIcon name={link.icon} class="w-4 h-4" />
       </a>
     );
   })}

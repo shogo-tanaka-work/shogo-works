@@ -17,7 +17,7 @@ export const socialLinks: SocialLink[] = [
     url: "https://github.com/shogo-tanaka-work",
     icon: "github",
   },
-  { name: "Note", url: "#", icon: "note", comingSoon: true },
+  { name: "note", url: "https://note.com/shogo_works", icon: "note" },
   { name: "YouTube", url: "#", icon: "youtube", comingSoon: true },
   { name: "TikTok", url: "#", icon: "tiktok", comingSoon: true },
 ];

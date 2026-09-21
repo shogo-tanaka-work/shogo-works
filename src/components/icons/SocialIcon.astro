@@ -1,0 +1,28 @@
+---
+import Icon from "@/components/icons/Icon.astro";
+import { iconPaths, type IconName } from "@/components/icons/paths";
+import NoteIcon from "@/components/icons/NoteIcon.astro";
+import TiktokIcon from "@/components/icons/TiktokIcon.astro";
+
+interface Props {
+  name: string;
+  class?: string;
+}
+
+const { name, class: className } = Astro.props;
+
+/**
+ * SNS アイコンの出し分けを1か所へ集約する。
+ * note / tiktok は viewBox とブランド形状が共通ルールに合わないため独自コンポーネントを持つ。
+ * 3画面（Footer / SocialLinks / Contact）へ同じ条件分岐を複製しない。
+ */
+const isRegistered = name in iconPaths;
+---
+
+{name === "note" && <NoteIcon class={className} />}
+{name === "tiktok" && <TiktokIcon class={className} />}
+{
+  name !== "note" && name !== "tiktok" && isRegistered && (
+    <Icon name={name as IconName} class={className} />
+  )
+}
