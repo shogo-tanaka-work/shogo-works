@@ -118,6 +118,21 @@
 5. 学習コースの記事は `estimatedMinutes` と `prerequisites` も入れる
 6. `npm run build` を通す（frontmatter の型エラーはここで出る）
 
+## 構造化データ
+
+指名検索（`shogoworks` / `田中省伍`）で訪れた人と検索エンジンに対し、各媒体のアカウントが
+同一人物であることを示す。組み立ては `src/utils/structuredData.ts` の純粋関数が持ち、
+`src/components/Head.astro` が全ページへ出力する。
+
+| 種別 | `@id` | 役割 |
+|---|---|---|
+| `Person` | `/about#person` | 氏名・肩書き・`sameAs`（各媒体のプロフィールURL）。`worksFor` で Organization を参照 |
+| `Organization` | `#organization` | 屋号 shogoworks。`founder` で Person を参照 |
+| `Article` | 記事ごと | Knowledge 記事のみ。`KnowledgeLayout.astro` が出力し、上記2種と併存する |
+
+`sameAs` に載せる媒体は `src/data/person.ts` が正本。媒体を増減したら
+`tests/data/person.test.ts` のドメイン一覧も同じ変更セットで追従させる。
+
 ## APIエンドポイント
 
 | パス | メソッド | 内容 |
