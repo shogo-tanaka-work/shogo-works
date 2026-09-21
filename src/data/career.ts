@@ -10,14 +10,27 @@ import type {
  */
 export const careerExperiences: CareerExperience[] = [
   {
-    period: "2026年9月 - 入社予定",
+    period: "2026年9月 - 現在",
     company: "バレットグループ株式会社",
-    role: "システムエンジニア",
+    role: "システムエンジニア（AIエージェントPoC）",
     employment: "正社員",
-    summary: "2026年9月より正社員として入社予定です。",
-    highlights: [],
-    technologies: [],
-    upcoming: true,
+    summary:
+      "大手SIer経由で、エンタープライズ向けAIエージェントのPoCに参画。社内でエージェントを実装・運用するために何ができている必要があるか（ケイパビリティ）を、評価を通じて見極める役割を担っています。",
+    highlights: [
+      "社内向けAIエージェントの実装に必要なケイパビリティを定義し、PoCの検証項目へ落とし込み",
+      "LangGraph と OpenAI SDK でエージェントを試作し、想定したツールを正しく選べるか・正しい引数で呼べるかを検証",
+      "Inspect AI で評価タスクを作成し、ツール呼び出しの正確性を自動採点できる形に整備",
+      "付与した権限の範囲内で動作するか（越権操作を試みないか）を安全性の観点として評価",
+      "評価シナリオと検証コードはAIコーディングで作成し、試行回数を確保しながら改善サイクルを回す",
+    ],
+    technologies: [
+      "Python",
+      "LangGraph",
+      "OpenAI SDK",
+      "Inspect AI",
+      "Codex",
+    ],
+    current: true,
   },
   {
     period: "2025年6月 - 現在",
