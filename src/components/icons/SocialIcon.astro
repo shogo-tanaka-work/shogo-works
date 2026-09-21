@@ -16,13 +16,20 @@ const { name, class: className } = Astro.props;
  * note / tiktok は viewBox とブランド形状が共通ルールに合わないため独自コンポーネントを持つ。
  * 3画面（Footer / SocialLinks / Contact）へ同じ条件分岐を複製しない。
  */
-const isRegistered = name in iconPaths;
+const CUSTOM_ICON_NAMES = ["note", "tiktok"] as const;
+
+type CustomIconName = (typeof CUSTOM_ICON_NAMES)[number];
+
+const isCustom = (CUSTOM_ICON_NAMES as readonly string[]).includes(name);
+
+// 未定義のアイコン名は空のSVGとして黙って消えるため、ビルド時に落として気づけるようにする
+if (!isCustom && !(name in iconPaths)) {
+  throw new Error(
+    `SocialIcon: 未定義のアイコン名 "${name}"。paths.ts へ追加するか、独自コンポーネントを用意してください`,
+  );
+}
 ---
 
-{name === "note" && <NoteIcon class={className} />}
-{name === "tiktok" && <TiktokIcon class={className} />}
-{
-  name !== "note" && name !== "tiktok" && isRegistered && (
-    <Icon name={name as IconName} class={className} />
-  )
-}
+{name === ("note" satisfies CustomIconName) && <NoteIcon class={className} />}
+{name === ("tiktok" satisfies CustomIconName) && <TiktokIcon class={className} />}
+{!isCustom && <Icon name={name as IconName} class={className} />}
