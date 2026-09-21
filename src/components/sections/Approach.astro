@@ -1,0 +1,27 @@
+---
+import { approachPoints } from "@/data";
+import Section from "@/components/ui/Section.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+---
+
+{/* 技術力ではなく「渡したあと困らないか」で選ばれる前提で並べる */}
+<Section id="approach" spacing="compact">
+  <SectionHeader
+    eyebrow="Approach"
+    title="仕事の進め方"
+    subtitle="作って終わりにせず、依頼主の側で判断と運用が続けられる状態にして渡します。"
+  />
+
+  <dl class="grid grid-cols-1 gap-x-10 gap-y-8 sm:grid-cols-2">
+    {
+      approachPoints.map((point) => (
+        <div class="min-w-0">
+          <dt class="text-base font-bold text-foreground">{point.title}</dt>
+          <dd class="jp-phrase mt-2 text-muted-foreground leading-relaxed">
+            {point.description}
+          </dd>
+        </div>
+      ))
+    }
+  </dl>
+</Section>

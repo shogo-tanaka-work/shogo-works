@@ -1,0 +1,40 @@
+---
+import { builds } from "@/data";
+import Section from "@/components/ui/Section.astro";
+import SectionHeader from "@/components/ui/SectionHeader.astro";
+---
+
+{/* 一覧は行と区切り線で表現する（docs/DESIGN.md）。カードで囲わない */}
+<Section id="builds">
+  <SectionHeader
+    eyebrow="Works"
+    title="作ったもの"
+    subtitle="受託と個人開発で実際に動かしてきたものです。顧客名と金額は伏せ、構成と成果だけを載せています。"
+  />
+
+  <ul class="divide-y divide-border border-y border-border">
+    {
+      builds.map((build) => (
+        <li class="min-w-0 py-8">
+          <p class="text-lg font-bold text-foreground">{build.title}</p>
+          <p class="jp-phrase mt-2 max-w-2xl text-muted-foreground leading-relaxed">
+            {build.summary}
+          </p>
+          <p class="mt-3 text-sm text-muted-foreground font-mono">
+            {build.technologies.join(" / ")}
+          </p>
+          {build.href && (
+            <a
+              href={build.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="mt-3 inline-block text-sm font-medium text-primary underline underline-offset-4"
+            >
+              {build.hrefLabel}
+            </a>
+          )}
+        </li>
+      ))
+    }
+  </ul>
+</Section>

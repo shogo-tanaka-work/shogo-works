@@ -291,3 +291,16 @@ export interface Certification {
   name: string;
   date: string;
 }
+
+/**
+ * About で「何を作ってきたか」を一画面に並べるための項目。
+ * 営業資料としての詳細は CaseStudy（/cases）と note が持ち、ここは要約に留める。
+ */
+export interface Build {
+  title: string;
+  summary: string;
+  technologies: string[];
+  /** 詳細を読める外部URL。無い実績は省略する */
+  href?: string;
+  hrefLabel?: string;
+}

@@ -18,6 +18,8 @@ export { featuredKnowledge } from "./featuredKnowledge";
 export { mediaOutlets } from "./mediaOutlets";
 export { techStack } from "./techStack";
 export { caseStudies } from "./cases";
+export { builds } from "./builds";
+export { approachPoints } from "./approach";
 export { personProfile, schemaIds } from "./person";
 export {
   careerExperiences,
