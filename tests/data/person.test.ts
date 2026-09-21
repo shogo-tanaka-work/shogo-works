@@ -31,6 +31,25 @@ describe("person データ", () => {
     }
   });
 
+  /**
+   * sameAs は「その人物のページ」を指す。出品ページや個別記事を載せると、
+   * 同一性の宣言ではなく単なる外部リンクになる。
+   */
+  it("異常系: 出品ページや個別記事のURLを含まないこと", () => {
+    const notProfilePatterns = [
+      /\/menu\/detail\//,
+      /\/services\/\d/,
+      /\/n\/[a-z0-9]/i,
+      /\/post\//,
+    ];
+
+    for (const url of personProfile.sameAs) {
+      for (const pattern of notProfilePatterns) {
+        expect(url, `${url} がプロフィールURLでない`).not.toMatch(pattern);
+      }
+    }
+  });
+
   it("schemaIds が siteConfig.url を基点にしていること", () => {
     expect(schemaIds.person.startsWith(siteConfig.url)).toBe(true);
     expect(schemaIds.organization.startsWith(siteConfig.url)).toBe(true);

@@ -29,8 +29,7 @@ export const personProfile = {
   ],
   /**
    * 同一人物として認識させたいプロフィールURL。
-   * ランサーズ・ココナラは出品者プロフィールのURLが未確認のため、
-   * 暫定で出品ページを置いている。プロフィールURLが分かり次第そのまま差し替える。
+   * 第三者がログインなしで開けるページだけを載せる（出品ページや個別記事は入れない）。
    */
   sameAs: [
     "https://www.linkedin.com/in/shogoworks/",
@@ -40,8 +39,8 @@ export const personProfile = {
     "https://x.com/shogo_works",
     "https://www.instagram.com/shogoworks/",
     "https://menta.work/user/151943",
-    "https://www.lancers.jp/menu/detail/1343450",
-    "https://coconala.com/services/4399466",
+    "https://www.lancers.jp/profile/shogo-tanaka",
+    "https://coconala.com/users/6301565",
   ],
 } as const;
 
