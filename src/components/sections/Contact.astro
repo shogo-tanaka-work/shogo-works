@@ -1,5 +1,5 @@
 ---
-import { socialLinks } from "@/data";
+import { platformLabels, platformRoutes, socialLinks } from "@/data";
 import SocialIcon from "@/components/icons/SocialIcon.astro";
 import SectionHeader from "@/components/ui/SectionHeader.astro";
 
@@ -21,6 +21,46 @@ const activeSocialLinks = socialLinks.filter((l) => !l.comingSoon);
           <p class="text-sm text-muted-foreground leading-relaxed">
             Web開発・AI導入支援・セミナーなど、まずはお気軽にお問い合わせください。初回のご相談は無料です。
           </p>
+        </div>
+
+        <div>
+          <h3 class="text-lg font-semibold text-foreground mb-2">ご依頼の経路</h3>
+          <p class="text-sm text-muted-foreground leading-relaxed">
+            初めての方は、決済と取引をプラットフォームが仲介するので、プラットフォーム経由が安心です。価格はどちらの経路でも変わりません。
+          </p>
+          <dl class="mt-4 divide-y divide-border border-y border-border">
+            <div class="py-4">
+              <dt class="text-sm font-medium text-foreground">プラットフォーム経由</dt>
+              <dd class="mt-2">
+                <ul class="space-y-2">
+                  {platformRoutes.map((route) => (
+                    <li class="text-sm text-muted-foreground">
+                      <span>{route.serviceName}</span>
+                      <span class="ml-1 inline-flex flex-wrap gap-x-3">
+                        {route.links.map((link) => (
+                          <a
+                            href={link.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-primary underline underline-offset-2"
+                          >
+                            {platformLabels[link.platform]}
+                            <span class="sr-only">（新しいタブで開きます）</span>
+                          </a>
+                        ))}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </dd>
+            </div>
+            <div class="py-4">
+              <dt class="text-sm font-medium text-foreground">このフォームから直接</dt>
+              <dd class="mt-2 text-sm text-muted-foreground leading-relaxed">
+                準委任での開発参画、受託開発、運用保守、講師・セミナー登壇はこちらからご相談ください。
+              </dd>
+            </div>
+          </dl>
         </div>
 
         <div class="space-y-3">

@@ -18,7 +18,7 @@ export const navItems: NavItem[] = [
       {
         label: "マンツーマンAIサポート",
         href: "/services/personal-support",
-        description: "個人向けのAI活用伴走",
+        description: "Claude Codeでの開発・AI活用の伴走",
       },
       {
         label: "講師・セミナー登壇",

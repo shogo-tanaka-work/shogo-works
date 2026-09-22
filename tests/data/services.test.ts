@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { services } from "@/data/services";
 import { testimonials } from "@/data/testimonials";
+import { platformHosts, platformLinks } from "@/data/platforms";
 
 describe("services データ", () => {
   it("3つのサービスカテゴリが定義されていること", () => {
@@ -40,18 +41,6 @@ describe("services データ", () => {
         expect(plan.price).toBeTruthy();
       }
     }
-  });
-
-  it("マンツーマンAIサポートの月額が、スポット相談の回数分を上回らないこと", () => {
-    const support = services.find((s) => s.id === "personal-support");
-    const priceOf = (name: string): number => {
-      const raw = support?.pricing.find((p) => p.name.startsWith(name))?.price;
-      return Number(raw?.replace(/[^0-9.]/g, "") ?? 0);
-    };
-
-    const spot = priceOf("スポット相談");
-    expect(priceOf("月額サポート")).toBeLessThanOrEqual(spot * 2);
-    expect(priceOf("集中伴走")).toBeLessThanOrEqual(spot * 4);
   });
 
   it("painPointsが文字列の配列であること", () => {
@@ -121,5 +110,109 @@ describe("アプリ開発: ストック型運用保守の反映", () => {
   it("運用保守・改善を details に含むこと", () => {
     const headings = (dev?.details ?? []).map((d) => d.heading).join("");
     expect(/保守|運用|改善/.test(headings)).toBe(true);
+  });
+});
+
+describe("マンツーマンAIサポート: MENTA への直結", () => {
+  const support = services.find((s) => s.id === "personal-support");
+
+  it("正常系: 料金が MENTA 掲載額と一致し、Claude Code プランを先頭に置くこと", () => {
+    expect(support?.pricing.map((p) => p.price)).toEqual([
+      "12,000円/月",
+      "19,800円（買い切り）",
+      "30,000円/月",
+      "12,000円/月",
+      "30,000円/月",
+    ]);
+  });
+
+  it("正常系: Claude Code プランは MENTA の Claude Code プランページ、業務活用プランは業務活用プランページを指すこと", () => {
+    const hrefs = (support?.pricing ?? []).map((p) => p.links);
+    expect(hrefs).toEqual([
+      [platformLinks.mentaClaudeCode],
+      [platformLinks.mentaClaudeCode],
+      [platformLinks.mentaClaudeCode],
+      [platformLinks.mentaAiSupport],
+      [platformLinks.mentaAiSupport],
+    ]);
+  });
+
+  it("正常系: 主CTAが MENTA の Claude Code プランを指すこと", () => {
+    expect(support?.primaryPlatform).toEqual(platformLinks.mentaClaudeCode);
+  });
+
+  it("正常系: 概要と最初の提供内容で Claude Code を第一に見せること", () => {
+    expect(support?.description).toContain("Claude Code");
+    expect(support?.details[0]?.heading).toContain("Claude Code");
+  });
+
+  it("正常系: 実績に MENTA の件数と評価が載っていること", () => {
+    const joined = (support?.achievements ?? []).join("");
+    expect(joined).toContain("MENTA");
+    expect(joined).toContain("16件");
+    expect(joined).toContain("★5.0");
+  });
+});
+
+describe("アプリ開発: 小口パッケージの販売サイト導線", () => {
+  const dev = services.find((s) => s.id === "app-development");
+  const planOf = (prefix: string) =>
+    dev?.pricing.find((p) => p.name.startsWith(prefix));
+
+  it("正常系: 業務自動化パッケージがランサーズとココナラへ飛ぶこと", () => {
+    expect(planOf("業務自動化")?.links).toEqual([
+      platformLinks.lancersAutomation,
+      platformLinks.coconalaAutomation,
+    ]);
+  });
+
+  it("正常系: AIアプリ本番化パッケージがランサーズへ飛ぶこと", () => {
+    expect(planOf("AIアプリ本番化")?.links).toEqual([
+      platformLinks.lancersAppProduction,
+    ]);
+  });
+
+  it("正常系: 準委任・大型開発は /contact（リンク未設定）のまま、主CTAも /contact であること", () => {
+    expect(dev?.primaryPlatform).toBeUndefined();
+    for (const prefix of ["準委任", "スモールスタート", "本格Webアプリ"]) {
+      expect(planOf(prefix)).toBeDefined();
+      expect(planOf(prefix)?.links).toBeUndefined();
+    }
+  });
+});
+
+describe("アプリ開発: 使用技術の絞り込み", () => {
+  const dev = services.find((s) => s.id === "app-development");
+
+  it("正常系: 使用技術を主要4つに絞ること", () => {
+    expect(dev?.technologies).toEqual(["Python", "TypeScript", "Cloudflare", "AWS"]);
+  });
+
+  it("正常系: 技術の詳細はスキルページへ案内すること", () => {
+    expect(dev?.technologiesMore?.href).toBe("/skills");
+    expect(dev?.technologiesMore?.note).toBeTruthy();
+    expect(dev?.technologiesMore?.label).toBeTruthy();
+  });
+});
+
+describe("講師・セミナー登壇: 直接契約", () => {
+  it("正常系: 販売サイトへのリンクを持たず /contact で受けること", () => {
+    const lecture = services.find((s) => s.id === "lecture");
+    expect(lecture?.primaryPlatform).toBeUndefined();
+    expect(lecture?.pricing.every((p) => p.links === undefined)).toBe(true);
+  });
+});
+
+describe("料金プランのリンク整合性", () => {
+  it("異常系: プラットフォーム種別とURLのドメインが食い違うリンクが無いこと", () => {
+    for (const service of services) {
+      const links = [
+        ...(service.primaryPlatform ? [service.primaryPlatform] : []),
+        ...service.pricing.flatMap((p) => p.links ?? []),
+      ];
+      for (const link of links) {
+        expect(new URL(link.href).hostname).toBe(platformHosts[link.platform]);
+      }
+    }
   });
 });

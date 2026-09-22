@@ -26,3 +26,4 @@ export {
   educationHistory,
   certifications,
 } from "./career";
+export { platformLabels, platformLinks, platformRoutes } from "./platforms";

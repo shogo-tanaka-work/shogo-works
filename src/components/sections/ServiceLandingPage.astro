@@ -3,7 +3,9 @@ import type { ServiceItem } from "@/types";
 import Badge from "@/components/ui/Badge.astro";
 import Button from "@/components/ui/Button.astro";
 import TestimonialCard from "@/components/ui/TestimonialCard.astro";
+import PlanPlatformLinks from "@/components/ui/PlanPlatformLinks.astro";
 import { testimonials, siteConfig } from "@/data";
+import { serviceCta } from "@/utils/serviceCta";
 
 interface Props {
   service: ServiceItem;
@@ -19,6 +21,11 @@ const serviceTestimonials = (service.testimonialIds ?? [])
 const hasAchievements = (service.achievements?.length ?? 0) > 0;
 const hasTestimonials = serviceTestimonials.length > 0;
 const hasFaq = (service.faq?.length ?? 0) > 0;
+const cta = serviceCta(service);
+const externalAttrs = cta.external ? { target: "_blank", rel: "noopener noreferrer" } : {};
+// 販売サイト経由のプランと直接契約のプランが混在するときだけ、直接契約の受け口を補足する
+const hasPlatformPlan = service.pricing.some((plan) => (plan.links?.length ?? 0) > 0);
+const hasDirectPlan = service.pricing.some((plan) => (plan.links?.length ?? 0) === 0);
 ---
 
 <section class="pt-28 pb-16">
@@ -53,10 +60,11 @@ const hasFaq = (service.faq?.length ?? 0) > 0;
         )}
         <div class="mt-8 flex flex-col gap-3 sm:flex-row">
           <a
-            href="/contact"
+            href={cta.href}
+            {...externalAttrs}
             class="inline-flex items-center justify-center rounded-[4px] bg-primary px-6 py-3 font-medium text-white transition-colors hover:bg-primary"
           >
-            {service.title}について問い合わせる
+            {cta.label}
           </a>
           <a
             href="#details"
@@ -74,9 +82,15 @@ const hasFaq = (service.faq?.length ?? 0) > 0;
             <div class="border-b border-gray-100 pb-4 last:border-b-0 last:pb-0">
               <p class="text-sm font-medium text-foreground">{plan.name}</p>
               <p class="mt-2 text-xl font-bold text-foreground">{plan.price}</p>
+              <PlanPlatformLinks plan={plan} />
             </div>
           ))}
         </div>
+        {hasPlatformPlan && hasDirectPlan && (
+          <p class="mt-5 text-xs leading-relaxed text-muted-foreground">
+            リンクの無いプランは、<a href="/contact" class="text-primary underline underline-offset-2">お問い合わせ</a>から直接ご相談ください。
+          </p>
+        )}
       </aside>
     </div>
   </div>
@@ -120,6 +134,14 @@ const hasFaq = (service.faq?.length ?? 0) > 0;
                 <Badge variant="teal">{technology}</Badge>
               ))}
             </div>
+            {service.technologiesMore && (
+              <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {service.technologiesMore.note}
+                <a href={service.technologiesMore.href} class="ml-1 font-medium text-primary underline underline-offset-2">
+                  {service.technologiesMore.label}
+                </a>
+              </p>
+            )}
           </div>
         )}
         {service.excludes && service.excludes.length > 0 && (
@@ -185,10 +207,11 @@ const hasFaq = (service.faq?.length ?? 0) > 0;
         現在の課題やご希望の内容をお伺いし、対応可能な範囲をご案内します。
       </p>
       <a
-        href="/contact"
+        href={cta.href}
+        {...externalAttrs}
         class="mt-8 inline-flex items-center justify-center rounded-[4px] bg-primary px-6 py-3 font-medium text-white transition-colors hover:bg-primary"
       >
-        お問い合わせへ進む
+        {cta.external ? cta.label : "お問い合わせへ進む"}
       </a>
     </div>
   </div>
