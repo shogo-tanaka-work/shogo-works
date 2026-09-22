@@ -1,0 +1,37 @@
+---
+import type { PricingPlan } from "@/types";
+import { planCtas } from "@/utils/serviceCta";
+
+interface Props {
+  plan: PricingPlan;
+}
+
+const { plan } = Astro.props;
+
+// 販売プラットフォームで受けるプランだけリンクを出す。
+// links の無いプランはサービス全体のCTA（/contact）で受けるため、プランごとには並べない。
+const ctas = plan.links && plan.links.length > 0 ? planCtas(plan) : [];
+---
+
+{plan.note && (
+  <p class="mt-1.5 text-xs leading-relaxed text-muted-foreground">{plan.note}</p>
+)}
+{ctas.length > 0 && (
+  <div class="mt-3 flex flex-wrap gap-2">
+    {ctas.map((cta) => (
+      <a
+        href={cta.href}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="inline-flex items-center gap-1 rounded-[4px] border border-border px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-secondary"
+      >
+        {cta.label}
+        <svg class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M7 7h10v10" />
+          <path d="M7 17 17 7" />
+        </svg>
+        <span class="sr-only">（新しいタブで開きます）</span>
+      </a>
+    ))}
+  </div>
+)}

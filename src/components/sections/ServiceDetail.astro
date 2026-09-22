@@ -3,6 +3,8 @@ import type { ServiceItem } from "@/types";
 import Icon from "@/components/icons/Icon.astro";
 import type { IconName } from "@/components/icons/paths";
 import Badge from "@/components/ui/Badge.astro";
+import PlanPlatformLinks from "@/components/ui/PlanPlatformLinks.astro";
+import { serviceCta } from "@/utils/serviceCta";
 
 interface Props {
   service: ServiceItem;
@@ -10,6 +12,8 @@ interface Props {
 }
 
 const { service, index } = Astro.props;
+const cta = serviceCta(service);
+const externalAttrs = cta.external ? { target: "_blank", rel: "noopener noreferrer" } : {};
 
 ---
 
@@ -102,6 +106,7 @@ const { service, index } = Astro.props;
                 <div class="border-b border-gray-100 pb-4 last:border-0 last:pb-0">
                   <p class="text-sm font-medium text-foreground mb-2">{plan.name}</p>
                   <p class="text-lg font-bold text-foreground">{plan.price}</p>
+                  <PlanPlatformLinks plan={plan} />
                 </div>
               ))}
             </div>
@@ -113,10 +118,11 @@ const { service, index } = Astro.props;
                 詳しいサービスページを見る
               </a>
               <a
-                href="/contact"
+                href={cta.href}
+                {...externalAttrs}
                 class="block w-full text-center px-4 py-2.5 text-primary text-sm font-medium rounded-[4px] border border-border hover:bg-secondary transition-colors"
               >
-                お問い合わせ
+                {cta.external ? cta.label : "お問い合わせ"}
               </a>
             </div>
           </div>
