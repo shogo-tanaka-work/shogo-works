@@ -107,6 +107,12 @@ export interface PricingPlan {
   links?: PlatformLink[];
 }
 
+export interface TechnologiesMore {
+  note: string;
+  label: string;
+  href: string;
+}
+
 export interface ServiceItem {
   id: string;
   href: string;
@@ -121,6 +127,8 @@ export interface ServiceItem {
   // サービス全体の主CTAの申込先。未設定なら /contact へ案内する
   primaryPlatform?: PlatformLink;
   technologies?: string[];
+  // 使用技術を主要なものに絞るときの補足と、詳細（スキル一覧など）への内部リンク
+  technologiesMore?: TechnologiesMore;
   excludes?: string[];
   // --- LP拡張（任意。未設定のサービスは該当セクションを描画しない）---
   achievements?: string[]; // 実績サマリ（数字ファースト表示用）

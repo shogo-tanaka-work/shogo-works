@@ -134,6 +134,14 @@ const hasDirectPlan = service.pricing.some((plan) => (plan.links?.length ?? 0) =
                 <Badge variant="teal">{technology}</Badge>
               ))}
             </div>
+            {service.technologiesMore && (
+              <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+                {service.technologiesMore.note}
+                <a href={service.technologiesMore.href} class="ml-1 font-medium text-primary underline underline-offset-2">
+                  {service.technologiesMore.label}
+                </a>
+              </p>
+            )}
           </div>
         )}
         {service.excludes && service.excludes.length > 0 && (

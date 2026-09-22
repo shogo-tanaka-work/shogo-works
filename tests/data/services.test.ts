@@ -165,6 +165,20 @@ describe("アプリ開発: 小口パッケージの販売サイト導線", () =>
   });
 });
 
+describe("アプリ開発: 使用技術の絞り込み", () => {
+  const dev = services.find((s) => s.id === "app-development");
+
+  it("正常系: 使用技術を主要4つに絞ること", () => {
+    expect(dev?.technologies).toEqual(["Python", "TypeScript", "Cloudflare", "AWS"]);
+  });
+
+  it("正常系: 技術の詳細はスキルページへ案内すること", () => {
+    expect(dev?.technologiesMore?.href).toBe("/skills");
+    expect(dev?.technologiesMore?.note).toBeTruthy();
+    expect(dev?.technologiesMore?.label).toBeTruthy();
+  });
+});
+
 describe("講師・セミナー登壇: 直接契約", () => {
   it("正常系: 販売サイトへのリンクを持たず /contact で受けること", () => {
     const lecture = services.find((s) => s.id === "lecture");

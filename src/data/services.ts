@@ -80,14 +80,12 @@ export const services: ServiceItem[] = [
         price: "150万円〜",
       },
     ],
-    technologies: [
-      "Next.js",
-      "React",
-      "TypeScript",
-      "Astro",
-      "TailwindCSS",
-      "Node.js",
-    ],
+    technologies: ["Python", "TypeScript", "Cloudflare", "AWS"],
+    technologiesMore: {
+      note: "上記は主な例です。お客様の環境や既存システムに合わせて、技術は柔軟に調整します。",
+      label: "対応できる技術の一覧を見る",
+      href: "/skills",
+    },
   },
   {
     id: "personal-support",

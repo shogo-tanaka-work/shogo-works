@@ -81,6 +81,14 @@ const externalAttrs = cta.external ? { target: "_blank", rel: "noopener noreferr
                   <Badge variant="teal">{tech}</Badge>
                 ))}
               </div>
+              {service.technologiesMore && (
+                <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+                  {service.technologiesMore.note}
+                  <a href={service.technologiesMore.href} class="ml-1 font-medium text-primary underline underline-offset-2">
+                    {service.technologiesMore.label}
+                  </a>
+                </p>
+              )}
             </div>
           )}
 
