@@ -30,6 +30,12 @@ export const platformLinks = {
     platform: "lancers",
     href: "https://www.lancers.jp/menu/detail/1343452",
   },
+  // 「Claude CodeやCodexを使って、自分のアプリを作り切る」プラン。月1レビュー面談ライト／4週間リリース集中／実践学習プランを掲載。
+  // MENTA の AIプロダクト開発カテゴリで流入の中心になっているため、マンツーマンの主CTAにする
+  mentaClaudeCode: {
+    platform: "menta",
+    href: "https://menta.work/plan/20191",
+  },
   // 「ChatGPT・Gemini・Claude・Copilotを仕事で使い分ける」プラン。月1面談ライト／実践学習プランを掲載
   mentaAiSupport: {
     platform: "menta",
@@ -48,7 +54,11 @@ export const platformRoutes: PlatformRoute[] = [
     links: [platformLinks.lancersAppProduction],
   },
   {
-    serviceName: "マンツーマンAIサポート",
+    serviceName: "Claude Codeでのアプリ開発・仕組みづくりの伴走",
+    links: [platformLinks.mentaClaudeCode],
+  },
+  {
+    serviceName: "AIの業務活用サポート",
     links: [platformLinks.mentaAiSupport],
   },
 ];

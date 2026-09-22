@@ -116,18 +116,34 @@ describe("アプリ開発: ストック型運用保守の反映", () => {
 describe("マンツーマンAIサポート: MENTA への直結", () => {
   const support = services.find((s) => s.id === "personal-support");
 
-  it("正常系: 料金が MENTA 掲載額（月12,000円／月30,000円）と一致すること", () => {
+  it("正常系: 料金が MENTA 掲載額と一致し、Claude Code プランを先頭に置くこと", () => {
     expect(support?.pricing.map((p) => p.price)).toEqual([
+      "12,000円/月",
+      "19,800円（買い切り）",
+      "30,000円/月",
       "12,000円/月",
       "30,000円/月",
     ]);
   });
 
-  it("正常系: すべてのプランと主CTAが MENTA のプランページを指すこと", () => {
-    expect(support?.primaryPlatform).toEqual(platformLinks.mentaAiSupport);
-    for (const plan of support?.pricing ?? []) {
-      expect(plan.links).toEqual([platformLinks.mentaAiSupport]);
-    }
+  it("正常系: Claude Code プランは MENTA の Claude Code プランページ、業務活用プランは業務活用プランページを指すこと", () => {
+    const hrefs = (support?.pricing ?? []).map((p) => p.links);
+    expect(hrefs).toEqual([
+      [platformLinks.mentaClaudeCode],
+      [platformLinks.mentaClaudeCode],
+      [platformLinks.mentaClaudeCode],
+      [platformLinks.mentaAiSupport],
+      [platformLinks.mentaAiSupport],
+    ]);
+  });
+
+  it("正常系: 主CTAが MENTA の Claude Code プランを指すこと", () => {
+    expect(support?.primaryPlatform).toEqual(platformLinks.mentaClaudeCode);
+  });
+
+  it("正常系: 概要と最初の提供内容で Claude Code を第一に見せること", () => {
+    expect(support?.description).toContain("Claude Code");
+    expect(support?.details[0]?.heading).toContain("Claude Code");
   });
 
   it("正常系: 実績に MENTA の件数と評価が載っていること", () => {
