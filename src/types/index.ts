@@ -84,9 +84,27 @@ export interface ServiceDetail {
   body: string;
 }
 
+// 申込を受け付ける販売プラットフォーム。サイトからの外部リンク先として使う。
+export type SalesPlatform = "lancers" | "coconala" | "menta";
+
+export interface PlatformLink {
+  platform: SalesPlatform;
+  href: string;
+}
+
+// お問い合わせページで案内する「どのサービスをどのプラットフォームで受けるか」
+export interface PlatformRoute {
+  serviceName: string;
+  links: PlatformLink[];
+}
+
 export interface PricingPlan {
   name: string;
   price: string;
+  // プラン内訳など価格の補足（任意）
+  note?: string;
+  // 申込先の販売プラットフォーム。未設定のプランは /contact（直接契約）で受ける
+  links?: PlatformLink[];
 }
 
 export interface ServiceItem {
@@ -100,6 +118,8 @@ export interface ServiceItem {
   painPoints: string[];
   details: ServiceDetail[];
   pricing: PricingPlan[];
+  // サービス全体の主CTAの申込先。未設定なら /contact へ案内する
+  primaryPlatform?: PlatformLink;
   technologies?: string[];
   excludes?: string[];
   // --- LP拡張（任意。未設定のサービスは該当セクションを描画しない）---
