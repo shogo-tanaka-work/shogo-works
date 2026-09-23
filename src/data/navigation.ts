@@ -69,6 +69,11 @@ export const navItems: NavItem[] = [
         description: "経歴・実績・自己紹介",
       },
       {
+        label: "Cases",
+        href: "/cases",
+        description: "受託・研修の支援事例",
+      },
+      {
         label: "Portfolio",
         href: "/portfolio",
         description: "開発したWebアプリの実例",
