@@ -109,7 +109,7 @@ https://developers.cloudflare.com/changelog/rss/ai-gateway.xml
 https://developers.cloudflare.com/changelog/rss/workers.xml
 ```
 
-`pubDate` は製品によって時刻まで入るものと `00:00:00 GMT` 固定のものが混在します。`00:00:00 GMT` 固定のエントリは `date_precision: date-only` を付けます。
+`pubDate` は製品によって時刻まで入るものと `00:00:00 GMT` 固定のものが混在します。`00:00:00 GMT` 固定のエントリは `date_precision: date-only` を付け、窓の開始時刻と時刻で比較せず、前日・当日の日付で候補にします。そのうえで記録済み URL（`docs/research/cloudflare/official-updates/` と前回の日次サマリー）との差分を取ります。横断フィードは直近約1週間（20件前後）しか保持しないため、差分確認はこのフィードの範囲で足ります。
 
 新しい製品のフィードを使う場合は、URL を推測せず `https://developers.cloudflare.com/fundamentals/new-features/available-rss-feeds/` で実在を確認してから追加します。
 
