@@ -30,6 +30,12 @@ describe("navigation データ", () => {
     expect(knowledge?.children?.length).toBeGreaterThanOrEqual(2);
   });
 
+  it("About のドロップダウンで、About の次に事例一覧（/cases）へのリンクがあること", () => {
+    const about = navItems.find((item) => item.label === "About");
+    const hrefs = about?.children?.map((c) => c.href) ?? [];
+    expect(hrefs.indexOf("/cases")).toBe(hrefs.indexOf("/about") + 1);
+  });
+
   it("AI Newsリンクが含まれていること", () => {
     const aiNews = navItems.find((item) => item.label === "AI News");
     expect(aiNews).toEqual({
