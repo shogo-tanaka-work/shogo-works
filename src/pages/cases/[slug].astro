@@ -4,6 +4,7 @@ import Badge from "@/components/ui/Badge.astro";
 import Button from "@/components/ui/Button.astro";
 import { caseStudies } from "@/data";
 import type { CaseStudy } from "@/types";
+import { caseStudyCtas } from "@/utils/serviceCta";
 
 export function getStaticPaths() {
   return caseStudies.map((caseStudy) => ({
@@ -17,6 +18,7 @@ interface Props {
 }
 
 const { caseStudy } = Astro.props;
+const externalCtas = caseStudyCtas(caseStudy);
 ---
 
 <BaseLayout
@@ -117,6 +119,30 @@ const { caseStudy } = Astro.props;
           }
         </ul>
       </div>
+
+      {
+        externalCtas.length > 0 && (
+          <div class="mb-10 border-t border-border pt-8">
+            <h2 class="text-xl font-bold text-foreground mb-3">この事例の詳細と、同じご依頼の窓口</h2>
+            <p class="text-sm text-muted-foreground leading-relaxed mb-5">
+              判断の経緯やつまずいた点は、全文に書いています。
+              同じようなご依頼は、出品中のパッケージからもお受けしています。
+            </p>
+            <div class="flex flex-col sm:flex-row gap-3">
+              {externalCtas.map((cta, index) => (
+                <Button
+                  href={cta.href}
+                  external={cta.external}
+                  variant={index === 0 ? "outline" : "primary"}
+                  size="md"
+                >
+                  {cta.label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )
+      }
 
       {
         caseStudy.serviceHref && (

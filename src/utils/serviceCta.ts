@@ -1,5 +1,6 @@
 import { platformLabels } from "@/data/platforms";
 import type {
+  CaseStudy,
   KnowledgeServiceLink,
   PlatformLink,
   PricingPlan,
@@ -29,6 +30,14 @@ export const serviceCta = (service: ServiceItem): Cta =>
         label: `${service.title}について問い合わせる`,
         external: false,
       };
+
+// 事例ページの外部導線。本文の正本（note）を先に、同じ依頼を受ける出品ページを後に並べる。
+export const caseStudyCtas = (caseStudy: CaseStudy): Cta[] => [
+  ...(caseStudy.fullStoryUrl
+    ? [{ href: caseStudy.fullStoryUrl, label: "note で全文を読む", external: true }]
+    : []),
+  ...(caseStudy.platformLink ? [platformCta(caseStudy.platformLink, "見る")] : []),
+];
 
 // プランごとの申込先。links が無いプランは /contact で受ける。
 export const planCtas = (plan: PricingPlan): Cta[] =>

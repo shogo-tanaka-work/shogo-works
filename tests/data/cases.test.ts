@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { caseStudies } from "@/data/cases";
 import { services } from "@/data/services";
+import { platformLinks } from "@/data/platforms";
 
 describe("caseStudies データ整合性", () => {
   it("slug が一意であること", () => {
@@ -39,5 +40,43 @@ describe("caseStudies データ整合性", () => {
           `存在しないサービスLP: ${c.serviceHref}`,
         ).toBe(true);
       });
+  });
+});
+
+describe("caseStudies の外部導線", () => {
+  it("fullStoryUrl は note の記事URLであること（事例の正本は note）", () => {
+    caseStudies
+      .filter((c) => c.fullStoryUrl)
+      .forEach((c) => {
+        const url = new URL(c.fullStoryUrl!);
+        expect(url.protocol, c.slug).toBe("https:");
+        expect(url.host, c.slug).toBe("note.com");
+      });
+  });
+
+  it("platformLink は platforms.ts の出品ページを参照していること", () => {
+    const known = new Set(Object.values(platformLinks).map((link) => link.href));
+    caseStudies
+      .filter((c) => c.platformLink)
+      .forEach((c) => {
+        expect(known.has(c.platformLink!.href), `${c.slug}: 未登録の出品ページ`).toBe(true);
+      });
+  });
+
+  it("受託の事例（開発・導入支援）が研修・指導の事例より先に並ぶこと", () => {
+    const categories = caseStudies.map((c) => c.category);
+    const firstTraining = categories.indexOf("研修・指導");
+    const lastContract = Math.max(
+      categories.lastIndexOf("開発"),
+      categories.lastIndexOf("導入支援"),
+    );
+    expect(firstTraining).toBeGreaterThan(lastContract);
+  });
+
+  it("ノーコードAIアプリの載せ替え事例が note とランサーズへの導線を持つこと", () => {
+    const replatform = caseStudies.find((c) => c.slug === "nocode-ai-app-replatform");
+
+    expect(replatform?.fullStoryUrl).toBe("https://note.com/shogo_works/n/nb08a3b2a21d5");
+    expect(replatform?.platformLink).toEqual(platformLinks.lancersAppProduction);
   });
 });
