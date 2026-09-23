@@ -30,6 +30,34 @@ interface OrganizationSchema {
   founder: SchemaReference;
 }
 
+interface ArticleSchema {
+  "@context": string;
+  "@type": "Article";
+  headline: string;
+  description: string;
+  url: string;
+  mainEntityOfPage: string;
+  datePublished: string;
+  dateModified?: string;
+  author: ArticleAuthor;
+  publisher: SchemaReference;
+}
+
+interface ArticleAuthor extends SchemaReference {
+  "@type": "Person";
+  name: string;
+  url: string;
+}
+
+interface ArticleSchemaInput {
+  title: string;
+  description: string;
+  /** サイト内の記事パス（例: /knowledge/ai-tools/claude-code） */
+  path: string;
+  createdAt: Date;
+  updatedAt?: Date;
+}
+
 const SCHEMA_CONTEXT = "https://schema.org";
 
 /** サイト内の相対パスを、構造化データで必要な絶対URLへ解決する */
@@ -65,5 +93,31 @@ export function buildOrganizationSchema(): OrganizationSchema {
     url: siteConfig.url,
     description: siteConfig.description,
     founder: { "@id": schemaIds.person },
+  };
+}
+
+/**
+ * knowledge 記事の Article 構造化データを組み立てる。
+ * author は Head.astro が全ページで出す Person を @id で参照し、同一人物の記事として結ぶ。
+ * @id を解決しない読み手でも著者を判別できるよう、name と url も添える。
+ */
+export function buildArticleSchema(input: ArticleSchemaInput): ArticleSchema {
+  const url = toAbsoluteUrl(input.path);
+  return {
+    "@context": SCHEMA_CONTEXT,
+    "@type": "Article",
+    headline: input.title,
+    description: input.description,
+    url,
+    mainEntityOfPage: url,
+    datePublished: input.createdAt.toISOString(),
+    ...(input.updatedAt && { dateModified: input.updatedAt.toISOString() }),
+    author: {
+      "@type": "Person",
+      "@id": schemaIds.person,
+      name: personProfile.name,
+      url: toAbsoluteUrl("/about"),
+    },
+    publisher: { "@id": schemaIds.organization },
   };
 }

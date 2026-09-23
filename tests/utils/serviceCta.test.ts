@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { planCtas, serviceCta } from "@/utils/serviceCta";
+import { planCtas, resolveKnowledgeServiceLinks, serviceCta } from "@/utils/serviceCta";
 import type { PricingPlan, ServiceItem } from "@/types";
 
 const baseService: ServiceItem = {
@@ -64,5 +64,29 @@ describe("planCtas", () => {
   it("境界値: links が空配列のとき、/contact にフォールバックすること", () => {
     const plan: PricingPlan = { name: "空", price: "1万円", links: [] };
     expect(planCtas(plan)[0]?.href).toBe("/contact");
+  });
+});
+
+describe("resolveKnowledgeServiceLinks", () => {
+  const serviceList: ServiceItem[] = [baseService];
+
+  it("正常系: 対象記事では、サービスの href と title に reason を添えて返すこと", () => {
+    const links = { "cat/article": [{ serviceId: "sample", reason: "理由" }] };
+
+    expect(resolveKnowledgeServiceLinks("cat/article", links, serviceList)).toEqual([
+      { href: "/services/sample", title: "サンプル", reason: "理由" },
+    ]);
+  });
+
+  it("正常系: 対象外の記事では空配列を返すこと", () => {
+    expect(resolveKnowledgeServiceLinks("cat/other", {}, serviceList)).toEqual([]);
+  });
+
+  it("異常系: 存在しない serviceId を参照したとき、記事IDを含むエラーを投げること", () => {
+    const links = { "cat/article": [{ serviceId: "missing", reason: "理由" }] };
+
+    expect(() => resolveKnowledgeServiceLinks("cat/article", links, serviceList)).toThrow(
+      /cat\/article.*missing/,
+    );
   });
 });

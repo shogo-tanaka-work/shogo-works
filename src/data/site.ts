@@ -8,4 +8,6 @@ export const siteConfig = {
   twitter: "@shogo_works",
   // 第三者プラットフォーム上の評価への導線として使用する
   mentaUrl: "https://menta.work/user/151943/review/recieves",
+  // AI クローラへの利用方針。public/robots.txt の Content-Signal と llms.txt で同じ値を使う
+  contentSignal: "search=yes,ai-input=yes,ai-train=no",
 } as const;
