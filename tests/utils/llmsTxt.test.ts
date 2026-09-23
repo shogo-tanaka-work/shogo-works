@@ -52,3 +52,15 @@ describe("robots.txt との整合", () => {
     expect(robots).toContain(`Content-Signal: ${siteConfig.contentSignal}`);
   });
 });
+
+describe("public/_headers", () => {
+  it("llms.txt と robots.txt を charset=utf-8 付きで配信すること（静的配信では Response のヘッダーが落ちるため）", () => {
+    const headers = readFileSync(resolve(__dirname, "../../public/_headers"), "utf-8");
+
+    ["/llms.txt", "/robots.txt"].forEach((path) => {
+      expect(headers).toMatch(
+        new RegExp(`^${path.replace(".", "\\.")}\\n\\s+Content-Type: text/plain; charset=utf-8$`, "m"),
+      );
+    });
+  });
+});

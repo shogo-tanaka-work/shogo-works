@@ -37,6 +37,7 @@ interface ArticleSchema {
   description: string;
   url: string;
   mainEntityOfPage: string;
+  image: string;
   datePublished: string;
   dateModified?: string;
   author: ArticleAuthor;
@@ -110,6 +111,8 @@ export function buildArticleSchema(input: ArticleSchemaInput): ArticleSchema {
     description: input.description,
     url,
     mainEntityOfPage: url,
+    // knowledge 記事は個別の OG 画像を持たず、サイト共通の画像を使う（Head.astro と同じ）
+    image: toAbsoluteUrl(siteConfig.ogImage),
     datePublished: input.createdAt.toISOString(),
     ...(input.updatedAt && { dateModified: input.updatedAt.toISOString() }),
     author: {
