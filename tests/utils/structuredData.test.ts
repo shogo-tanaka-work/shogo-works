@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { buildPersonSchema, buildOrganizationSchema } from "@/utils/structuredData";
+import {
+  buildArticleSchema,
+  buildPersonSchema,
+  buildOrganizationSchema,
+} from "@/utils/structuredData";
 import { personProfile, schemaIds } from "@/data/person";
 import { siteConfig } from "@/data/site";
 
@@ -48,5 +52,51 @@ describe("buildOrganizationSchema", () => {
 
     expect(schema.name).toBe(siteConfig.name);
     expect(schema.url).toBe(siteConfig.url);
+  });
+});
+
+describe("buildArticleSchema", () => {
+  const input = {
+    title: "記事タイトル",
+    description: "記事の説明",
+    path: "/knowledge/ai-tools/sample",
+    createdAt: new Date("2026-05-01T00:00:00.000Z"),
+  };
+
+  it("正常系: author が Person の @id を参照し、publisher が Organization を参照すること", () => {
+    const schema = buildArticleSchema(input);
+
+    expect(schema["@type"]).toBe("Article");
+    expect(schema.author).toEqual({
+      "@type": "Person",
+      "@id": schemaIds.person,
+      name: personProfile.name,
+      url: `${siteConfig.url}/about`,
+    });
+    expect(schema.publisher).toEqual({ "@id": schemaIds.organization });
+  });
+
+  it("正常系: url と mainEntityOfPage が記事の絶対URLになること", () => {
+    const schema = buildArticleSchema(input);
+
+    expect(schema.url).toBe(`${siteConfig.url}/knowledge/ai-tools/sample`);
+    expect(schema.mainEntityOfPage).toBe(schema.url);
+  });
+
+  it("正常系: updatedAt が無いときは dateModified を出さないこと", () => {
+    const schema = buildArticleSchema(input);
+
+    expect(schema.headline).toBe("記事タイトル");
+    expect(schema.datePublished).toBe("2026-05-01T00:00:00.000Z");
+    expect(schema).not.toHaveProperty("dateModified");
+  });
+
+  it("正常系: updatedAt があるときは dateModified を出すこと", () => {
+    const schema = buildArticleSchema({
+      ...input,
+      updatedAt: new Date("2026-06-01T00:00:00.000Z"),
+    });
+
+    expect(schema.dateModified).toBe("2026-06-01T00:00:00.000Z");
   });
 });

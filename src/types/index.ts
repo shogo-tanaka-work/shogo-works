@@ -113,6 +113,12 @@ export interface TechnologiesMore {
   href: string;
 }
 
+/** knowledge 記事の末尾から案内するサービスと、記事との関係を示す一文 */
+export interface KnowledgeServiceLink {
+  serviceId: string;
+  reason: string;
+}
+
 export interface ServiceItem {
   id: string;
   href: string;

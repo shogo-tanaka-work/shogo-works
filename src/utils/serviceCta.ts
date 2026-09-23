@@ -1,5 +1,10 @@
 import { platformLabels } from "@/data/platforms";
-import type { PlatformLink, PricingPlan, ServiceItem } from "@/types";
+import type {
+  KnowledgeServiceLink,
+  PlatformLink,
+  PricingPlan,
+  ServiceItem,
+} from "@/types";
 
 export interface Cta {
   href: string;
@@ -30,3 +35,25 @@ export const planCtas = (plan: PricingPlan): Cta[] =>
   plan.links && plan.links.length > 0
     ? plan.links.map((link) => platformCta(link, "見る"))
     : [{ href: CONTACT_HREF, label: "お問い合わせ", external: false }];
+
+export interface ResolvedKnowledgeServiceLink {
+  href: string;
+  title: string;
+  reason: string;
+}
+
+// knowledge 記事の末尾に出すサービス導線。対象外の記事では空配列を返す。
+export const resolveKnowledgeServiceLinks = (
+  entryId: string,
+  links: Readonly<Record<string, readonly KnowledgeServiceLink[]>>,
+  serviceList: readonly ServiceItem[],
+): ResolvedKnowledgeServiceLink[] =>
+  (links[entryId] ?? []).map(({ serviceId, reason }) => {
+    const service = serviceList.find((s) => s.id === serviceId);
+    if (!service) {
+      throw new Error(
+        `knowledge 記事 ${entryId} のサービス導線が未知の serviceId ${serviceId} を参照しています`,
+      );
+    }
+    return { href: service.href, title: service.title, reason };
+  });
