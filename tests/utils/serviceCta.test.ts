@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { planCtas, resolveKnowledgeServiceLinks, serviceCta } from "@/utils/serviceCta";
-import type { PricingPlan, ServiceItem } from "@/types";
+import {
+  caseStudyCtas,
+  planCtas,
+  resolveKnowledgeServiceLinks,
+  serviceCta,
+} from "@/utils/serviceCta";
+import type { CaseStudy, PricingPlan, ServiceItem } from "@/types";
 
 const baseService: ServiceItem = {
   id: "sample",
@@ -88,5 +93,35 @@ describe("resolveKnowledgeServiceLinks", () => {
     expect(() => resolveKnowledgeServiceLinks("cat/article", links, serviceList)).toThrow(
       /cat\/article.*missing/,
     );
+  });
+});
+
+describe("caseStudyCtas", () => {
+  const baseCase: CaseStudy = {
+    slug: "sample",
+    title: "事例",
+    category: "開発",
+    clientType: "事業者",
+    summary: "概要",
+    challenge: "課題",
+    support: ["支援"],
+    outcomes: ["成果"],
+  };
+
+  it("正常系: fullStoryUrl と platformLink があるとき、note の全文 → 出品ページの順で外部リンクを返すこと", () => {
+    const ctas = caseStudyCtas({
+      ...baseCase,
+      fullStoryUrl: "https://note.com/shogo_works/n/abc",
+      platformLink: { platform: "lancers", href: "https://www.lancers.jp/menu/detail/1" },
+    });
+
+    expect(ctas).toEqual([
+      { href: "https://note.com/shogo_works/n/abc", label: "note で全文を読む", external: true },
+      { href: "https://www.lancers.jp/menu/detail/1", label: "ランサーズで見る", external: true },
+    ]);
+  });
+
+  it("正常系: どちらも無いとき、空配列を返すこと", () => {
+    expect(caseStudyCtas(baseCase)).toEqual([]);
   });
 });

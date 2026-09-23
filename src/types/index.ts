@@ -294,6 +294,10 @@ export interface CaseStudy {
   outcomes: string[]; // 成果
   technologies?: string[];
   serviceHref?: string; // 関連サービスLP（services.ts と整合させる）
+  // 事例の正本（note の全文）。サイトは要約にとどめ、本文はここへ読みに行かせる
+  fullStoryUrl?: string;
+  // 同じ依頼を小口で受ける出品ページ（platforms.ts の platformLinks から選ぶ）
+  platformLink?: PlatformLink;
 }
 
 // --- About page: career / education / certifications ---
