@@ -83,6 +83,12 @@ describe("buildArticleSchema", () => {
     expect(schema.mainEntityOfPage).toBe(schema.url);
   });
 
+  it("正常系: image にページの OG 画像と同じ絶対URLを出すこと", () => {
+    const schema = buildArticleSchema(input);
+
+    expect(schema.image).toBe(`${siteConfig.url}${siteConfig.ogImage}`);
+  });
+
   it("正常系: updatedAt が無いときは dateModified を出さないこと", () => {
     const schema = buildArticleSchema(input);
 

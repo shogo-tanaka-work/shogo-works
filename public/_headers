@@ -1,0 +1,6 @@
+# 静的配信のテキストは charset が付かず、ブラウザが Shift_JIS と推測して日本語が化けるため明示する
+/llms.txt
+  Content-Type: text/plain; charset=utf-8
+
+/robots.txt
+  Content-Type: text/plain; charset=utf-8
