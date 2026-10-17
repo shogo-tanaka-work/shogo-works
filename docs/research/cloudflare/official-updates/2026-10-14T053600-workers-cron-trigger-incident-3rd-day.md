@@ -53,3 +53,10 @@ Cloudflare Status に **Workers - Cron Trigger Activation Issues** が **2026-10
 - 公式見出し: Cloudflare Workers - Cron Trigger Activation Issues（incident ID: npjny9agana8）
 - 公式URL: https://www.cloudflarestatus.com/
 - 原文全文は公式ページで確認してください。
+
+## 追記: 2026-10-16 の再発（4日目）
+
+- **2026-10-16T00:01:49Z 〜 2026-10-16T01:06:26Z、約65分、Minor、Resolved。** incident ID は `51udczr46uj2` で、10-14 までの `npjny9agana8` とは別 ID である。解決時の記載は "Workers Cron Triggers have stabilized"。
+- 10-15 は窓内に新規の更新が無く、**1日空けて再発した形**である。10-11 から数えて**4回目**。
+- 発生開始（00:01:49Z）は 2026-10-17 日次チェックの窓開始（2026-10-16T00:20Z）よりわずかに前で、**解決のみが窓内**に入る。2026-10-17 の日次サマリーには incident 節で言及した。
+- **Cron Trigger に業務処理を載せている場合、単発の遅延ではなく断続的な事象として扱う段階に入っている。** 次の再発時もこのファイルへ追記する。
