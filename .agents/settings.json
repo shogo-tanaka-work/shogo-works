@@ -25,6 +25,7 @@
       "Bash(wget *)",
       "Bash(chmod *)",
       "Bash(git push --force *)",
+      "WebFetch(domain:help.openai.com)",
       "Read(./.env)",
       "Read(./.env.*)",
       "Read(./.env.local)"

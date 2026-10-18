@@ -188,3 +188,9 @@
 - **対処**: 一覧・日付は RSS を正規ルートにする。本文は Exa のライブ取得で確認し、本文の日付が RSS の `pubDate` と一致しないものは根拠にしない。あわせて `claude.dev` / `community.openai.com` の DNS 失敗（`ENOTFOUND`）は実行環境の通信許可リストの問題と判断し、許可リストへ追加した。
 - **カタログ取り込み**: 済（2026-10-18、source-catalog.md の OpenAI 行・Claude 行と「ソース別の注意」、SKILL.md の OpenAI ルールへ反映）。学び（2026-06-04）の「WebSearch を一次手段にする」は、一覧・日付については本学びで置き換える。
 
+### 学び13: OpenAI の 403 は Cloudflare のボット対策で、curl / WebFetch を試すだけ無駄になる
+
+- **検知**: 2026-10-18、`curl -sS -I` で `help.openai.com` と `openai.com/news/` のレスポンスヘッダーを確認した。プロキシは `200 Connection Established` で接続を通し、相手側が `HTTP/2 403`・`server: cloudflare`・`cf-mitigated: challenge` を返した。`status.openai.com`（Vercel 配信）は 200 だった。同じ日に Exa の `web_fetch_exa` で ChatGPT release notes の本文を取得できた。
+- **原因**: Cloudflare のボット対策による JavaScript チャレンジ。robots.txt や llms.txt（アクセスを止める仕組みではない）でも、実行環境のネットワーク設定でもない。学び12までの記録は「403 になる」という事実だけで、「試さない」という指示になっていなかった。また curl 許可リストに `help.openai.com` が入っていたため、確認なしの curl を後押ししていた。
+- **対処**: source-catalog.md と SKILL.md に「OpenAI の HTML は curl / WebFetch で取得しない」と明記し、取得経路を「一覧・日付は RSS、本文は Exa」に固定した。仕組みでも止めるため、`help.openai.com` を curl 許可リストから外し、`.agents/settings.json` に `WebFetch(domain:help.openai.com)` の拒否ルールを足した。`openai.com` は RSS の取得に使うため、どちらにも含めない。
+- **カタログ取り込み**: 済（2026-10-18、source-catalog.md の OpenAI 行と「ソース別の注意」、SKILL.md の OpenAI ルールへ反映）。

@@ -3,9 +3,9 @@
 # 読み込むのは .agents/hooks/curl-allowlist.sh
 
 # OpenAI
+# help.openai.com は Cloudflare のボット対策で常に 403 になるため入れない（本文は Exa で取得する）
 openai.com
 www.openai.com
-help.openai.com
 status.openai.com
 developers.openai.com
 community.openai.com
