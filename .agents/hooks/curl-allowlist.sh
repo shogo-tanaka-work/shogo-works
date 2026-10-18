@@ -46,7 +46,7 @@ HOSTS=$(printf '%s' "$COMMAND" \
 [[ -n "$HOSTS" ]] || decide "deny" "curl の URL は https:// 付きで、許可リストのドメインを指定してください。"
 
 is_allowed_host() {
-  grep -vE '^[[:space:]]*(#|$)' "$ALLOWLIST" | tr -d '[:blank:]' | grep -qxiF "$1"
+  grep -vE '^[[:space:]]*(#|$)' "$ALLOWLIST" | tr -d '[:blank:]' | grep -qxiF -e "$1"
 }
 
 while IFS= read -r host; do
@@ -64,7 +64,9 @@ SAFE_CHARS='^curl([[:blank:]]+[A-Za-z0-9_./:@%=?+,~-]+)+$'
 SAFE_FLAGS=' -s -S -L -f -I -i -sS -sL -fsSL -sSL -fsL --silent --show-error --location --fail --head --include --compressed '
 
 # ホストは ":"・"/"・末尾のいずれかで終わる形に限り、userinfo は認めない
-STRICT_URL='^https://([A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*)(:[0-9]+)?(/[A-Za-z0-9_./%=?+,~-]*)?$'
+# 各ラベルは英数字で始まり英数字で終わる（"-" 始まりのホストを grep のオプションと誤読させない）
+LABEL='[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?'
+STRICT_URL="^https://(${LABEL}(\\.${LABEL})*)(:[0-9]+)?(/[A-Za-z0-9_./%=?+,~-]*)?\$"
 
 read -r -a TOKENS <<< "$COMMAND"
 for token in "${TOKENS[@]:1}"; do
