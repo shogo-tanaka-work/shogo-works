@@ -1,0 +1,58 @@
+# curl で確認なしにアクセスしてよいドメイン（1行1ドメイン、完全一致）
+# サブドメインは自動では含まれない。必要なものを個別に書く。
+# 読み込むのは .agents/hooks/curl-allowlist.sh
+
+# OpenAI
+openai.com
+www.openai.com
+help.openai.com
+status.openai.com
+developers.openai.com
+community.openai.com
+learn.chatgpt.com
+
+# Google
+blog.google
+workspaceupdates.googleblog.com
+ai.google.dev
+
+# Anthropic
+support.claude.com
+claude.com
+www.anthropic.com
+anthropic.com
+platform.claude.com
+claude.dev
+
+# AWS
+aws.amazon.com
+
+# Cloudflare
+developers.cloudflare.com
+blog.cloudflare.com
+www.cloudflarestatus.com
+
+# GitHub
+github.com
+api.github.com
+raw.githubusercontent.com
+github.blog
+docs.github.com
+
+# Microsoft
+learn.microsoft.com
+techcommunity.microsoft.com
+www.microsoft.com
+
+# Cursor
+cursor.com
+status.cursor.com
+forum.cursor.com
+
+# xAI
+docs.x.ai
+x.ai
+
+# その他
+manus.im
+dify.ai

@@ -22,7 +22,6 @@
     ],
     "deny": [
       "Bash(rm -rf *)",
-      "Bash(curl *)",
       "Bash(wget *)",
       "Bash(chmod *)",
       "Bash(git push --force *)",
@@ -39,6 +38,16 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.agents/hooks/tooluse.sh",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$CLAUDE_PROJECT_DIR/.agents/hooks/curl-allowlist.sh\"",
             "timeout": 10
           }
         ]
