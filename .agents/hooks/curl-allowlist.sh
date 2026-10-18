@@ -45,8 +45,12 @@ HOSTS=$(printf '%s' "$COMMAND" \
 
 [[ -n "$HOSTS" ]] || decide "deny" "curl の URL は https:// 付きで、許可リストのドメインを指定してください。"
 
+is_allowed_host() {
+  grep -vE '^[[:space:]]*(#|$)' "$ALLOWLIST" | tr -d '[:blank:]' | grep -qxiF "$1"
+}
+
 while IFS= read -r host; do
-  if ! grep -vE '^[[:space:]]*(#|$)' "$ALLOWLIST" | tr -d '[:blank:]' | grep -qxiF "$host"; then
+  if ! is_allowed_host "$host"; then
     decide "deny" "curl のアクセス先 $host は許可リスト (.agents/hooks/curl-allowed-domains.txt) にありません。"
   fi
 done <<< "$HOSTS"
@@ -59,12 +63,18 @@ SAFE_CHARS='^curl([[:blank:]]+[A-Za-z0-9_./:@%=?+,~-]+)+$'
 # 値を取らず、書き込み・送信・設定読み込みを伴わないフラグだけを許す
 SAFE_FLAGS=' -s -S -L -f -I -i -sS -sL -fsSL -sSL -fsL --silent --show-error --location --fail --head --include --compressed '
 
+# ホストは ":"・"/"・末尾のいずれかで終わる形に限り、userinfo は認めない
+STRICT_URL='^https://([A-Za-z0-9-]+(\.[A-Za-z0-9-]+)*)(:[0-9]+)?(/[A-Za-z0-9_./%=?+,~-]*)?$'
+
 read -r -a TOKENS <<< "$COMMAND"
 for token in "${TOKENS[@]:1}"; do
   if [[ "$token" == -* ]]; then
     [[ "$SAFE_FLAGS" == *" $token "* ]] || exit 0
-  elif [[ ! "$token" =~ ^https:// ]]; then
-    # scheme なしや http:// の引数も curl は URL として扱うため、自動許可しない
+  elif [[ "$token" =~ $STRICT_URL ]]; then
+    # 上の抽出は deny 判定用の緩いもの。自動許可は curl と解釈がずれない厳密な形式で再確認する
+    is_allowed_host "${BASH_REMATCH[1]}" || exit 0
+  else
+    # scheme なし・http://・userinfo 付きなど、厳密な形式に合わない引数は自動許可しない
     exit 0
   fi
 done
