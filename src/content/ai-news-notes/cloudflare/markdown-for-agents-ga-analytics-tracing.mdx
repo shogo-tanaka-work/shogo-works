@@ -1,0 +1,12 @@
+---
+title: "教材化メモ：AI エージェント向けのサイト最適化を、観測して改善する話"
+noteFor: "cloudflare/markdown-for-agents-ga-analytics-tracing"
+date: 2026-11-09
+tags: ["cloudflare", "observability", "ai-agents", "markdown-for-agents"]
+---
+
+- **HTML と Markdown の違い**を教える題材。エージェントはレイアウトではなく本文を読むため、軽い表現のほうがトークンを節約できる。
+- **有効化して終わりではなく、観測する**という運用の教材。Analytics / Logs / トレースで失敗理由を追う流れは、他の機能の運用にも使える型。
+- **推定値の扱い**（サンプル重み付き、バイト数ベース）は、数字の信頼度を読み分ける練習になる。経営報告に使う数字と、傾向確認に使う数字は違う。
+- GraphQL Analytics API とトレースを併用する例は、ダッシュボードだけでなく**API とログ基盤にも同じ指標を流す**設計の導入に使える。
+- Playground で HTML と並べる検証は、制作物の**納品前チェックリスト**に落とし込みやすい。
