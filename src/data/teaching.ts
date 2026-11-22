@@ -3,7 +3,7 @@ import type { Seminar, TeachingExperience } from "@/types";
 export const teachingExperience: TeachingExperience[] = [
   {
     title: "AI講師（業務活用）",
-    organization: "某AIスクール",
+    organization: "byTech",
     period: "2025年6月 - 現在",
     students: "30+",
     description: "AI活用の基礎から実践まで幅広く指導",

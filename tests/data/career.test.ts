@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { careerExperiences } from "@/data/career";
+import { teachingExperience } from "@/data/teaching";
 
 describe("career データ", () => {
   it("必須フィールドがすべて埋まっていること", () => {
@@ -32,6 +33,37 @@ describe("career データ", () => {
       for (const highlight of experience.highlights) {
         expect(highlight).not.toMatch(corporateSuffix);
       }
+    }
+  });
+
+  /**
+   * ブランドの肩書きは SE・AIエンジニア・AI活用講師で、「コンサル」「フリーランス」は自称に使わない。
+   * 自己紹介ページの経歴に旧肩書きが戻らないことを見る。
+   */
+  it("role・summary・highlights に「コンサル」「フリーランス」を含まないこと", () => {
+    const retiredTitle = /(コンサル|フリーランス)/;
+
+    for (const experience of careerExperiences) {
+      expect(experience.role).not.toMatch(retiredTitle);
+      expect(experience.summary).not.toMatch(retiredTitle);
+
+      for (const highlight of experience.highlights) {
+        expect(highlight).not.toMatch(retiredTitle);
+      }
+    }
+  });
+
+  /**
+   * 所属先と業務委託先は実名で書く方針（career.ts 冒頭のコメント）。
+   * 伏せ字の「某」が残ると、ページ間で同じ所属先の書き方が食い違う。
+   */
+  it("company と講師実績の organization に伏せ字の「某」を使わないこと", () => {
+    for (const experience of careerExperiences) {
+      expect(experience.company).not.toMatch(/某/);
+    }
+
+    for (const teaching of teachingExperience) {
+      expect(teaching.organization).not.toMatch(/某/);
     }
   });
 
