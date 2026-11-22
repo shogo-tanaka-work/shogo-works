@@ -6,7 +6,7 @@ import type {
 
 /**
  * 職務経歴。正本は職務経歴書（2026-07-03 版）で、案件単位・新しい順に並べる。
- * 客先は業種表記にとどめ、実名を出さない。所属先は自社のため実名で記載する。
+ * 客先は業種表記にとどめ、実名を出さない。所属先と業務委託先は実名で記載する。
  */
 export const careerExperiences: CareerExperience[] = [
   {
@@ -34,7 +34,7 @@ export const careerExperiences: CareerExperience[] = [
   },
   {
     period: "2025年6月 - 現在",
-    company: "某AIスクール（業務委託）",
+    company: "byTech（業務委託）",
     role: "AI活用講師・社内SE",
     employment: "業務委託",
     teamSize: "1名（主担当）",
