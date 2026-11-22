@@ -35,6 +35,23 @@ describe("career データ", () => {
     }
   });
 
+  /**
+   * ブランドの肩書きは SE・AIエンジニア・AI活用講師で、「コンサル」「フリーランス」は自称に使わない。
+   * 自己紹介ページの経歴に旧肩書きが戻らないことを見る。
+   */
+  it("role・summary・highlights に「コンサル」「フリーランス」を含まないこと", () => {
+    const retiredTitle = /(コンサル|フリーランス)/;
+
+    for (const experience of careerExperiences) {
+      expect(experience.role).not.toMatch(retiredTitle);
+      expect(experience.summary).not.toMatch(retiredTitle);
+
+      for (const highlight of experience.highlights) {
+        expect(highlight).not.toMatch(retiredTitle);
+      }
+    }
+  });
+
   it("現職として扱う経歴の period が「現在」で終わること", () => {
     for (const experience of careerExperiences) {
       if (!experience.current) continue;
